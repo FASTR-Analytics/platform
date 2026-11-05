@@ -18,7 +18,7 @@ import type {
   ProposalResult,
   ToolUIMetadata,
 } from "./tool_helpers.ts";
-import { getHeadlessCapability } from "./tool_helpers.ts";
+import { detachedCallContext, getHeadlessCapability } from "./tool_helpers.ts";
 import { toolThrowToResultParts } from "./tool_failure.ts";
 import {
   type CreateMCPServerConfig,
@@ -765,11 +765,16 @@ export function buildMCPServerCore(
           const { text, structured } = await tool.sdkTool.runStructured(
             input,
             poisonView(name),
+            detachedCallContext(),
           );
           return completeText(text, wrappedStructured(structured));
         }
         const text = tool.sdkTool.runWithView
-          ? await tool.sdkTool.runWithView(input, poisonView(name))
+          ? await tool.sdkTool.runWithView(
+            input,
+            poisonView(name),
+            detachedCallContext(),
+          )
           : await tool.sdkTool.run(input);
         return completeText(text);
       } catch (error) {

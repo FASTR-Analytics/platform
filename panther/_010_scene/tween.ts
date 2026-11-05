@@ -28,6 +28,7 @@ import type {
   Rect,
   RenderContext,
   SurroundsPrimitive,
+  TextAdjustmentOptions,
 } from "./deps.ts";
 import type {
   BoxElement,
@@ -36,6 +37,7 @@ import type {
   MeasuredSceneFigure,
   RegionElement,
   Scene,
+  SceneBadgeStyle,
   SceneBoxStyle,
   SceneConnectorStyle,
   SceneElement,
@@ -182,6 +184,7 @@ function morphRegion(
       : a.outline.map((ring, i) => lerpRing(ring, b.outline![i], t)),
     label: b.label === undefined ? undefined : {
       ...b.label,
+      style: lerpTextStyle(a.label?.style, b.label.style, t),
       at: a.label?.at === undefined || b.label.at === undefined
         ? b.label.at
         : lerpRect(a.label.at, b.label.at, t),
@@ -216,6 +219,7 @@ function morphText(
   return {
     ...b,
     rect: lerpRect(a.rect, b.rect, t),
+    style: lerpTextStyle(a.style, b.style, t),
     opacity: lerpOpacity(a.opacity, b.opacity, t),
   };
 }
@@ -304,6 +308,57 @@ function mixColor(
   }
 }
 
+// A colour set on one side only switches halfway, as one that does not
+// parse does.
+function mixOptionalColor(
+  a: ColorKeyOrString | undefined,
+  b: ColorKeyOrString | undefined,
+  t: number,
+): ColorKeyOrString | undefined {
+  if (a === undefined || b === undefined) {
+    return t < 0.5 ? a : b;
+  }
+  return mixColor(a, b, t);
+}
+
+// The target's adjustments with the colour interpolated.
+function lerpTextStyle(
+  a: TextAdjustmentOptions | undefined,
+  b: TextAdjustmentOptions | undefined,
+  t: number,
+): TextAdjustmentOptions | undefined {
+  const color = mixOptionalColor(a?.color, b?.color, t);
+  if (b === undefined && color === undefined) {
+    return undefined;
+  }
+  return { ...b, color };
+}
+
+// Badge styles pair by index: a morph needs the same content on both sides,
+// so the boxes have the same badges. A style present on one side only is
+// the target's.
+function lerpBadgeStyles(
+  a: SceneBadgeStyle[] | undefined,
+  b: SceneBadgeStyle[] | undefined,
+  t: number,
+): SceneBadgeStyle[] | undefined {
+  if (a === undefined || b === undefined) {
+    return b;
+  }
+  return b.map((sb, i) => {
+    const sa = a[i];
+    if (sa === undefined) {
+      return sb;
+    }
+    return {
+      fillColor: mixOptionalColor(sa.fillColor, sb.fillColor, t),
+      strokeColor: mixOptionalColor(sa.strokeColor, sb.strokeColor, t),
+      textColor: mixOptionalColor(sa.textColor, sb.textColor, t),
+      opacity: lerpOpacity(sa.opacity, sb.opacity, t),
+    };
+  });
+}
+
 function lerpBoxStyle(
   a: SceneBoxStyle,
   b: SceneBoxStyle,
@@ -316,6 +371,9 @@ function lerpBoxStyle(
     strokeWidth: lerp(a.strokeWidth, b.strokeWidth, t),
     rectRadius: lerp(a.rectRadius, b.rectRadius, t),
     padding: lerpPadding(a.padding, b.padding, t),
+    title: lerpTextStyle(a.title, b.title, t),
+    sub: lerpTextStyle(a.sub, b.sub, t),
+    badges: lerpBadgeStyles(a.badges, b.badges, t),
   };
 }
 

@@ -8,6 +8,7 @@ import {
   type CustomFigureStyle,
   type HeaderItem,
   type MeasuredText,
+  type MergedLegendStyle,
   type MergedSurroundsStyle,
   type RectCoordsDims,
   type RenderContext,
@@ -61,58 +62,20 @@ export function estimateMinSurroundsWidth(
       sSurrounds.legendGap;
   }
 
-  if (
-    !Array.isArray(legendLabels) ||
-    legendLabels.length === 0 ||
-    (legendLabels.length === 1 &&
-      legendLabels[0] === NO_DISAGGREGATION_HEADER_ID)
-  ) {
+  const legendItems = getLegendItems(
+    legendLabels,
+    sSurrounds.legend,
+    seriesHeaders,
+  );
+  if (!legendItems) {
     return sSurrounds.padding.totalPx();
   }
 
-  const sLegend = sSurrounds.legend;
-  const legendItems: LegendItem[] = isArrayOfLegendItems(legendLabels)
-    ? legendLabels
-    : legendLabels.map((label, i_label, arr_label) => ({
-      label,
-      color: sLegend.seriesColorFunc({
-        i_series: i_label,
-        isFirstSeries: i_label === 0,
-        isLastSeries: i_label === arr_label.length - 1,
-        seriesHeader: seriesHeaders?.[i_label] ?? { id: label, label },
-        nSerieses: arr_label.length,
-        seriesValArrays: [],
-        nVals: 0,
-        i_lane: 0,
-        nLanes: 0,
-        laneHeader: DEFAULT_HEADER,
-        i_tier: 0,
-        nTiers: 0,
-        tierHeader: DEFAULT_HEADER,
-        i_pane: 0,
-        nPanes: 0,
-        paneHeader: DEFAULT_HEADER,
-      }),
-    }));
-
-  const anyPoints = legendItems.some(
-    (li) =>
-      li.pointStyle !== undefined &&
-      li.pointStyle !== "as-block" &&
-      li.pointStyle !== "as-line",
-  );
-  const colorBoxWidthOrPointWidth = anyPoints
-    ? sLegend.legendPointRadius * 2 + sLegend.legendPointStrokeWidth
-    : sLegend.legendColorBoxWidth;
-
-  let maxLabelWidth = 0;
-  for (const item of legendItems) {
-    const mText = rc.mText(item.label, sLegend.text, Number.POSITIVE_INFINITY);
-    maxLabelWidth = Math.max(maxLabelWidth, mText.dims.w());
-  }
-
-  return sSurrounds.padding.totalPx() + colorBoxWidthOrPointWidth +
-    sLegend.legendLabelGap + maxLabelWidth + sSurrounds.legendGap;
+  // Laid out as measureSurrounds lays out a right legend: no available
+  // width, so the legend wraps into columns at maxLegendItemsInOneColumn.
+  const mLegend = measureLegend(rc, legendItems, sSurrounds.legend);
+  return sSurrounds.padding.totalPx() + mLegend.dimensions.w() +
+    sSurrounds.legendGap;
 }
 
 export type MeasuredSurroundsLegend =
@@ -232,6 +195,11 @@ export function measureSurrounds(
     const isRight = ["right-top", "right-center", "right-bottom"].includes(
       sSurrounds.legendPosition,
     );
+    const legendItems = getLegendItems(
+      legendLabels,
+      sSurrounds.legend,
+      seriesHeaders,
+    );
 
     if (isConcreteScaleLegendConfig(legendLabels)) {
       const sScaleLegend = cs.getMergedScaleLegendStyle();
@@ -260,43 +228,11 @@ export function measureSurrounds(
         new Coordinates({ x, y }),
       );
       legend = { type: "scale", rcd: legendRcd, mScaleLegend };
-    } else if (
-      Array.isArray(legendLabels) &&
-      legendLabels.length > 0 &&
-      !(legendLabels.length === 1 &&
-        legendLabels[0] === NO_DISAGGREGATION_HEADER_ID)
-    ) {
-      const sLegend = sSurrounds.legend;
-      const legendItems: LegendItem[] = isArrayOfLegendItems(legendLabels)
-        ? legendLabels
-        : legendLabels.map((label, i_label, arr_label) => {
-          return {
-            label,
-            color: sLegend.seriesColorFunc({
-              i_series: i_label,
-              isFirstSeries: i_label === 0,
-              isLastSeries: i_label === arr_label.length - 1,
-              seriesHeader: seriesHeaders?.[i_label] ?? { id: label, label },
-              nSerieses: arr_label.length,
-              seriesValArrays: [],
-              nVals: 0,
-              i_lane: 0,
-              nLanes: 0,
-              laneHeader: DEFAULT_HEADER,
-              i_tier: 0,
-              nTiers: 0,
-              tierHeader: DEFAULT_HEADER,
-              i_pane: 0,
-              nPanes: 0,
-              paneHeader: DEFAULT_HEADER,
-            }),
-          };
-        });
-
+    } else if (legendItems) {
       const mLegend = measureLegend(
         rc,
         legendItems,
-        sLegend,
+        sSurrounds.legend,
         isBottom ? chartAndLegendRcd.w() : undefined,
       );
 
@@ -377,4 +313,45 @@ function positionLegend(
       ? (chartAndLegendRcd.h() - legendDims.h()) / 2
       : chartAndLegendRcd.h() - legendDims.h());
   return { x, y };
+}
+
+// undefined when the input draws no item legend: a scale legend, no labels,
+// or the lone no-disaggregation sentinel.
+function getLegendItems(
+  legendLabels: LegendInput,
+  sLegend: MergedLegendStyle,
+  seriesHeaders: HeaderItem[] | undefined,
+): LegendItem[] | undefined {
+  if (
+    !Array.isArray(legendLabels) ||
+    legendLabels.length === 0 ||
+    (legendLabels.length === 1 &&
+      legendLabels[0] === NO_DISAGGREGATION_HEADER_ID)
+  ) {
+    return undefined;
+  }
+  if (isArrayOfLegendItems(legendLabels)) {
+    return legendLabels;
+  }
+  return legendLabels.map((label, i_label, arr_label) => ({
+    label,
+    color: sLegend.seriesColorFunc({
+      i_series: i_label,
+      isFirstSeries: i_label === 0,
+      isLastSeries: i_label === arr_label.length - 1,
+      seriesHeader: seriesHeaders?.[i_label] ?? { id: label, label },
+      nSerieses: arr_label.length,
+      seriesValArrays: [],
+      nVals: 0,
+      i_lane: 0,
+      nLanes: 0,
+      laneHeader: DEFAULT_HEADER,
+      i_tier: 0,
+      nTiers: 0,
+      tierHeader: DEFAULT_HEADER,
+      i_pane: 0,
+      nPanes: 0,
+      paneHeader: DEFAULT_HEADER,
+    }),
+  }));
 }

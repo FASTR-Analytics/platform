@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { t3 } from "../deps.ts";
-import { createAITool } from "../deps.ts";
+import { AIToolFailure, createAITool } from "../deps.ts";
 import type { AIToolWithMetadata } from "../deps.ts";
 import {
   type AskUserQuestionsAnswer,
@@ -16,14 +16,9 @@ import { AskUserQuestionsRenderer } from "./_renderers/ask_user_questions_render
 export function createAskUserQuestionsTool(): AIToolWithMetadata<
   AskUserQuestionsInput
 > {
-  // Closure variables shared between handler and inProgressComponent.
-  // Relies on the tool loop's sequential-execution CONTRACT (one block at a
-  // time, stated at the loop in _create_ai_chat.ts) — batched blocks would
-  // race multiple ask_user_questions calls for these variables.
-  let resolveAnswer:
-    | ((answer: AskUserQuestionsAnswer) => void)
-    | null = null;
-  let rejectAnswer: ((reason: Error) => void) | null = null;
+  // One pending question per call, keyed by its tool_use id, so chats that
+  // share this tool instance each answer their own.
+  const pending = new Map<string, PendingQuestion>();
 
   const tool = createAITool({
     name: "ask_user_questions",
@@ -31,34 +26,36 @@ export function createAskUserQuestionsTool(): AIToolWithMetadata<
       "Present a multiple-choice question to the user inline in the chat. Use this when you need the user to make a decision, clarify preferences, or choose between approaches. Input: { question: string, options: [{ label: string, description?: string }] (2-6 options), allowMultiple?: boolean }. Single-select by default; set allowMultiple to true for multi-select. Only add description to an option if the label alone is ambiguous — omit it when the label is self-explanatory. Only call this tool once per response — do not combine it with other tool calls in the same response. Ask one question at a time. The user can always pick 'Other' and type their own answer instead, so never add an 'Other', 'Something else' or 'Let me explain' option yourself; a typed answer comes back marked as the user's own answer. The user's selection will be returned as the tool result.",
     inputSchema: askUserQuestionsInputSchema,
     kind: "read",
-    handler: async (input: AskUserQuestionsInput): Promise<string> => {
-      if (resolveAnswer !== null) {
-        throw new Error(
-          "ask_user_questions can only be called once per response. Wait for the user to answer before asking another question.",
-        );
-      }
-      // Reset in finally — a rejection (cancel button, stop, unmount) must
-      // not leave stale resolvers behind, or the once-per-response guard
-      // above rejects every later call for the life of the tool instance.
+    handler: async (input, ctx): Promise<string> => {
+      let onAbort = () => {};
       try {
         const answer = await new Promise<AskUserQuestionsAnswer>(
           (resolve, reject) => {
-            resolveAnswer = resolve;
-            rejectAnswer = reject;
+            const cancel = (reason: string) =>
+              reject(new AIToolFailure(reason));
+            if (ctx.signal.aborted) {
+              cancel(STOPPED);
+              return;
+            }
+            pending.set(ctx.toolUseId, { answer: resolve, cancel });
+            onAbort = () => cancel(STOPPED);
+            ctx.signal.addEventListener("abort", onAbort, { once: true });
           },
         );
         return formatAnswerForAI(input, answer);
       } finally {
-        resolveAnswer = null;
-        rejectAnswer = null;
+        pending.delete(ctx.toolUseId);
+        ctx.signal.removeEventListener("abort", onAbort);
       }
     },
-    inProgressComponent: (p: { input: AskUserQuestionsInput }) => (
+    inProgressComponent: (
+      p: { input: AskUserQuestionsInput; toolUseId: string },
+    ) => (
       <AskUserQuestionsRenderer
         input={p.input}
-        onSubmit={(answer) => resolveAnswer?.(answer)}
+        onSubmit={(answer) => pending.get(p.toolUseId)?.answer(answer)}
         onCancel={() =>
-          rejectAnswer?.(new Error("User cancelled the question"))}
+          pending.get(p.toolUseId)?.cancel("User cancelled the question")}
       />
     ),
     inProgressLabel: t3({
@@ -74,17 +71,20 @@ export function createAskUserQuestionsTool(): AIToolWithMetadata<
       th: "ผู้ใช้ตอบคำถามแล้ว",
     }),
   });
-  // Engine-managed card mechanism (decision log #6): the card is excluded
-  // from the upfront in-progress batch and created when its block starts
-  // executing; pane unmount does not cancel the question (a hidden pane
-  // leaves the question pending and recoverable). Stop cancels explicitly
-  // through _cancelPending so the once-per-response closure guard resets.
+  // Engine-managed card: excluded from the upfront in-progress batch and
+  // created when its block starts executing. Pane unmount does not cancel the
+  // question (a hidden pane leaves it pending and recoverable); the Cancel
+  // button and Stop do.
   tool.metadata.awaitsUserAction = true;
-  tool.metadata._cancelPending = () => {
-    rejectAnswer?.(new Error("Question cancelled: generation was stopped"));
-  };
   return tool;
 }
+
+type PendingQuestion = {
+  answer: (answer: AskUserQuestionsAnswer) => void;
+  cancel: (reason: string) => void;
+};
+
+const STOPPED = "Question cancelled: generation was stopped";
 
 function formatAnswerForAI(
   input: AskUserQuestionsInput,

@@ -85,7 +85,12 @@ export function MessageList(p: Props) {
         if (toolWithMetadata?.metadata.inProgressComponent) {
           const InProgressComponent =
             toolWithMetadata.metadata.inProgressComponent;
-          return <InProgressComponent input={item.toolInput} />;
+          return (
+            <InProgressComponent
+              input={item.toolInput}
+              toolUseId={item.toolUseId}
+            />
+          );
         }
         const Renderer = registry.toolLoading ?? AIChatToolLoading;
         return <Renderer item={item} />;

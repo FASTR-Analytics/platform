@@ -7,6 +7,7 @@ import {
   type AlertComponentProps,
   type AnthropicModel,
   type AnthropicModelConfig,
+  clampMaxOutputTokens,
   createSignal,
   type EffortLevel,
   getMaxOutputTokens,
@@ -40,25 +41,74 @@ type Props = AlertComponentProps<
   AIChatSettingsValues
 >;
 
+type ModelOption = { value: AnthropicModel; label: string };
+
+// The MODEL_OPTIONS entries allowedModels names, then the IDs it names that
+// MODEL_OPTIONS lacks (a proxy's own model), labelled by ID.
+export function settingsModelOptions(
+  allowedModels: AnthropicModel[] | undefined,
+): ModelOption[] {
+  if (!allowedModels) {
+    return MODEL_OPTIONS;
+  }
+  const known = new Set(MODEL_OPTIONS.map((o) => o.value));
+  return [
+    ...MODEL_OPTIONS.filter((o) => allowedModels.includes(o.value)),
+    ...allowedModels
+      .filter((id) => !known.has(id))
+      .map((id) => ({ value: id, label: id })),
+  ];
+}
+
+export function initialSettingsModel(
+  options: ModelOption[],
+  initial: AnthropicModel,
+): AnthropicModel {
+  if (options.some((o) => o.value === initial)) {
+    return initial;
+  }
+  return options[0]?.value ?? initial;
+}
+
+// The max tokens and effort a model takes, from the ones picked so far: max
+// tokens within its cap, and the effort Apply sends for it ("" for none).
+export function settingsForModel(
+  model: AnthropicModel,
+  maxTokens: number,
+  effort: EffortLevel | "",
+): { maxTokens: number; effort: EffortLevel | "" } {
+  return {
+    maxTokens: clampMaxOutputTokens(maxTokens, model),
+    effort: effort ? resolveOutputConfig(model, { effort })?.effort ?? "" : "",
+  };
+}
+
 export function AIChatSettingsPanel(p: Props) {
   const fields = new Set(
     p.adjustable ?? ["model"] as AIChatSettingsField[],
   );
 
-  const modelOptions = p.allowedModels
-    ? MODEL_OPTIONS.filter((o) => p.allowedModels!.includes(o.value))
-    : MODEL_OPTIONS;
-
-  const initialModel =
-    p.allowedModels && !p.allowedModels.includes(p.initialValues.model)
-      ? modelOptions[0].value
-      : p.initialValues.model;
-
-  const [model, setModel] = createSignal<AnthropicModel>(initialModel);
-  const [maxTokens, setMaxTokens] = createSignal(p.initialValues.max_tokens);
-  const [effort, setEffort] = createSignal<EffortLevel | "">(
+  const modelOptions = settingsModelOptions(p.allowedModels);
+  const initialModel = initialSettingsModel(
+    modelOptions,
+    p.initialValues.model,
+  );
+  const initial = settingsForModel(
+    initialModel,
+    p.initialValues.max_tokens,
     p.initialValues.output_config?.effort ?? "",
   );
+
+  const [model, setModel] = createSignal<AnthropicModel>(initialModel);
+  const [maxTokens, setMaxTokens] = createSignal(initial.maxTokens);
+  const [effort, setEffort] = createSignal<EffortLevel | "">(initial.effort);
+
+  const changeModel = (next: AnthropicModel) => {
+    const fitted = settingsForModel(next, maxTokens(), effort());
+    setModel(next);
+    setMaxTokens(fitted.maxTokens);
+    setEffort(fitted.effort);
+  };
 
   const EFFORT_LABELS: Record<EffortLevel, string> = {
     low: t3({ en: "Low", fr: "Faible", pt: "Baixo", th: "ต่ำ" }),
@@ -106,18 +156,14 @@ export function AIChatSettingsPanel(p: Props) {
           pt: "Aplicar",
           th: "นำไปใช้",
         }),
-        onClick: () =>
+        onClick: () => {
+          const chosen = effort();
           p.close({
             model: model(),
-            max_tokens: Math.min(maxTokens(), getMaxOutputTokens(model())),
-            // Re-resolve in case the model changed after the effort was
-            // picked (unsupported levels are clamped/dropped per model).
-            output_config: effort()
-              ? resolveOutputConfig(model(), {
-                effort: effort() as EffortLevel,
-              })
-              : undefined,
-          }),
+            max_tokens: maxTokens(),
+            output_config: chosen ? { effort: chosen } : undefined,
+          });
+        },
       }]}
     >
       <Show when={fields.has("model")}>
@@ -125,7 +171,7 @@ export function AIChatSettingsPanel(p: Props) {
           label={t3({ en: "Model", fr: "Modèle", pt: "Modelo", th: "โมเดล" })}
           value={model()}
           options={modelOptions}
-          onChange={setModel}
+          onChange={changeModel}
           fullWidth
         />
       </Show>

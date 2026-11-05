@@ -1,4 +1,9 @@
-import type { AnyAITool } from "@timroberton/panther";
+import { runContextOf } from "@timroberton/panther";
+import type {
+  AIToolCallContext,
+  AnyAITool,
+  SDKToolRunContext,
+} from "@timroberton/panther";
 
 // The provenance line that opens a package-bound read's result on both
 // surfaces. A result names the package and scope it read because the pair
@@ -40,19 +45,26 @@ export function withSourceHeader<T extends AnyAITool>(
     metadata: tool.metadata,
     sdkTool: {
       ...inner,
-      run: async (input: unknown) => prepend(await inner.run(input)),
-      runWithView: async (input: unknown, getView?: () => unknown) =>
+      run: async (input: unknown, context?: SDKToolRunContext) =>
+        prepend(await inner.run(input, context)),
+      runWithView: async (
+        input: unknown,
+        getView: (() => unknown) | undefined,
+        ctx: AIToolCallContext,
+      ) =>
         prepend(
           inner.runWithView
-            ? await inner.runWithView(input, getView)
-            : await inner.run(input),
+            ? await inner.runWithView(input, getView, ctx)
+            : await inner.run(input, runContextOf(ctx)),
         ),
-      runStructured: runStructured === undefined
-        ? undefined
-        : async (input: unknown, getView?: () => unknown) => {
-          const result = await runStructured(input, getView);
-          return { ...result, text: prepend(result.text) };
-        },
+      runStructured: runStructured === undefined ? undefined : async (
+        input: unknown,
+        getView: (() => unknown) | undefined,
+        ctx: AIToolCallContext,
+      ) => {
+        const result = await runStructured(input, getView, ctx);
+        return { ...result, text: prepend(result.text) };
+      },
     },
   } as T;
 }

@@ -3,9 +3,9 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { GateView, MessageParam, Usage } from "../deps.ts";
+import type { GateView, MessageParam } from "../deps.ts";
 import { batch, createSignal } from "solid-js";
-import type { ChatState, DisplayItem } from "./types.ts";
+import type { DisplayItem } from "./types.ts";
 import type { ProposalPreview } from "../deps.ts";
 import {
   clearConversationPersistence,
@@ -43,12 +43,6 @@ export type ActiveTurn = {
   // what the user moved to. Set with the turn's first message; never
   // persisted. Null without a view controller.
   viewReference: GateView | null;
-  // Cancels THIS turn's currently-executing promise-blocking card
-  // (ask_user_questions), set by the loop around the block's await and
-  // called by stopGeneration. Turn-scoped ON PURPOSE: a
-  // registry-wide sweep cancelled another conversation's pending question
-  // when two chats shared the same tool instance.
-  cancelPendingInteraction: (() => void) | null;
   // The index of this turn's first message, null until it is appended, and
   // of the model's last reply this turn (-1 when none; the synthetic
   // "[Stopped]" repair never counts): the release at the turn's end strips
@@ -106,9 +100,7 @@ export type ConversationStore = {
   isStreaming: ReturnType<typeof createSignal<boolean>>;
   isProcessingTools: ReturnType<typeof createSignal<boolean>>;
   error: ReturnType<typeof createSignal<string | null>>;
-  usage: ReturnType<typeof createSignal<Usage | null>>;
   currentStreamingText: ReturnType<typeof createSignal<string | undefined>>;
-  usageHistory: ReturnType<typeof createSignal<Usage[]>>;
   serverToolLabel: ReturnType<typeof createSignal<string | undefined>>;
   activeTurn: ReturnType<typeof createSignal<ActiveTurn | null>>;
   pendingDecision: ReturnType<typeof createSignal<PendingDecision | null>>;
@@ -169,9 +161,7 @@ export function getOrCreateConversationStore(
       isStreaming: createSignal(false),
       isProcessingTools: createSignal(false),
       error: createSignal<string | null>(null),
-      usage: createSignal<Usage | null>(null),
       currentStreamingText: createSignal<string | undefined>(undefined),
-      usageHistory: createSignal<Usage[]>([]),
       serverToolLabel: createSignal<string | undefined>(undefined),
       activeTurn: createSignal<ActiveTurn | null>(null),
       pendingDecision: createSignal<PendingDecision | null>(null),
@@ -187,9 +177,8 @@ export function getOrCreateConversationStore(
 }
 
 // Non-creating peek for the conversation-UI guard: false for never-created
-// stores. NEVER replace with getConversationState — that routes through
-// getOrCreateConversationStore and would create and IndexedDB-hydrate every
-// conversation a selector lists.
+// stores. NEVER read the guard through getOrCreateConversationStore — it
+// would create and IndexedDB-hydrate every conversation a selector lists.
 export function hasActiveTurn(conversationId: string): boolean {
   const store = stores.get(conversationId);
   if (!store) return false;
@@ -205,9 +194,7 @@ export function clearConversationStore(conversationId: string): void {
     const [, setIsStreaming] = store.isStreaming;
     const [, setIsProcessingTools] = store.isProcessingTools;
     const [, setError] = store.error;
-    const [, setUsage] = store.usage;
     const [, setCurrentStreamingText] = store.currentStreamingText;
-    const [, setUsageHistory] = store.usageHistory;
     const [, setServerToolLabel] = store.serverToolLabel;
 
     // Queued messages are dropped; their senders' promises resolve at drop
@@ -223,9 +210,7 @@ export function clearConversationStore(conversationId: string): void {
       setIsStreaming(false);
       setIsProcessingTools(false);
       setError(null);
-      setUsage(null);
       setCurrentStreamingText(undefined);
-      setUsageHistory([]);
       setServerToolLabel(undefined);
       store.approvedTools[1]([]);
       store.prefixHash[1](undefined);
@@ -240,27 +225,4 @@ export function clearConversationStore(conversationId: string): void {
 
 export function deleteConversationStore(conversationId: string): void {
   stores.delete(conversationId);
-}
-
-export function getConversationState(conversationId: string): ChatState {
-  const store = getOrCreateConversationStore(conversationId);
-  const [messages] = store.messages;
-  const [displayItems] = store.displayItems;
-  const [isLoading] = store.isLoading;
-  const [isStreaming] = store.isStreaming;
-  const [error] = store.error;
-  const [usage] = store.usage;
-  const [currentStreamingText] = store.currentStreamingText;
-  const [serverToolLabel] = store.serverToolLabel;
-
-  return {
-    messages: messages(),
-    displayItems: displayItems(),
-    isLoading: isLoading(),
-    isStreaming: isStreaming(),
-    error: error(),
-    usage: usage(),
-    currentStreamingText: currentStreamingText(),
-    serverToolLabel: serverToolLabel(),
-  };
 }

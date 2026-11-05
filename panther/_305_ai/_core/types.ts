@@ -7,14 +7,12 @@ import type { Accessor } from "solid-js";
 import type {
   Anthropic,
   AnthropicModelConfig,
+  BuiltInToolsConfig,
   CacheControl,
   Component,
   CustomMarkdownStyleOptions,
-  MessageParam,
   SystemNoticeType,
-  Usage,
 } from "../deps.ts";
-import type { BuiltInToolsConfig } from "./builtin_tools.ts";
 import type {
   AIViewSnapshot,
   AnyAITool,
@@ -22,29 +20,6 @@ import type {
   ProposalPreview,
 } from "../deps.ts";
 import type { AIViewController } from "./views.ts";
-
-////////////////////////////////////////////////////////////////////////////////
-// TOOL TYPES (UI-SPECIFIC)
-////////////////////////////////////////////////////////////////////////////////
-
-export type AIToolHandler<TInput = unknown, TOutput = string> = (
-  input: TInput,
-) => Promise<TOutput>;
-
-export type AITool<TInput = unknown, TOutput = string> = {
-  name: string;
-  description: string;
-  input_schema: {
-    type: "object";
-    properties?: Record<string, unknown>;
-    required?: string[];
-    additionalProperties: false;
-    [key: string]: unknown;
-  };
-  handler: AIToolHandler<TInput, TOutput>;
-  displayComponent?: Component<{ input: TInput }>;
-  inProgressLabel?: string | ((input: TInput) => string);
-};
 
 ////////////////////////////////////////////////////////////////////////////////
 // DISPLAY ITEM TYPES
@@ -61,6 +36,7 @@ export type DisplayItem =
   }
   | {
     type: "tool_in_progress";
+    toolUseId: string;
     toolName: string;
     toolInput: unknown;
     label?: string;
@@ -264,32 +240,4 @@ export type AIChatConfig = {
   // requireKind additionally makes an undeclared kind a boot-time throw.
   // Enforced on dynamic register() too. Strictly opt-in.
   approvalPolicy?: ApprovalPolicy;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-// CHAT STATE TYPES
-////////////////////////////////////////////////////////////////////////////////
-
-export type ChatState = {
-  messages: MessageParam[];
-  displayItems: DisplayItem[];
-  isLoading: boolean;
-  isStreaming: boolean;
-  error: string | null;
-  usage: Usage | null;
-  currentStreamingText: string | undefined;
-  serverToolLabel: string | undefined;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-// COST ESTIMATION TYPES
-////////////////////////////////////////////////////////////////////////////////
-
-export type CostEstimate = {
-  inputCost: number;
-  outputCost: number;
-  cacheCost: number;
-  cacheReadCost: number;
-  totalCost: number;
-  currency: "USD";
 };

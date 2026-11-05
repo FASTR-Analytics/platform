@@ -15,14 +15,6 @@ import type { AIToolWithMetadata, AnyAITool } from "./tool_helpers.ts";
 // availability hints createAITool appends, so per-tool view annotations
 // ride along.
 //
-// CACHE RULE: a call composed into the `system`
-// accessor must OMIT currentView. Without a view the output is byte-stable
-// (input order, static descriptions), so the system cache breakpoint keeps
-// hitting; with a view the catalog regroups per navigation, and since
-// system() is re-read every request, that busts the system cache on every
-// view change. The view-grouped variant is for per-send content only
-// (ephemeral sections or a "manual" instructions composition).
-//
 // Each tool renders as exactly ONE bullet: description newlines collapse to
 // spaces (the digest-bullet discipline) — the API's tools array keeps the
 // full-fidelity description; the catalog buys organization, not fidelity.
@@ -37,28 +29,6 @@ function bullet(tool: AIToolWithMetadata<unknown>): string {
   }`;
 }
 
-export function buildToolCatalog(
-  tools: AnyAITool[],
-  currentView?: { id: string } | null,
-): string {
-  if (tools.length === 0) return "";
-  if (!currentView) {
-    return tools.map(bullet).join("\n");
-  }
-  const primary = tools.filter((t) =>
-    t.metadata.availableIn?.includes(currentView.id)
-  );
-  const other = tools.filter((t) => !primary.includes(t));
-  const sections: string[] = [];
-  if (primary.length > 0) {
-    sections.push(
-      `Primary tools (available in the current view):\n${
-        primary.map(bullet).join("\n")
-      }`,
-    );
-  }
-  if (other.length > 0) {
-    sections.push(`Other tools:\n${other.map(bullet).join("\n")}`);
-  }
-  return sections.join("\n\n");
+export function buildToolCatalog(tools: AnyAITool[]): string {
+  return tools.map(bullet).join("\n");
 }
