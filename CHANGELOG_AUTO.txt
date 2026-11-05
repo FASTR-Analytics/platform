@@ -1,14 +1,14 @@
-[TBD] [user] [added] - AI assistant fixes report drafts with small edits instead of rewriting entirely
-[TBD] [user] [fixed] - Reports no longer proposed with half-empty pages when browser tab is hidden
-[TBD] [user] [changed] - AI planning descriptions now use plain language instead of technical format names
-[TBD] [user] [changed] - AI reads multiple data indicators at once, making report writing faster
-[TBD] [user] [changed] - AI looks up all page templates in one step instead of several
-[TBD] [user] [fixed] - AI no longer gets stuck in endless fixing loops when page layout issues can't be resolved
-[TBD] [admin] [added] - AI report drafts are now edited incrementally instead of fully rewritten, reducing writing time
-[TBD] [admin] [fixed] - Report page layout no longer fails silently when browser tab is hidden
-[TBD] [admin] [changed] - AI fetches multiple page templates in a single step, speeding up report generation
-[TBD] [admin] [changed] - AI planning messages no longer expose internal format names or tool syntax to users
-[TBD] [admin] [fixed] - Drafts with unchecked page layouts are no longer proposed to users without warning
+[2.9.1] [user] [added] - AI assistant fixes report drafts with small edits instead of rewriting entirely
+[2.9.1] [user] [fixed] - Reports no longer proposed with half-empty pages when browser tab is hidden
+[2.9.1] [user] [changed] - AI planning descriptions now use plain language instead of technical format names
+[2.9.1] [user] [changed] - AI reads multiple data indicators at once, making report writing faster
+[2.9.1] [user] [changed] - AI looks up all page templates in one step instead of several
+[2.9.1] [user] [fixed] - AI no longer gets stuck in endless fixing loops when page layout issues can't be resolved
+[2.9.1] [admin] [added] - AI report drafts are now edited incrementally instead of fully rewritten, reducing writing time
+[2.9.1] [admin] [fixed] - Report page layout no longer fails silently when browser tab is hidden
+[2.9.1] [admin] [changed] - AI fetches multiple page templates in a single step, speeding up report generation
+[2.9.1] [admin] [changed] - AI planning messages no longer expose internal format names or tool syntax to users
+[2.9.1] [admin] [fixed] - Drafts with unchecked page layouts are no longer proposed to users without warning
 [2.9.0] [user] [added] - Saved visualizations are now a standalone product type you can create, edit, and manage
 [2.9.0] [user] [added] - Insert a copy of a saved visualization into slides and reports
 [2.9.0] [user] [added] - "Change metric" button in the figure editor's Data tab
