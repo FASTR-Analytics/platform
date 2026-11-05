@@ -52,6 +52,7 @@ const GROUPS = {
   ],
   report_writes: [
     "rewrite_report",
+    "edit_report_draft",
     "rewrite_section",
     "replace_text",
     "insert_figure",

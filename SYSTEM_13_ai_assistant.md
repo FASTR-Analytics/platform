@@ -832,8 +832,9 @@ and `deleteSlides`; and the report contract
 [ai_views.ts](client/src/components/instance/copilot/ai_views.ts).
 
 **Report edits are never silent**: they ride panther's approval lifecycle. The
-five staged tools (`rewrite_report {body}`, `rewrite_section {newBody}`,
-`replace_text`, `insert_figure`, `replace_figure`) declare `approval.propose`
+six staged tools (`rewrite_report {body}`, `edit_report_draft {edits}`,
+`rewrite_section {newBody}`, `replace_text`, `insert_figure`, `replace_figure`)
+declare `approval.propose`
 ([report_editor.ts](client/src/components/products/copilot/ai_tools/tools/report_editor.ts)).
 There is ONE report format, FASTR Markdown (S12), so nothing here branches on a
 format any more. The html and plain-markdown formats were retired on 2026-10-13
@@ -857,12 +858,26 @@ its figures in one `rewrite_report`. Its `newFigures` declares each figure as a
 metric plus a preset under a short key the body embeds as
 `![caption](figure:<key>)`; the propose step resolves them, swaps each key for a
 fresh id and stages them as the diff's `addFigures`, so the report and its
-figures are one change. `get_report_pages` takes the same `newFigures` with a
-draft: the page check lays the figures out at their real size, and its reply
-ends with the data each new figure shows (`getDataFromConfig`), so the prose is
-checked against the figures it sits beside. Before this, the figures came in
-afterwards through `insert_figure`, so the page check never saw them and the
-prose quoted numbers the figures did not show. The text changes once the body
+figures are one change. **The body is written once.** `rewrite_report` lays
+the draft out itself (`pageProblemsOf`, figures at their real size) and HOLDS
+it, per report, instead of proposing it while its pages have problems, while it
+breaks a body rule, or (once, on rewrite_report's own call) while it adds
+figures: that reply carries the data each new figure shows
+(`getDataFromConfig`), so the prose is checked against the figures it sits
+beside. `edit_report_draft` fixes the held draft with exact find/replace edits
+(`applyReportDraftEdits`, report-forge/ai, all or none; dropping a figure's
+embed drops the figure), runs the same checks and proposes it once its pages
+are set; with no edits it proposes the draft as it stands. The draft stays held
+until a proposal of it is accepted or a new `rewrite_report` replaces it, so a
+rejected proposal can be fixed the same way. `acceptPageProblems` waives a
+problem the model cannot fix, never a MUST FIX page. Before this (2026-10-28 to
+2026-11-05) the model pre-checked each draft by pasting the whole body into
+`get_report_pages` and then again into `rewrite_report`, and every refusal
+meant one more whole body: a 20-page report was written 3 to 6 times, 60k to
+180k output tokens and 20 to 28 minutes (testing, 2026-11-04). Before
+`newFigures`, the figures came in afterwards through `insert_figure`, so the
+page check never saw them and the prose quoted numbers the figures did not
+show. The text changes once the body
 holds anything, so the next message carries the plain editing brief. Tokens are
 built and parsed through the engine's helpers (`report-forge/engine/embeds.ts`).
 `get_report_editor` prints the body, a headings index (each top-level heading's
@@ -883,8 +898,12 @@ instead.
 Nothing in the copilot MINTS a report: creation is the products page's
 `createProduct`, which always mints FASTR Markdown (S12). The copilot's report
 surface is therefore the open report alone, `editing_report`, and it includes
-`get_report_pages`: the draft or the live body laid out as the printed pages, so
-a rewrite can be checked against the page budget BEFORE it is proposed, and
+`get_report_pages`: the live body laid out as the printed pages, or the body
+with one section swapped in (`sectionHeading` + `newBody`, as `rewrite_section`
+takes them, so a section is checked without pasting the whole report), or an
+arbitrary body as `markdown`. Its page maps share one figure size cache
+(`report_page_map.ts`, keyed by figure content and palette font), so a held
+draft laid out again after small edits measures no figure twice. It also has
 `get_page_template`: one page template's slots, limits and example (Report
 Forge's `fastrPageTemplateLookup`), so the format guide lists each layout in a
 line and the model looks a layout up before it writes one. The three text tools

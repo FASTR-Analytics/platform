@@ -1,4 +1,5 @@
 import {
+  applyReportDraftEdits,
   readReportText,
   replaceReportText,
   type ReportEmbedIds,
@@ -236,6 +237,33 @@ async function pageProblemsOf(
   return at < 0 ? undefined : pages.slice(at + 1);
 }
 
+// A whole-report draft rewrite_report laid out and could not propose yet: its
+// pages had problems, it broke a rule, or its new figures' data still had to
+// be read against the prose. Fixing one by resending the body cost a full
+// report of output per round (a 20-page report written 3 to 6 times, 20+
+// minutes, 2026-11-04), so the draft is held here and edit_report_draft fixes
+// it with small replacements. Held per report until a proposal of it is
+// accepted, or a new rewrite_report replaces it.
+type HeldReportDraft = {
+  // As the model wrote it: new figures embedded by their keys, so an edit
+  // quotes the text the model has.
+  body: string;
+  added: Map<string, FigureBlock>;
+  allowLiteralColors?: boolean;
+  plain?: boolean;
+};
+
+const heldReportDrafts = new Map<string, HeldReportDraft>();
+
+const HELD_DRAFT_HINT =
+  "The draft is held: fix it with edit_report_draft (each edit an exact oldText from the draft as you wrote it, and its newText). Do not resend the whole body with rewrite_report.";
+
+const draftEditsSchema = z.array(z.object({
+  oldText: z.string(),
+  newText: z.string(),
+  occurrenceIndex: z.number().int().positive().optional(),
+})).optional();
+
 // One cheap index line per figure for get_report_editor: pure, no fetch. The
 // metric is the one the figure reads as, so the model never takes a retired
 // id for a live one.
@@ -267,6 +295,110 @@ export function getClientToolsForReportEditor(
   env: ClientAIToolEnv,
   metrics: MetricWithStatus[],
 ) {
+  // Hold the draft, check it as rewrite_report always has (the body's rules,
+  // every new figure embedded, its pages laid out), and propose it only once
+  // it passes. `firstLook` is rewrite_report's own call: a draft that adds
+  // figures is held once with what each figure shows, so the prose is read
+  // against the data before the user sees it.
+  async function proposeHeldDraft(
+    view: { context: EditingReportContext; params: { reportId: string } },
+    draft: HeldReportDraft,
+    opts: { acceptPageProblems?: boolean; firstLook: boolean },
+  ) {
+    const ctx = view.context;
+    const reportId = view.params.reportId;
+    heldReportDrafts.set(reportId, draft);
+    const own = embedIdsOf(ctx);
+    const edit = rewriteReportBody(ctx.getBody(), {
+      body: draft.body,
+      allowLiteralColors: draft.allowLiteralColors,
+      plain: draft.plain,
+    }, {
+      figures: [...own.figures, ...draft.added.keys()],
+      images: own.images,
+    });
+    if (!edit.ok) {
+      if (edit.unchanged) return { skip: edit.error };
+      throw new AIToolFailure(`${edit.error}\n\n${HELD_DRAFT_HINT}`);
+    }
+    let newBody = edit.newBody;
+    const addFigures: Record<string, FigureBlock> = {};
+    for (const [key, block] of draft.added) {
+      const id = crypto.randomUUID();
+      const swapped = replaceReportEmbedTokens(
+        newBody,
+        "figure",
+        key,
+        (ref) => rewriteReportEmbedToken(ref, { id }),
+      );
+      if (swapped.count === 0) {
+        throw new AIToolFailure(
+          `New figure "${key}" is never embedded: add ![caption](figure:${key}) where it belongs, or drop it from newFigures.\n\n${HELD_DRAFT_HINT}`,
+        );
+      }
+      newBody = swapped.body;
+      addFigures[id] = block;
+    }
+    const problems = await pageProblemsOf(ctx, reportId, {
+      body: newBody,
+      figures: addFigures,
+    });
+    if (opts.firstLook && draft.added.size > 0) {
+      const data = await describeNewFigureData(env, metrics, draft.added);
+      return {
+        skip: [
+          "Not proposed yet: the draft is held while you check it against its figures.",
+          problems === undefined
+            ? "Its pages are set."
+            : `Its pages have problems the reader would see.\n\n${problems}`,
+          data,
+          `Rewrite every sentence whose numbers disagree with its figure's data (same period, same areas, same values)${
+            problems === undefined ? "" : " and fix every page problem"
+          } with edit_report_draft: each edit an exact oldText from the draft as you wrote it, and its newText. Call edit_report_draft with no edits to propose the draft as it stands. Do not resend the whole body.`,
+        ].join("\n\n"),
+      };
+    }
+    if (problems !== undefined && opts.acceptPageProblems !== true) {
+      throw new AIToolFailure(
+        `Not proposed: the draft's pages have problems the reader would see.\n\n${problems}\n\n${HELD_DRAFT_HINT} Only if one cannot be fixed, call edit_report_draft with acceptPageProblems: true and tell the user which remain; a problem marked ${FASTR_PAGE_MUST_FIX} cannot be waived.`,
+      );
+    }
+    // A page more than half empty is a hole the waiver does not cover:
+    // models waived one rather than move prose (2026-11-02).
+    const holes = (problems ?? "").split("\n").filter((l) =>
+      l.includes(FASTR_PAGE_MUST_FIX)
+    );
+    if (holes.length > 0) {
+      throw new AIToolFailure(
+        `Not proposed: acceptPageProblems does not waive a page left more than half empty.\n\n${
+          holes.join("\n")
+        }\n\n${HELD_DRAFT_HINT}`,
+      );
+    }
+    const prep = ctx.proposeEdit({
+      newBody,
+      addFigures: draft.added.size > 0 ? addFigures : undefined,
+      summary: edit.summary,
+    });
+    if ("skip" in prep) return prep;
+    return {
+      preview: prep.preview,
+      customProposalUI: prep.customProposalUI,
+      stillValid: prep.stillValid,
+      commit: async () => {
+        const { skipped } = await prep.commit();
+        if (heldReportDrafts.get(reportId) === draft) {
+          heldReportDrafts.delete(reportId);
+        }
+        copilotViewController.markAIEdit(`product:${reportId}`);
+        return (
+          "The user ACCEPTED the rewrite; it is now applied to the report." +
+          reportSkippedNote(skipped)
+        );
+      },
+    };
+  }
+
   return [
     createAITool({
       viewRegistry: copilotViews,
@@ -511,13 +643,22 @@ export function getClientToolsForReportEditor(
       viewRegistry: copilotViews,
       name: "get_report_pages",
       description:
-        `Lay this FASTR Markdown report out as its printed pages (A4 unless the report says otherwise; the pages the PDF and the editor show) and return the page map: every page's fill, the blocks that landed on it with each one's share of the page, and the problems: a page left short (because its next block moved whole to the following page, or because a page break or a page template ends it early), a page holding only the spill of the section before it, a page template whose content stops part way down its page or holds more than it shows, two figures back to back, and a last page that is a stub. Call it with no arguments for the report as it stands (live editor state), or pass \`markdown\` to check a draft BEFORE proposing it (rewrite_report), with the same \`newFigures\` the draft will be proposed with: the figures are laid out at their real size, and the reply ends with the data each new figure shows, so the prose can be checked against it. Fix what it flags with the page budget in the format guide, then check again; a report whose pages are set is the deliverable.`,
+        `Lay this FASTR Markdown report out as its printed pages (A4 unless the report says otherwise; the pages the PDF and the editor show) and return the page map: every page's fill, the blocks that landed on it with each one's share of the page, and the problems: a page left short (because its next block moved whole to the following page, or because a page break or a page template ends it early), a page holding only the spill of the section before it, a page template whose content stops part way down its page or holds more than it shows, two figures back to back, and a last page that is a stub. Call it with no arguments for the report as it stands (live editor state). Before a rewrite_section that changes what a page holds, pass \`sectionHeading\` and \`newBody\` exactly as rewrite_section will take them, and the report is laid out with that section swapped in: never paste the whole body to check one section. A whole-report draft needs no check here: rewrite_report lays it out itself and holds it while it has problems. (\`markdown\`, with \`newFigures\`, lays out an arbitrary whole body; the reply then ends with the data each new figure shows.) Fix what it flags with the page budget in the format guide, then check again; a report whose pages are set is the deliverable.`,
       inputSchema: z.object({
         markdown: z.string().optional().describe(
           "A draft body in FASTR Markdown to lay out instead of the current one. It may embed the report's existing figures and the keys of newFigures.",
         ),
         newFigures: newFiguresSchema.describe(
           "With markdown: the figures the draft adds, exactly as you will pass them to rewrite_report.",
+        ),
+        sectionHeading: z.string().optional().describe(
+          "With newBody: the section a rewrite_section would replace, addressed as rewrite_section addresses it.",
+        ),
+        newBody: z.string().optional().describe(
+          "With sectionHeading: the section's new text, heading included, as rewrite_section takes it.",
+        ),
+        occurrenceIndex: z.number().int().positive().optional().describe(
+          "With sectionHeading, for a heading that occurs more than once (1-based).",
         ),
         // The themes are a registry (the engine's own plus this app's
         // `legacy`), so the list is read here, when the tool is built.
@@ -543,13 +684,42 @@ export function getClientToolsForReportEditor(
             "newFigures goes with markdown: pass the draft that embeds them.",
           );
         }
+        if (
+          (input.sectionHeading === undefined) !== (input.newBody === undefined)
+        ) {
+          throw new AIToolFailure(
+            "sectionHeading and newBody go together: the section and its new text.",
+          );
+        }
+        if (
+          input.sectionHeading !== undefined && input.markdown !== undefined
+        ) {
+          throw new AIToolFailure(
+            "Pass either markdown (a whole body) or sectionHeading with newBody (one section swapped in), not both.",
+          );
+        }
         const added = await resolveNewFigures(ctx, input.newFigures, metrics);
         // A draft keeps the report's own figures and images: the ones it
         // still embeds print at their real size, as they will. Read against
         // the full registry, since a draft may re-embed a still-registered id.
-        const body = input.markdown !== undefined
-          ? collapseFastrBlankRuns(input.markdown)
-          : ctx.getBody();
+        let body: string;
+        if (input.markdown !== undefined) {
+          body = collapseFastrBlankRuns(input.markdown);
+        } else if (
+          input.sectionHeading !== undefined && input.newBody !== undefined
+        ) {
+          // The body rewrite_section would propose, with its checks.
+          const edit = rewriteReportSection(ctx.getBody(), {
+            sectionHeading: input.sectionHeading,
+            newBody: input.newBody,
+            occurrenceIndex: input.occurrenceIndex,
+            allowLiteralColors: true,
+          }, embedIdsOf(ctx));
+          if (!edit.ok && !edit.unchanged) throw new AIToolFailure(edit.error);
+          body = edit.ok ? edit.newBody : ctx.getBody();
+        } else {
+          body = ctx.getBody();
+        }
         const detail = {
           ...res.data,
           body,
@@ -604,7 +774,7 @@ export function getClientToolsForReportEditor(
       description:
         `Propose a full rewrite of the report body, written in FASTR Markdown. The user reviews a diff and accepts or rejects — nothing is applied silently. Keep all existing figure/image tokens you want to retain; you may only reference figure/image ids that already exist.
 
-The body MUST be built from the format's \`:::\` blocks — a plain run of headings and paragraphs is rejected unless you pass plain: true, which you do only when the user asked for a plain document. A draft that adds figures carries them in \`newFigures\` (a metric plus a preset each, as insert_figure takes) and embeds each as \`![caption](figure:<key>)\` where it belongs, so the report and its figures are one change. Before proposing, lay the draft out with get_report_pages (pass it as \`markdown\`, with the same \`newFigures\`), fix every page it flags, and make the prose agree with the data it reports for each new figure. The format:
+The body MUST be built from the format's \`:::\` blocks — a plain run of headings and paragraphs is rejected unless you pass plain: true, which you do only when the user asked for a plain document. A draft that adds figures carries them in \`newFigures\` (a metric plus a preset each, as insert_figure takes) and embeds each as \`![caption](figure:<key>)\` where it belongs, so the report and its figures are one change. Write the body ONCE: this tool lays the draft out itself, and a draft whose pages have problems, or that adds figures, is held rather than proposed, with the page map's problems and what each new figure shows. Fix a held draft with edit_report_draft (small exact replacements, then it proposes); never resend the whole body, and never pre-check a whole draft with get_report_pages. The format:
 
 ${FASTR_MD_SYNTAX_DOC}`,
       inputSchema: z.object({
@@ -619,89 +789,75 @@ ${FASTR_MD_SYNTAX_DOC}`,
           "The figures this draft adds, each embedded in the body as ![caption](figure:<key>). Each becomes a figure of the report when the user accepts.",
         ),
         acceptPageProblems: z.boolean().optional().describe(
-          "The draft is laid out before it is proposed, and one whose pages have problems (a short or overfull page, a stub last page, an over-long caption) is refused with the list. Set true ONLY after such a refusal, for a problem you cannot fix, and tell the user which remain. It never waives a problem marked MUST FIX (a page more than half empty).",
+          "Leave unset: a draft whose pages have problems is held, and the waiver goes on edit_report_draft after a refusal. Set true ONLY for a problem you cannot fix, and tell the user which remain. It never waives a problem marked MUST FIX (a page more than half empty).",
         ),
       }),
       availableIn: COPILOT_TOOL_VIEWS.rewrite_report,
       kind: "write",
       approval: {
         propose: async (input, view) => {
-          const ctx = view.context;
           const added = await resolveNewFigures(
-            ctx,
+            view.context,
             input.newFigures,
             metrics,
           );
-          const own = embedIdsOf(ctx);
-          const edit = rewriteReportBody(ctx.getBody(), input, {
-            figures: [...own.figures, ...added.keys()],
-            images: own.images,
+          return proposeHeldDraft(view, {
+            body: input.body,
+            added,
+            allowLiteralColors: input.allowLiteralColors,
+            plain: input.plain,
+          }, {
+            acceptPageProblems: input.acceptPageProblems,
+            firstLook: true,
           });
-          if (!edit.ok) return refusedTextEdit(edit);
-          let newBody = edit.newBody;
-          const addFigures: Record<string, FigureBlock> = {};
-          for (const [key, block] of added) {
-            const id = crypto.randomUUID();
-            const swapped = replaceReportEmbedTokens(
-              newBody,
-              "figure",
-              key,
-              (ref) => rewriteReportEmbedToken(ref, { id }),
-            );
-            if (swapped.count === 0) {
-              throw new AIToolFailure(
-                `New figure "${key}" is never embedded: add ![caption](figure:${key}) where it belongs, or drop it from newFigures.`,
-              );
-            }
-            newBody = swapped.body;
-            addFigures[id] = block;
-          }
-          const problems = await pageProblemsOf(ctx, view.params.reportId, {
-            body: newBody,
-            figures: addFigures,
-          });
-          if (problems !== undefined && input.acceptPageProblems !== true) {
-            throw new AIToolFailure(
-              `Not proposed: the draft's pages have problems the reader would see.\n\n${problems}\n\nFix them (get_report_pages checks a draft) and re-propose. Only if one cannot be fixed, re-propose with acceptPageProblems: true and tell the user which remain; a problem marked ${FASTR_PAGE_MUST_FIX} cannot be waived.`,
-            );
-          }
-          // A page more than half empty is a hole the waiver does not
-          // cover: models waived one rather than move prose (2026-11-02).
-          const holes = (problems ?? "").split("\n").filter((l) =>
-            l.includes(FASTR_PAGE_MUST_FIX)
-          );
-          if (holes.length > 0) {
-            throw new AIToolFailure(
-              `Not proposed: acceptPageProblems does not waive a page left more than half empty.\n\n${
-                holes.join("\n")
-              }\n\nFix these (get_report_pages checks a draft) and re-propose.`,
-            );
-          }
-          const prep = ctx.proposeEdit({
-            newBody,
-            addFigures: added.size > 0 ? addFigures : undefined,
-            summary: edit.summary,
-          });
-          if ("skip" in prep) return prep;
-          return {
-            preview: prep.preview,
-            customProposalUI: prep.customProposalUI,
-            stillValid: prep.stillValid,
-            commit: async () => {
-              const { skipped } = await prep.commit();
-              copilotViewController.markAIEdit(
-                `product:${view.params.reportId}`,
-              );
-              return (
-                "The user ACCEPTED the rewrite; it is now applied to the report." +
-                reportSkippedNote(skipped)
-              );
-            },
-          };
         },
       },
-      inProgressLabel: "Proposing rewrite...",
+      inProgressLabel: "Writing the draft...",
       completionMessage: "Proposed rewrite (awaiting accept/reject)",
+      successMessage: "Checked the draft (not proposed yet)",
+    }),
+
+    createAITool({
+      viewRegistry: copilotViews,
+      name: "edit_report_draft",
+      description:
+        "Fix the draft rewrite_report is holding, then propose it. rewrite_report holds a draft it laid out and could not propose yet: its pages had problems, it broke a rule, or it adds figures whose data the prose must match. Each edit replaces one exact run of the draft's text (oldText, verbatim as you wrote it, whitespace and markup included, unique unless occurrenceIndex is given) with newText; edits apply in order, all or none, and new figures stay embedded by their keys (removing a figure's embed drops it). Move a paragraph by deleting it in one edit and inserting it in another. The edited draft is checked and laid out again: proposed to the user when its pages are set, or refused with what remains and still held. With no edits it proposes the held draft as it stands. This is far cheaper than resending the body: never call rewrite_report again to fix a held draft.",
+      inputSchema: z.object({
+        edits: draftEditsSchema,
+        acceptPageProblems: z.boolean().optional().describe(
+          "Set true ONLY after a refusal, for a page problem you cannot fix, and tell the user which remain. It never waives a problem marked MUST FIX (a page more than half empty).",
+        ),
+      }),
+      availableIn: COPILOT_TOOL_VIEWS.edit_report_draft,
+      kind: "write",
+      approval: {
+        propose: (input, view) => {
+          const held = heldReportDrafts.get(view.params.reportId);
+          if (!held) {
+            throw new AIToolFailure(
+              "No draft is held for this report: write the whole draft with rewrite_report first.",
+            );
+          }
+          const applied = applyReportDraftEdits(held.body, input.edits ?? []);
+          if (!applied.ok) throw new AIToolFailure(applied.error);
+          const body = applied.body;
+          const embedded = new Set(
+            findReportEmbeds(body).filter((r) => r.kind === "figure").map((
+              r,
+            ) => r.id),
+          );
+          const added = new Map(
+            [...held.added].filter(([key]) => embedded.has(key)),
+          );
+          return proposeHeldDraft(view, { ...held, body, added }, {
+            acceptPageProblems: input.acceptPageProblems,
+            firstLook: false,
+          });
+        },
+      },
+      inProgressLabel: "Fixing the draft...",
+      completionMessage: "Proposed rewrite (awaiting accept/reject)",
+      successMessage: "Checked the draft (not proposed yet)",
     }),
 
     createAITool({
