@@ -7,6 +7,7 @@
 // as in the editor, so the map is the PDF's pages give or take a fit.
 
 import {
+  type FastrChartPalette,
   fastrChartPalette,
   type FastrPagedResult,
   fastrPageMapText,
@@ -15,11 +16,32 @@ import {
   type ReportDetail,
 } from "lib";
 import { createReportPaginator, fastrPagedFooter } from "report-forge";
-import { createFigureSizeCache } from "~/generate_report/mod";
+import {
+  createFigureSizeCache,
+  type FigureSizeCache,
+} from "~/generate_report/mod";
 import { reportDocumentOf } from "~/exports/export_report_as_html";
 
 const SIZE_WAIT_MS = 12_000;
 const LAYOUT_WAIT_MS = 25_000;
+
+// One size cache for every page map the AI asks for. A size is keyed by the
+// figure's content and its palette's font, so a draft laid out again after a
+// few small edits (rewrite_report, then edit_report_draft) reuses every
+// figure already measured instead of drawing each at export width again.
+// The AI's tools run one at a time, so the palette is the current call's.
+let sharedPalette: FastrChartPalette | undefined;
+const sizeListeners = new Set<() => void>();
+let sharedSizes: FigureSizeCache | undefined;
+
+function figureSizesFor(palette: FastrChartPalette): FigureSizeCache {
+  sharedPalette = palette;
+  sharedSizes ??= createFigureSizeCache(
+    () => sizeListeners.forEach((l) => l()),
+    () => sharedPalette,
+  );
+  return sharedSizes;
+}
 
 export async function describeReportPages(
   detail: ReportDetail,
@@ -33,10 +55,9 @@ export async function describeReportPages(
     getFastrReportTheme(detail.config),
     getReportCustomStyle(detail.config)?.colors ?? undefined,
   );
-  const figureSizes = createFigureSizeCache(
-    () => sizeLanded?.(),
-    () => palette,
-  );
+  const figureSizes = figureSizesFor(palette);
+  const onSize = () => sizeLanded?.();
+  sizeListeners.add(onSize);
   const imageSizes = new Map<string, { width: number; height: number }>();
   try {
     const figureIds = Object.keys(detail.figures);
@@ -100,6 +121,6 @@ export async function describeReportPages(
       getFastrReportTheme(detail.config),
     );
   } finally {
-    figureSizes.dispose();
+    sizeListeners.delete(onSize);
   }
 }
