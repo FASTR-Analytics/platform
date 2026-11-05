@@ -851,8 +851,9 @@ title line alone, no embeds): while it holds, the instructions carry "Starting
 this report", which has the model ask a brief (at most three
 `ask_user_questions` cards, one at a time), read the data, list the sections it
 means to write and ask "These sections look good" / "Add or remove sections"
-(revising the list until agreed), then propose the full data-grounded plan and
-ask "Yes, write it" / "No" / "Keep planning" (Keep planning, or a typed answer,
+(revising the list until agreed), then propose the full data-grounded plan (in plain
+words: charts and designed pages described by what the reader sees, never a
+metric id, preset, template name or `:::` block) and ask "Yes, write it" / "No" / "Keep planning" (Keep planning, or a typed answer,
 revises the plan and asks again; No writes nothing), then write the draft and
 its figures in one `rewrite_report`. Its `newFigures` declares each figure as a
 metric plus a preset under a short key the body embeds as
@@ -874,7 +875,13 @@ problem the model cannot fix, never a MUST FIX page. A layout that cannot run
 is a refusal too (the draft stays held; the waiver passes it unchecked only
 after that refusal), and the page map waits for the tab to be visible: a
 hidden tab's throttled timers timed the layout out, and the old swallow-it
-path proposed a draft with two half-empty pages unchecked (2026-11-05). Before this (2026-10-28 to
+path proposed a draft with two half-empty pages unchecked (2026-11-05). A draft refused for
+its pages three times (`DRAFT_PAGE_REFUSALS`) is proposed with what remains,
+MUST FIX included, its diff summary saying so and the accept result telling the
+model to name the pages: a model that could not fix one kept trying until the
+turn's 24 model round trips ran out and nothing was proposed. For the same
+budget, `get_page_template` takes every layout in one call (`layouts`,
+`fastrPageTemplatesLookup`). Before this (2026-10-28 to
 2026-11-05) the model pre-checked each draft by pasting the whole body into
 `get_report_pages` and then again into `rewrite_report`, and every refusal
 meant one more whole body: a 20-page report was written 3 to 6 times, 60k to

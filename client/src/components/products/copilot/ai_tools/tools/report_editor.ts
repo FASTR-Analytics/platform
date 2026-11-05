@@ -18,7 +18,7 @@ import {
   collapseFastrBlankRuns,
   COPILOT_TOOL_VIEWS,
   FASTR_PAGE_TEMPLATE_TOOL_DESCRIPTION,
-  fastrPageTemplateLookup,
+  fastrPageTemplatesLookup,
   type FastrReportTheme,
   fastrThemeIds,
   type FigureBlock,
@@ -252,7 +252,16 @@ type HeldReportDraft = {
   added: Map<string, FigureBlock>;
   allowLiteralColors?: boolean;
   plain?: boolean;
+  // Page-problem refusals of this draft so far (rewrite_report's own
+  // included): see DRAFT_PAGE_REFUSALS.
+  pageRefusals: number;
 };
+
+// A draft refused this many times for its pages is proposed with what is
+// left, for the user to judge, rather than refused again: a model that could
+// not fix a page kept trying until the turn hit its 24-call cap and ended
+// with nothing proposed (2026-11-05).
+const DRAFT_PAGE_REFUSALS = 3;
 
 const heldReportDrafts = new Map<string, HeldReportDraft>();
 
@@ -368,27 +377,36 @@ export function getClientToolsForReportEditor(
         ].join("\n\n"),
       };
     }
-    if (problems !== undefined && opts.acceptPageProblems !== true) {
-      throw new AIToolFailure(
-        `Not proposed: the draft's pages have problems the reader would see.\n\n${problems}\n\n${HELD_DRAFT_HINT} Only if one cannot be fixed, call edit_report_draft with acceptPageProblems: true and tell the user which remain; a problem marked ${FASTR_PAGE_MUST_FIX} cannot be waived.`,
-      );
-    }
     // A page more than half empty is a hole the waiver does not cover:
     // models waived one rather than move prose (2026-11-02).
     const holes = (problems ?? "").split("\n").filter((l) =>
       l.includes(FASTR_PAGE_MUST_FIX)
     );
-    if (holes.length > 0) {
+    const waived = opts.acceptPageProblems === true && holes.length === 0;
+    const exhausted = draft.pageRefusals >= DRAFT_PAGE_REFUSALS;
+    if (problems !== undefined && !waived && !exhausted) {
+      draft.pageRefusals++;
+      const left = DRAFT_PAGE_REFUSALS - draft.pageRefusals;
+      const budget = left === 0
+        ? "This was the last refusal: the next edit_report_draft proposes the draft with whatever problems remain, and you must tell the user which."
+        : `${left} more refusal${
+          left === 1 ? "" : "s"
+        } before the draft is proposed with whatever problems remain.`;
       throw new AIToolFailure(
-        `Not proposed: acceptPageProblems does not waive a page left more than half empty.\n\n${
-          holes.join("\n")
-        }\n\n${HELD_DRAFT_HINT}`,
+        opts.acceptPageProblems === true
+          ? `Not proposed: acceptPageProblems does not waive a page left more than half empty.\n\n${
+            holes.join("\n")
+          }\n\n${HELD_DRAFT_HINT} ${budget}`
+          : `Not proposed: the draft's pages have problems the reader would see.\n\n${problems}\n\n${HELD_DRAFT_HINT} Only if one cannot be fixed, call edit_report_draft with acceptPageProblems: true and tell the user which remain; a problem marked ${FASTR_PAGE_MUST_FIX} cannot be waived. ${budget}`,
       );
     }
+    const unresolved = problems !== undefined && !waived;
     const prep = ctx.proposeEdit({
       newBody,
       addFigures: draft.added.size > 0 ? addFigures : undefined,
-      summary: edit.summary,
+      summary: unresolved
+        ? `${edit.summary} (some pages still have layout problems)`
+        : edit.summary,
     });
     if ("skip" in prep) return prep;
     return {
@@ -403,7 +421,10 @@ export function getClientToolsForReportEditor(
         copilotViewController.markAIEdit(`product:${reportId}`);
         return (
           "The user ACCEPTED the rewrite; it is now applied to the report." +
-          reportSkippedNote(skipped)
+          reportSkippedNote(skipped) +
+          (unresolved
+            ? `\n\nIt was proposed after ${DRAFT_PAGE_REFUSALS} page refusals, with these problems left: tell the user which pages are affected and offer to fix them.\n\n${problems}`
+            : "")
         );
       },
     };
@@ -759,17 +780,27 @@ export function getClientToolsForReportEditor(
       viewRegistry: copilotViews,
       name: "get_page_template",
       description: FASTR_PAGE_TEMPLATE_TOOL_DESCRIPTION,
+      // Every layout in one call: one call per layout spent eight to ten of
+      // the turn's 24 model round trips on lookups (2026-11-05).
       inputSchema: z.object({
+        layouts: z.array(z.string()).optional().describe(
+          'Every layout the report will use, e.g. ["exec", "summary", "findings"].',
+        ),
         layout: z.string().optional().describe(
-          "The layout, e.g. story, summary, findings.",
+          "One layout; prefer layouts.",
         ),
       }),
       availableIn: COPILOT_TOOL_VIEWS.get_page_template,
       kind: "read",
-      inProgressLabel: "Reading the page template...",
-      completionMessage: "Read the page template",
+      inProgressLabel: "Reading the page templates...",
+      completionMessage: "Read the page templates",
       handler: (input) =>
-        Promise.resolve(fastrPageTemplateLookup(input.layout)),
+        Promise.resolve(
+          fastrPageTemplatesLookup([
+            ...(input.layouts ?? []),
+            ...(input.layout === undefined ? [] : [input.layout]),
+          ]),
+        ),
     }),
 
     createAITool({
@@ -816,6 +847,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
             added,
             allowLiteralColors: input.allowLiteralColors,
             plain: input.plain,
+            pageRefusals: 0,
           }, {
             acceptPageProblems: input.acceptPageProblems,
             firstLook: true,
