@@ -210,15 +210,16 @@ ${parts.join("\n\n")}`;
 // undefined when its pages are set. A model told to check its draft with
 // get_report_pages still proposed ones with a near-empty page before a
 // template and a one-paragraph last page (2026-10-28), so a whole-report
-// rewrite is laid out once more at the proposal itself. A layout that
-// cannot run does not hold the proposal up.
+// rewrite is laid out once more at the proposal itself. A layout that cannot
+// run is reported, never read as clean pages: swallowing one proposed a draft
+// with two half-empty pages unchecked (2026-11-05).
 async function pageProblemsOf(
   ctx: EditingReportContext,
   reportId: string,
   draft: { body: string; figures: Record<string, FigureBlock> },
-): Promise<string | undefined> {
+): Promise<string | undefined | { layoutFailed: string }> {
   const res = await getReportDetailFromCacheOrFetch(reportId);
-  if (!res.success) return undefined;
+  if (!res.success) return { layoutFailed: res.err };
   let pages: string;
   try {
     pages = await describeReportPages(
@@ -230,8 +231,8 @@ async function pageProblemsOf(
       },
       (imgFile) => resolveLogoUrl(imgFile),
     );
-  } catch {
-    return undefined;
+  } catch (e) {
+    return { layoutFailed: e instanceof Error ? e.message : String(e) };
   }
   const at = pages.indexOf("\nProblems:\n");
   return at < 0 ? undefined : pages.slice(at + 1);
@@ -339,10 +340,19 @@ export function getClientToolsForReportEditor(
       newBody = swapped.body;
       addFigures[id] = block;
     }
-    const problems = await pageProblemsOf(ctx, reportId, {
+    const laidOut = await pageProblemsOf(ctx, reportId, {
       body: newBody,
       figures: addFigures,
     });
+    // A layout that did not run leaves the pages unknown: the draft stays
+    // held, and only acceptPageProblems (given after this refusal) lets it
+    // through unchecked.
+    if (typeof laidOut === "object" && opts.acceptPageProblems !== true) {
+      throw new AIToolFailure(
+        `Not proposed: the draft's pages could not be laid out (${laidOut.layoutFailed}), so they are unchecked. The draft is held: call edit_report_draft with no edits to lay it out again. Only if it fails again, call it with acceptPageProblems: true and tell the user the pages were not checked.`,
+      );
+    }
+    const problems = typeof laidOut === "object" ? undefined : laidOut;
     if (opts.firstLook && draft.added.size > 0) {
       const data = await describeNewFigureData(env, metrics, draft.added);
       return {

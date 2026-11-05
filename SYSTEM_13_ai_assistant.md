@@ -870,7 +870,11 @@ embed drops the figure), runs the same checks and proposes it once its pages
 are set; with no edits it proposes the draft as it stands. The draft stays held
 until a proposal of it is accepted or a new `rewrite_report` replaces it, so a
 rejected proposal can be fixed the same way. `acceptPageProblems` waives a
-problem the model cannot fix, never a MUST FIX page. Before this (2026-10-28 to
+problem the model cannot fix, never a MUST FIX page. A layout that cannot run
+is a refusal too (the draft stays held; the waiver passes it unchecked only
+after that refusal), and the page map waits for the tab to be visible: a
+hidden tab's throttled timers timed the layout out, and the old swallow-it
+path proposed a draft with two half-empty pages unchecked (2026-11-05). Before this (2026-10-28 to
 2026-11-05) the model pre-checked each draft by pasting the whole body into
 `get_report_pages` and then again into `rewrite_report`, and every refusal
 meant one more whole body: a 20-page report was written 3 to 6 times, 60k to
