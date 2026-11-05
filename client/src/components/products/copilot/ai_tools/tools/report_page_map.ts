@@ -43,10 +43,28 @@ function figureSizesFor(palette: FastrChartPalette): FigureSizeCache {
   return sharedSizes;
 }
 
+// A hidden tab throttles timers (Chrome: to once a minute after five
+// minutes), and the layout polls its frame on timers, so a layout started
+// while the user is in another tab during a long AI run timed out (2026-11-05:
+// a draft was proposed with two half-empty pages, its check having failed).
+// The layout waits until the tab is shown again.
+function untilVisible(): Promise<void> {
+  if (document.visibilityState === "visible") return Promise.resolve();
+  return new Promise((resolve) => {
+    const onChange = () => {
+      if (document.visibilityState !== "visible") return;
+      document.removeEventListener("visibilitychange", onChange);
+      resolve();
+    };
+    document.addEventListener("visibilitychange", onChange);
+  });
+}
+
 export async function describeReportPages(
   detail: ReportDetail,
   assetUrl: (imgFile: string) => string,
 ): Promise<string> {
+  await untilVisible();
   // Every figure's box first: a size landing after the layout would have
   // left that figure a zero-height box on the page.
   let sizeLanded: (() => void) | undefined;
@@ -92,7 +110,14 @@ export async function describeReportPages(
     const result = await new Promise<FastrPagedResult | undefined>(
       (resolve, reject) => {
         const timer = setTimeout(
-          () => reject(new Error("The page layout timed out.")),
+          () =>
+            reject(
+              new Error(
+                document.visibilityState === "visible"
+                  ? "The page layout timed out."
+                  : "The page layout timed out while the tab was hidden.",
+              ),
+            ),
           LAYOUT_WAIT_MS,
         );
         const paginator = createReportPaginator({
