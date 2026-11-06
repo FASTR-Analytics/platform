@@ -234,14 +234,14 @@ state persisted in `t4_ui`'s `navCollapsed` (default collapsed). The approval
 `FrameLeft` would draw an empty rail. `ShellEditorWrapper` and `openShellEditor`
 are the one `getEditorWrapper()` the app has at shell level, created in
 `t4_ui.ts`; every view a user reaches through a Back button (the product
-editors, module defaults, the Scopes page, the package page, the Data hub's
-sub-pages, the user detail) opens through it and covers the header and the rail,
-so its Back is the only way out and the rail cannot switch tabs under an open
-editor. The tab stays on Products while a product editor is open. Views those
-full-page views open through their own wrappers (a deck's settings, a product's
-version history and figure editor, the package page's viewers, an import run
-detail) are already full page. This file also hosts the language menu and the
-onboarding-modal effect (below).
+editors, module defaults, the package page, the Data hub's sub-pages, the user
+detail) opens through it and covers the header and the rail, so its Back is the
+only way out and the rail cannot switch tabs under an open editor. The tab stays
+on Products while a product editor is open. Views those full-page views open
+through their own wrappers (a deck's settings, a product's version history and
+figure editor, the package page's viewers, an import run detail) are already
+full page. This file also hosts the language menu and the onboarding-modal
+effect (below).
 
 ## Language, calendar & translation
 

@@ -139,7 +139,7 @@ export function InstanceScopes() {
         <AllDataScopePanel
           productCount={instanceState.scopes.find((s) =>
             s.id === ALL_DATA_SCOPE_ID
-          )?.productCount}
+          )?.productCount ?? 0}
         />
         <div class="min-h-0 flex-1">
           <Table
@@ -184,9 +184,8 @@ export function InstanceScopes() {
 
 // The reserved scope, above the table rather than in it: the routes refuse
 // to edit or delete it, so it is neither a row to open nor one to select,
-// and it stays first whatever the sort or search. A restricted user's list
-// never carries it, so for them there is no count to show.
-function AllDataScopePanel(p: { productCount: number | undefined }) {
+// and it stays first whatever the sort or search.
+function AllDataScopePanel(p: { productCount: number }) {
   return (
     <div class="ui-gap ui-pad-x ui-pad-y-sm bg-base-100 flex flex-none flex-wrap items-center rounded border text-sm">
       <span class="font-700">{t3(TC.allData)}</span>
@@ -203,13 +202,9 @@ function AllDataScopePanel(p: { productCount: number | undefined }) {
             "Inclui os dados HMIS, HFA e ICEH e não limita nada. Não pode ser editado nem eliminado.",
         })}
       </span>
-      <Show when={p.productCount}>
-        {(count) => (
-          <div class="ml-auto">
-            <ProductCountBadge count={count()} />
-          </div>
-        )}
-      </Show>
+      <div class="ml-auto">
+        <ProductCountBadge count={p.productCount} />
+      </div>
     </div>
   );
 }

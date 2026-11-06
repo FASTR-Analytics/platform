@@ -76,23 +76,22 @@ reserved "All data" scope above a `Table` over every other scope in
 `instanceState.scopes`. The panel (`AllDataScopePanel`) is the translated label,
 a "Built in" badge, one sentence saying the scope includes every family, limits
 nothing and can be neither edited nor deleted (the routes refuse both, S12), and
-its product count, shown only when the list carries "All data", which a
-restricted user's never does; it is not a row, so no sort, search or selection
-moves it, and nothing opens from it. The table has one row per scope: the label
-(with a "Migrated" badge when `scope.migratedFrom` is set: the update that
-retired projects made it, and hovering names the projects it came from), one
-column per family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or the
-section's limits in a few words, and a Usage column showing the number of
-products that carry it as a badge (`ProductCountBadge`, shared with the results
-packages table, S8; nothing for none), read off the row's `productCount`, the
-instance-wide count the server derives (S12), since a connection that is not a
-global admin holds only the products it can see. Each row has a checkbox, and
-the one bulk action, Delete, is the bulk form of the guarded delete: the confirm
-lists the ticked scopes by label, then `deleteScope` is called for each in turn
-through `deleteEachInTurn` (S8 "Bulk delete"), so a scope a product carries is
-refused by label while the rest go. A row opens `ScopeEditor`
-(`scope_editor.tsx`) in a modal; "New scope" opens it with every family included
-and nothing limited.
+its product count; it is not a row, so no sort, search or selection moves it,
+and nothing opens from it. The table has one row per scope: the label (with a
+"Migrated" badge when `scope.migratedFrom` is set: the update that retired
+projects made it, and hovering names the projects it came from), one column per
+family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or the section's limits
+in a few words, and a Usage column showing the number of products that carry it
+as a badge (`ProductCountBadge`, shared with the results packages table, S8;
+nothing for none), read off the row's `productCount`, the instance-wide count
+the server derives (S12), since a connection that is not a global admin holds
+only the products it can see. Where `canCallRoute("createScope")` holds, each
+row has a checkbox, and the one bulk action, Delete, is the bulk form of the
+guarded delete: the confirm lists the ticked scopes by label, then `deleteScope`
+is called for each in turn through `deleteEachInTurn` (S8 "Bulk delete"), so a
+scope a product carries is refused by label while the rest go. A row opens
+`ScopeEditor` (`scope_editor.tsx`) in a modal; "New scope" opens it with every
+family included and nothing limited.
 
 The editor has the label above three tabs, HMIS, HFA and ICEH, one per section
 of the definition. Each tab opens with an "Include" checkbox (the component

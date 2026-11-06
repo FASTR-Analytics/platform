@@ -126,12 +126,12 @@ Open the persona URL, wait for the shell, and read the rail. Expected tabs:
 
 | Persona                        | Products                     | Explore | Results | Scopes | Data | Assets | Users |
 | ------------------------------ | ---------------------------- | ------- | ------- | ------ | ---- | ------ | ----- |
-| none, editor, viewer, stranger | yes                          | yes     | no      | no     | no   | yes    | no    |
-| view data                      | yes                          | yes     | yes     | no     | yes  | yes    | no    |
+| none, editor, viewer, stranger | yes                          | yes     | no      | yes    | no   | yes    | no    |
+| view data                      | yes                          | yes     | yes     | yes    | yes  | yes    | no    |
 | configure data                 | yes                          | yes     | yes     | yes    | yes  | yes    | no    |
-| view users                     | yes                          | yes     | no      | no     | no   | yes    | yes   |
-| manager                        | yes                          | yes     | no      | no     | no   | yes    | yes   |
-| restricted, restricted-other   | yes                          | yes     | no      | no     | no   | yes    | no    |
+| view users                     | yes                          | yes     | no      | yes    | no   | yes    | yes   |
+| manager                        | yes                          | yes     | no      | yes    | no   | yes    | yes   |
+| restricted, restricted-other   | yes                          | yes     | no      | yes    | no   | yes    | no    |
 | admin                          | yes                          | yes     | yes     | yes    | yes  | yes    | yes   |
 | operator                       | by its row's flags, as above |         |         |        |      |        |       |
 
@@ -156,7 +156,10 @@ when its row stores it, configure implies view, and an admin holds every flag.
   its presets, settings, script, logs and output files. Only a
   `can_configure_data` holder sees Generate new results package, Module
   defaults, the bulk Delete, and Pin, Unpin and Delete on a package page.
-- **Scopes** (`can_configure_data`): New scope and each row's editor.
+- **Scopes** (every approved persona): an unrestricted persona sees New scope,
+  the bulk Delete and each row's editor; the restricted persona sees
+  `Persona test scope` alone, with no New scope, no checkbox and no row that
+  opens.
 - **Assets** (every approved persona): the Download button on a CSV, Excel or
   ZIP asset only for `can_view_data`; image and PDF downloads for everyone.
 - **Explore** (every approved persona): the scope select lists the scopes the

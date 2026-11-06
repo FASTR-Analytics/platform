@@ -345,3 +345,6 @@ flags are unchanged.
 - Step 3: on Tim's word that a review runs only the tests specific to the work,
   step 3, which has no tests, runs no `deno task test`; the rest of the floor
   runs.
+- Step 3: the review's fix updates `TESTING_SCRIPT_FOR_AI_PERMISSIONS.md`,
+  outside the Surface: its rail table and Scopes line said the tab needs
+  `can_configure_data`, which this step made false.
