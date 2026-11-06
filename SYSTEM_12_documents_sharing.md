@@ -486,17 +486,16 @@ is an authoring object with no owner and no flag, written by every unrestricted
 user and by no restricted one. An unknown id on update or delete is a 404,
 `all-data` on either is a 403 (`SCOPE_RESERVED`), and a granted scope on either
 is a 403 (`SCOPE_GRANTED`) unless the caller holds `can_configure_users`, which
-the route passes as `mayChangeGranted`. `server/tests/scope_routes_test.ts`
-pins those refusals, that the routes take only the per-family definition, that
-a user with no flags writes an ungranted scope, and that a restricted user
-writes none. There is no list route: every successful write
-re-reads the whole list and broadcasts it as `scopes_updated` (S3), and
-`InstanceState.scopes` (`Scope[]`: id, label, definition, definitionHash,
-lastUpdated) rides the `starting` payload for approved connections, cut to the
-granted scopes for a restricted one (S3). The Scopes page (S15,
-`components/scopes/`) is the one client surface that calls the three routes.
-Deleting a scope cascades its grants (`user_scopes`), so the delete route also
-re-broadcasts the roster (`users_updated`).
+the route passes as `mayChangeGranted`. `server/tests/scope_routes_test.ts` pins
+those refusals, that the routes take only the per-family definition, that a user
+with no flags writes an ungranted scope, and that a restricted user writes none.
+There is no list route: every successful write re-reads the whole list and
+broadcasts it as `scopes_updated` (S3), and `InstanceState.scopes` (`Scope[]`:
+id, label, definition, definitionHash, lastUpdated) rides the `starting` payload
+for approved connections, cut to the granted scopes for a restricted one (S3).
+The Scopes page (S15, `components/scopes/`) is the one client surface that calls
+the three routes. Deleting a scope cascades its grants (`user_scopes`), so the
+delete route also re-broadcasts the roster (`users_updated`).
 
 **On the client** the list is `instanceState.scopes` in T1
 (`updateInstanceScopes`). `resolveScope(scope)` in `state/instance/t1_store.ts`

@@ -135,10 +135,10 @@ export async function deleteScope(
     return { success: false, err: SCOPE_RESERVED };
   }
   return await tryCatchDatabaseAsync(async () => {
-    const outcome = await mainDb.begin(async (sql) => {
+    await mainDb.begin(async (sql) => {
       const refusal = await lockChangeableScope(sql, scopeId, mayChangeGranted);
       if (refusal !== undefined) {
-        return refusal;
+        throw new Error(refusal);
       }
       const deleted = await sql`
         DELETE FROM scopes
@@ -146,11 +146,10 @@ export async function deleteScope(
           AND NOT EXISTS (SELECT 1 FROM products WHERE scope_id = ${scopeId})
         RETURNING id
       `;
-      return deleted.length === 0 ? SCOPE_IN_USE : undefined;
+      if (deleted.length === 0) {
+        throw new Error(SCOPE_IN_USE);
+      }
     });
-    if (outcome !== undefined) {
-      throw new Error(outcome);
-    }
     return { success: true };
   });
 }

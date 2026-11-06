@@ -64,7 +64,8 @@ registry.
 and deletes scopes (the entity, its routes and its hash are S12 "Scopes"; what a
 definition filters is S9 "The scoped view"). It is the "Scopes" tab on the side
 rail (`instance.tsx`), after Results, shown only when
-`can("can_configure_data")` holds, the flag the three scope routes take (S18).
+`can("can_configure_data")` holds; the three scope routes take
+`GUARD.unrestricted` (S18).
 The page sets the chat's `scopes` view (S13) while it is open. `InstanceScopes`
 (`scopes.tsx`) is a fixed panel for the reserved "All data" scope above a
 `Table` over every other scope in `instanceState.scopes`. The panel

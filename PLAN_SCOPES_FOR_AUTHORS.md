@@ -330,5 +330,8 @@ flags are unchanged.
   `main`: three route tests posted `/products` without the `label` the route
   requires, and the permission matrix never mounted
   `routesProductVisualizations`, so it stopped before the scope rows. It
-  touches `product_access_routes_test.ts` and `scope_grants_routes_test.ts`,
-  outside the Surface.
+  touches `product_access_routes_test.ts`, `products_routes_test.ts` and
+  `scope_grants_routes_test.ts`, outside the Surface.
+- Step 1: the review's fix corrects the sentence in `SYSTEM_15_admin_ops.md`
+  "The Scopes page" that said the scope routes take `can_configure_data`,
+  outside the Surface, because step 1 made it false.

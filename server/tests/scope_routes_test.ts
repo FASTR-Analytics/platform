@@ -213,7 +213,10 @@ Deno.test("scope routes: unrestricted users write scopes, and a granted scope ne
       ON CONFLICT (email) DO UPDATE SET
         is_admin = FALSE,
         all_scopes = EXCLUDED.all_scopes,
-        can_configure_users = EXCLUDED.can_configure_users
+        can_configure_users = EXCLUDED.can_configure_users,
+        can_view_users = FALSE,
+        can_view_data = FALSE,
+        can_configure_data = FALSE
     `;
   };
   await seedUser(AUTHOR_EMAIL, true, false);
