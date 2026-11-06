@@ -103,8 +103,7 @@ export function notifyInstanceProductsDeleted(ids: string[]) {
   notifyInstanceUpdate({ type: "products_deleted", data: { ids } });
 }
 
-// Scopes and folders are few and change rarely, so the whole list rides each
-// change. The scope list is re-read here, since each row carries its product
+// Scopes and folders are few, so the whole list rides each change. The scope list is re-read here, since each row carries its product
 // count: every scope write fires this, and so does every product route that
 // inserts or deletes a product or changes its scope. The write has already
 // committed, so a failed re-read is logged and swallowed, as

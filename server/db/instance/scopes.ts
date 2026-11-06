@@ -42,8 +42,7 @@ export async function listScopes(
 ): Promise<APIResponseWithData<Scope[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const rows = await mainDb<DBScopeWithCount[]>`
-      SELECT s.*, ${productCountColumn(mainDb)}
-      FROM scopes s
+      ${selectScopesWithCount(mainDb)}
       ORDER BY (s.id = ${ALL_DATA_SCOPE_ID}) DESC, LOWER(s.label), s.id
     `;
     return { success: true, data: rows.map(rowToScope) };
@@ -57,8 +56,7 @@ export async function getScope(
   return await tryCatchDatabaseAsync(async () => {
     const row = (
       await mainDb<DBScopeWithCount[]>`
-        SELECT s.*, ${productCountColumn(mainDb)}
-        FROM scopes s
+        ${selectScopesWithCount(mainDb)}
         WHERE s.id = ${scopeId}
       `
     ).at(0);
@@ -185,10 +183,14 @@ async function lockChangeableScope(
 
 type DBScopeWithCount = DBScope & { product_count: number };
 
-function productCountColumn(sql: Sql) {
+// Callers append their own clauses over the alias `s`.
+function selectScopesWithCount(sql: Sql) {
   return sql`
-    (SELECT COUNT(*) FROM products p WHERE p.scope_id = s.id)::int
-      AS product_count
+    SELECT
+      s.*,
+      (SELECT COUNT(*) FROM products p WHERE p.scope_id = s.id)::int
+        AS product_count
+    FROM scopes s
   `;
 }
 

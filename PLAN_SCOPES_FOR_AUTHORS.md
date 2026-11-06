@@ -335,3 +335,7 @@ flags are unchanged.
 - Step 1: the review's fix corrects the sentence in `SYSTEM_15_admin_ops.md`
   "The Scopes page" that said the scope routes take `can_configure_data`,
   outside the Surface, because step 1 made it false.
+- Step 2: the review's fix moves the test helper `captured` into
+  `server/tests/_harness/route_app.ts` and imports it in
+  `slide_delete_no_stamp_test.ts`, both outside the Surface, since the new
+  count test needed the same helper that test already had.

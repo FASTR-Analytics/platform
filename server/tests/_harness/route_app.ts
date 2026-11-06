@@ -5,6 +5,7 @@
 import { assert, assertEquals } from "@std/assert";
 import { Hono } from "hono";
 import type { Env } from "hono";
+import type { InstanceSseMessage } from "lib";
 import type { Sql } from "postgres";
 import { getPgConnection } from "../../db/postgres/connection_manager.ts";
 import { _BYPASS_AUTH, _PERSONA_AUTH } from "../../exposed_env_vars.ts";
@@ -110,6 +111,25 @@ export async function statusOf(
   aborter.abort();
   await res.body?.cancel().catch(() => {});
   return res.status;
+}
+
+// Every message the hub posted while `body` ran. A BroadcastChannel never
+// delivers to the object that posted, so this separate channel sees the hub's
+// traffic; the hub's broadcasts are async, so drain after a turn.
+export async function captured(
+  body: () => Promise<void>,
+): Promise<InstanceSseMessage[]> {
+  const seen: InstanceSseMessage[] = [];
+  const channel = new BroadcastChannel("instance_updates");
+  channel.onmessage = (e: MessageEvent) =>
+    void seen.push(e.data as InstanceSseMessage);
+  try {
+    await body();
+    await new Promise((r) => setTimeout(r, 200));
+  } finally {
+    channel.close();
+  }
+  return seen;
 }
 
 export function assertRealAuth(): void {

@@ -46,10 +46,9 @@ type ScopeRow = {
   migratedFrom: string[] | null;
 };
 
-// The Scopes tab: scopes are created, edited and deleted here, by global
-// admins only (the tab and the scope routes are guarded the same way). A
-// product picks one by label. The reserved "All data" scope is a fixed
-// statement above the table, which lists the others.
+// The Scopes tab, where scopes are created, edited and deleted. A product
+// picks one by label. The reserved "All data" scope is a fixed statement
+// above the table, which lists the others.
 export function InstanceScopes() {
   holdCopilotView();
   copilotViewController.setView("scopes");

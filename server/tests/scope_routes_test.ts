@@ -1,9 +1,9 @@
 // The scope routes end to end on the dev database, through the route-test
 // harness: the reserved "All data" scope is there, it can be neither edited
 // nor deleted, the routes take only the per-family definition, every
-// unrestricted user writes scopes, a restricted user writes none, and a
-// granted scope is changed only by a user manager, and every scope carries
-// the instance's count of products on it.
+// unrestricted user writes scopes, a restricted user writes none, a granted
+// scope is changed only by a user manager, and every scope carries the
+// instance's count of products on it.
 //
 // Run alone with:
 //   BYPASS_AUTH= deno test -A --env-file --unstable-broadcast-channel server/tests/scope_routes_test.ts
@@ -32,7 +32,12 @@ import { getPinnedRunId } from "../db/instance/run_generation.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
 import { routesScopes } from "../routes/instance/scopes.ts";
 import { routesProducts } from "../routes/products/products.ts";
-import { appFor, assertRealAuth, call } from "./_harness/route_app.ts";
+import {
+  appFor,
+  assertRealAuth,
+  call,
+  captured,
+} from "./_harness/route_app.ts";
 
 const ADMIN_EMAIL = "scope-routes-test-admin@example.com";
 const AUTHOR_EMAIL = "scope-routes-test-author@example.com";
@@ -306,25 +311,6 @@ Deno.test("scope routes: unrestricted users write scopes, and a granted scope ne
     await closeAllConnections();
   }
 });
-
-// Every message the hub posted while `body` ran. A BroadcastChannel never
-// delivers to the object that posted, so this separate channel sees the hub's
-// traffic; drain after a turn.
-async function captured(
-  body: () => Promise<void>,
-): Promise<InstanceSseMessage[]> {
-  const seen: InstanceSseMessage[] = [];
-  const channel = new BroadcastChannel("instance_updates");
-  channel.onmessage = (e: MessageEvent) =>
-    void seen.push(e.data as InstanceSseMessage);
-  try {
-    await body();
-    await new Promise((r) => setTimeout(r, 200));
-  } finally {
-    channel.close();
-  }
-  return seen;
-}
 
 Deno.test("scope routes: every scope carries its product count, and a product create re-broadcasts the list", async () => {
   assertRealAuth();

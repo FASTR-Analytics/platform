@@ -87,9 +87,7 @@ export function ScopeEditor(
   );
 
   const scopeId = p.scope?.id;
-  const productCount = () =>
-    instanceState.scopes.find((s) => s.id === scopeId)?.productCount ??
-      p.scope?.productCount ?? 0;
+  const productCount = () => p.scope?.productCount ?? 0;
   const attemptDelete = scopeId === undefined ? undefined : createDeleteAction(
     t3({
       en: "Are you sure you want to delete this scope?",
