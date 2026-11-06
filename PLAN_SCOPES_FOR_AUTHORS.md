@@ -11,7 +11,7 @@ hold, a scope that limits some user's access is changed only by a user manager,
 and the product count the page shows comes from the server instead of the
 product plane the connection happens to hold.
 
-**Next step: Do 1.**
+**Next step: Do 2.**
 
 Branch: `main`. Repo: this one. Read first: [CLAUDE.md](CLAUDE.md),
 [SYSTEMS.md](SYSTEMS.md), [SYSTEM_18_permissions.md](SYSTEM_18_permissions.md)
