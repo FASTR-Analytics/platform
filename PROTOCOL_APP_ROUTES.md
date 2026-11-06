@@ -110,6 +110,9 @@ permission check inside the handler.
   (every builder follows) and the DB column migration.
 - Any approved user (run-keyed package reads, the authoring context, the
   ready-package list, self-service routes) → `GUARD.approved`.
+- Any approved user whose access is not limited to some scopes (an instance
+  object every author writes and a restricted user must not, such as a scope)
+  → `GUARD.unrestricted`.
 - Admin-only → `GUARD.admin`.
 - Product or folder route → `GUARD.product(level)` or `GUARD.folder(level)`.
   The policy lives in `server/auth/product_access.ts`. A handler that receives

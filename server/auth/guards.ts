@@ -26,6 +26,7 @@ import {
   PRODUCT_ACCESS_REFUSED,
   SERVICE_UNAVAILABLE,
   STATUS_KEY_REQUIRED,
+  UNRESTRICTED_REQUIRED,
 } from "./refusals.ts";
 
 export type GuardEnv = {
@@ -82,6 +83,16 @@ export function requireSignedIn() {
 
 export function requireApprovedUser() {
   return guard((user) => user.approved ? undefined : AWAITING_APPROVAL);
+}
+
+export function requireUnrestricted() {
+  return guard((user) =>
+    !user.approved
+      ? AWAITING_APPROVAL
+      : user.scopeAccess.all
+      ? undefined
+      : UNRESTRICTED_REQUIRED
+  );
 }
 
 export function requireAdmin() {
@@ -179,6 +190,8 @@ function guardFor(routeGuard: RouteGuard): MiddlewareHandler | undefined {
       return requireSignedIn();
     case "approved":
       return requireApprovedUser();
+    case "unrestricted":
+      return requireUnrestricted();
     case "admin":
       return requireAdmin();
     case "permission":

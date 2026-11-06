@@ -470,6 +470,10 @@ another scope already has (compared case-insensitively, `SCOPE_LABEL_TAKEN`) and
 re-parse the definition with the strict schema. `updateScope` and `deleteScope`
 refuse the reserved scope before touching the database (`SCOPE_RESERVED`):
 neither its label nor its definition can change, and it cannot be deleted.
+Both take `mayChangeGranted` and, after locking the scope row `FOR UPDATE`
+(which a grant's foreign-key check waits on), refuse a granted scope, one with
+a `user_scopes` row, when it is false (`SCOPE_GRANTED`): a granted scope is a
+restricted user's data boundary, and a delete cascades the grants.
 `deleteScope` refuses while a product carries the scope (`SCOPE_IN_USE`): the
 check and the delete are one statement, and the `products.scope_id` foreign key
 is the backstop. `rowToScope` derives `definitionHash` on every read.
@@ -477,11 +481,15 @@ is the backstop. `rowToScope` derives `definitionHash` on every read.
 **Routes** (`server/routes/instance/scopes.ts` over
 `lib/api-routes/instance/scopes.ts`): `createScope` (`POST /scopes`),
 `updateScope` (`PUT /scopes/:scope_id`) and `deleteScope`
-(`DELETE /scopes/:scope_id`), each guarded `GUARD.permission("can_configure_data")`
-(S18). An unknown id on
-update or delete is a 404, and `all-data` on either is a 403 (`SCOPE_RESERVED`).
-`server/tests/scope_routes_test.ts` pins both refusals and that the routes take
-only the per-family definition. There is no list route: every successful write
+(`DELETE /scopes/:scope_id`), each guarded `GUARD.unrestricted` (S18): a scope
+is an authoring object with no owner and no flag, written by every unrestricted
+user and by no restricted one. An unknown id on update or delete is a 404,
+`all-data` on either is a 403 (`SCOPE_RESERVED`), and a granted scope on either
+is a 403 (`SCOPE_GRANTED`) unless the caller holds `can_configure_users`, which
+the route passes as `mayChangeGranted`. `server/tests/scope_routes_test.ts`
+pins those refusals, that the routes take only the per-family definition, that
+a user with no flags writes an ungranted scope, and that a restricted user
+writes none. There is no list route: every successful write
 re-reads the whole list and broadcasts it as `scopes_updated` (S3), and
 `InstanceState.scopes` (`Scope[]`: id, label, definition, definitionHash,
 lastUpdated) rides the `starting` payload for approved connections, cut to the

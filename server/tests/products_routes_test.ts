@@ -366,7 +366,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       >`SELECT scope_id FROM products WHERE id = ${deck.productId}`
     )[0];
     assertEquals(scoped.scope_id, areaScopeId);
-    assertEquals(await deleteScope(mainDb, areaScopeId), {
+    assertEquals(await deleteScope(mainDb, areaScopeId, true), {
       success: false,
       err: SCOPE_IN_USE,
     });

@@ -1,7 +1,8 @@
-// The scope routes end to end, as a global admin on the dev database: the
-// reserved "All data" scope is there, it can be neither edited nor deleted,
-// and the routes take only the per-family definition, through the route-test
-// harness.
+// The scope routes end to end on the dev database, through the route-test
+// harness: the reserved "All data" scope is there, it can be neither edited
+// nor deleted, the routes take only the per-family definition, every
+// unrestricted user writes scopes, a restricted user writes none, and a
+// granted scope is changed only by a user manager.
 //
 // Run alone with:
 //   BYPASS_AUTH= deno test -A --env-file --unstable-broadcast-channel server/tests/scope_routes_test.ts
@@ -18,8 +19,10 @@ import {
   TC,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
+import { UNRESTRICTED_REQUIRED } from "../auth/refusals.ts";
 import {
   getScope,
+  SCOPE_GRANTED,
   SCOPE_LABEL_RESERVED,
   SCOPE_RESERVED,
 } from "../db/instance/scopes.ts";
@@ -28,6 +31,9 @@ import { routesScopes } from "../routes/instance/scopes.ts";
 import { appFor, assertRealAuth, call } from "./_harness/route_app.ts";
 
 const ADMIN_EMAIL = "scope-routes-test-admin@example.com";
+const AUTHOR_EMAIL = "scope-routes-test-author@example.com";
+const RESTRICTED_EMAIL = "scope-routes-test-restricted@example.com";
+const MANAGER_EMAIL = "scope-routes-test-manager@example.com";
 
 Deno.test("scope routes: All data is reserved, and only the per-family definition is taken", async () => {
   assertRealAuth();
@@ -189,6 +195,107 @@ Deno.test("scope routes: All data is reserved, and only the per-family definitio
       DELETE FROM scopes WHERE label = ${`Routes refused ${tag}`}
     `;
     await mainDb`DELETE FROM users WHERE email = ${ADMIN_EMAIL}`;
+    await closeAllConnections();
+  }
+});
+
+Deno.test("scope routes: unrestricted users write scopes, and a granted scope needs a user manager", async () => {
+  assertRealAuth();
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  const seedUser = async (
+    email: string,
+    allScopes: boolean,
+    configureUsers: boolean,
+  ) => {
+    await mainDb`
+      INSERT INTO users (email, is_admin, all_scopes, can_configure_users)
+      VALUES (${email}, FALSE, ${allScopes}, ${configureUsers})
+      ON CONFLICT (email) DO UPDATE SET
+        is_admin = FALSE,
+        all_scopes = EXCLUDED.all_scopes,
+        can_configure_users = EXCLUDED.can_configure_users
+    `;
+  };
+  await seedUser(AUTHOR_EMAIL, true, false);
+  await seedUser(RESTRICTED_EMAIL, false, false);
+  await seedUser(MANAGER_EMAIL, true, true);
+  const author = appFor(AUTHOR_EMAIL, routesScopes);
+  const restricted = appFor(RESTRICTED_EMAIL, routesScopes);
+  const manager = appFor(MANAGER_EMAIL, routesScopes);
+  const tag = crypto.randomUUID().slice(0, 8);
+  const created: ScopeUuid[] = [];
+  const body = (name: string) => ({
+    label: `${name} ${tag}`,
+    definition: geographyOnlyScopeDefinition(`${name} Area ${tag}`),
+  });
+  const create = async (name: string): Promise<ScopeUuid> => {
+    const res = await call(author, "POST", "/scopes", body(name));
+    assertEquals(res.status, 200, JSON.stringify(res.body));
+    assert(res.body.success);
+    const scopeId = (res.body.data as { scopeId: ScopeUuid }).scopeId;
+    created.push(scopeId);
+    return scopeId;
+  };
+
+  try {
+    // A user with no flags creates, edits and deletes an ungranted scope.
+    const own = await create("Author");
+    const put = await call(author, "PUT", `/scopes/${own}`, body("Edited"));
+    assertEquals(put.status, 200, JSON.stringify(put.body));
+    const del = await call(author, "DELETE", `/scopes/${own}`);
+    assertEquals(del.status, 200, JSON.stringify(del.body));
+    assertEquals((await getScope(mainDb, own)).success, false);
+
+    // A restricted user writes no scope, the one they hold included.
+    const granted = await create("Granted");
+    await mainDb`
+      INSERT INTO user_scopes (email, scope_id)
+      VALUES (${RESTRICTED_EMAIL}, ${granted})
+    `;
+    const refused = { success: false, err: UNRESTRICTED_REQUIRED };
+    const restrictedCalls = [
+      await call(restricted, "POST", "/scopes", body("Restricted")),
+      await call(restricted, "PUT", `/scopes/${granted}`, body("Widened")),
+      await call(restricted, "DELETE", `/scopes/${granted}`),
+    ];
+    for (const res of restrictedCalls) {
+      assertEquals(res.status, 403);
+      assertEquals(res.body, refused);
+    }
+
+    // A granted scope is a user's data boundary: no flags is refused, a user
+    // manager is admitted.
+    const grantedRefusal = { success: false, err: SCOPE_GRANTED };
+    const authorPut = await call(
+      author,
+      "PUT",
+      `/scopes/${granted}`,
+      body("Widened"),
+    );
+    assertEquals(authorPut.status, 403);
+    assertEquals(authorPut.body, grantedRefusal);
+    const authorDel = await call(author, "DELETE", `/scopes/${granted}`);
+    assertEquals(authorDel.status, 403);
+    assertEquals(authorDel.body, grantedRefusal);
+    const managerPut = await call(
+      manager,
+      "PUT",
+      `/scopes/${granted}`,
+      body("Managed"),
+    );
+    assertEquals(managerPut.status, 200, JSON.stringify(managerPut.body));
+    const managed = await getScope(mainDb, granted);
+    assert(managed.success);
+    assertEquals(managed.data.label, `Managed ${tag}`);
+    const managerDel = await call(manager, "DELETE", `/scopes/${granted}`);
+    assertEquals(managerDel.status, 200, JSON.stringify(managerDel.body));
+    assertEquals((await getScope(mainDb, granted)).success, false);
+  } finally {
+    await mainDb`DELETE FROM scopes WHERE id = ANY(${created})`;
+    await mainDb`
+      DELETE FROM users
+      WHERE email = ANY(${[AUTHOR_EMAIL, RESTRICTED_EMAIL, MANAGER_EMAIL]})
+    `;
     await closeAllConnections();
   }
 });

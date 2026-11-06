@@ -323,4 +323,12 @@ flags are unchanged.
 
 ## §6 Log
 
-(empty)
+- Step 1: `server/tests/products_routes_test.ts`, outside the Surface, passes
+  `true` as `deleteScope`'s new `mayChangeGranted`, because it calls the DB
+  function directly and does not compile without it.
+- Step 1: a separate commit first fixed two failures the floor already had on
+  `main`: three route tests posted `/products` without the `label` the route
+  requires, and the permission matrix never mounted
+  `routesProductVisualizations`, so it stopped before the scope rows. It
+  touches `product_access_routes_test.ts` and `scope_grants_routes_test.ts`,
+  outside the Surface.

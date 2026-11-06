@@ -165,11 +165,13 @@ const STRANGER = persona("stranger");
 // ---------------------------------------------------------------------------
 
 // Who may call a route. A permission names one flag. A product or folder
-// class names the level the route declares.
+// class names the level the route declares. Unrestricted is approved and not
+// restricted, an admin included.
 type GuardClass =
   | "public"
   | "signed_in"
   | "approved"
+  | "unrestricted"
   | "admin"
   | "h_user"
   | "status_key"
@@ -232,7 +234,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   createPersonalAccessToken: closed("approved"),
   createProduct: closed("product:edit"),
   createReportStyle: closed("product:edit"),
-  createScope: closed("can_configure_data"),
+  createScope: closed("unrestricted"),
   createSlide: closed("product:edit"),
   createVisualization: closed("product:edit"),
   deleteAllDatasetHmisData: closed("can_configure_data"),
@@ -265,7 +267,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   deleteProducts: closed("product:own"),
   deleteReportStyle: closed("product:edit"),
   deleteRun: closed("can_configure_data"),
-  deleteScope: closed("can_configure_data"),
+  deleteScope: closed("unrestricted"),
   deleteSlides: closed("product:edit"),
   deleteStructureUploadAttempt: closed("can_configure_data", "refusals_only"),
   deleteUser: closed("can_configure_users"),
@@ -476,7 +478,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   updateReportFigures: closed("product:edit"),
   updateReportImages: closed("product:edit"),
   updateReportStyle: closed("product:edit"),
-  updateScope: closed("can_configure_data"),
+  updateScope: closed("unrestricted"),
   updateSlide: closed("product:edit"),
   updateSlideDeckConfig: closed("product:edit"),
   updateStructureSchema: closed("can_configure_data"),
@@ -727,6 +729,9 @@ function expected(
   const p = caller.persona;
   if (guard === "signed_in") return "admitted";
   if (guard === "approved") return p.approved ? "admitted" : 403;
+  if (guard === "unrestricted") {
+    return p.approved && (p.isAdmin || !p.restricted) ? "admitted" : 403;
+  }
   if (guard === "admin") return p.isAdmin ? "admitted" : 403;
   if (guard === "h_user") return p.isHUser ? "admitted" : 403;
   if (typeof guard === "string" && guard.startsWith("product:")) {

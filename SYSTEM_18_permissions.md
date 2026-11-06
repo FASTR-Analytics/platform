@@ -62,7 +62,8 @@ except that `orStatusKey` admits a matching status-api key before it and
 
 A route's guard is declared once, on its registry entry, as `guard: RouteGuard`
 (`lib/permissions/_route_guard.ts`): `public`, `signed_in`, `approved`,
-`admin`, `permission` (one flag), `h_user`, `status_key`, `product` (a level)
+`unrestricted` (approved and `scopeAccess.all`), `admin`, `permission` (one
+flag), `h_user`, `status_key`, `product` (a level)
 or `folder` (a level), written through the `GUARD` helpers
 (`GUARD.permission("can_view_data")`, `GUARD.product("edit")`). `route()`
 requires the field and every registry closes with
@@ -86,9 +87,10 @@ the same field to decide what to offer.
 `isHUser()` (the connection's own roster row), `can(key)` (the connection's
 effective permissions, so an admin and a configure holder pass a view flag) and
 `canCallRoute(name, productId?)`, which evaluates the registry entry's declared
-guard against the store: approved, admin, the effective permissions, `isHUser`
-for `h_user`, `productLevel` (S12) for a product route, approved and
-unrestricted for a folder route with `own` admin-only, never for `status_key`.
+guard against the store: approved, approved and unrestricted for
+`unrestricted`, admin, the effective permissions, `isHUser` for `h_user`,
+`productLevel` (S12) for a product route, the same approved-and-unrestricted
+test for a folder route with `own` admin-only, never for `status_key`.
 Every page gate, button, fetch and copilot tool requirement reads them; no
 component spells `currentUserIsGlobalAdmin ||` beside a permission, and the
 server stays the authority: the accessors exist so a caller the route would
@@ -123,6 +125,15 @@ the raw boundary files, and the static fallback tier. The instance collab socket
 (`routes/instance/collab.ts`) applies the same signed-in-and-approved test
 inline before the upgrade rather than through this middleware, because its
 denials must travel as a post-upgrade close.
+
+**`requireUnrestricted()`**: approved (else 403 `AWAITING_APPROVAL`) and
+`globalUser.scopeAccess.all` (else 403 `UNRESTRICTED_REQUIRED`), so every
+global admin and every non-admin with `users.all_scopes` passes, whatever
+flags they hold. It is the folder guard's test without a product or folder, for
+an instance object that every author writes and a restricted user must not:
+its sites are the three scope routes, `createScope`, `updateScope` and
+`deleteScope` (S12 "Scopes"), because editing a scope one holds would widen
+one's own data reads.
 
 **`requireAdmin()`**: `globalUser.isGlobalAdmin` (else 403 `ADMIN_REQUIRED`).
 
@@ -298,7 +309,7 @@ delete; migration 205). A global admin is unrestricted whatever the flag says.
 `GlobalUser` and every roster row (`OtherUser`) carry it, and `canUseScope` asks
 it. A restricted user sees only products in their scopes, reads data only
 through them (Explore included), has no `/mcp`, no Results, Data or Users page,
-and holds no flag.
+holds no flag, and writes no scope (`requireUnrestricted`, above).
 Where each rule is enforced: products and folders `productAccessPolicy` (above),
 data reads S8 "Scope access", the instance stream S3, collab S16.
 
@@ -399,12 +410,14 @@ The `/mcp` grounding (`buildInstanceGrounding`) carries no roster at all (S13).
   dictionary reads, the results catalogue and every package's contents and
   logs, the run telemetry on the instance stream, the data-file downloads.
   `can_configure_data`: every Data-page mutation, the instance configuration
-  routes, generation, pin and delete, scope CRUD (`createScope`, `updateScope`,
-  `deleteScope`) and country-scoped prompts. `can_view_users`: the Users tab,
+  routes, generation, pin and delete, and country-scoped prompts. `can_view_users`: the Users tab,
   the user activity log (`getUsersLastActive`) and every roster row whole,
   stored flags included, in `starting` and `users_updated` (The roster).
   `can_configure_users`: the
-  user-management routes, under the rule above, scope grants included.
+  user-management routes, under the rule above, scope grants included, and
+  the edit or delete of a granted scope (one with a `user_scopes` row), which
+  changes some restricted user's data boundary (`SCOPE_GRANTED`, S12
+  "Scopes").
   `setFolderProductsAccess`, the admin flag and `setUserContactPerson` stay the
   admin's.
 

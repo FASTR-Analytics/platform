@@ -1,10 +1,11 @@
 import { Hono } from "hono";
-import type { APIResponseNoData } from "lib";
+import { type APIResponseNoData, holdsPermission } from "lib";
 import type { Sql } from "postgres";
 import {
   createScope,
   deleteScope,
   listScopes,
+  SCOPE_GRANTED,
   SCOPE_NOT_FOUND,
   SCOPE_RESERVED,
   updateScope,
@@ -37,7 +38,12 @@ defineRoute(
   "updateScope",
   log("updateScope"),
   async (c, { params, body }) => {
-    const res = await updateScope(c.var.mainDb, params.scope_id, body);
+    const res = await updateScope(
+      c.var.mainDb,
+      params.scope_id,
+      body,
+      holdsPermission(c.var.globalUser, "can_configure_users"),
+    );
     if (res.success) {
       await notifyScopes(c.var.mainDb);
     }
@@ -50,7 +56,11 @@ defineRoute(
   "deleteScope",
   log("deleteScope"),
   async (c, { params }) => {
-    const res = await deleteScope(c.var.mainDb, params.scope_id);
+    const res = await deleteScope(
+      c.var.mainDb,
+      params.scope_id,
+      holdsPermission(c.var.globalUser, "can_configure_users"),
+    );
     if (res.success) {
       await notifyScopes(c.var.mainDb);
       // The delete cascaded the scope's grants (user_scopes), so the roster's
@@ -67,7 +77,7 @@ function failureStatus(res: APIResponseNoData): 200 | 403 | 404 {
   }
   return res.err === SCOPE_NOT_FOUND
     ? 404
-    : res.err === SCOPE_RESERVED
+    : res.err === SCOPE_RESERVED || res.err === SCOPE_GRANTED
     ? 403
     : 200;
 }
