@@ -212,7 +212,13 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       app,
       "POST",
       "/products",
-      { type, folderId, runId, scopeId: ALL_DATA_SCOPE_ID },
+      {
+        type,
+        label: `Levels ${type}`,
+        folderId,
+        runId,
+        scopeId: ALL_DATA_SCOPE_ID,
+      },
     );
     productIds.push(productId);
     return productId;
@@ -734,6 +740,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
         ["POST", "/folders", { label: "x", color: null, parentId: nowhere }],
         ["POST", "/products", {
           type: "report",
+          label: "Test report",
           folderId: nowhere,
           runId,
           scopeId: ALL_DATA_SCOPE_ID,

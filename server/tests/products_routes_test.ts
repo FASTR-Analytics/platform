@@ -157,6 +157,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     assertEquals(
       (await call(anonymous, "POST", "/products", {
         type: "slide_deck",
+        label: "Test deck",
         folderId: null,
         runId: pinnedRunId,
         scopeId: allScopeId,
@@ -171,6 +172,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     assertEquals(
       (await call(unapproved, "POST", "/products", {
         type: "slide_deck",
+        label: "Test deck",
         folderId: null,
         runId: pinnedRunId,
         scopeId: allScopeId,
@@ -196,6 +198,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     ) {
       const refusedCreate = await call(app, "POST", "/products", {
         type: "slide_deck",
+        label: "Test deck",
         folderId: null,
         ...bad,
       });
@@ -206,6 +209,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     // and scope the caller named.
     const deck = await ok<{ productId: string }>(app, "POST", "/products", {
       type: "slide_deck",
+      label: "Test deck",
       folderId: null,
       runId: pinnedRunId,
       scopeId: allScopeId,
@@ -213,6 +217,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     createdProductIds.push(deck.productId);
     const report = await ok<{ productId: string }>(app, "POST", "/products", {
       type: "report",
+      label: "Test report",
       folderId: null,
       runId: pinnedRunId,
       scopeId: allScopeId,
@@ -231,8 +236,8 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       }[]
     >`SELECT id, type, label, run_id, scope_id, created_by FROM products WHERE id = ANY(${createdProductIds})`;
     const byId = new Map(rows.map((r) => [r.id, r]));
-    assertEquals(byId.get(deck.productId)?.label, "Untitled deck");
-    assertEquals(byId.get(report.productId)?.label, "Untitled report");
+    assertEquals(byId.get(deck.productId)?.label, "Test deck");
+    assertEquals(byId.get(report.productId)?.label, "Test report");
     for (const r of rows) {
       assertEquals(r.run_id, pinnedRunId);
       assertEquals(r.scope_id, allScopeId);
@@ -598,7 +603,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     );
     assertEquals(
       pairs.find((p) => p.id === copy.productId)?.label,
-      "Untitled deck (copy)",
+      "Test deck (copy)",
     );
     // The scope is the caller's: a copy of an area deck under another scope
     // keeps the package and takes the new scope.
@@ -802,6 +807,7 @@ Deno.test("visualization routes: create with its figure, read, update, cross-typ
     assertEquals(
       (await call(app, "POST", "/products", {
         type: "visualization",
+        label: "Test visualization",
         folderId: null,
         runId: pinnedRunId,
         scopeId,
@@ -895,6 +901,7 @@ Deno.test("visualization routes: create with its figure, read, update, cross-typ
     // Cross-type: a report route on a visualization and the reverse are 404s.
     const report = await ok<{ productId: string }>(app, "POST", "/products", {
       type: "report",
+      label: "Test report",
       folderId: null,
       runId: pinnedRunId,
       scopeId,

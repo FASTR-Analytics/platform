@@ -74,6 +74,7 @@ import { routesWhatsNew } from "../routes/instance/whats_new.ts";
 import { routesFolders } from "../routes/products/folders.ts";
 import { routesProducts } from "../routes/products/products.ts";
 import { routesProductReports } from "../routes/products/reports.ts";
+import { routesProductVisualizations } from "../routes/products/visualizations.ts";
 import { routesProductSlideDecks } from "../routes/products/slide_decks.ts";
 import { routesProductSlides } from "../routes/products/slides.ts";
 import { routesOAuthMetadata } from "../routes/public/oauth_metadata.ts";
@@ -827,6 +828,7 @@ function mainApp(session: Session): Hono {
     routesProductSlideDecks,
     routesProductSlides,
     routesProductReports,
+    routesProductVisualizations,
     routesCustomPrompts,
     routesWhatsNew,
     routesOnboarding,
