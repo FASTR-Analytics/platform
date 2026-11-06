@@ -29,6 +29,7 @@ import {
   usageColumnHeader,
 } from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
+import { canCallRoute } from "~/state/instance/permissions";
 import { instanceState } from "~/state/instance/t1_store";
 import {
   copilotViewController,
@@ -46,13 +47,16 @@ type ScopeRow = {
   migratedFrom: string[] | null;
 };
 
-// The Scopes tab, where scopes are created, edited and deleted. A product
-// picks one by label. The reserved "All data" scope is a fixed statement
-// above the table, which lists the others.
+// The Scopes tab, for every approved user: an unrestricted user creates,
+// edits and deletes scopes here; a restricted user reads the scopes they
+// hold, which is all their list carries. A product picks one by label. The
+// reserved "All data" scope is a fixed statement above the table, which lists
+// the others.
 export function InstanceScopes() {
   holdCopilotView();
   copilotViewController.setView("scopes");
 
+  const canWriteScopes = () => canCallRoute("createScope");
   const scopesTable = createTableConfig({
     sort: { key: "label", direction: "asc" },
   });
@@ -135,7 +139,7 @@ export function InstanceScopes() {
         <AllDataScopePanel
           productCount={instanceState.scopes.find((s) =>
             s.id === ALL_DATA_SCOPE_ID
-          )?.productCount ?? 0}
+          )?.productCount}
         />
         <div class="min-h-0 flex-1">
           <Table
@@ -148,9 +152,11 @@ export function InstanceScopes() {
               fr: "Aucune portée",
               pt: "Sem âmbitos",
             })}
-            onRowClick={(row) =>
-              openEditor(instanceState.scopes.find((s) => s.id === row.id))}
-            bulkActions={bulkActions}
+            onRowClick={canWriteScopes()
+              ? (row) =>
+                openEditor(instanceState.scopes.find((s) => s.id === row.id))
+              : undefined}
+            bulkActions={canWriteScopes() ? bulkActions : undefined}
             itemLabel={{
               one: t3({ en: "scope", fr: "portée", pt: "âmbito" }),
               other: t3({ en: "scopes", fr: "portées", pt: "âmbitos" }),
@@ -158,13 +164,15 @@ export function InstanceScopes() {
             toolbar={{
               search: true,
               children: (
-                <Button onClick={() => openEditor(undefined)} iconName="plus">
-                  {t3({
-                    en: "New scope",
-                    fr: "Nouvelle portée",
-                    pt: "Novo âmbito",
-                  })}
-                </Button>
+                <Show when={canWriteScopes()}>
+                  <Button onClick={() => openEditor(undefined)} iconName="plus">
+                    {t3({
+                      en: "New scope",
+                      fr: "Nouvelle portée",
+                      pt: "Novo âmbito",
+                    })}
+                  </Button>
+                </Show>
               ),
             }}
           />
@@ -176,8 +184,9 @@ export function InstanceScopes() {
 
 // The reserved scope, above the table rather than in it: the routes refuse
 // to edit or delete it, so it is neither a row to open nor one to select,
-// and it stays first whatever the sort or search.
-function AllDataScopePanel(p: { productCount: number }) {
+// and it stays first whatever the sort or search. A restricted user's list
+// never carries it, so for them there is no count to show.
+function AllDataScopePanel(p: { productCount: number | undefined }) {
   return (
     <div class="ui-gap ui-pad-x ui-pad-y-sm bg-base-100 flex flex-none flex-wrap items-center rounded border text-sm">
       <span class="font-700">{t3(TC.allData)}</span>
@@ -194,9 +203,13 @@ function AllDataScopePanel(p: { productCount: number }) {
             "Inclui os dados HMIS, HFA e ICEH e não limita nada. Não pode ser editado nem eliminado.",
         })}
       </span>
-      <div class="ml-auto">
-        <ProductCountBadge count={p.productCount} />
-      </div>
+      <Show when={p.productCount}>
+        {(count) => (
+          <div class="ml-auto">
+            <ProductCountBadge count={count()} />
+          </div>
+        )}
+      </Show>
     </div>
   );
 }

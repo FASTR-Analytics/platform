@@ -339,3 +339,9 @@ flags are unchanged.
   `server/tests/_harness/route_app.ts` and imports it in
   `slide_delete_no_stamp_test.ts`, both outside the Surface, since the new
   count test needed the same helper that test already had.
+- Step 3: `client/src/components/_shared/scope_select.tsx`, outside the
+  Surface, has its comment corrected: it said a `can_configure_data` holder
+  edits scopes on a page opened from Results, which this plan made false.
+- Step 3: on Tim's word that a review runs only the tests specific to the work,
+  step 3, which has no tests, runs no `deno task test`; the rest of the floor
+  runs.

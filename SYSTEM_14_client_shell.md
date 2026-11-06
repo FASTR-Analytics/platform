@@ -204,14 +204,15 @@ Everything else is a **signal-driven switchboard**, never the URL:
 `components/instance/instance.tsx` holds a local `_tab` signal filtered through
 a derivation over the client's permission accessors (`can`, `isGlobalAdmin`,
 `state/instance/permissions.ts`, S18) that selects Products / Explore / Results
-/ Data / Assets / Users, in that nav order (Results and Data need
-`can_view_data`, Scopes `can_configure_data`, Users `can_view_users`; configure
-implies view, so a configure holder reaches the view pages); Products (S12's `components/products/`) is
-first and the default, and Explore (S11's `components/explore/`, one package at
-one scope, a family's modules in a select, a module's views in a select with a
-type toggle, and a frame per view, S11 "The Explore page") needs approval only:
-a restricted user reads it through a scope they hold. The tab id union is
-`InstanceTab` in `onboarding/catalogue.ts` and the shell imports it.
+/ Scopes / Data / Assets / Users, in that nav order (Results and Data need
+`can_view_data`, Users `can_view_users`; configure implies view, so a configure
+holder reaches the view pages); Products (S12's `components/products/`) is first
+and the default, Scopes (S15 "The Scopes page") needs approval only, and Explore
+(S11's `components/explore/`, one package at one scope, a family's modules in a
+select, a module's views in a select with a type toggle, and a frame per view,
+S11 "The Explore page") needs approval only: a restricted user reads it through
+a scope they hold. The tab id union is `InstanceTab` in
+`onboarding/catalogue.ts` and the shell imports it.
 
 The shell is a `FrameRightResizable` whose panel is the AI chat (`CopilotPanel`,
 S13: one chat beside every tab page, full-page view and nested editor, mounted

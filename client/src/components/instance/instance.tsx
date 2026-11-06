@@ -105,14 +105,14 @@ function navItems(): ListItem<InstanceTab>[] {
       iconName: "package",
     });
   }
-  // Scopes need can_configure_data, as the scope routes require.
-  if (can("can_configure_data")) {
-    items.push({
-      id: "scopes",
-      label: t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" }),
-      iconName: "filter",
-    });
-  }
+  // A scope is an authoring object, like a folder: every approved user sees
+  // the scopes, every unrestricted user writes them, and a restricted user
+  // reads the ones they hold.
+  items.push({
+    id: "scopes",
+    label: t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" }),
+    iconName: "filter",
+  });
   if (can("can_view_data")) {
     items.push({
       id: "data",
@@ -148,7 +148,6 @@ export default function Instance(p: Props) {
     if (t === "results_packages" && !can("can_view_data")) {
       return "products";
     }
-    if (t === "scopes" && !can("can_configure_data")) return "products";
     if (t === "users" && !can("can_view_users")) return "products";
     return t;
   };
@@ -532,9 +531,7 @@ export default function Instance(p: Props) {
                   >
                     <InstanceResultsPackages />
                   </Match>
-                  <Match
-                    when={tab() === "scopes" && can("can_configure_data")}
-                  >
+                  <Match when={tab() === "scopes"}>
                     <InstanceScopes />
                   </Match>
                   <Match when={tab() === "assets"}>
