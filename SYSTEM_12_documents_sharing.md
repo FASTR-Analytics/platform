@@ -50,6 +50,8 @@ globs:
   - server/tests/report_format_helpers_test.ts
   - server/tests/slide_text_offsets_test.ts
   - server/utils/id_generation.ts
+  - server/utils/feedback_planner.ts
+  - server/tests/feedback_planner_test.ts
 docs_absorbed:
 ---
 
@@ -2945,7 +2947,19 @@ and the schema holds the attachment's MIME type to `application/pdf`.
 mail): one email per `_FEEDBACK_EMAIL_RECIPIENTS` with `replyTo` the user, then
 a confirmation to the user only after at least one internal send succeeded. Zero
 internal deliveries returns `success: false` (the form shows the error instead
-of "Thank you"). User-typed text (`message`/`description`/`context`/
+of "Thank you"). For a `bug` or `suggestion` (not `help`), after a delivered
+internal send it also calls `queueFeedbackPlan`
+([server/utils/feedback_planner.ts](server/utils/feedback_planner.ts)), fire
+and forget. The planner downloads the public `main` tarball into a temp dir
+(deleted after each job), lets Claude search it with read-only tools confined to
+that dir, and emails the plan through the `sendEmail` it is handed (so this file
+stays the only SendGrid egress) to `_FEEDBACK_PLAN_RECIPIENTS` in the gitignored
+`h_users.ts`, read optionally so a checkout without it boots with the planner
+off. The prompt makes Claude check the report against the code first and open
+with a verdict (confirmed defect, works as designed, data or configuration,
+already fixed, cannot tell), so a non-defect gets a suggested reply instead of
+invented code work. Jobs run one at a time, capped at 3 per reporter and 15 per instance per day
+in memory; its tokens are not written to the AI usage log. User-typed text (`message`/`description`/`context`/
 `userEmail`) is HTML-escaped before interpolation in every route.
 
 ## Open items

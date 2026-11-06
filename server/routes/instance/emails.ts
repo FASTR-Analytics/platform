@@ -4,7 +4,9 @@ import {
   _DAILY_EMAIL_LIMIT,
   _INSTANCE_ID,
   _SEND_GRID_API,
+  _SERVER_VERSION,
 } from "../../exposed_env_vars.ts";
+import { queueFeedbackPlan } from "../../utils/feedback_planner.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";
 import {
@@ -295,6 +297,17 @@ defineRoute(
         success: false,
         err: "Your feedback could not be delivered. Please try again later.",
       });
+    }
+
+    if (feedbackType !== "help") {
+      queueFeedbackPlan({
+        feedbackType,
+        description,
+        userEmail,
+        instanceId: _INSTANCE_ID,
+        serverVersion: _SERVER_VERSION,
+        imageCount: images?.length ?? 0,
+      }, sendEmail);
     }
 
     await sendEmail({
