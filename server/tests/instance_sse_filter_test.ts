@@ -181,6 +181,7 @@ Deno.test("scopes and slide stamps are cut to the grants", () => {
         definitionHash: "h",
         lastUpdated: "t",
         migratedFrom: null,
+        productCount: 0,
       })),
     },
   });

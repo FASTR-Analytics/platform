@@ -36,7 +36,10 @@ import {
   reportContentHash,
 } from "../../collab/version_capture.ts";
 import { log } from "../../middleware/logging.ts";
-import { notifyInstanceProductsUpserted } from "../../task_management/notify_instance_updated.ts";
+import {
+  notifyInstanceProductsUpserted,
+  notifyInstanceScopesChanged,
+} from "../../task_management/notify_instance_updated.ts";
 import {
   createReportStyle,
   deleteReportStyle,
@@ -452,6 +455,7 @@ defineRoute(
       return respond(c, res);
     }
     await notifyInstanceProductsUpserted(c.var.mainDb, [res.data.productId]);
+    await notifyInstanceScopesChanged(c.var.mainDb);
     return respond(c, res);
   },
 );

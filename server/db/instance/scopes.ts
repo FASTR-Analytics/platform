@@ -41,9 +41,10 @@ export async function listScopes(
   mainDb: Sql,
 ): Promise<APIResponseWithData<Scope[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    const rows = await mainDb<DBScope[]>`
-      SELECT * FROM scopes
-      ORDER BY (id = ${ALL_DATA_SCOPE_ID}) DESC, LOWER(label), id
+    const rows = await mainDb<DBScopeWithCount[]>`
+      SELECT s.*, ${productCountColumn(mainDb)}
+      FROM scopes s
+      ORDER BY (s.id = ${ALL_DATA_SCOPE_ID}) DESC, LOWER(s.label), s.id
     `;
     return { success: true, data: rows.map(rowToScope) };
   });
@@ -55,7 +56,11 @@ export async function getScope(
 ): Promise<APIResponseWithData<Scope>> {
   return await tryCatchDatabaseAsync(async () => {
     const row = (
-      await mainDb<DBScope[]>`SELECT * FROM scopes WHERE id = ${scopeId}`
+      await mainDb<DBScopeWithCount[]>`
+        SELECT s.*, ${productCountColumn(mainDb)}
+        FROM scopes s
+        WHERE s.id = ${scopeId}
+      `
     ).at(0);
     if (row === undefined) {
       throw new Error(SCOPE_NOT_FOUND);
@@ -178,7 +183,16 @@ async function lockChangeableScope(
   return granted ? SCOPE_GRANTED : undefined;
 }
 
-function rowToScope(row: DBScope): Scope {
+type DBScopeWithCount = DBScope & { product_count: number };
+
+function productCountColumn(sql: Sql) {
+  return sql`
+    (SELECT COUNT(*) FROM products p WHERE p.scope_id = s.id)::int
+      AS product_count
+  `;
+}
+
+function rowToScope(row: DBScopeWithCount): Scope {
   const definition = parseScopeDefinition(row.definition);
   return {
     id: row.id,
@@ -187,6 +201,7 @@ function rowToScope(row: DBScope): Scope {
     definitionHash: scopeDefinitionHash(definition),
     lastUpdated: row.last_updated,
     migratedFrom: migratedFromOf(row.migrated_from),
+    productCount: row.product_count,
   };
 }
 

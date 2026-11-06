@@ -469,14 +469,17 @@ empty one, any language of "All data" (`SCOPE_LABEL_RESERVED`, S8), a label
 another scope already has (compared case-insensitively, `SCOPE_LABEL_TAKEN`) and
 re-parse the definition with the strict schema. `updateScope` and `deleteScope`
 refuse the reserved scope before touching the database (`SCOPE_RESERVED`):
-neither its label nor its definition can change, and it cannot be deleted.
-Both take `mayChangeGranted` and, after locking the scope row `FOR UPDATE`
-(which a grant's foreign-key check waits on), refuse a granted scope, one with
-a `user_scopes` row, when it is false (`SCOPE_GRANTED`): a granted scope is a
-restricted user's data boundary, and a delete cascades the grants.
-`deleteScope` refuses while a product carries the scope (`SCOPE_IN_USE`): the
-check and the delete are one statement, and the `products.scope_id` foreign key
-is the backstop. `rowToScope` derives `definitionHash` on every read.
+neither its label nor its definition can change, and it cannot be deleted. Both
+take `mayChangeGranted` and, after locking the scope row `FOR UPDATE` (which a
+grant's foreign-key check waits on), refuse a granted scope, one with a
+`user_scopes` row, when it is false (`SCOPE_GRANTED`): a granted scope is a
+restricted user's data boundary, and a delete cascades the grants. `deleteScope`
+refuses while a product carries the scope (`SCOPE_IN_USE`): the check and the
+delete are one statement, and the `products.scope_id` foreign key is the
+backstop. `rowToScope` derives `definitionHash` on every read, and `listScopes`
+and `getScope` derive `productCount`, the number of `products` rows carrying the
+scope across the whole instance, as a correlated count in the same query;
+nothing stores it.
 
 **Routes** (`server/routes/instance/scopes.ts` over
 `lib/api-routes/instance/scopes.ts`): `createScope` (`POST /scopes`),
@@ -490,12 +493,18 @@ the route passes as `mayChangeGranted`. `server/tests/scope_routes_test.ts` pins
 those refusals, that the routes take only the per-family definition, that a user
 with no flags writes an ungranted scope, and that a restricted user writes none.
 There is no list route: every successful write re-reads the whole list and
-broadcasts it as `scopes_updated` (S3), and `InstanceState.scopes` (`Scope[]`:
-id, label, definition, definitionHash, lastUpdated) rides the `starting` payload
-for approved connections, cut to the granted scopes for a restricted one (S3).
-The Scopes page (S15, `components/scopes/`) is the one client surface that calls
-the three routes. Deleting a scope cascades its grants (`user_scopes`), so the
-delete route also re-broadcasts the roster (`users_updated`).
+broadcasts it as `scopes_updated` through `notifyInstanceScopesChanged` (S3). So
+do the product routes that change a count, after their product broadcast:
+`createProduct`, `deleteProducts`, `setProductScope`, `duplicateProduct`,
+`createVisualization`, `copyVisualizationVersion`, `copyReportVersion` and
+`copySlideDeckVersion`, so the count a client holds is the instance's and never
+only the products its connection can see. `InstanceState.scopes` (`Scope[]`: id,
+label, definition, definitionHash, lastUpdated, productCount) rides the
+`starting` payload for approved connections, cut to the granted scopes for a
+restricted one (S3). The Scopes page (S15, `components/scopes/`) is the one
+client surface that calls the three routes. Deleting a scope cascades its grants
+(`user_scopes`), so the delete route also re-broadcasts the roster
+(`users_updated`).
 
 **On the client** the list is `instanceState.scopes` in T1
 (`updateInstanceScopes`). `resolveScope(scope)` in `state/instance/t1_store.ts`

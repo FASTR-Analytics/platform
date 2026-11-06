@@ -203,12 +203,11 @@ through a typed wrapper, never `postMessage` directly.
 `notifyInstanceUsersUpdated` (`users_updated`), `notifyInstanceAssetsUpdated`
 (`assets_updated`), `notifyInstanceGeoJsonMapsUpdated` (`geojson_maps_updated`),
 `notifyInstanceStructureUpdated` (`structure_updated`),
-`notifyInstanceIndicatorsUpdated` (`indicators_updated`: the dictionary
-counts and the four stamps `indicatorsVersion`, `countIndicatorsVersion`,
+`notifyInstanceIndicatorsUpdated` (`indicators_updated`: the dictionary counts
+and the four stamps `indicatorsVersion`, `countIndicatorsVersion`,
 `hfaIndicatorsVersion` and `hfaVerificationVersion`, fired by every HMIS and HFA
 dictionary write and by every HFA verification write; S5 "HFA indicator
-verification"),
-`notifyInstanceDatasetsUpdated` (`datasets_updated`),
+verification"), `notifyInstanceDatasetsUpdated` (`datasets_updated`),
 `notifyInstancePopulationUpdated` (`population_updated`: the population level
 setting, the stored row count, per-type coverage and the
 `population_last_updated` stamp, fired by every store write and by the two HMIS
@@ -241,9 +240,14 @@ and broadcasts them per row, never the whole list, so a checkpoint on one deck
 never re-sends every card; a failed re-read is logged and swallowed because the
 write has already committed), `notifyInstanceProductsDeleted`
 (`products_deleted`), `notifyInstanceFoldersUpdated` (`folders_updated`, whole
-list), `notifyInstanceScopesUpdated` (`scopes_updated`, whole list, fired by
-every scope write in `server/routes/instance/scopes.ts`; there is no scope list
-route, so `starting` and this message are how a client holds scopes) and
+list), `notifyInstanceScopesChanged(mainDb)` (`scopes_updated`, whole list;
+there is no scope list route, so `starting` and this message are how a client
+holds scopes; it re-reads the list, logs and swallows a failed re-read, and is
+fired by every scope write in `server/routes/instance/scopes.ts` and, after
+their product broadcast, by every product route that changes a scope's product
+count: `createProduct`, `deleteProducts`, `setProductScope`, `duplicateProduct`,
+`createVisualization` and the three `copy*Version` routes; never by
+`notifyInstanceProductsUpserted`, which fires on every checkpoint) and
 `notifyInstanceLastUpdated(tableName, productId, ids, ts)` (`last_updated`,
 carrying `slides` only: a product's own stamp rides its summary, so emitting it
 here too would version the same read twice; `productId` names the deck the

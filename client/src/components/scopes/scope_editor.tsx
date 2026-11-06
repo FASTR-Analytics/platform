@@ -39,7 +39,6 @@ import {
 type Props = {
   // undefined = a new scope.
   scope: Scope | undefined;
-  productCount: number;
 };
 
 export function ScopeEditor(
@@ -88,6 +87,9 @@ export function ScopeEditor(
   );
 
   const scopeId = p.scope?.id;
+  const productCount = () =>
+    instanceState.scopes.find((s) => s.id === scopeId)?.productCount ??
+      p.scope?.productCount ?? 0;
   const attemptDelete = scopeId === undefined ? undefined : createDeleteAction(
     t3({
       en: "Are you sure you want to delete this scope?",
@@ -117,7 +119,7 @@ export function ScopeEditor(
           onClick: () => void attemptDelete.click(),
           intent: "danger" as const,
           outline: true,
-          disabled: p.productCount > 0,
+          disabled: productCount() > 0,
         }]),
         {
           label: t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" }),
@@ -135,7 +137,7 @@ export function ScopeEditor(
           fullWidth
         />
         <Show when={p.scope !== undefined}>
-          <ProductCountLine productCount={p.productCount} />
+          <ProductCountLine productCount={productCount()} />
         </Show>
         <div class="text-base-content-muted text-sm">
           {t3({

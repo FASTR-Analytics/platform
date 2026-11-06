@@ -2,7 +2,8 @@
 // harness: the reserved "All data" scope is there, it can be neither edited
 // nor deleted, the routes take only the per-family definition, every
 // unrestricted user writes scopes, a restricted user writes none, and a
-// granted scope is changed only by a user manager.
+// granted scope is changed only by a user manager, and every scope carries
+// the instance's count of products on it.
 //
 // Run alone with:
 //   BYPASS_AUTH= deno test -A --env-file --unstable-broadcast-channel server/tests/scope_routes_test.ts
@@ -13,6 +14,7 @@ import {
   ALL_DATA_SCOPE_DEFINITION,
   ALL_DATA_SCOPE_ID,
   geographyOnlyScopeDefinition,
+  type InstanceSseMessage,
   type Scope,
   type ScopeDefinition,
   type ScopeUuid,
@@ -26,8 +28,10 @@ import {
   SCOPE_LABEL_RESERVED,
   SCOPE_RESERVED,
 } from "../db/instance/scopes.ts";
+import { getPinnedRunId } from "../db/instance/run_generation.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
 import { routesScopes } from "../routes/instance/scopes.ts";
+import { routesProducts } from "../routes/products/products.ts";
 import { appFor, assertRealAuth, call } from "./_harness/route_app.ts";
 
 const ADMIN_EMAIL = "scope-routes-test-admin@example.com";
@@ -299,6 +303,90 @@ Deno.test("scope routes: unrestricted users write scopes, and a granted scope ne
       DELETE FROM users
       WHERE email = ANY(${[AUTHOR_EMAIL, RESTRICTED_EMAIL, MANAGER_EMAIL]})
     `;
+    await closeAllConnections();
+  }
+});
+
+// Every message the hub posted while `body` ran. A BroadcastChannel never
+// delivers to the object that posted, so this separate channel sees the hub's
+// traffic; drain after a turn.
+async function captured(
+  body: () => Promise<void>,
+): Promise<InstanceSseMessage[]> {
+  const seen: InstanceSseMessage[] = [];
+  const channel = new BroadcastChannel("instance_updates");
+  channel.onmessage = (e: MessageEvent) =>
+    void seen.push(e.data as InstanceSseMessage);
+  try {
+    await body();
+    await new Promise((r) => setTimeout(r, 200));
+  } finally {
+    channel.close();
+  }
+  return seen;
+}
+
+Deno.test("scope routes: every scope carries its product count, and a product create re-broadcasts the list", async () => {
+  assertRealAuth();
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  const pinned = await getPinnedRunId(mainDb);
+  if (!pinned.success) throw new Error(pinned.err);
+  if (pinned.data === null) {
+    throw new Error("The dev instance has no pinned package; pin one first.");
+  }
+  const runId = pinned.data;
+  await mainDb`
+    INSERT INTO users (email, is_admin) VALUES (${ADMIN_EMAIL}, TRUE)
+    ON CONFLICT (email) DO UPDATE SET is_admin = TRUE
+  `;
+  const app = appFor(ADMIN_EMAIL, routesScopes, routesProducts);
+  const tag = crypto.randomUUID().slice(0, 8);
+  let scopeId: ScopeUuid | undefined;
+  let productId: string | undefined;
+  const countIn = (messages: InstanceSseMessage[]): number | undefined =>
+    messages.flatMap((m) =>
+      m.type === "scopes_updated"
+        ? m.data.scopes.filter((s) => s.id === scopeId)
+        : []
+    ).at(-1)?.productCount;
+
+  try {
+    const createdScope = await captured(async () => {
+      const res = await call(app, "POST", "/scopes", {
+        label: `Count ${tag}`,
+        definition: geographyOnlyScopeDefinition(`Count Area ${tag}`),
+      });
+      assertEquals(res.status, 200, JSON.stringify(res.body));
+      assert(res.body.success);
+      scopeId = (res.body.data as { scopeId: ScopeUuid }).scopeId;
+    });
+    assertEquals(countIn(createdScope), 0);
+
+    const createdProduct = await captured(async () => {
+      const res = await call(app, "POST", "/products", {
+        type: "report",
+        label: `Count ${tag}`,
+        folderId: null,
+        runId,
+        scopeId,
+      });
+      assertEquals(res.status, 200, JSON.stringify(res.body));
+      assert(res.body.success);
+      productId = (res.body.data as { productId: string }).productId;
+    });
+    assertEquals(countIn(createdProduct), 1);
+    assert(scopeId !== undefined);
+    const stored = await getScope(mainDb, scopeId);
+    assert(stored.success);
+    assertEquals(stored.data.productCount, 1);
+  } finally {
+    if (productId !== undefined) {
+      await mainDb`DELETE FROM products WHERE id = ${productId}`;
+    }
+    if (scopeId !== undefined) {
+      await mainDb`DELETE FROM scopes WHERE id = ${scopeId}`;
+    }
+    await mainDb`DELETE FROM users WHERE email = ${ADMIN_EMAIL}`;
     await closeAllConnections();
   }
 });

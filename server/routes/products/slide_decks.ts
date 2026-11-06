@@ -46,6 +46,7 @@ import { log } from "../../middleware/logging.ts";
 import {
   notifyInstanceLastUpdated,
   notifyInstanceProductsUpserted,
+  notifyInstanceScopesChanged,
 } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { respond } from "./_respond.ts";
@@ -427,6 +428,7 @@ defineRoute(
       return respond(c, res);
     }
     await notifyInstanceProductsUpserted(c.var.mainDb, [res.data.productId]);
+    await notifyInstanceScopesChanged(c.var.mainDb);
     return respond(c, res);
   },
 );

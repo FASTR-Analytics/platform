@@ -13,7 +13,6 @@ import type {
   OtherUser,
   ProductSummary,
   RunProgress,
-  Scope,
 } from "lib";
 import {
   getAdminAreaLabelsConfig,
@@ -21,6 +20,7 @@ import {
   getStructureSchema,
 } from "../db/instance/config.ts";
 import { getStoredDhis2CredentialsInfo } from "../db/instance/instance_dhis2_credentials.ts";
+import { listScopes } from "../db/instance/scopes.ts";
 import { getProductSummaries } from "../db/products/products.ts";
 import { _INSTANCE_COUNTRY_ISO3 } from "../exposed_env_vars.ts";
 
@@ -104,9 +104,18 @@ export function notifyInstanceProductsDeleted(ids: string[]) {
 }
 
 // Scopes and folders are few and change rarely, so the whole list rides each
-// change.
-export function notifyInstanceScopesUpdated(scopes: Scope[]) {
-  notifyInstanceUpdate({ type: "scopes_updated", data: { scopes } });
+// change. The scope list is re-read here, since each row carries its product
+// count: every scope write fires this, and so does every product route that
+// inserts or deletes a product or changes its scope. The write has already
+// committed, so a failed re-read is logged and swallowed, as
+// notifyInstanceProductsUpserted does.
+export async function notifyInstanceScopesChanged(mainDb: Sql): Promise<void> {
+  const res = await listScopes(mainDb);
+  if (!res.success) {
+    console.error(`[notify] scope list broadcast failed: ${res.err}`);
+    return;
+  }
+  notifyInstanceUpdate({ type: "scopes_updated", data: { scopes: res.data } });
 }
 
 export function notifyInstanceFoldersUpdated(folders: Folder[]) {

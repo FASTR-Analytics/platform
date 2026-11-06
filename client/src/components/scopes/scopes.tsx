@@ -58,21 +58,14 @@ export function InstanceScopes() {
     sort: { key: "label", direction: "asc" },
   });
 
-  const counts = createMemo(() => productCountsByScope());
   const rows = createMemo(() =>
     instanceState.scopes
       .filter((scope) => scope.id !== ALL_DATA_SCOPE_ID)
-      .map((scope) => toRow(scope, counts()))
+      .map(toRow)
   );
 
   function openEditor(scope: Scope | undefined) {
-    void openComponent({
-      element: ScopeEditor,
-      props: {
-        scope,
-        productCount: scope === undefined ? 0 : counts().get(scope.id) ?? 0,
-      },
-    });
+    void openComponent({ element: ScopeEditor, props: { scope } });
   }
 
   async function handleBulkDelete(selected: ScopeRow[]): Promise<void> {
@@ -141,7 +134,9 @@ export function InstanceScopes() {
     <FrameTop pad="md">
       <div class="ui-gap flex h-full w-full flex-col">
         <AllDataScopePanel
-          productCount={counts().get(ALL_DATA_SCOPE_ID) ?? 0}
+          productCount={instanceState.scopes.find((s) =>
+            s.id === ALL_DATA_SCOPE_ID
+          )?.productCount ?? 0}
         />
         <div class="min-h-0 flex-1">
           <Table
@@ -290,22 +285,14 @@ function describeSection(section: ScopeDefinition[DatasetType]): string {
     : parts.join("; ");
 }
 
-function productCountsByScope(): Map<ScopeId, number> {
-  const counts = new Map<ScopeId, number>();
-  for (const product of instanceState.products) {
-    counts.set(product.scopeId, (counts.get(product.scopeId) ?? 0) + 1);
-  }
-  return counts;
-}
-
-function toRow(scope: Scope, counts: Map<ScopeId, number>): ScopeRow {
+function toRow(scope: Scope): ScopeRow {
   return {
     id: scope.id,
     label: scopeDisplayLabel(scope),
     hmis: describeSection(scope.definition.hmis),
     hfa: describeSection(scope.definition.hfa),
     iceh: describeSection(scope.definition.iceh),
-    productCount: counts.get(scope.id) ?? 0,
+    productCount: scope.productCount,
     migratedFrom: scope.migratedFrom,
   };
 }

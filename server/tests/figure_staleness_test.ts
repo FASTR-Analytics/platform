@@ -92,6 +92,7 @@ Deno.test("stale: editing a scope's definition makes its figures stale", () => {
     definitionHash: scopeDefinitionHash(definition),
     lastUpdated: "2026-10-01T00:00:00.000Z",
     migratedFrom: null,
+    productCount: 0,
   });
   const pair = { runId: RUN_A, scopeId: KANO_SCOPE_ID };
   const before = resolvePackageScope(pair, [
@@ -129,6 +130,7 @@ Deno.test("stale: a pair resolves to a listed scope, with each family's own area
       definitionHash: scopeDefinitionHash(definition),
       lastUpdated: "2026-10-01T00:00:00.000Z",
       migratedFrom: null,
+      productCount: 0,
     }],
   );
   assertEquals(listed.definitionHash, scopeDefinitionHash(definition));

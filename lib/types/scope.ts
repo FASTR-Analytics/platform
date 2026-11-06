@@ -147,6 +147,10 @@ export type Scope = {
   // The projects the update that retired projects made this scope from;
   // null on a scope a person made.
   migratedFrom: string[] | null;
+  // The products that carry the scope across the whole instance, derived on
+  // read, so a connection that holds only some products still sees whether
+  // the scope can be deleted.
+  productCount: number;
 };
 
 // crypto.subtle is async and the hash is needed synchronously on both tiers
