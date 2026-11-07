@@ -1,3 +1,14 @@
+[TBD] [user] [changed] - Scopes page is now visible to all approved users
+[TBD] [user] [changed] - Restricted users can view their assigned scopes but cannot edit them
+[TBD] [user] [changed] - Any unrestricted user can now create, edit, and delete scopes
+[TBD] [user] [changed] - Scopes assigned to restricted users require a user manager to modify or delete
+[TBD] [user] [added] - Each scope now shows how many products use it
+[TBD] [admin] [changed] - Scopes page is now visible to all approved users
+[TBD] [admin] [changed] - Any unrestricted user can create, edit, and delete scopes
+[TBD] [admin] [changed] - Restricted users can view their granted scopes but cannot modify them
+[TBD] [admin] [changed] - Editing or deleting a scope granted to users requires user management permission
+[TBD] [admin] [added] - Each scope now shows its product count across the instance
+[TBD] [admin] [changed] - Restricted users can no longer change scopes, even with other permissions
 [2.9.1] [user] [added] - AI assistant fixes report drafts with small edits instead of rewriting entirely
 [2.9.1] [user] [fixed] - Reports no longer proposed with half-empty pages when browser tab is hidden
 [2.9.1] [user] [changed] - AI planning descriptions now use plain language instead of technical format names
