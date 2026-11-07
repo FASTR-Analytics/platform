@@ -20,10 +20,17 @@
 
   ```
   deno task typecheck        # server + client + lint:systems + lint:structure + lint:text-sizes + lint:sql-json + lint:plan-citations
-  deno task test
   ./validate_protocols
   ./run                      # starts against the dev database
   ```
+
+- **Tests.** The suite is not in the floor, because a review or re-review that
+  reruns it on a tree the builder already tested learns nothing. Build and Fix
+  run only the test files their diff adds or edits:
+  `deno task test:files server/tests/<name>_test.ts ...`. The close of the last
+  step runs `deno task test`, the fast set, once for the whole plan, before the
+  commit that deletes the plan file. `deno task test:full` adds the slow
+  migration, import and permission-matrix files and runs only when Tim asks.
 
 - **Conditional gates**, on top of the floor:
 

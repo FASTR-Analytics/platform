@@ -104,8 +104,10 @@ cd client && npm run dev   # SPA on :3000, hot-reloads
 Boot is ~15s cold (schema migrations, the JSON data-transform sweeps and the
 run-manifest sweep all run against the main DB) and ~3s warm. Two self-checks
 fail-stop the boot: the route validation and, in dev only, the headless mount
-check. The server test suite does not run at boot; run `deno task test` yourself
-(it is part of the verification floor).
+check. The server test suite does not run at boot. `deno task test` runs the
+fast set, `deno task test:full` adds the slow files, and
+`deno task test:files <paths>` runs the named files; PROTOCOL_APP_PLANS.md says
+when each runs.
 
 ### 1a. The JSON-RPC probe: `./mcp_probe`
 

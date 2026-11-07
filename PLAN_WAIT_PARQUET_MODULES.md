@@ -555,8 +555,9 @@ Repo: wb-fastr-modules, branch `parquet` created from `main` (ruling 13).
 **Not in this step.** The authoring schema (step 6); the vendored copy (step
 7).
 
-**Gates.** The modules repo's floor (§0). In this repo: `deno task test` (the
-m012 parity test runs the real script on the host `Rscript`); on the dev
+**Gates.** The modules repo's floor (§0). In this repo:
+`deno task test:files server/tests/m012_expression_parity_test.ts` (it runs
+the real script on the host `Rscript`); on the dev
 instance `generate_package.ts parquet-port --families hmis,hfa,iceh --modules
 m012,m001,m002,m011,m005,m006,m010,m009` ends `ready`, and
 `compare_packages.ts parquet-baseline parquet-port` reports no difference for

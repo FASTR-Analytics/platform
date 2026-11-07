@@ -449,8 +449,8 @@ structural check of Hono's route table (every flagged entry's `method + path`
 must be registered on `headlessApp`) that fail-stops on a miss (they drifted
 once: flagged run-keyed reads whose route file was never mounted 404'd silently
 through `/mcp`); production boots skip it. The server test suite is not run at
-boot: `deno task test` is part of the verification floor
-(PROTOCOL_APP_PLANS.md), and `deno task typecheck` checks `server/tests/*.ts`
+boot: PROTOCOL_APP_PLANS.md says when `deno task test` runs, and
+`deno task typecheck` checks `server/tests/*.ts`
 too, so the suite is typed at the deploy gate. Note there is NO
 compiler-enforced browser-free boundary in `lib/` either: the server typecheck
 carries the TypeScript `dom` lib (`deno.json` → `"lib": [... "dom" ...]`), so a
