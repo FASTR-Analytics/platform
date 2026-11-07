@@ -1,8 +1,6 @@
 # HFA work catalogue
 
-The HFA work still to do: requests, bugs and open questions raised by the HFA
-team, each checked against the code. HMIS and ICEH items are excluded. When an
-item lands, delete its row; add new work as it is raised.
+The HFA work still to do: requests, bugs and open questions raised by the HFA team, each checked against the code. HMIS and ICEH items are excluded. When an item lands, delete its row; add new work as it is raised.
 
 ## Waiting on the HFA team
 
@@ -66,47 +64,22 @@ These point to help text or a short guide.
 
 - Does the order of configuration matter?
 - When is a row filter needed on a clean dataset?
-- Is admin level 0 required for maps? Where should map files come from when
-  there is no DHIS2?
+- Is admin level 0 required for maps? Where should map files come from when there is no DHIS2?
 - Do weights need a separate upload when they are a column in the dataset?
 - Is the XLSForm needed at the facility step? (It is optional and labelled so.)
 - In the Data tab, is each row a variable in one round? (Yes.)
 - Should anything be done to the ODK dataset between collection and upload?
-- How is a facility type of "Other" handled when the file has an "other,
-  specify" column such as Guinea's `id_fac_type_other`? (Add it as a display
-  column in the recode step.)
-- How are extra facility attributes, such as type tags, added? (Map a custom
-  column in the data wizard's Facilities step; it switches the column on.)
-- Is the HFA facility upload a job for the HMIS team? (The HFA registry is
-  separate from the HMIS one, L8.)
-- As rounds are added, is "Add new facilities and update existing ones" the
-  standard import mode?
-- How are categorical variables such as facility type or region set up as
-  indicators? Is one dummy indicator per EmONC signal function right? (Safia)
-- What month and year does a time point get when a round spans months?
-  (Leenisha. M23.)
-- Must the dataset's facility ids match a sample file, and is uploading the
-  dataset as the sample file fine? (Leenisha. There is no separate facility
-  upload; the data wizard writes the registry.)
-- Is one questionnaire covering rounds 1 to 4 or one per round better to upload?
-  Can an indicator be left out of some rounds? (Leenisha. Code is set per round,
-  and a round can have none.)
-- Does an indicator import apply the code to every time point? (Leenisha. Yes:
-  with one code column and several time points, choose "Apply to all" on the
-  time-point step.)
+- How is a facility type of "Other" handled when the file has an "other, specify" column such as Guinea's `id_fac_type_other`? (Add it as a display column in the recode step.)
+- How are extra facility attributes, such as type tags, added? (Map a custom column in the data wizard's Facilities step; it switches the column on.)
+- Is the HFA facility upload a job for the HMIS team? (The HFA registry is separate from the HMIS one, L8.)
+- As rounds are added, is "Add new facilities and update existing ones" the standard import mode?
+- How are categorical variables such as facility type or region set up as indicators? Is one dummy indicator per EmONC signal function right? (Safia)
+- What month and year does a time point get when a round spans months? (Leenisha. M23.)
+- Must the dataset's facility ids match a sample file, and is uploading the dataset as the sample file fine? (Leenisha. There is no separate facility upload; the data wizard writes the registry.)
+- Is one questionnaire covering rounds 1 to 4 or one per round better to upload? Can an indicator be left out of some rounds? (Leenisha. Code is set per round, and a round can have none.)
+- Does an indicator import apply the code to every time point? (Leenisha. Yes: with one code column and several time points, choose "Apply to all" on the time-point step.)
 - What does `== 1` mean in the code, and is it needed? (Leenisha)
-- Why do some default indicators name two variables for one question, e.g.
-  `chal_02_a==1 & chal_01_a==1`? (Leenisha, for the analysis team)
-- Which cases are a warning and which an error in the Status column? (Ashley,
-  Meghan.) Error: code that does not parse (the editor shows where), or an
-  identifier that is neither a variable of that time point nor another
-  indicator, including a wrong-case variable. Warning: code whose result does
-  not match the indicator's type, a number on a yes/no indicator or the reverse.
-  Differing code across rounds is the separate Consistent column.
-- Why are round 3 and round 4 results missing from a figure? (Ashley.) No review
-  status exists. An indicator with no code for a round is absent from the
-  observed metric for that round and filled by the carried metric; with
-  stop-on-failure off, an indicator with an unknown variable is skipped whole.
-- Where is the facility-type disaggregation for figures? (Viviane.) Turn on
-  "Facility types" in the HFA configuration, or map the type column in the data
-  wizard, and regenerate the package.
+- Why do some default indicators name two variables for one question, e.g. `chal_02_a==1 & chal_01_a==1`? (Leenisha, for the analysis team)
+- Which cases are a warning and which an error in the Status column? (Ashley, Meghan.) Error: code that does not parse (the editor shows where), or an identifier that is neither a variable of that time point nor another indicator, including a wrong-case variable. Warning: code whose result does not match the indicator's type, a number on a yes/no indicator or the reverse. Differing code across rounds is the separate Consistent column.
+- Why are round 3 and round 4 results missing from a figure? (Ashley.) No review status exists. An indicator with no code for a round is absent from the observed metric for that round and filled by the carried metric; with stop-on-failure off, an indicator with an unknown variable is skipped whole.
+- Where is the facility-type disaggregation for figures? (Viviane.) Turn on "Facility types" in the HFA configuration, or map the type column in the data wizard, and regenerate the package.

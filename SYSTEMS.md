@@ -1,19 +1,10 @@
 # Systems map: wb-fastr
 
-> Canonical topology: 18 systems (+ a read-but-don't-own kernel). This is the
-> canonical index: the map, the custody table, the kernel rule, the
-> cross-cutting audits, the execution model, and the documentation model. Each
-> system's description (scope, contract, prose) lives in its own
-> `SYSTEM_NN_*.md` file, whose `globs:` frontmatter is the machine-checked
-> manifest (`lint_systems.ts` asserts every tracked file is claimed by exactly
-> one system). The old `DOC_*` set is fully absorbed into these files (completed
-> 2026-07-17); every SYSTEM file holds verified prose.
+> Canonical topology: 18 systems (+ a read-but-don't-own kernel). This is the canonical index: the map, the custody table, the kernel rule, the cross-cutting audits, the execution model, and the documentation model. Each system's description (scope, contract, prose) lives in its own `SYSTEM_NN_*.md` file, whose `globs:` frontmatter is the machine-checked manifest (`lint_systems.ts` asserts every tracked file is claimed by exactly one system). The old `DOC_*` set is fully absorbed into these files (completed 2026-07-17); every SYSTEM file holds verified prose.
 
 ## The map
 
-Platform machinery (1–3), data in (4–7), compute (8), visualization (9–11),
-artifacts (12), assist (13), frame (14–15), realtime collaboration (16),
-observability (17), permissions (18).
+Platform machinery (1–3), data in (4–7), compute (8), visualization (9–11), artifacts (12), assist (13), frame (14–15), realtime collaboration (16), observability (17), permissions (18).
 
 | #                                        | System                                   | One line                                                                                                        |
 | ---------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -37,16 +28,11 @@ observability (17), permissions (18).
 | [S18](SYSTEM_18_permissions.md)          | Permissions & Identity                   | what a request may do once its credential is an email: identity, guards, product policy, flags, user management |
 | [S00](SYSTEM_00_kernel.md)               | Kernel (read but don't own)              | lib mega-barrel, multi-domain grab-bags, the env nexus, everyone's dependency                                   |
 
-App-wide conventions that span systems live as `PROTOCOL_APP_*` files (§6), e.g.
-[PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md). They own no files in the
-manifest.
+App-wide conventions that span systems live as `PROTOCOL_APP_*` files (§6), e.g. [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md). They own no files in the manifest.
 
 ## §4.1 Shared-custody files
 
-Files where systems genuinely meet inside one file. Rule: ONE owner reviews the
-whole file; the others are mandatory readers of their slice. (The Seam column
-gives the reason each file is shared; this table is the authoritative custody
-list.)
+Files where systems genuinely meet inside one file. Rule: ONE owner reviews the whole file; the others are mandatory readers of their slice. (The Seam column gives the reason each file is shared; this table is the authoritative custody list.)
 
 | File                                                                    | Owner | Mandatory readers | Seam                                                                                                                         |
 | ----------------------------------------------------------------------- | ----- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -74,83 +60,35 @@ list.)
 
 ## §4.2 Kernel: read but don't own
 
-`SYSTEM_00_kernel.md` claims these six. They are everyone's dependency and no
-one's system; review them only alongside the consuming system, and any change
-needs a cross-system check.
+`SYSTEM_00_kernel.md` claims these six. They are everyone's dependency and no one's system; review them only alongside the consuming system, and any change needs a cross-system check.
 
-`lib/mod.ts`, `lib/types/mod.ts`, `lib/types/instance.ts`, `lib/consts.ts`,
-`lib/utils.ts`, `server/exposed_env_vars.ts`.
+`lib/mod.ts`, `lib/types/mod.ts`, `lib/types/instance.ts`, `lib/consts.ts`, `lib/utils.ts`, `server/exposed_env_vars.ts`.
 
 ## §4.3 Cross-cutting audits (tasks, not systems)
 
-Audits that by construction read many systems' files; they need their own briefs
-with license to read everything.
+Audits that by construction read many systems' files; they need their own briefs with license to read everything.
 
-1. Notify/stamp coverage · 2. Guard-per-route sweep · 3. Runtime-validation
-   posture · 4. Version-hash ingredient completeness · 5. Calendar semantics ·
-2. t3 literal correctness · 7. Migration data-transform pairing · 8. Cross-repo
-   lockstep discipline · 9. Public / unauthenticated surface.
+1. Notify/stamp coverage · 2. Guard-per-route sweep · 3. Runtime-validation posture · 4. Version-hash ingredient completeness · 5. Calendar semantics ·
+2. t3 literal correctness · 7. Migration data-transform pairing · 8. Cross-repo lockstep discipline · 9. Public / unauthenticated surface.
 
 ## §5 Execution model
 
-Two streams interleave: **define/document** (this map → SYSTEM files) and
-**change code** (fixes driven by findings + refactors toward the map). The
-engine is the per-system cycle **review → triage → fix → document**. A SYSTEM
-file's prose is the artifact of that cycle. Genuinely horizontal work
-(hardening, ZOD) gets standalone plans instead.
+Two streams interleave: **define/document** (this map → SYSTEM files) and **change code** (fixes driven by findings + refactors toward the map). The engine is the per-system cycle **review → triage → fix → document**. A SYSTEM file's prose is the artifact of that cycle. Genuinely horizontal work (hardening, ZOD) gets standalone plans instead.
 
-Every triaged finding either gets fixed in the cycle, gets a one-line entry in
-that SYSTEM file's **Open items** section, or, if big enough, gets its own
-`PLAN_*` file. The Open items sections are the permanent, scoped successor to
-ad-hoc `PLAN_*_FIXES` files.
+Every triaged finding either gets fixed in the cycle, gets a one-line entry in that SYSTEM file's **Open items** section, or, if big enough, gets its own `PLAN_*` file. The Open items sections are the permanent, scoped successor to ad-hoc `PLAN_*_FIXES` files.
 
 ## §6 Documentation model
 
-Every doc has one home along two axes, construction (HOW) vs architecture
-(WHAT), cross-project vs app-specific:
+Every doc has one home along two axes, construction (HOW) vs architecture (WHAT), cross-project vs app-specific:
 
-- `panther/protocols/PROTOCOL_*`: cross-project HOW. Synced from the panther
-  repo; never edited here; kept fresh by the sync.
-- `PROTOCOL_APP_*` (repo root): app-specific authoring recipes (e.g.
-  PROTOCOL_APP_MIGRATIONS), updated in lockstep with the mechanics they
-  describe.
-- `SYSTEM_NN_*`: app-specific WHAT. **Prose describes verified current behavior
-  and the contract, never aspirations, never history. Deliberate limitations are
-  stated as facts in the prose, once. Open items hold only real pending work:
-  fixes, decisions-to-be-made, and pointers into reform plans. A resolved item
-  is deleted, not annotated. A decision log is cruft.** The boundary half
-  (`globs:`) is lint-enforced continuously; the prose half is re-verified
-  against code in each review cycle.
-- `PLAN_*`: the transient "what's changing" layer. A plan mutates a SYSTEM (or a
-  PROTOCOL_APP) and is deleted when its work lands.
+- `panther/protocols/PROTOCOL_*`: cross-project HOW. Synced from the panther repo; never edited here; kept fresh by the sync.
+- `PROTOCOL_APP_*` (repo root): app-specific authoring recipes (e.g. PROTOCOL_APP_MIGRATIONS), updated in lockstep with the mechanics they describe.
+- `SYSTEM_NN_*`: app-specific WHAT. **Prose describes verified current behavior and the contract, never aspirations, never history. Deliberate limitations are stated as facts in the prose, once. Open items hold only real pending work: fixes, decisions-to-be-made, and pointers into reform plans. A resolved item is deleted, not annotated. A decision log is cruft.** The boundary half (`globs:`) is lint-enforced continuously; the prose half is re-verified against code in each review cycle.
+- `PLAN_*`: the transient "what's changing" layer. A plan mutates a SYSTEM (or a PROTOCOL_APP) and is deleted when its work lands.
 - `CLAUDE.md`: the index pointing at all of it.
 
-**Vocabulary.** The nouns every doc and every new identifier uses: **product**
-(a slide deck, a report or a visualization: one row in `products`, one id
-namespace), **folder** (a node in the nested products tree; `parent_id` NULL is
-the root), **package** (a results package: a `runs` row plus its run directory;
-"run" stays the internal name), **pin** (the instance's pinned package),
-**scope** (a named row in `scopes`: a label and a definition of what a read may
-take from a package, one section per dataset family, each excluded or included
-with that family's limits; a product carries exactly one by id, every read names
-one, and the reserved scope "All data", id `all-data`, includes every family and
-limits nothing), **figure** (`{ metricId, config }` resolved under a (package,
-scope) pair and stored as a `FigureBundle` inside a product), **preset** (a
-default visualization derived from a package's manifest, not a stored thing) and
-**authoring context** (what an author needs from a package to build figures:
-metrics, modules, indicators, taxonomy, presets). UI strings use the same nouns
-with one substitution: a figure is a **visualization** on screen, in every
-language and in every surface (slide and report editors, badges, downloads,
-tours), because "figures" reads as numbers to this app's users and the same
-object will appear standalone in the Explore tab. "Figure" stays the code,
-storage, route and AI-tool name. A **visualization product**
-(`type =
-'visualization'`) is one saved figure that is a product of its own
-(S12); its routes and tables say "visualization" because that is the product's
-name, and what it holds is still a figure. "Project" and "dashboard" name
-nothing in this app; do not reintroduce them. `PresentationObjectConfig` remains
-the figure-config TYPE name; renaming the PO vocabulary in code is a separate
-refactor.
+**Vocabulary.** The nouns every doc and every new identifier uses: **product** (a slide deck, a report or a visualization: one row in `products`, one id namespace), **folder** (a node in the nested products tree; `parent_id` NULL is the root), **package** (a results package: a `runs` row plus its run directory; "run" stays the internal name), **pin** (the instance's pinned package), **scope** (a named row in `scopes`: a label and a definition of what a read may take from a package, one section per dataset family, each excluded or included with that family's limits; a product carries exactly one by id, every read names one, and the reserved scope "All data", id `all-data`, includes every family and limits nothing), **figure** (`{ metricId, config }` resolved under a (package, scope) pair and stored as a `FigureBundle` inside a product), **preset** (a default visualization derived from a package's manifest, not a stored thing) and **authoring context** (what an author needs from a package to build figures: metrics, modules, indicators, taxonomy, presets). UI strings use the same nouns with one substitution: a figure is a **visualization** on screen, in every language and in every surface (slide and report editors, badges, downloads, tours), because "figures" reads as numbers to this app's users and the same object will appear standalone in the Explore tab. "Figure" stays the code, storage, route and AI-tool name. A **visualization product** (`type =
+'visualization'`) is one saved figure that is a product of its own (S12); its routes and tables say "visualization" because that is the product's name, and what it holds is still a figure. "Project" and "dashboard" name nothing in this app; do not reintroduce them. `PresentationObjectConfig` remains the figure-config TYPE name; renaming the PO vocabulary in code is a separate refactor.
 
 ## Running the lints
 
@@ -163,46 +101,14 @@ deno task lint:plan-citations
 deno task lint:report-forge
 ```
 
-Green = every tracked `.ts`/`.tsx` under `server/`, `lib/`, `client/src/` (+
-`main.ts`) is claimed by exactly one system. Add a new file → it shows as an
-ORPHAN until a SYSTEM file's `globs:` claims it. The lint is chained into
-`deno task typecheck` (which the deploy script gates on), so an unclaimed file
-blocks deploy rather than accumulating silently.
+Green = every tracked `.ts`/`.tsx` under `server/`, `lib/`, `client/src/` (+ `main.ts`) is claimed by exactly one system. Add a new file → it shows as an ORPHAN until a SYSTEM file's `globs:` claims it. The lint is chained into `deno task typecheck` (which the deploy script gates on), so an unclaimed file blocks deploy rather than accumulating silently.
 
-`report-forge/`, the report editor package, is a git submodule
-(`github.com/NicholasWillmott/report-forge`, private): a change to it is
-committed and pushed inside the folder, then this repo commits the moved
-pointer. It is outside those roots and is claimed by no manifest. It is reviewed
-with S12 and guarded by its own boundary lint, `deno task lint:report-forge`
-(`report-forge/harness/lint_boundary.ts`: nothing under the folder imports from
-outside it), which `deno task typecheck` runs last.
+`report-forge/`, the report editor package, is a git submodule (`github.com/NicholasWillmott/report-forge`, private): a change to it is committed and pushed inside the folder, then this repo commits the moved pointer. It is outside those roots and is claimed by no manifest. It is reviewed with S12 and guarded by its own boundary lint, `deno task lint:report-forge` (`report-forge/harness/lint_boundary.ts`: nothing under the folder imports from outside it), which `deno task typecheck` runs last.
 
-`lint_structure.ts` (task `lint:structure`, chained into `deno task typecheck`
-after `lint:systems`) enforces the client tree rules of
-`panther/protocols/PROTOCOL_UI_STRUCTURE.md`: snake_case names with no
-underscore prefix except `_shared/`, no file at the root of `components/`,
-`mod.ts` as the only entry another folder may import, `_shared/` scoped to its
-parent and consumed by two or more of the parent's children, no import of
-`components/` from `state/`, `exports/` or `generate_*/`, no unreachable file,
-and no runtime cycle between folder entries. It resolves imports and has no
-baseline; an optional directory argument narrows which files are reported.
+`lint_structure.ts` (task `lint:structure`, chained into `deno task typecheck` after `lint:systems`) enforces the client tree rules of `panther/protocols/PROTOCOL_UI_STRUCTURE.md`: snake_case names with no underscore prefix except `_shared/`, no file at the root of `components/`, `mod.ts` as the only entry another folder may import, `_shared/` scoped to its parent and consumed by two or more of the parent's children, no import of `components/` from `state/`, `exports/` or `generate_*/`, no unreachable file, and no runtime cycle between folder entries. It resolves imports and has no baseline; an optional directory argument narrows which files are reported.
 
-`lint_text_sizes.ts` (task `lint:text-sizes`, chained after `lint:structure`)
-scans the tracked `.ts`, `.tsx` and `.css` files under `client/src/` and
-`panther/_303_components/` and fails on a text size outside the rem token scale:
-an arbitrary `text-[Npx]`, the non-token `text-md`, or an inline font-size in px
-or pt. Document and canvas rendering is exempt by file in the script.
+`lint_text_sizes.ts` (task `lint:text-sizes`, chained after `lint:structure`) scans the tracked `.ts`, `.tsx` and `.css` files under `client/src/` and `panther/_303_components/` and fails on a text size outside the rem token scale: an arbitrary `text-[Npx]`, the non-token `text-md`, or an inline font-size in px or pt. Document and canvas rendering is exempt by file in the script.
 
-`lint_sql_json.ts` (task `lint:sql-json`, chained after `lint:text-sizes`) fails
-on a SQL `json` or `jsonb` type, cast or function, in any case, in any tracked
-source file, `.sql` file or root script. Stored JSON is a `text` column, parsed
-in TypeScript. The existing migrations that already use them are listed by name
-in the script and are the only files exempt.
+`lint_sql_json.ts` (task `lint:sql-json`, chained after `lint:text-sizes`) fails on a SQL `json` or `jsonb` type, cast or function, in any case, in any tracked source file, `.sql` file or root script. Stored JSON is a `text` column, parsed in TypeScript. The existing migrations that already use them are listed by name in the script and are the only files exempt.
 
-`lint_plan_citations.ts` (task `lint:plan-citations`, chained after
-`lint:sql-json`) fails on a citation of a plan in code or a standing doc (the
-SYSTEM, PROTOCOL_APP, CLAUDE, README and USER_GUIDE files): a plan or review
-file name or a ruling anywhere in a line, and a ruling id or a plan section
-number in a comment. A plan is deleted when its work lands, so a comment that
-needs a reason states it. The existing migrations that already cite one are
-listed by name in the script and are the only files exempt.
+`lint_plan_citations.ts` (task `lint:plan-citations`, chained after `lint:sql-json`) fails on a citation of a plan in code or a standing doc (the SYSTEM, PROTOCOL_APP, CLAUDE, README and USER_GUIDE files): a plan or review file name or a ruling anywhere in a line, and a ruling id or a plan section number in a comment. A plan is deleted when its work lands, so a comment that needs a reason states it. The existing migrations that already cite one are listed by name in the script and are the only files exempt.

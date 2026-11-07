@@ -34,713 +34,99 @@ docs_absorbed:
 
 # S11: Visualization Authoring UI
 
-The embedded figure editor, the insert-figure wizard, and the figure-config
-semantics in `lib/`. A visualization is a figure inside a product: a slide, a
-report, or a visualization product, which holds exactly one figure and is edited
-full-page in this same editor (S12 owns the product, S16 its room). There is no
-library of figures shared between products: a figure is always stored inside the
-one product that holds it.
+The embedded figure editor, the insert-figure wizard, and the figure-config semantics in `lib/`. A visualization is a figure inside a product: a slide, a report, or a visualization product, which holds exactly one figure and is edited full-page in this same editor (S12 owns the product, S16 its room). There is no library of figures shared between products: a figure is always stored inside the one product that holds it.
 
 ## Scope
 
-The `globs:` frontmatter above is the lint-enforced manifest
-(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
-`components/_shared/figure_editor/**`: the editor (`visualization_editor.tsx` =
-`VisualizationEditor`, the wrapper the slide and report editors open;
-`figure_editor.tsx`
+The `globs:` frontmatter above is the lint-enforced manifest (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1. `components/_shared/figure_editor/**`: the editor (`visualization_editor.tsx` = `VisualizationEditor`, the wrapper the slide and report editors open; `figure_editor.tsx`
 
-- the three panel tabs and their sub-panels; `replicate_by_options.tsx`;
-  `conditional_formatting_editor.tsx` + `conditional_formatting_store.ts`) and
-  `stale_figure_badge.tsx` (the per-figure stale badge, its "Update to
-  <package>" action and the "Update all visualizations" header button, the
-  contract being S10's "The captured pair and staleness").
-  `components/products/_shared/insert_figure/**` (the insert-figure wizard and
-  the preset gallery it renders, below). `components/explore/**` (the instance
-  Explore tab's page, S14 mounts it: "The Explore page" below). The figure
-  modals in `_shared/figure_editor/` (download, results-file viewer, custom
-  series styles). `products/slide_deck/editor_snapshot.ts`
-  (`snapshotForSlideEditor`, the one thing the slide editor freezes at open) and
-  `products/slide_deck/slide_editor/conflict_resolution_modal.tsx` are S12's
-  now, under its slide deck glob. Lib config semantics
-  (`normalize_po_config.ts`, `convert_visualization_type.ts`, the PO config type
-  families, the conditional-formatting family). `withReplicant` lives in
-  kernel-owned `lib/utils.ts` (S00).
+- the three panel tabs and their sub-panels; `replicate_by_options.tsx`; `conditional_formatting_editor.tsx` + `conditional_formatting_store.ts`) and `stale_figure_badge.tsx` (the per-figure stale badge, its "Update to
+  <package>" action and the "Update all visualizations" header button, the contract being S10's "The captured pair and staleness"). `components/products/_shared/insert_figure/**` (the insert-figure wizard and the preset gallery it renders, below). `components/explore/**` (the instance Explore tab's page, S14 mounts it: "The Explore page" below). The figure modals in `_shared/figure_editor/` (download, results-file viewer, custom series styles). `products/slide_deck/editor_snapshot.ts` (`snapshotForSlideEditor`, the one thing the slide editor freezes at open) and `products/slide_deck/slide_editor/conflict_resolution_modal.tsx` are S12's now, under its slide deck glob. Lib config semantics (`normalize_po_config.ts`, `convert_visualization_type.ts`, the PO config type families, the conditional-formatting family). `withReplicant` lives in kernel-owned `lib/utils.ts` (S00).
 
 ## Contract
 
-The editor has one mode: a figure `{ metricId, config }` edited under the host's
-live `PackageScope`. It never persists: Apply closes with a **normalized**
-config (`getConfigForSave()`) and the caller owns storage, or, when the host
-passes a live `collabBinding`, edits stream into the host doc and the editor
-closes with the same normalized config for a final coherent rebuild. Reactivity
-is deep-tracked at both sites, the refetch effect (`trackStore(tempConfig.d)`)
-and the figureInputs memo (`trackStore` over `tempConfig.s` and `.t`), so new
-config fields need no wiring at either. Neither carries a hand-enumerated
-dependency list; do not add one.
+The editor has one mode: a figure `{ metricId, config }` edited under the host's live `PackageScope`. It never persists: Apply closes with a **normalized** config (`getConfigForSave()`) and the caller owns storage, or, when the host passes a live `collabBinding`, edits stream into the host doc and the editor closes with the same normalized config for a final coherent rebuild. Reactivity is deep-tracked at both sites, the refetch effect (`trackStore(tempConfig.d)`) and the figureInputs memo (`trackStore` over `tempConfig.s` and `.t`), so new config fields need no wiring at either. Neither carries a hand-enumerated dependency list; do not add one.
 
 ## The embedded figure editor
 
-[_shared/figure_editor/visualization_editor.tsx](client/src/components/_shared/figure_editor/visualization_editor.tsx)
-takes
-`{ label, scope, metric, configSnapshot, aiView, authoringContext,
-collabBinding?, viewOnly?, chartPalette?, productChrome? }`,
-resolves the metric's queryable shape (`resultsValueInfo`, S9's scope-keyed
-`t2_figure_data.ts`) under the pair, and mounts `VisualizationEditorInner`. Four
-hosts open it: `slide_editor/slide_editor.tsx` (edits
-`figureBlock.bundle.config`, then re-queries items and rebuilds the bundle),
-`report/report.tsx` (rebuilds the figure block), the visualization product's
-editor (`products/visualization/visualization.tsx`, S12), which renders it
-full-page as the product itself rather than through `openEditor`, and the
-package page's module pane (`ModulePresets` in
-`results_packages/package_view/presets.tsx`, S8), which opens it `viewOnly`: no
-collab binding, Back is the only way out, and the draft never leaves the editor.
-Every host passes the pair as a plain value and the editor reads it once, so the
-pair is fixed for the editor's life, which is what the figure views' identity
-needs; the visualization product's editor remounts it (keyed) when its pair
-changes. `productChrome` (`{ title, actions, changeMetric? }`, built once by the
-host) is how that host puts its product title and its own buttons in the
-editor's header, and offers "Change metric" beside the metric in the Data tab
-(`DataValuesSummary`, hidden when `viewOnly`): only a host whose document is the
-figure passes `changeMetric`, since nothing of the old figure carries over;
-`label` is read live, so a rename reaches the header and the chat's label. Under
-a live binding the editor ships local edits only while `canEdit()` holds, so a
-viewer's local draft never reaches the room. The editor is a place of the chat
-(S13): the outer wrapper holds the view it opens over, and the inner editor sets
-the view the host names in the required `aiView` prop (`editing_slide_figure`
-with the deck, slide and block ids, `editing_report_figure` with the report and
-figure ids, `editing_visualization` with the visualization product's id,
-`viewing_package_figure` with the preset's id), through `setFigureEditorView`,
-once the draft exists, with a context that exposes the pair, the metric and the
-draft live (`getDraftConfig` reads the store, `applyDraftConfig` reconciles a
-config into it, so an AI write lands like a user's edit: it marks the draft for
-Apply, re-previews, and streams into the host doc under live co-editing); its
-instructions name the figure by the `label` prop. The two Figure editor tools,
-`get_figure_editor` and `update_figure_editor`, read and write that draft (S13).
-The results file viewer the editor's Download opens (`view_results_object.tsx`)
-holds the figure view and sets `results_file` from its props, with the same
-pair.
+[_shared/figure_editor/visualization_editor.tsx](client/src/components/_shared/figure_editor/visualization_editor.tsx) takes `{ label, scope, metric, configSnapshot, aiView, authoringContext,
+collabBinding?, viewOnly?, chartPalette?, productChrome? }`, resolves the metric's queryable shape (`resultsValueInfo`, S9's scope-keyed `t2_figure_data.ts`) under the pair, and mounts `VisualizationEditorInner`. Four hosts open it: `slide_editor/slide_editor.tsx` (edits `figureBlock.bundle.config`, then re-queries items and rebuilds the bundle), `report/report.tsx` (rebuilds the figure block), the visualization product's editor (`products/visualization/visualization.tsx`, S12), which renders it full-page as the product itself rather than through `openEditor`, and the package page's module pane (`ModulePresets` in `results_packages/package_view/presets.tsx`, S8), which opens it `viewOnly`: no collab binding, Back is the only way out, and the draft never leaves the editor. Every host passes the pair as a plain value and the editor reads it once, so the pair is fixed for the editor's life, which is what the figure views' identity needs; the visualization product's editor remounts it (keyed) when its pair changes. `productChrome` (`{ title, actions, changeMetric? }`, built once by the host) is how that host puts its product title and its own buttons in the editor's header, and offers "Change metric" beside the metric in the Data tab (`DataValuesSummary`, hidden when `viewOnly`): only a host whose document is the figure passes `changeMetric`, since nothing of the old figure carries over; `label` is read live, so a rename reaches the header and the chat's label. Under a live binding the editor ships local edits only while `canEdit()` holds, so a viewer's local draft never reaches the room. The editor is a place of the chat (S13): the outer wrapper holds the view it opens over, and the inner editor sets the view the host names in the required `aiView` prop (`editing_slide_figure` with the deck, slide and block ids, `editing_report_figure` with the report and figure ids, `editing_visualization` with the visualization product's id, `viewing_package_figure` with the preset's id), through `setFigureEditorView`, once the draft exists, with a context that exposes the pair, the metric and the draft live (`getDraftConfig` reads the store, `applyDraftConfig` reconciles a config into it, so an AI write lands like a user's edit: it marks the draft for Apply, re-previews, and streams into the host doc under live co-editing); its instructions name the figure by the `label` prop. The two Figure editor tools, `get_figure_editor` and `update_figure_editor`, read and write that draft (S13). The results file viewer the editor's Download opens (`view_results_object.tsx`) holds the figure view and sets `results_file` from its props, with the same pair.
 
-**Snapshot isolation.** The draft is
-`createStore(structuredClone(p.configSnapshot))`, so editor writes never reach
-the host's store.
-[editor_snapshot.ts](client/src/components/products/slide_deck/editor_snapshot.ts)
-holds only the slide editor's `snapshotForSlideEditor` (the deck config at
-open): the pair is deliberately NOT snapshotted: the editors read it live from
-the T1 products row.
+**Snapshot isolation.** The draft is `createStore(structuredClone(p.configSnapshot))`, so editor writes never reach the host's store. [editor_snapshot.ts](client/src/components/products/slide_deck/editor_snapshot.ts) holds only the slide editor's `snapshotForSlideEditor` (the deck config at open): the pair is deliberately NOT snapshotted: the editors read it live from the T1 products row.
 
 ## Draft state & the refetch contract
 
-- **`tempConfig`** is a Solid store cloned from the snapshot. The panel writes
-  through **`manuallyUpdateTempConfig`** (= `setTempConfig`; the copilot is told
-  about figure edits by the HOST, whose own "edited locally" interaction fires
-  when it applies the coherent bundle). Raw `setTempConfig` is also the
-  replicant auto-resolution commit-back, wrapped in the
-  `isAutoResolvingReplicant` flag so `needsSave` doesn't treat it as a user
-  edit.
-- **`needsSave`**: a `trackStore(tempConfig)` effect (deep-tracks the whole
-  store), skipping first run and auto-resolution; it gates the Apply button and
-  nothing else.
-- **The refetch effect**
-  ([figure_editor.tsx](client/src/components/_shared/figure_editor/figure_editor.tsx))
-  re-queries items when `tempConfig.d` changes, via `trackStore(tempConfig.d)`
-  plus a tracked read of the host's pair, so a reattach or rescope mid-edit
-  re-previews under the new package. Superseded fetches are dropped via a
-  monotonic `itemsFetchRunId`.
-- **The figureInputs memo** deep-tracks ALL of `tempConfig.s` and `.t` via
-  `trackStore(tempConfig.s)` / `trackStore(tempConfig.t)` (subscribes to every
-  nested property, including in-place-reconciled collaborator edits). Net
-  contract: `d.*` changes refetch; `s.*`/`t.*` changes re-render locally only.
-- The items generator auto-resolves an unset/invalid replicant to the first
-  valid option (`resolveDefaultReplicant`) on a **fresh config copy** (it never
-  mutates the passed unwrapped store) and the editor commits the resolved value
-  back into the draft, guarded on inequality. This is also the auto-default
-  after a package change: a replicant stored under a previous package that the
-  current one lacks is replaced, never thrown on.
-- Preview guards before render: duplicate display-slot check
-  (`hasDuplicateDisaggregatorDisplayOptions` on the effective config), "You must
-  select a replicant" fallback, and `too_many_items` (20,000-point message) /
-  `no_data_available` statuses.
+- **`tempConfig`** is a Solid store cloned from the snapshot. The panel writes through **`manuallyUpdateTempConfig`** (= `setTempConfig`; the copilot is told about figure edits by the HOST, whose own "edited locally" interaction fires when it applies the coherent bundle). Raw `setTempConfig` is also the replicant auto-resolution commit-back, wrapped in the `isAutoResolvingReplicant` flag so `needsSave` doesn't treat it as a user edit.
+- **`needsSave`**: a `trackStore(tempConfig)` effect (deep-tracks the whole store), skipping first run and auto-resolution; it gates the Apply button and nothing else.
+- **The refetch effect** ([figure_editor.tsx](client/src/components/_shared/figure_editor/figure_editor.tsx)) re-queries items when `tempConfig.d` changes, via `trackStore(tempConfig.d)` plus a tracked read of the host's pair, so a reattach or rescope mid-edit re-previews under the new package. Superseded fetches are dropped via a monotonic `itemsFetchRunId`.
+- **The figureInputs memo** deep-tracks ALL of `tempConfig.s` and `.t` via `trackStore(tempConfig.s)` / `trackStore(tempConfig.t)` (subscribes to every nested property, including in-place-reconciled collaborator edits). Net contract: `d.*` changes refetch; `s.*`/`t.*` changes re-render locally only.
+- The items generator auto-resolves an unset/invalid replicant to the first valid option (`resolveDefaultReplicant`) on a **fresh config copy** (it never mutates the passed unwrapped store) and the editor commits the resolved value back into the draft, guarded on inequality. This is also the auto-default after a package change: a replicant stored under a previous package that the current one lacks is replaced, never thrown on.
+- Preview guards before render: duplicate display-slot check (`hasDuplicateDisaggregatorDisplayOptions` on the effective config), "You must select a replicant" fallback, and `too_many_items` (20,000-point message) / `no_data_available` statuses.
 
 ## Live co-editing
 
-When the host passes a `collabBinding` whose `isLive()` is true, the editor
-adopts the figure's config Y.Map from the host doc, reconciles remote changes
-into `tempConfig`, streams local edits back (transacted with the binding's
-`localOrigin`, so a per-user `Y.UndoManager` tracks them and the remote observer
-skips them), and binds the caption editors to the map's `Y.Text`s. The "Live"
-badge, the undo/redo buttons and the "Not saving" pill read `isCollabLive()`
-(binding ready AND the socket open, `collabSocketOpen()`) and `docSaveFailing`
-for the HOST doc. Live cursors and the "who is on which tab" avatars ride the
-host session's awareness under a `fig:<figureId>` scope
-(`_shared/figure_editor/viz_editor_cursors.tsx`; the `vizTab` field is cleared
-on unmount because the host's awareness outlives the editor). Without a live
-binding the editor is Apply/Cancel with no target; contract in
-[SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md).
+When the host passes a `collabBinding` whose `isLive()` is true, the editor adopts the figure's config Y.Map from the host doc, reconciles remote changes into `tempConfig`, streams local edits back (transacted with the binding's `localOrigin`, so a per-user `Y.UndoManager` tracks them and the remote observer skips them), and binds the caption editors to the map's `Y.Text`s. The "Live" badge, the undo/redo buttons and the "Not saving" pill read `isCollabLive()` (binding ready AND the socket open, `collabSocketOpen()`) and `docSaveFailing` for the HOST doc. Live cursors and the "who is on which tab" avatars ride the host session's awareness under a `fig:<figureId>` scope (`_shared/figure_editor/viz_editor_cursors.tsx`; the `vizTab` field is cleared on unmount because the host's awareness outlives the editor). Without a live binding the editor is Apply/Cancel with no target; contract in [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md).
 
 ## Downloads
 
-One `download()` action (blocked while items aren't ready): PNG rendered at the
-canonical frame supersampled to `FIGURE_EXPORT_WIDTH_PX` 1920 (not the on-screen
-reflow canvas); formatted table CSV via S10's `getTableExportAoa` with BOM;
-underlying-data CSV (re-queries items); a JSON definition (the draft config plus
-the pair it resolves under; a figure has no id of its own); a results-file
-viewer. Multi-replicant export is parked: the download modal hard-codes
-`allReplicants: false` and the editor has no branch for it (Open item).
+One `download()` action (blocked while items aren't ready): PNG rendered at the canonical frame supersampled to `FIGURE_EXPORT_WIDTH_PX` 1920 (not the on-screen reflow canvas); formatted table CSV via S10's `getTableExportAoa` with BOM; underlying-data CSV (re-queries items); a JSON definition (the draft config plus the pair it resolves under; a figure has no id of its own); a results-file viewer. Multi-replicant export is parked: the download modal hard-codes `allReplicants: false` and the editor has no branch for it (Open item).
 
 ## The insert-figure wizard
 
-`InsertFigureModal`
-(`components/products/_shared/insert_figure/insert_figure.tsx`) takes
-`{
+`InsertFigureModal` (`components/products/_shared/insert_figure/insert_figure.tsx`) takes `{
 scope: PackageScope, context: Pick<RunAuthoringContext, "metrics" |
-"modules">, preselectedMetricId }`:
-the metrics and modules come from the package's authoring context (S9's
-`t2_run_authoring_context.ts`) and the pair is used only by the preset previews.
-It is a 3-step stepper: **Metric** (module sidebar + `MetricCard` grid; the
-sidebar opens on "Primary results", the primary modules' metrics of every family
-in the package, then "All modules", then the modules under a family heading in
-module order, since `groupMetricsByModule` sorts with `compareModules`; a card
-is selectable only when single-variant and `status === "ready"`; multi-variant
-metrics render per-variant chips) → **Presets** (`PresetSelector`: one
-live-rendered `PresetPreview` per `metric.vizPresets` entry + an always-appended
-`CUSTOM_OPTION` card; selecting a real preset skips step 3) → **Configure**
-(five `TypeCard`s gated by `get_PRESENTATION_SELECT_OPTIONS`: timeseries needs a
-period column, map needs an admin-level disaggregation; table/chart/pie are
-always offered; required disaggregations are checked+disabled;
-`FILTER_ONLY_DISAGGREGATION_OPTIONS` excluded). The wizard derives every
-preset's config ONCE through `deriveConfigFromVizPreset` (the one
-preset-to-config derivation, resolving the `t` TranslatableStrings at insertion
-time; stored figure text fields are plain strings), after cloning the preset to
-plain data because the context may be a Solid store; the previews render that
-list and the inserted figure is picked from it by id, so preview and figure
-cannot drift. A preview renders through the one shared helper,
-`components/_shared/figure_preview.ts` (`fetchFigureInputs`, and
-`createFigurePreview`, the tracked signal over it): it reads its rows through
-the scope-keyed `state/products/t2_figure_data.ts` (S9) and assembles them with
-`makeFigureBundleFromFetchedData(scope, ...)` + `buildFigureInputs`, so
-reopening a preset under the same `(runId, definitionHash)` is a cache hit and a
-preset is never a row. The package page's preset cards (S8) render through the
-same helper, so a default seen there and later inserted under the same pair is
-one cache entry. Custom configs go through
-`getStartingConfigForPresentationObject` (type defaults from `VIZ_TYPE_CONFIG`,
-display slots assigned via `getNextAvailableDisaggregationDisplayOption`). **The
-wizard never persists**. It closes with
-`InsertFigureResult = { metric, config }` (a figure IS `{ metricId, config }`)
-and its two callers, the slide and report editors, build a figure block directly
-from their live pair and context; the Explore page is read-only and does not
-call it.
+"modules">, preselectedMetricId }`: the metrics and modules come from the package's authoring context (S9's `t2_run_authoring_context.ts`) and the pair is used only by the preset previews. It is a 3-step stepper: **Metric** (module sidebar + `MetricCard` grid; the sidebar opens on "Primary results", the primary modules' metrics of every family in the package, then "All modules", then the modules under a family heading in module order, since `groupMetricsByModule` sorts with `compareModules`; a card is selectable only when single-variant and `status === "ready"`; multi-variant metrics render per-variant chips) → **Presets** (`PresetSelector`: one live-rendered `PresetPreview` per `metric.vizPresets` entry + an always-appended `CUSTOM_OPTION` card; selecting a real preset skips step 3) → **Configure** (five `TypeCard`s gated by `get_PRESENTATION_SELECT_OPTIONS`: timeseries needs a period column, map needs an admin-level disaggregation; table/chart/pie are always offered; required disaggregations are checked+disabled; `FILTER_ONLY_DISAGGREGATION_OPTIONS` excluded). The wizard derives every preset's config ONCE through `deriveConfigFromVizPreset` (the one preset-to-config derivation, resolving the `t` TranslatableStrings at insertion time; stored figure text fields are plain strings), after cloning the preset to plain data because the context may be a Solid store; the previews render that list and the inserted figure is picked from it by id, so preview and figure cannot drift. A preview renders through the one shared helper, `components/_shared/figure_preview.ts` (`fetchFigureInputs`, and `createFigurePreview`, the tracked signal over it): it reads its rows through the scope-keyed `state/products/t2_figure_data.ts` (S9) and assembles them with `makeFigureBundleFromFetchedData(scope, ...)` + `buildFigureInputs`, so reopening a preset under the same `(runId, definitionHash)` is a cache hit and a preset is never a row. The package page's preset cards (S8) render through the same helper, so a default seen there and later inserted under the same pair is one cache entry. Custom configs go through `getStartingConfigForPresentationObject` (type defaults from `VIZ_TYPE_CONFIG`, display slots assigned via `getNextAvailableDisaggregationDisplayOption`). **The wizard never persists**. It closes with `InsertFigureResult = { metric, config }` (a figure IS `{ metricId, config }`) and its two callers, the slide and report editors, build a figure block directly from their live pair and context; the Explore page is read-only and does not call it.
 
-**Insert existing.** Every insert or replace control in decks and reports offers
-two sources through one dropdown (`insert_figure/figure_source.ts`:
-`showFigureSourceMenu`, `figureSourceMenuItems`, and `openFigurePicker`, which
-opens the wizard for `"new"` or `InsertExistingFigureModal` for `"existing"`).
-The slide toolbar's insert/replace button and the report's Replace pill open the
-dropdown; the slide context menu lists both sources; Report Forge's Insert menu
-lists "New visualization…" and "Existing visualization…" when its figure host
-sets `insertExisting`. The existing picker
-(`insert_figure/insert_existing_figure.tsx`) lists the saved visualizations
-(S12's visualization products) the user can see, newest first, with a search,
-each previewed through `createFigurePreview` under the HOST's pair, so the card
-is what the insert will draw. One whose metric the host package lacks, or holds
-not ready, is listed and cannot be picked. Picking closes with the same
-`InsertFigureResult` (the host's metric, a clone of the saved config), so the
-host resolves and stores it exactly as a wizard figure: it is a copy, and later
-edits to the saved visualization do not reach it, nor edits to the copy the
-saved one. The picker says so in a notice above the gallery, and its button
-reads "Insert a copy". The picker is a person's surface only: no copilot tool
-reads saved visualizations (S13).
+**Insert existing.** Every insert or replace control in decks and reports offers two sources through one dropdown (`insert_figure/figure_source.ts`: `showFigureSourceMenu`, `figureSourceMenuItems`, and `openFigurePicker`, which opens the wizard for `"new"` or `InsertExistingFigureModal` for `"existing"`). The slide toolbar's insert/replace button and the report's Replace pill open the dropdown; the slide context menu lists both sources; Report Forge's Insert menu lists "New visualization…" and "Existing visualization…" when its figure host sets `insertExisting`. The existing picker (`insert_figure/insert_existing_figure.tsx`) lists the saved visualizations (S12's visualization products) the user can see, newest first, with a search, each previewed through `createFigurePreview` under the HOST's pair, so the card is what the insert will draw. One whose metric the host package lacks, or holds not ready, is listed and cannot be picked. Picking closes with the same `InsertFigureResult` (the host's metric, a clone of the saved config), so the host resolves and stores it exactly as a wizard figure: it is a copy, and later edits to the saved visualization do not reach it, nor edits to the copy the saved one. The picker says so in a notice above the gallery, and its button reads "Insert a copy". The picker is a person's surface only: no copilot tool reads saved visualizations (S13).
 
 ## The Explore page
 
-`components/explore/explore.tsx` renders one package at one scope for every
-approved user (a restricted user reads through a scope they hold): a compact
-`HeadingBar` whose tabs are the families the package has any module for, in
-`MODULE_FAMILY_ORDER`, with a package `Select` over
-`instanceState.readyPackages` (opening on the pin, else the newest ready
-package) and the shared `ScopeSelect` over the T1 scopes list. Explore always
-reads through a named scope: it opens on "All data", or for a restricted user on
-the first scope they hold (`exploreScopeId` starts as `ALL_DATA_SCOPE_ID`) and
-falls back to it when the chosen scope has been deleted. The admin level it
-offers and defaults to follows the area the scope holds the open family to
-(`scopeAreaForFamily`), so one scope can pin HMIS to an area and leave HFA
-national. Every selection lives in `state/t4_explore.ts`, module level so it
-outlives the page's mount: the family (`exploreFamily`), the module per family
-(`exploreModules`), the view per module (`exploreViews`) and the type per view
-(`exploreViewTypes`) persist in localStorage; the package, the scope
-(`exploreScopeId`), the per-family query (`exploreQueries`) and the per-view
-choices (`exploreViewChoices`) last the session, so a deleted package can never
-be a stored default. Each is resolved against the package on every read: a
-choice the package lacks falls back to the first offered (the package to the
-pin, else the newest ready one) without being overwritten. The authoring context
-is read through `t2_run_authoring_context`. The page sets the chat's `explore`
-view (S13): its pair is the resolved package at the resolved scope (or a refusal
-naming why while none is ready) and its state names the family, module, view and
-type the panes resolve, through the same functions (`resolveFamily`,
-`resolveModule`, `pickModuleView`, `pickViewType`), and the settings of the view
-the frame resolved: `MetricFrame` reports `resolveView`'s result up to the page
-through `onView`, the way `PackageExplorer` reports the authoring context
-through `onContext`, and `formatExploreState` (S13) prints its metric, switch
-option, level, each pin's value, the laid-out category's values and grain, each
-by the id a package tool takes, and the period by its choice's label, as the
-toolbar's select shows it, so the chat's package tools read what is on screen.
-The page writes nothing: no insert into a product, no persisted draft, no help
-buttons.
+`components/explore/explore.tsx` renders one package at one scope for every approved user (a restricted user reads through a scope they hold): a compact `HeadingBar` whose tabs are the families the package has any module for, in `MODULE_FAMILY_ORDER`, with a package `Select` over `instanceState.readyPackages` (opening on the pin, else the newest ready package) and the shared `ScopeSelect` over the T1 scopes list. Explore always reads through a named scope: it opens on "All data", or for a restricted user on the first scope they hold (`exploreScopeId` starts as `ALL_DATA_SCOPE_ID`) and falls back to it when the chosen scope has been deleted. The admin level it offers and defaults to follows the area the scope holds the open family to (`scopeAreaForFamily`), so one scope can pin HMIS to an area and leave HFA national. Every selection lives in `state/t4_explore.ts`, module level so it outlives the page's mount: the family (`exploreFamily`), the module per family (`exploreModules`), the view per module (`exploreViews`) and the type per view (`exploreViewTypes`) persist in localStorage; the package, the scope (`exploreScopeId`), the per-family query (`exploreQueries`) and the per-view choices (`exploreViewChoices`) last the session, so a deleted package can never be a stored default. Each is resolved against the package on every read: a choice the package lacks falls back to the first offered (the package to the pin, else the newest ready one) without being overwritten. The authoring context is read through `t2_run_authoring_context`. The page sets the chat's `explore` view (S13): its pair is the resolved package at the resolved scope (or a refusal naming why while none is ready) and its state names the family, module, view and type the panes resolve, through the same functions (`resolveFamily`, `resolveModule`, `pickModuleView`, `pickViewType`), and the settings of the view the frame resolved: `MetricFrame` reports `resolveView`'s result up to the page through `onView`, the way `PackageExplorer` reports the authoring context through `onContext`, and `formatExploreState` (S13) prints its metric, switch option, level, each pin's value, the laid-out category's values and grain, each by the id a package tool takes, and the period by its choice's label, as the toolbar's select shows it, so the chat's package tools read what is on screen. The page writes nothing: no insert into a product, no persisted draft, no help buttons.
 
-Under a family tab, `ModuleView` (`module_view.tsx`) fills the pane, and its
-first row in every state is the selectors row: a `SelectV2` over the family's
-modules in module order (`compareModules`), a header entry per tier the family
-has a module in (Primary results, Supporting analyses), then a `SelectV2` over
-the chosen module's views when it has any, then a `ButtonGroup` over the view's
-types when it offers more than one. The module select is built in `explore.tsx`,
-where the family's modules and the resolved module are, and passed to
-`ModuleView` as `moduleSelect`. The selects are at the default size, `fullWidth`
-in fixed-width wrappers (20rem and 28rem): they are the page's navigation below
-the family tabs; the query controls beneath them stay `sm`, as do the table's
-find and Download at the right of the top row. The row wraps, since the widths
-are fixed. A view is one named reading of a module, a binding in
-`lib/explore_views.ts` ("Explore query model" below), and `viewsForModule` is
-the one place that says which views a module offers: the module's bindings whose
-metric the package carries and stamps ready. Adding a metric to a module is two
-declarations: a preset for products and a binding for Explore. The bindings are
-listed under "Explore query model" below; a module whose views are all withheld,
-or that has no binding, shows the no-view state, and a module with no ready
-metric shows the stamped reason, each under the same row in a `FrameTop`.
+Under a family tab, `ModuleView` (`module_view.tsx`) fills the pane, and its first row in every state is the selectors row: a `SelectV2` over the family's modules in module order (`compareModules`), a header entry per tier the family has a module in (Primary results, Supporting analyses), then a `SelectV2` over the chosen module's views when it has any, then a `ButtonGroup` over the view's types when it offers more than one. The module select is built in `explore.tsx`, where the family's modules and the resolved module are, and passed to `ModuleView` as `moduleSelect`. The selects are at the default size, `fullWidth` in fixed-width wrappers (20rem and 28rem): they are the page's navigation below the family tabs; the query controls beneath them stay `sm`, as do the table's find and Download at the right of the top row. The row wraps, since the widths are fixed. A view is one named reading of a module, a binding in `lib/explore_views.ts` ("Explore query model" below), and `viewsForModule` is the one place that says which views a module offers: the module's bindings whose metric the package carries and stamps ready. Adding a metric to a module is two declarations: a preset for products and a binding for Explore. The bindings are listed under "Explore query model" below; a module whose views are all withheld, or that has no binding, shows the no-view state, and a module with no ready metric shows the stamped reason, each under the same row in a `FrameTop`.
 
-**The frame** (`view_frame.tsx`) owns one view. It resolves the active metric
-first (`resolveView` without possible values, which the metric does not depend
-on), reads that metric's info once, tracked (`createTrackedQuery`,
-`explore/_shared/tracked_query.ts`, over `t2_figure_data`, for the package's
-possible values with HFA time points in the instance's declared order, ICEH
-years and stratifiers, and formats and rules), resolves the view again under
-those values and derives the figure config (`deriveViewConfig`), and renders a
-`FrameTop` whose panel is the toolbar and whose content is the body by type:
-`DataTable` for the table, `FigureView` for the over-time, chart and map types,
-and the no-data empty state while no config derives (a pin without a value, a
-pin over the cap, or a pinned time with no period). The toolbar (`toolbar.tsx`)
-is built from the roles of the resolved view. Its top row is the selectors row
-and, for the table, the find box and Download at the right (`TableTools`; the
-frame holds the find text and the Download action the table hands back once its
-grid is built). Its second row is the switch select (labelled with the binding's
-switch label), the level select over the offered levels, a select per pinned
-dimension in toolbar order (area, facets, unit, category), the category
-`MultiSelectSearch` when the category is laid out (empty means all; the
-placeholder names the dimension when the category is not the family's
-indicators), the period select over the time role's choices and the grain select
-when months are laid out. A control appears only when its role is present and
-its options number more than one, except the level and period selects, which
-always appear with their role; a pinned dimension the server caps
-(`too_many_values`) shows the cap message where its select would be, the same
-limit the editor's replicant list states, and the body shows no data. The
-controls show the resolved view, so every control shows what is read. The
-family's indicators, level, period and grain edit the family query (the
-`queryEditors` pair in `view_frame.tsx` keeps dropped indicators through a
-package switch, and the dropped-indicators notice beneath the controls offers
-Clear); the switch, the pinned values and a non-indicator category's values edit
-the view's own choices, keyed by `exploreViewKey`.
+**The frame** (`view_frame.tsx`) owns one view. It resolves the active metric first (`resolveView` without possible values, which the metric does not depend on), reads that metric's info once, tracked (`createTrackedQuery`, `explore/_shared/tracked_query.ts`, over `t2_figure_data`, for the package's possible values with HFA time points in the instance's declared order, ICEH years and stratifiers, and formats and rules), resolves the view again under those values and derives the figure config (`deriveViewConfig`), and renders a `FrameTop` whose panel is the toolbar and whose content is the body by type: `DataTable` for the table, `FigureView` for the over-time, chart and map types, and the no-data empty state while no config derives (a pin without a value, a pin over the cap, or a pinned time with no period). The toolbar (`toolbar.tsx`) is built from the roles of the resolved view. Its top row is the selectors row and, for the table, the find box and Download at the right (`TableTools`; the frame holds the find text and the Download action the table hands back once its grid is built). Its second row is the switch select (labelled with the binding's switch label), the level select over the offered levels, a select per pinned dimension in toolbar order (area, facets, unit, category), the category `MultiSelectSearch` when the category is laid out (empty means all; the placeholder names the dimension when the category is not the family's indicators), the period select over the time role's choices and the grain select when months are laid out. A control appears only when its role is present and its options number more than one, except the level and period selects, which always appear with their role; a pinned dimension the server caps (`too_many_values`) shows the cap message where its select would be, the same limit the editor's replicant list states, and the body shows no data. The controls show the resolved view, so every control shows what is read. The family's indicators, level, period and grain edit the family query (the `queryEditors` pair in `view_frame.tsx` keeps dropped indicators through a package switch, and the dropped-indicators notice beneath the controls offers Clear); the switch, the pinned values and a non-indicator category's values edit the view's own choices, keyed by `exploreViewKey`.
 
-**Data table** (`explore/data_table/`) is the table body: the derived table
-config's rows read as a grid, rows and columns the type's axes (m012: admin
-areas at the level, rolled up, by indicators). The grid read (`t2_grid_items`,
-S9 "The grid read") is tracked on the fetch config of the derived config, and a
-read carries the config it was issued for, so a newer config is never paired
-with older rows; a change that leaves the fetch config, the metric and the
-layout alone makes no new read. The decoded rows go through the canvas table's
-own pipeline, `buildFigureInputs` over a figure bundle built in memory, so the
-effective config, roll-up pin and label, label replacements (indicators, dates,
-Nigeria admin cleaning) and header order are the canvas table's; then panther's
-`getTableDataTransformed` pivot and `dataGridPropsFromTableData` with the cell
-function (`data_table/cell_function.ts`): each value formatted by its
-indicator's effective format (`resolveEffectiveIndicatorFacts`,
-`formatIndicatorValue`), the indicator read from whichever grid axis the config
-lays the indicator dimension on, the raw number as the sort key, and the cell
-coloured by the config's conditional formatting (`selectCf(config.s)`, the style
-borrowed from the metric's preset): a thresholds rule applies to every cell, the
-indicator mode applies each indicator's own rule (`ruleForValue`), anything else
-leaves the cell uncoloured. The row header is the row dimension's label.
-`DataGrid` fills the height with a hover line beneath, sorts by header click
-(transient, never stored), and scrolls to the first column whose label contains
-the find text (`focusColumnId`). Download saves the grid's text as CSV, in the
-pivot's row order. The empty states are one component,
-`explore/_shared/empty_state.tsx`: the page's own (no modules, no metric with
-its stamped reason, no view) and the body's (no data, too many cells: narrow the
-indicators or coarsen the grain); no ready package is `explore.tsx`'s own.
+**Data table** (`explore/data_table/`) is the table body: the derived table config's rows read as a grid, rows and columns the type's axes (m012: admin areas at the level, rolled up, by indicators). The grid read (`t2_grid_items`, S9 "The grid read") is tracked on the fetch config of the derived config, and a read carries the config it was issued for, so a newer config is never paired with older rows; a change that leaves the fetch config, the metric and the layout alone makes no new read. The decoded rows go through the canvas table's own pipeline, `buildFigureInputs` over a figure bundle built in memory, so the effective config, roll-up pin and label, label replacements (indicators, dates, Nigeria admin cleaning) and header order are the canvas table's; then panther's `getTableDataTransformed` pivot and `dataGridPropsFromTableData` with the cell function (`data_table/cell_function.ts`): each value formatted by its indicator's effective format (`resolveEffectiveIndicatorFacts`, `formatIndicatorValue`), the indicator read from whichever grid axis the config lays the indicator dimension on, the raw number as the sort key, and the cell coloured by the config's conditional formatting (`selectCf(config.s)`, the style borrowed from the metric's preset): a thresholds rule applies to every cell, the indicator mode applies each indicator's own rule (`ruleForValue`), anything else leaves the cell uncoloured. The row header is the row dimension's label. `DataGrid` fills the height with a hover line beneath, sorts by header click (transient, never stored), and scrolls to the first column whose label contains the find text (`focusColumnId`). Download saves the grid's text as CSV, in the pivot's row order. The empty states are one component, `explore/_shared/empty_state.tsx`: the page's own (no modules, no metric with its stamped reason, no view) and the body's (no data, too many cells: narrow the indicators or coarsen the grain); no ready package is `explore.tsx`'s own.
 
-**Figure view** (`explore/figure_view.tsx`) is the body of the figure types:
-over time, chart and map. The derived config is fetched and built through
-`createFigurePreview` (S11's one path for a figure that is not a row, so it
-shares the scope-keyed items cache with products) and rendered by panther's
-`FigureHolder` with the default `sizing="reflow"`, which lays the figure out at
-the container width so one design unit is one CSS pixel and lines are as crisp
-as the UI, under S10's `liveFigureStyle` (one-pixel strokes, base-300 grid, the
-data grid's text size, abbreviated ticks): the over-time and chart types at
-their ideal height in a pane that scrolls, the map filling the pane
-(`height="flex"`). For the over-time type `deriveViewConfig` puts the category
-on `cell`, the unit on `series` when the type puts it there, else the values as
-the lines, the time column as `timeseriesGrouping` (the grain for months, else
-the year), the chosen category values as a filter, the window as `periodFilter`
-for months or the chosen years as a filter, a pinned area or facet as the
-replicant when the metric requires it, else as a filter, the style borrowed from
-the metric's first over-time preset, else the defaults, with `content: "lines"`
-and the legend hidden when every pane holds one line, and `t` empty, since the
-view's name is the caption; a view whose every pane holds one line
-(`hasOneLinePerPane`, the rule the hidden legend shares) draws it in the success
-colour, and one with several lines keeps the figure's own colours and its
-legend. The over-time type is bound only where the metric's time column is a
-period column: never for HFA. For the chart type it puts the type's `axis` role
-(the area at the level, or the category) on `indicator`, the unit on `series`
-when the type puts it there, else the values as the series, the pinned time as a
-filter (the latest year chosen, else the latest available), a pinned category or
-facet as the replicant when the metric requires it, else as a filter, the type's
-`values` as `valuesFilter`, and the style borrowed from the metric's first chart
-preset, else the defaults: the m006 coverage bars (`single-grey`, data labels,
-sorted descending), the ICEH equiplot (horizontal points and connectors) and the
-ICEH inequality chart (horizontal points, `single-grey`, sorted descending). The
-chart keeps the figure's own colours and legend. For the map type it puts the
-area at the level on `mapArea`, the pinned category as the replicant when the
-metric requires it (m012, m006 and m010 require their indicator dimension, m001
-"Internal consistency" its ratio type), else as a filter (m001 "Outliers" and
-"Completeness", m002), each facet as a filter, the pinned time as the months
-window (`periodFilter`, All pooling every month) or the latest year or round as
-a filter, the type's `values` as `valuesFilter`, and the style borrowed from the
-metric's first map preset, else the defaults: the five m001 maps carry their
-presets' threshold colouring; m012, m002, m006 and m010 have no map preset and
-take `DEFAULT_S_CONFIG`, with `cfMode: "indicator"` for an indicator-format
-metric. Boundaries the package lacks for the map's registry and level surface as
-`buildFigureInputs`' typed reason, worded by `describeFigureUnavailable`,
-through the preview's error state: the preview builds after an await, where a
-boundary read tracks nothing, so the figure view reads the run-geo store
-(`getRunGeoJsonSync` for the view's run, the metric's registry and the map's
-level, and the instance's `getGeoJsonSync` when that answers `run_unknown`) in
-the preview's source, and a map shown before they load rebuilds when they land.
+**Figure view** (`explore/figure_view.tsx`) is the body of the figure types: over time, chart and map. The derived config is fetched and built through `createFigurePreview` (S11's one path for a figure that is not a row, so it shares the scope-keyed items cache with products) and rendered by panther's `FigureHolder` with the default `sizing="reflow"`, which lays the figure out at the container width so one design unit is one CSS pixel and lines are as crisp as the UI, under S10's `liveFigureStyle` (one-pixel strokes, base-300 grid, the data grid's text size, abbreviated ticks): the over-time and chart types at their ideal height in a pane that scrolls, the map filling the pane (`height="flex"`). For the over-time type `deriveViewConfig` puts the category on `cell`, the unit on `series` when the type puts it there, else the values as the lines, the time column as `timeseriesGrouping` (the grain for months, else the year), the chosen category values as a filter, the window as `periodFilter` for months or the chosen years as a filter, a pinned area or facet as the replicant when the metric requires it, else as a filter, the style borrowed from the metric's first over-time preset, else the defaults, with `content: "lines"` and the legend hidden when every pane holds one line, and `t` empty, since the view's name is the caption; a view whose every pane holds one line (`hasOneLinePerPane`, the rule the hidden legend shares) draws it in the success colour, and one with several lines keeps the figure's own colours and its legend. The over-time type is bound only where the metric's time column is a period column: never for HFA. For the chart type it puts the type's `axis` role (the area at the level, or the category) on `indicator`, the unit on `series` when the type puts it there, else the values as the series, the pinned time as a filter (the latest year chosen, else the latest available), a pinned category or facet as the replicant when the metric requires it, else as a filter, the type's `values` as `valuesFilter`, and the style borrowed from the metric's first chart preset, else the defaults: the m006 coverage bars (`single-grey`, data labels, sorted descending), the ICEH equiplot (horizontal points and connectors) and the ICEH inequality chart (horizontal points, `single-grey`, sorted descending). The chart keeps the figure's own colours and legend. For the map type it puts the area at the level on `mapArea`, the pinned category as the replicant when the metric requires it (m012, m006 and m010 require their indicator dimension, m001 "Internal consistency" its ratio type), else as a filter (m001 "Outliers" and "Completeness", m002), each facet as a filter, the pinned time as the months window (`periodFilter`, All pooling every month) or the latest year or round as a filter, the type's `values` as `valuesFilter`, and the style borrowed from the metric's first map preset, else the defaults: the five m001 maps carry their presets' threshold colouring; m012, m002, m006 and m010 have no map preset and take `DEFAULT_S_CONFIG`, with `cfMode: "indicator"` for an indicator-format metric. Boundaries the package lacks for the map's registry and level surface as `buildFigureInputs`' typed reason, worded by `describeFigureUnavailable`, through the preview's error state: the preview builds after an await, where a boundary read tracks nothing, so the figure view reads the run-geo store (`getRunGeoJsonSync` for the view's run, the metric's registry and the map's level, and the instance's `getGeoJsonSync` when that answers `run_unknown`) in the preview's source, and a map shown before they load rebuilds when they land.
 
-Under a built map, the figure editor's preview and the explore view show its
-coverage (`describeMapCoverage` over `getFigureMapCoverage`, SYSTEM_10): how
-many data areas have a boundary and how many boundaries have no data. Below 70%
-matched (`MAP_COVERAGE_PROMINENT_BELOW`) the line is in the warning colour and
-bold, since a map with boundaries for 8 of 40 districts otherwise reads as 32
-missing values. It never appears on a rendered product page, in an export or in
-a raster.
+Under a built map, the figure editor's preview and the explore view show its coverage (`describeMapCoverage` over `getFigureMapCoverage`, SYSTEM_10): how many data areas have a boundary and how many boundaries have no data. Below 70% matched (`MAP_COVERAGE_PROMINENT_BELOW`) the line is in the warning colour and bold, since a map with boundaries for 8 of 40 districts otherwise reads as 32 missing values. It never appears on a rendered product page, in an export or in a raster.
 
 ## lib config semantics
 
-- **`normalizePOConfigForStorage`**: drops empty `filterBy` entries, collapses
-  empty `valuesFilter`, canonicalizes the roll-up off-state to _both entry
-  fields absent_ (`rollup`/`rollupPosition` kept only on the entry the
-  `getEffectiveRollupDimension` gate selects). Deliberately apply-time-only: the
-  editor does not eagerly clear the flag on transient gate closures.
-- **`getEffectivePOConfig`**: filters ineffective disaggregators with four
-  recorded reasons (`filtered_to_one_value`, `single_value`, `single_period`,
-  `single_year`); the **replicant exemption** applies to `single_value` only
-  (fetches are pinned to one replicant value, so items-derived counts would see
-  every replicant as single-valued). Two `singleValueDims` derivations:
-  post-fetch from items (slice semantics) and editor-side from possible-values
-  (whole-table).
-- **`convertVisualizationType`**: drops disallowed disaggregations, remaps
-  display slots through `VIZ_TYPE_CONFIG[newType].disDisplayOptFallbacks`,
-  re-adds required disaggregations, resets content/style to type defaults.
-  `usedOpts` is seeded with the destination's `defaultValuesDisDisplayOpt`
-  BEFORE remapping, so a type's default values slot must not be a target of its
-  own fallbacks, or the fallback is dead on arrival and the dimension gets
-  shunted by the collision escape. This is why pie's values default is `cell`,
-  not `series` (its `mapArea` fallback points at `series`, so a converted map's
-  region dimension lands on Slices). It is also not `indicator`, for a sharper
-  reason: `getDisaggregatorDisplayProp` returns `"--v"` for any slot the VALUE
-  props claim and never reaches the disaggregation loop, so a dimension sharing
-  that slot resolves to no axis at all and its rows collapse into panther's
-  `Duplicate values` throw. Defaulting the values onto a slot the user is likely
-  to want (Pies, Bars) makes that collision the common case rather than a
-  hand-made one. Note chart→pie therefore KEEPS an `indicator` dimension on Pies
-  rather than remapping it to Slices: that is the meaning-preserving conversion,
-  since five coverage indicators repeat a mark, they do not partition a whole.
-- **The pie type**: slices are panther's series axis and `indicator` is
-  panther's repeat dimension: N pies tiled INSIDE each sub-chart, costing no
-  disaggregation axis (slots: `series` = Slices, `indicator` = Pies, `cell` =
-  Grid, `row`/`col`, `replicant`). `s.sortIndicatorValues` is REUSED as pie's
-  slice sort (`sortSeriesValues`), which is why pie's `styleResets`, unlike
-  map's, do not reset it (resets apply on switching TO a type and would wipe the
-  sort on every entry). Both the `series` and `indicator` axes route through the
-  `getAxisSort` dispatcher, which gives `indicator_common_id` the dictionary
-  order on whichever axis it occupies. Four optional `s` fields:
-  `pieInnerRadiusRatio` (0/absent = pie, `0.55` = doughnut; read `?? 0`),
-  `pieGroupSmallSlices` (global-share fraction; 0/absent = off; maps to panther
-  `groupSmallSlices` with a localized "Other" slice, id `--other`, sorted last),
-  `pieCompletionMode` and `pieShowCenterValue`. Roll-up is excluded
-  (`isRollupCandidateDimension`), CF is not offered (slices color via the series
-  sentinel, not the values sentinel), calendar time dims are never offered, and
-  `time_point` is allowed (survey rounds take a display slot, one pie per round,
-  never pooled, same exception as map).
-- **Completion pies**: `isPieCompletionMode(config, effectiveFormatAs)` in
-  `presentation_objects.ts` is THE gate: the data config's
-  `total: PIE_COMPLETION_TOTAL` and the style's `centerLabel` must both consult
-  it, or the hole reports a share against a denominator the geometry never used.
-  The envelope is `1`, not `100`: percent values are 0-1 fractions app-wide. It
-  is checked against the EFFECTIVE format, so a flag stranded by a format change
-  degrades to a plain cell-sum pie rather than drawing every count as a sliver.
-  The editor's "Show each value against 100%" checkbox is gated on that same
-  effective format, not on the metric's stored `formatAs`. Gating on the stored
-  value is what made the toggle unreachable for every HFA pie back when HFA
-  metrics declared `"number"` (they now declare `"indicator"`; the effective
-  format resolves per display, SYSTEM_10 § Effective format). Without it panther
-  defaults to `total: "sum"` (each pie normalized by its own slices). The
-  unfilled arc is panther's `remainder` track; slice data labels drop the series
-  name when the slice axis carries the `NO_DISAGGREGATION_HEADER_ID` sentinel
-  (every completion pie, since the indicator header beside the pie already names
-  it).
-- **PO config schema** (`_presentation_object_config.ts`): `d` = `configDStrict`
-  (shared with the module-authoring repo), `s` = all-required flat style incl.
-  the `cf*` fields, `t` = six plain-string/number fields. Reads are strict-throw
-  (`parsePresentationObjectConfig`), no permissive fallback. Duplicate display
-  slots are allowed in storage; the UI warns and blocks render.
-- **Conditional formatting**: storage = 16 flat `cf*` fields
-  (`conditional_formatting_standalone.ts`, vendored to wb-fastr-modules);
-  semantics = the `ConditionalFormatting` union with `selectCf` (flat→union) /
-  `flattenCf` (union→flat) bridges and display-time `deriveBucketLabels`. The
-  editor works purely on the union; `applyCfToTempConfig` fans the flat fields
-  into batched store writes. `legacy_cf_presets.ts` maps the 9 legacy preset
-  ids, consumed by the S2 po_config transform (Blocks 5/6) and as the thresholds
-  editor's preset dropdown.
-- **Replicant helpers**: `getReplicateByProp` is the filter-aware single source
-  of truth for "active replicant" (safe on raw config);
-  `getDisaggregatorDisplayProp` / `hasDuplicateDisaggregatorDisplayOptions` are
-  deliberately NOT filter-aware (they receive effective configs).
+- **`normalizePOConfigForStorage`**: drops empty `filterBy` entries, collapses empty `valuesFilter`, canonicalizes the roll-up off-state to _both entry fields absent_ (`rollup`/`rollupPosition` kept only on the entry the `getEffectiveRollupDimension` gate selects). Deliberately apply-time-only: the editor does not eagerly clear the flag on transient gate closures.
+- **`getEffectivePOConfig`**: filters ineffective disaggregators with four recorded reasons (`filtered_to_one_value`, `single_value`, `single_period`, `single_year`); the **replicant exemption** applies to `single_value` only (fetches are pinned to one replicant value, so items-derived counts would see every replicant as single-valued). Two `singleValueDims` derivations: post-fetch from items (slice semantics) and editor-side from possible-values (whole-table).
+- **`convertVisualizationType`**: drops disallowed disaggregations, remaps display slots through `VIZ_TYPE_CONFIG[newType].disDisplayOptFallbacks`, re-adds required disaggregations, resets content/style to type defaults. `usedOpts` is seeded with the destination's `defaultValuesDisDisplayOpt` BEFORE remapping, so a type's default values slot must not be a target of its own fallbacks, or the fallback is dead on arrival and the dimension gets shunted by the collision escape. This is why pie's values default is `cell`, not `series` (its `mapArea` fallback points at `series`, so a converted map's region dimension lands on Slices). It is also not `indicator`, for a sharper reason: `getDisaggregatorDisplayProp` returns `"--v"` for any slot the VALUE props claim and never reaches the disaggregation loop, so a dimension sharing that slot resolves to no axis at all and its rows collapse into panther's `Duplicate values` throw. Defaulting the values onto a slot the user is likely to want (Pies, Bars) makes that collision the common case rather than a hand-made one. Note chart→pie therefore KEEPS an `indicator` dimension on Pies rather than remapping it to Slices: that is the meaning-preserving conversion, since five coverage indicators repeat a mark, they do not partition a whole.
+- **The pie type**: slices are panther's series axis and `indicator` is panther's repeat dimension: N pies tiled INSIDE each sub-chart, costing no disaggregation axis (slots: `series` = Slices, `indicator` = Pies, `cell` = Grid, `row`/`col`, `replicant`). `s.sortIndicatorValues` is REUSED as pie's slice sort (`sortSeriesValues`), which is why pie's `styleResets`, unlike map's, do not reset it (resets apply on switching TO a type and would wipe the sort on every entry). Both the `series` and `indicator` axes route through the `getAxisSort` dispatcher, which gives `indicator_common_id` the dictionary order on whichever axis it occupies. Four optional `s` fields: `pieInnerRadiusRatio` (0/absent = pie, `0.55` = doughnut; read `?? 0`), `pieGroupSmallSlices` (global-share fraction; 0/absent = off; maps to panther `groupSmallSlices` with a localized "Other" slice, id `--other`, sorted last), `pieCompletionMode` and `pieShowCenterValue`. Roll-up is excluded (`isRollupCandidateDimension`), CF is not offered (slices color via the series sentinel, not the values sentinel), calendar time dims are never offered, and `time_point` is allowed (survey rounds take a display slot, one pie per round, never pooled, same exception as map).
+- **Completion pies**: `isPieCompletionMode(config, effectiveFormatAs)` in `presentation_objects.ts` is THE gate: the data config's `total: PIE_COMPLETION_TOTAL` and the style's `centerLabel` must both consult it, or the hole reports a share against a denominator the geometry never used. The envelope is `1`, not `100`: percent values are 0-1 fractions app-wide. It is checked against the EFFECTIVE format, so a flag stranded by a format change degrades to a plain cell-sum pie rather than drawing every count as a sliver. The editor's "Show each value against 100%" checkbox is gated on that same effective format, not on the metric's stored `formatAs`. Gating on the stored value is what made the toggle unreachable for every HFA pie back when HFA metrics declared `"number"` (they now declare `"indicator"`; the effective format resolves per display, SYSTEM_10 § Effective format). Without it panther defaults to `total: "sum"` (each pie normalized by its own slices). The unfilled arc is panther's `remainder` track; slice data labels drop the series name when the slice axis carries the `NO_DISAGGREGATION_HEADER_ID` sentinel (every completion pie, since the indicator header beside the pie already names it).
+- **PO config schema** (`_presentation_object_config.ts`): `d` = `configDStrict` (shared with the module-authoring repo), `s` = all-required flat style incl. the `cf*` fields, `t` = six plain-string/number fields. Reads are strict-throw (`parsePresentationObjectConfig`), no permissive fallback. Duplicate display slots are allowed in storage; the UI warns and blocks render.
+- **Conditional formatting**: storage = 16 flat `cf*` fields (`conditional_formatting_standalone.ts`, vendored to wb-fastr-modules); semantics = the `ConditionalFormatting` union with `selectCf` (flat→union) / `flattenCf` (union→flat) bridges and display-time `deriveBucketLabels`. The editor works purely on the union; `applyCfToTempConfig` fans the flat fields into batched store writes. `legacy_cf_presets.ts` maps the 9 legacy preset ids, consumed by the S2 po_config transform (Blocks 5/6) and as the thresholds editor's preset dropdown.
+- **Replicant helpers**: `getReplicateByProp` is the filter-aware single source of truth for "active replicant" (safe on raw config); `getDisaggregatorDisplayProp` / `hasDuplicateDisaggregatorDisplayOptions` are deliberately NOT filter-aware (they receive effective configs).
 
 ### Explore query model
 
-`lib/explore_views.ts` holds the bindings: `EXPLORE_VIEWS` maps a module id to
-its views in display order, each an `ExploreViewBinding` naming a metric
-(`{ id }`, `byLevel` with one metric per level, or `switch` with labelled
-options), the roles it reads (`unit`, `category`, `facets`; the `area` role
-exists when the metric is `byLevel` or any type lays `area` out, and the `time`
-role is the metric's time column: the most granular period column for HMIS,
-`time_point` for HFA, `year` for ICEH) and its types, each an `ExploreViewType`
-laying roles out on axes: a table's `rows` and `cols` (an `area` row carries the
-roll-up at the top; `values` puts the value props on the axis), an over-time
-type's panes (the category) and lines (the unit when `series: "unit"`, else the
-values), a chart's `axis` (`area` or `category`) and `series`, a map's area. A
-type's `values` narrows the metric's value props; the first type is the view's
-default. `viewsForModule` offers a view only for metrics the package carries and
-stamps ready, and `byLevel` and `switch` need one ready option and offer only
-those. `UNBOUND_METRICS` lists every non-hidden metric of a bound module that no
-binding reads, with a reason. `server/tests/explore_views_test.ts` is the
-lockstep guard: the pure checks always run (view ids unique per module and every
-view with a type, every axis a role the view has and rows apart from cols, a
-type's `values` non-empty and one under a unit on the series, no `byLevel`
-national key with the area laid out, no over-time type on HFA, every registry
-module bound), and under `FASTR_MODULES_LOCAL_DIR` every binding is checked
-against the module definitions (metrics present and not hidden, role dimensions
-columns of the results object, required non-time dimensions grouped with at most
-one replicant per type, a type's `values` among every bound metric's value props
-and a unit on the series reading one value prop, a period column for the
-over-time type, every non-hidden metric of a bound module bound or listed).
+`lib/explore_views.ts` holds the bindings: `EXPLORE_VIEWS` maps a module id to its views in display order, each an `ExploreViewBinding` naming a metric (`{ id }`, `byLevel` with one metric per level, or `switch` with labelled options), the roles it reads (`unit`, `category`, `facets`; the `area` role exists when the metric is `byLevel` or any type lays `area` out, and the `time` role is the metric's time column: the most granular period column for HMIS, `time_point` for HFA, `year` for ICEH) and its types, each an `ExploreViewType` laying roles out on axes: a table's `rows` and `cols` (an `area` row carries the roll-up at the top; `values` puts the value props on the axis), an over-time type's panes (the category) and lines (the unit when `series: "unit"`, else the values), a chart's `axis` (`area` or `category`) and `series`, a map's area. A type's `values` narrows the metric's value props; the first type is the view's default. `viewsForModule` offers a view only for metrics the package carries and stamps ready, and `byLevel` and `switch` need one ready option and offer only those. `UNBOUND_METRICS` lists every non-hidden metric of a bound module that no binding reads, with a reason. `server/tests/explore_views_test.ts` is the lockstep guard: the pure checks always run (view ids unique per module and every view with a type, every axis a role the view has and rows apart from cols, a type's `values` non-empty and one under a unit on the series, no `byLevel` national key with the area laid out, no over-time type on HFA, every registry module bound), and under `FASTR_MODULES_LOCAL_DIR` every binding is checked against the module definitions (metrics present and not hidden, role dimensions columns of the results object, required non-time dimensions grouped with at most one replicant per type, a type's `values` among every bound metric's value props and a unit on the series reading one value prop, a period column for the over-time type, every non-hidden metric of a bound module bound or listed).
 
-The bindings today, each view with its types in order, the first the default:
-m012 "Service counts" (a table of areas by indicator; over time; a map under one
-indicator, the replicant). m001 "Outliers", "Completeness" and "Internal
-consistency" (a table of areas by indicator, for consistency by ratio type; over
-time, one pane per indicator or ratio type; a map under one indicator or ratio
-type, the replicant where the metric requires it, else a filter), "Facilities
-with adequate data quality" and "Mean data quality score" (a table of areas by
-period; over time as one line; a map). m002 "Adjustment impact" (a switch over
-the outlier, completeness and combined adjustments; a table of areas by
-indicator; over time; a map under one indicator, a filter) and "Volume by
-adjustment type" (over time only, the four adjustment bases as lines, one pane
-per indicator). m011 "Observed and expected services" (over time only, the
-national metric or the admin area 2, 3 or 4 metric by the level, the area pinned
-as the replicant, the four values as lines under the disruptions chart style)
-and "Service disruption" (a table of areas at the level by indicator, the
-percentage difference between observed and expected services coloured by the
-preset's thresholds; a map under one indicator, the replicant). m005
-"Denominator values" (a table of denominators by year), "Denominator values by
-area" (a table of areas by year, at admin area 2 or 3, under one denominator,
-the replicant) and "Coverage by denominator type" (a table of denominator types
-by indicator at one year, national or by level with the area the replicant; over
-time with the types as lines, one pane per indicator). m006 "Coverage over time"
-(over time only, national or by level with the area the replicant, the three
-estimates as lines under the coverage chart style) and "Coverage by area" (a
-table of areas by indicator at one year, the HMIS coverage value only; a chart
-of bars by area under one indicator, the replicant, at one year; a map of the
-same). `UNBOUND_METRICS` holds m6-02-02 and m6-03-02, whose one value is the
-HMIS coverage of m6-02-01 and m6-03-01, and m11-02-02, the observed and expected
-pair whose difference "Service disruption" reads. m010 "Indicators by survey
-round" (a table of HFA indicators by round, under one HFA category, a filter,
-with the category narrowing the indicator options), "Indicators by area" (a
-table of areas by indicator at one round, under one category; a map under one
-indicator, the replicant, at one round) and "Indicators by variant item" (a
-table of indicators by variant item at one round, under one category), each with
-a switch over the observed values and the values carried forward from the round
-that last measured them, the tables coloured by the HFA threshold style;
-"Don't-know and missing rates" (a table of indicators by round under one
-category, a switch over the two rates, the default style). m009 "Coverage by
-population group" (a table of population groups by indicator at one year, under
-one stratifier, a filter; the equiplot, indicators on the axis with the groups
-as series at one year; over time with the groups as lines, one pane per
-indicator) and "Inequality measures" (a table of indicators by the four measures
-at one year, under one stratifier, the replicant; a chart of the concentration
-index by indicator at one year; over time as the concentration index, one line
-per indicator).
+The bindings today, each view with its types in order, the first the default: m012 "Service counts" (a table of areas by indicator; over time; a map under one indicator, the replicant). m001 "Outliers", "Completeness" and "Internal consistency" (a table of areas by indicator, for consistency by ratio type; over time, one pane per indicator or ratio type; a map under one indicator or ratio type, the replicant where the metric requires it, else a filter), "Facilities with adequate data quality" and "Mean data quality score" (a table of areas by period; over time as one line; a map). m002 "Adjustment impact" (a switch over the outlier, completeness and combined adjustments; a table of areas by indicator; over time; a map under one indicator, a filter) and "Volume by adjustment type" (over time only, the four adjustment bases as lines, one pane per indicator). m011 "Observed and expected services" (over time only, the national metric or the admin area 2, 3 or 4 metric by the level, the area pinned as the replicant, the four values as lines under the disruptions chart style) and "Service disruption" (a table of areas at the level by indicator, the percentage difference between observed and expected services coloured by the preset's thresholds; a map under one indicator, the replicant). m005 "Denominator values" (a table of denominators by year), "Denominator values by area" (a table of areas by year, at admin area 2 or 3, under one denominator, the replicant) and "Coverage by denominator type" (a table of denominator types by indicator at one year, national or by level with the area the replicant; over time with the types as lines, one pane per indicator). m006 "Coverage over time" (over time only, national or by level with the area the replicant, the three estimates as lines under the coverage chart style) and "Coverage by area" (a table of areas by indicator at one year, the HMIS coverage value only; a chart of bars by area under one indicator, the replicant, at one year; a map of the same). `UNBOUND_METRICS` holds m6-02-02 and m6-03-02, whose one value is the HMIS coverage of m6-02-01 and m6-03-01, and m11-02-02, the observed and expected pair whose difference "Service disruption" reads. m010 "Indicators by survey round" (a table of HFA indicators by round, under one HFA category, a filter, with the category narrowing the indicator options), "Indicators by area" (a table of areas by indicator at one round, under one category; a map under one indicator, the replicant, at one round) and "Indicators by variant item" (a table of indicators by variant item at one round, under one category), each with a switch over the observed values and the values carried forward from the round that last measured them, the tables coloured by the HFA threshold style; "Don't-know and missing rates" (a table of indicators by round under one category, a switch over the two rates, the default style). m009 "Coverage by population group" (a table of population groups by indicator at one year, under one stratifier, a filter; the equiplot, indicators on the axis with the groups as series at one year; over time with the groups as lines, one pane per indicator) and "Inequality measures" (a table of indicators by the four measures at one year, under one stratifier, the replicant; a chart of the concentration index by indicator at one year; over time as the concentration index, one line per indicator).
 
-`lib/explore_query.ts` holds the state the page keeps and the resolution over
-it. A `FamilyQuery` (`level`, `indicators`, `period`, `grain`) is shared by a
-family's views; `ViewChoices` (`switch`, `pinned` values per dimension,
-`category` values for a non-indicator category) are one view's own. Both are
-`undefined` until edited and resolved on every read, never rewritten.
-`resolveView` takes the binding, the chosen type, the family query, the view
-choices, the scope's area for the family, the authoring context and the active
-metric's possible values, and answers a `ResolvedView`: the type (the chosen
-when offered, else the first), the switch option and the metric, the area role
-(the offered levels are a `byLevel` metric's ready keys or the admin dimensions
-the metric carries, deeper than the scope's area when the area is laid out and
-deeper or equal when pinned, `national` only without a scope area; the chosen
-level when offered, else the shallowest; absent when the active type drops the
-area and the level does not choose the metric), each role's placement
-(`category` and `unit` are laid out or pinned, `facets` always pinned, `time`
-laid out or pinned, `area` laid out, else pinned when the metric requires its
-admin dimension, else dropped), the category options (the family's dictionary
-for its indicator dimension, narrowed to a pinned `hfa_category` facet's
-indicators for HFA, the possible values otherwise) with the chosen values among
-them and the dropped indicators for the notice, the time role (months, with
-windows as choices and the grain shown when laid out; years and time points,
-with their values newest first and "All" only when laid out; pinned years and
-time points read the latest chosen, else the latest available; months pinned
-read one window, "All" pooling every month), and the pins in toolbar order
-(area, facets, unit, category), each with its options (the possible values, HFA
-time points in the instance's order, the category options for a pinned
-category), its value (the chosen when among the options, else the first), its
-status (`pending` until the values are served, `too_many_values` at the server's
-cap) and whether it enters the config as the replicant (the metric requires it
-and it is not time-based) or as a filter. `deriveViewConfig` turns a resolved
-view into `{ metric, config }`: `d` from the type's layout and the pins (a
-replicant as a `replicant` entry plus `selectedReplicantValue`, a filter as one
-`filterBy` entry, months as `periodFilter`, years and time points as a
-`filterBy`, `valuesFilter` from the type), `s` borrowed from the metric's first
-preset of the same type, else `DEFAULT_S_CONFIG` plus `cfMode: "indicator"` for
-an indicator-format metric, with the over-time overrides, and `t` empty;
-undefined while a pin has no value (pending, over the cap, no values) or a
-pinned time has no period. Tested in `server/tests/explore_query_test.ts`.
+`lib/explore_query.ts` holds the state the page keeps and the resolution over it. A `FamilyQuery` (`level`, `indicators`, `period`, `grain`) is shared by a family's views; `ViewChoices` (`switch`, `pinned` values per dimension, `category` values for a non-indicator category) are one view's own. Both are `undefined` until edited and resolved on every read, never rewritten. `resolveView` takes the binding, the chosen type, the family query, the view choices, the scope's area for the family, the authoring context and the active metric's possible values, and answers a `ResolvedView`: the type (the chosen when offered, else the first), the switch option and the metric, the area role (the offered levels are a `byLevel` metric's ready keys or the admin dimensions the metric carries, deeper than the scope's area when the area is laid out and deeper or equal when pinned, `national` only without a scope area; the chosen level when offered, else the shallowest; absent when the active type drops the area and the level does not choose the metric), each role's placement (`category` and `unit` are laid out or pinned, `facets` always pinned, `time` laid out or pinned, `area` laid out, else pinned when the metric requires its admin dimension, else dropped), the category options (the family's dictionary for its indicator dimension, narrowed to a pinned `hfa_category` facet's indicators for HFA, the possible values otherwise) with the chosen values among them and the dropped indicators for the notice, the time role (months, with windows as choices and the grain shown when laid out; years and time points, with their values newest first and "All" only when laid out; pinned years and time points read the latest chosen, else the latest available; months pinned read one window, "All" pooling every month), and the pins in toolbar order (area, facets, unit, category), each with its options (the possible values, HFA time points in the instance's order, the category options for a pinned category), its value (the chosen when among the options, else the first), its status (`pending` until the values are served, `too_many_values` at the server's cap) and whether it enters the config as the replicant (the metric requires it and it is not time-based) or as a filter. `deriveViewConfig` turns a resolved view into `{ metric, config }`: `d` from the type's layout and the pins (a replicant as a `replicant` entry plus `selectedReplicantValue`, a filter as one `filterBy` entry, months as `periodFilter`, years and time points as a `filterBy`, `valuesFilter` from the type), `s` borrowed from the metric's first preset of the same type, else `DEFAULT_S_CONFIG` plus `cfMode: "indicator"` for an indicator-format metric, with the over-time overrides, and `t` empty; undefined while a pin has no value (pending, over the cap, no values) or a pinned time has no period. Tested in `server/tests/explore_query_test.ts`.
 
 ## Replicant machinery
 
-`replicate_by_options.tsx` exports a sidebar `SelectList` variant
-(`ReplicateByOptionsList`, the editor's) and a `Select` dropdown variant
-(`ReplicateByOptionsSelect`, exported through the editor folder's entry; no
-consumer). Both fetch replicant options through the S9 scope-keyed cache
-(`getReplicantOptionsFromCacheOrFetch`) with `excludeReplicantFilter: true` and
-deep-tracked `filterBy`/`periodFilter` reads; statuses `too_many_values` (>500)
-/ `no_values_available` / `error` are surfaced inline. Labels get Nigeria-admin
-cleaning (`formatReplicantLabelForDisplay`), re-sorted only when cleaning
-changed something.
+`replicate_by_options.tsx` exports a sidebar `SelectList` variant (`ReplicateByOptionsList`, the editor's) and a `Select` dropdown variant (`ReplicateByOptionsSelect`, exported through the editor folder's entry; no consumer). Both fetch replicant options through the S9 scope-keyed cache (`getReplicantOptionsFromCacheOrFetch`) with `excludeReplicantFilter: true` and deep-tracked `filterBy`/`periodFilter` reads; statuses `too_many_values` (>500) / `no_values_available` / `error` are surfaced inline. Labels get Nigeria-admin cleaning (`formatReplicantLabelForDisplay`), re-sorted only when cleaning changed something.
 
 ## Open items
 
-- **Custom value orders are never pruned: ruling pending.**
-  `normalizePOConfigForStorage` canonicalizes roll-up flags at apply but does
-  not touch `s.customValueOrder`, so entries survive for dimensions that were
-  removed from the display and ids the data no longer returns. Current behavior
-  is deliberate-latent: the style section always lists such an order with its
-  reason and a clear button, and an unranked id is simply not ranked, so nothing
-  renders wrong. The open question is prune-on-apply versus keep-latent, and it
-  turns on whether re-adding a dimension later should silently recover its old
-  order (keep) or start clean (prune).
-- **Dead code (zero importers/consumers):** `lib/types/dimension_definitions.ts`
-  (barrel-exported, zero uses); the download modal's `allReplicants` result
-  field (hard-coded false); the data panel's `viewResultsObject` prop, declared
-  at `_shared/figure_editor/editor_panel_data.tsx:23` and `editor_panel.tsx:27`,
-  passed at `editor_panel.tsx:146` and `figure_editor.tsx:852`, read nowhere.
-- **Stale white-fill comment**: the download path claims `getFigureAsCanvas`
-  fills white pending a panther flag. Panther does not fill; verify transparent
-  PNG end-to-end and update or delete.
+- **Custom value orders are never pruned: ruling pending.** `normalizePOConfigForStorage` canonicalizes roll-up flags at apply but does not touch `s.customValueOrder`, so entries survive for dimensions that were removed from the display and ids the data no longer returns. Current behavior is deliberate-latent: the style section always lists such an order with its reason and a clear button, and an unranked id is simply not ranked, so nothing renders wrong. The open question is prune-on-apply versus keep-latent, and it turns on whether re-adding a dimension later should silently recover its old order (keep) or start clean (prune).
+- **Dead code (zero importers/consumers):** `lib/types/dimension_definitions.ts` (barrel-exported, zero uses); the download modal's `allReplicants` result field (hard-coded false); the data panel's `viewResultsObject` prop, declared at `_shared/figure_editor/editor_panel_data.tsx:23` and `editor_panel.tsx:27`, passed at `editor_panel.tsx:146` and `figure_editor.tsx:852`, read nowhere.
+- **Stale white-fill comment**: the download path claims `getFigureAsCanvas` fills white pending a panther flag. Panther does not fill; verify transparent PNG end-to-end and update or delete.
 - **i18n gaps**: `window.alert` in `custom_series_styles.tsx`.
-- Commented-out remnants: disaggregation chips (`metric_card.tsx`); the data
-  panel's help button (`_shared/figure_editor/editor_panel_data.tsx:53-57`, its
-  import at 16; SYSTEM_14's help-button item).
-- **Explore says a package has no modules when the scope hides them all.** The
-  families come from the authoring context read under the scope
-  (`explore/explore.tsx:261-275`), which drops every module the scope excludes
-  (`server/run_query/authoring_context.ts:27-31`); with none left, the page
-  shows `no_modules`, "This package has no modules, so there are no results to
-  explore." (`explore.tsx:299-306`; `explore/_shared/empty_state.tsx:11-16`).
-  Add a kind `no_modules_in_scope`, en "This scope shows none of this package's
-  modules.", fr "Cette portée n'affiche aucun des modules de ce paquet.", pt
-  "Este âmbito não mostra nenhum dos módulos deste pacote.", used at
-  `explore.tsx:206` when `p.scope.scopeId !== ALL_DATA_SCOPE_ID`, and name it in
-  the empty-state sentence under `## The Explore page`.
-- **Explore's no-package message sends users to a page most cannot open.** It
-  says "Generate one from the Results packages page"
-  (`explore/explore.tsx:122-131`); the rail calls that tab Results and shows it
-  only with admin or `can_configure_data` (`instance/instance.tsx:98-108`),
-  while Explore needs only all-scope access (91). Make it en "No results package
-  is ready yet. An admin generates one under Results.", fr "Aucun paquet de
-  résultats n'est encore prêt. Un administrateur en génère un sous Résultats.",
-  pt "Ainda não há nenhum pacote de resultados pronto. Um administrador gera um
-  em Resultados."
-- **Explore's header comment says nothing is written.** `explore/explore.tsx:96`
-  says "Nothing here is written anywhere", but the family, module, view and type
-  choices persist to localStorage (`state/t4_explore.ts:43-74`). Delete the
-  sentence; `t4_explore.ts:12-19` says what persists.
-- **Coverage footnotes state an adjustment basis the package may not have
-  used.** The m006 coverage presets carry `FOOTNOTE_COVERAGE_BASE` /
-  `FOOTNOTE_COVERAGE_WITH_CURRENT_YEAR` (modules `_shared/text_presets.ts`),
-  whose "adjusted for data quality" clause is fixed wording, while the basis is
-  a per-run module parameter (`SELECTED_COUNT_VARIABLE` on m005, four options;
-  `SELECTEDCOUNT` on m012, four, and on m011, two). Resolve it at render from a
-  bundle field, the way `withDateRange` resolves `DATE_RANGE`
-  (`build_figure_inputs.ts:555-580`): a sentence substituted at preset
-  derivation (`lib/derive_presets.ts:34-36`) goes stale the moment a figure is
-  repointed to a package with another basis, which is the reported failure. The
-  basis is declared, not inferred: read the metric's own module's parameter,
-  else its prerequisite's (m006 has no count parameter and reads m005's). Three
-  languages must be authored, keyed off the option `value`: option labels are
-  English-only (`_module_definition_github.ts:80`). Lockstep: the bundle schema
-  and its test, the items payload, `PO_CACHE_VERSION`, and
-  `lib/retired_metrics.ts:370-402`, which holds the same six strings as frozen
-  `from`/`to` matchers and stops matching if the modules wording moves alone.
-  Note that the footnote lives in `config.t.footnote` inside each stored bundle,
-  so every deck and report already built keeps the old sentence unless a
-  slide_config and reports sweep rewrites it; that sweep is the open decision.
-- **Coverage cannot be compared across the four adjustment bases.** m005 runs
-  its coverage chain on the one `count_final_*` column the package selected
-  (`m005/script.R:271`, the single `count` column from there down), and m006's
-  three estimation columns are three estimation types on that one basis. m002's
-  "Adjustment impact" switch is not the pattern to copy: `resolveView`
-  (`lib/explore_query.ts:451-474`) resolves the `switch` and `byLevel` arms in
-  mutually exclusive branches, so a binding carrying both would silently drop
-  the switch, and m006's bindings are per-level. The shape that fits is m005
-  running its three driver blocks (`script.R:1563-2067`) once per basis, a new
-  results object per level in m005 and m006 carrying `coverage_<basis>` value
-  props, six new metrics over them, existing results objects and figures
-  untouched, and Explore showing the bases as series from value props (a
-  non-table type with `series: "unit"` and no `values` forces exactly one value
-  prop). Gate to design against: `explore_views_test.ts:445-460` requires every
-  new non-hidden metric to be bound in `EXPLORE_VIEWS` or listed in
-  `UNBOUND_METRICS` with a reason. The cost is four runs of the heaviest module,
-  with no runtime stated in its header today to multiply.
-- **The survey source cannot reach a per-point label.** m005 now writes `source`
-  and `source_detail`, so m006's `survey_raw_source` fills, but the coverage
-  `textFormatter` (`get_style_from_po/_2_coverage.ts:41-51`) receives
-  `ChartValueInfo` only: numbers, plus `{id, label}` headers, with no per-point
-  payload slot and no row reference. Carrying an annotation column is a new
-  concept at three layers, not one: the fetch config and SQL select list
-  (`GenericLongFormFetchConfig` names only value props and group-bys), the
-  figure data config, and the per-point info type. Neither apparent escape hatch
-  works: `func: "identity"` is set per metric, not per column, and becomes
-  `SUM(varchar)` under roll-up; panther's `uncertainty` slot is numeric and the
-  app never sets it. Hover is not the alternative: panther has no chart
-  hit-testing at all, and every export path (PPTX, both deck PDFs, the report
-  PDF, even the HTML report) ships figures as static canvases or PNGs.
-- **Fifty preset cards, 23 of them in five twin sets.** Every preset is a card
-  (`derive_presets.ts:54-71` iterates `vizPresets` with no predicate;
-  `package_view/presets.tsx:72-81` renders them all, with no "show more"
-  affordance anywhere). The twins: m011's `observed-expected-ci` and disruption
-  tables repeated per admin level (13 presets, 4 shapes), m006's admin-2/admin-3
-  pairs (5 → 2), one "indicator x admin_area_2" table shape copied across m001,
-  m002, m011 and m012, m001's five table/map pairs, and m010's four
-  carry-forward twins (4 → 2). Deleting a twin is not free: Explore borrows
-  style from the metric's first preset **of the matching type**
-  (`explore_query.ts:687-703`), so dropping any m001 `*-map`, each the sole map
-  preset of its metric, silently moves that metric's Explore map to
-  `DEFAULT_S_CONFIG`. Hiding rather than deleting means an optional flag on both
-  preset schemas, which both live in this repo
-  (`_module_definition_github.ts:299-310`, `_metric_installed.ts:305-318`), plus
-  the modules repo's vendored copy via `./vendor_schema` and the metric sources;
-  additive is safe on read, and a flag that changes which presets are derived
-  needs the cache-prefix bump.
+- Commented-out remnants: disaggregation chips (`metric_card.tsx`); the data panel's help button (`_shared/figure_editor/editor_panel_data.tsx:53-57`, its import at 16; SYSTEM_14's help-button item).
+- **Explore says a package has no modules when the scope hides them all.** The families come from the authoring context read under the scope (`explore/explore.tsx:261-275`), which drops every module the scope excludes (`server/run_query/authoring_context.ts:27-31`); with none left, the page shows `no_modules`, "This package has no modules, so there are no results to explore." (`explore.tsx:299-306`; `explore/_shared/empty_state.tsx:11-16`). Add a kind `no_modules_in_scope`, en "This scope shows none of this package's modules.", fr "Cette portée n'affiche aucun des modules de ce paquet.", pt "Este âmbito não mostra nenhum dos módulos deste pacote.", used at `explore.tsx:206` when `p.scope.scopeId !== ALL_DATA_SCOPE_ID`, and name it in the empty-state sentence under `## The Explore page`.
+- **Explore's no-package message sends users to a page most cannot open.** It says "Generate one from the Results packages page" (`explore/explore.tsx:122-131`); the rail calls that tab Results and shows it only with admin or `can_configure_data` (`instance/instance.tsx:98-108`), while Explore needs only all-scope access (91). Make it en "No results package is ready yet. An admin generates one under Results.", fr "Aucun paquet de résultats n'est encore prêt. Un administrateur en génère un sous Résultats.", pt "Ainda não há nenhum pacote de resultados pronto. Um administrador gera um em Resultados."
+- **Explore's header comment says nothing is written.** `explore/explore.tsx:96` says "Nothing here is written anywhere", but the family, module, view and type choices persist to localStorage (`state/t4_explore.ts:43-74`). Delete the sentence; `t4_explore.ts:12-19` says what persists.
+- **Coverage footnotes state an adjustment basis the package may not have used.** The m006 coverage presets carry `FOOTNOTE_COVERAGE_BASE` / `FOOTNOTE_COVERAGE_WITH_CURRENT_YEAR` (modules `_shared/text_presets.ts`), whose "adjusted for data quality" clause is fixed wording, while the basis is a per-run module parameter (`SELECTED_COUNT_VARIABLE` on m005, four options; `SELECTEDCOUNT` on m012, four, and on m011, two). Resolve it at render from a bundle field, the way `withDateRange` resolves `DATE_RANGE` (`build_figure_inputs.ts:555-580`): a sentence substituted at preset derivation (`lib/derive_presets.ts:34-36`) goes stale the moment a figure is repointed to a package with another basis, which is the reported failure. The basis is declared, not inferred: read the metric's own module's parameter, else its prerequisite's (m006 has no count parameter and reads m005's). Three languages must be authored, keyed off the option `value`: option labels are English-only (`_module_definition_github.ts:80`). Lockstep: the bundle schema and its test, the items payload, `PO_CACHE_VERSION`, and `lib/retired_metrics.ts:370-402`, which holds the same six strings as frozen `from`/`to` matchers and stops matching if the modules wording moves alone. Note that the footnote lives in `config.t.footnote` inside each stored bundle, so every deck and report already built keeps the old sentence unless a slide_config and reports sweep rewrites it; that sweep is the open decision.
+- **Coverage cannot be compared across the four adjustment bases.** m005 runs its coverage chain on the one `count_final_*` column the package selected (`m005/script.R:271`, the single `count` column from there down), and m006's three estimation columns are three estimation types on that one basis. m002's "Adjustment impact" switch is not the pattern to copy: `resolveView` (`lib/explore_query.ts:451-474`) resolves the `switch` and `byLevel` arms in mutually exclusive branches, so a binding carrying both would silently drop the switch, and m006's bindings are per-level. The shape that fits is m005 running its three driver blocks (`script.R:1563-2067`) once per basis, a new results object per level in m005 and m006 carrying `coverage_<basis>` value props, six new metrics over them, existing results objects and figures untouched, and Explore showing the bases as series from value props (a non-table type with `series: "unit"` and no `values` forces exactly one value prop). Gate to design against: `explore_views_test.ts:445-460` requires every new non-hidden metric to be bound in `EXPLORE_VIEWS` or listed in `UNBOUND_METRICS` with a reason. The cost is four runs of the heaviest module, with no runtime stated in its header today to multiply.
+- **The survey source cannot reach a per-point label.** m005 now writes `source` and `source_detail`, so m006's `survey_raw_source` fills, but the coverage `textFormatter` (`get_style_from_po/_2_coverage.ts:41-51`) receives `ChartValueInfo` only: numbers, plus `{id, label}` headers, with no per-point payload slot and no row reference. Carrying an annotation column is a new concept at three layers, not one: the fetch config and SQL select list (`GenericLongFormFetchConfig` names only value props and group-bys), the figure data config, and the per-point info type. Neither apparent escape hatch works: `func: "identity"` is set per metric, not per column, and becomes `SUM(varchar)` under roll-up; panther's `uncertainty` slot is numeric and the app never sets it. Hover is not the alternative: panther has no chart hit-testing at all, and every export path (PPTX, both deck PDFs, the report PDF, even the HTML report) ships figures as static canvases or PNGs.
+- **Fifty preset cards, 23 of them in five twin sets.** Every preset is a card (`derive_presets.ts:54-71` iterates `vizPresets` with no predicate; `package_view/presets.tsx:72-81` renders them all, with no "show more" affordance anywhere). The twins: m011's `observed-expected-ci` and disruption tables repeated per admin level (13 presets, 4 shapes), m006's admin-2/admin-3 pairs (5 → 2), one "indicator x admin_area_2" table shape copied across m001, m002, m011 and m012, m001's five table/map pairs, and m010's four carry-forward twins (4 → 2). Deleting a twin is not free: Explore borrows style from the metric's first preset **of the matching type** (`explore_query.ts:687-703`), so dropping any m001 `*-map`, each the sole map preset of its metric, silently moves that metric's Explore map to `DEFAULT_S_CONFIG`. Hiding rather than deleting means an optional flag on both preset schemas, which both live in this repo (`_module_definition_github.ts:299-310`, `_metric_installed.ts:305-318`), plus the modules repo's vendored copy via `./vendor_schema` and the metric sources; additive is safe on read, and a flag that changes which presets are derived needs the cache-prefix bump.

@@ -61,747 +61,123 @@ globs:
 
 # S6: Dataset Ingestion
 
-The stage→integrate machinery for the three dataset families, HMIS (CSV +
-DHIS2), HFA (CSV + XLSForm), and ICEH (zip), plus their wizards, the import-run
-state machines, and the run-capture seam. Every family is import runs; only the
-structure family (S5) uses upload attempts.
+The stage→integrate machinery for the three dataset families, HMIS (CSV + DHIS2), HFA (CSV + XLSForm), and ICEH (zip), plus their wizards, the import-run state machines, and the run-capture seam. Every family is import runs; only the structure family (S5) uses upload attempts.
 
-Structure/facility ELT (`server_only_funcs_importing/**`) is **S5**. The worker
-lifecycle (spawn, READY handshake, teardown) is
-[PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md) (machinery
-owned by S8). DHIS2 fetching/retry is S7.
+Structure/facility ELT (`server_only_funcs_importing/**`) is **S5**. The worker lifecycle (spawn, READY handshake, teardown) is [PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md) (machinery owned by S8). DHIS2 fetching/retry is S7.
 
 ## One execution model
 
-Every import is a background Web Worker over a run row, no attempt row anywhere:
-`import_hmis_data_csv` (CSV: stages into per-run tables, gates, integrates),
-`import_hmis_data_dhis2` (DHIS2: fetches AND integrates per (data id, month)
-pair; no staged-review step), `import_hfa_data_csv` (CSV + XLSForm),
-`import_iceh_data` (zip of results_csv.csv + indicators.xlsx; stages in memory).
-The client HTTP-polls the run row; there is **no SSE for import progress**: the
-imports surfaces poll every 2 s while a run is active. The only SSE push is
-`notifyInstanceDatasetsUpdated` after integration/run completion (refreshes the
-datasets summary, not progress).
+Every import is a background Web Worker over a run row, no attempt row anywhere: `import_hmis_data_csv` (CSV: stages into per-run tables, gates, integrates), `import_hmis_data_dhis2` (DHIS2: fetches AND integrates per (data id, month) pair; no staged-review step), `import_hfa_data_csv` (CSV + XLSForm), `import_iceh_data` (zip of results_csv.csv + indicators.xlsx; stages in memory). The client HTTP-polls the run row; there is **no SSE for import progress**: the imports surfaces poll every 2 s while a run is active. The only SSE push is `notifyInstanceDatasetsUpdated` after integration/run completion (refreshes the datasets summary, not progress).
 
 ## HMIS import runs (DHIS2 per-pair + CSV stage-gate-integrate)
 
-This section is the authority. Every HMIS import, DHIS2 or CSV, is a row in
-`dataset_hmis_import_runs`; there is no second lifecycle. Shape:
+This section is the authority. Every HMIS import, DHIS2 or CSV, is a row in `dataset_hmis_import_runs`; there is no second lifecycle. Shape:
 
-- `dataset_hmis_import_runs` (main DB): one row per run, with trigger/user,
-  `route` (`dhis2|csv`), selection JSON (DHIS2: a window of INDICATORS with its
-  expansion to the elements it fetches, or explicit (data id, month) pairs) or
-  `csv_config` JSON (CSV: `{ fileName, filePin, columns,
-  mapping }`; the
-  route→fields pairing is enforced in code), status
-  (`queued|running|needs_review|complete|error|cancelled`), pair counters (DHIS2
-  only), throttled `progress` JSON (by-route union: in-flight pairs vs a
-  staging/integrating percentage), `run_stats` (DHIS2: classification + per-pair
-  fetch stats; CSV: the staging diagnostics), `version_id`. A partial unique
-  index allows at most one `running` row. The INSERT (or the queued→running
-  UPDATE) is the launch claim, shared by both routes; queued rows of either
-  route drain FIFO through the same scheduler tick. Every DHIS2 run uses the
-  stored credentials (`instance_dhis2_credentials`, instance-wide, password
-  AES-GCM-encrypted with `DHIS2_CREDENTIALS_ENCRYPTION_KEY`), decrypted for the
-  run only inside the worker via `getStoredDhis2CredentialsDecrypted` (the
-  wizard's pre-launch classification decrypts them in its route handler); CSV
-  fires need no credentials.
-- **CSV runs** (`import_hmis_data_csv/` worker, `"hmis"` worker key): the wizard
-  is client-local: its file input is an ordinary instance asset (uploaded or
-  picked, S4), named by `fileName` in the launch payload. After the columns are
-  chosen the wizard's Mapping step calls `scanDatasetHmisCsvIndicatorValues`
-  (stateless: `scan_indicator_values.ts` streams the file and returns every
-  distinct value of the indicator column with its row count, sorted by
-  descending count, plus the `AssetFilePin` of the bytes it read; above
-  `HMIS_CSV_MAX_DISTINCT_INDICATOR_VALUES`, 2000, it refuses naming the count
-  and the column), and the user points each value at an indicator that has rows
-  or skips it, seeded by `autoSelectHmisCsvMapping` (lib). The launch payload
-  carries the scan's `pin` and the `mapping` (`HmisCsvMapping`, every value to a
-  data id or null); `validateCsvRunConfig` passes the pin to
-  `resolveAssetFileOrThrow` as the expected pin, so a file swapped between the
-  scan and the launch is refused with "The file has changed", checks every
-  target is the data id of an indicator with rows, named by at most one value,
-  and at least one value mapped, and stores the mapping on the run row. Every
-  deferred read re-checks the pin, so an overwrite while a run queues or holds
-  fails loudly. Nothing about a mapping is remembered between imports. Inputs
-  persist after the run. The stage leg streams the CSV into **per-run staging
-  tables** (`_run_{runId}` suffix), then gates: every validation drop counter
-  zero AND
-  > 0 rows staged → auto-integrate unattended (rows under skipped values are
-  > counted in `skippedByMapping` and never gate); dropped rows → `needs_review`
-  > with diagnostics on the run row, **releasing the running slot** (the per-run
-  > table survives the hold; "Integrate anyway" re-claims, or queues; "Discard"
-  > cancels and drops it; those are the hold's only two actions); zero staged
-  > rows → loud `error`. The integrate leg is a single-transaction merge; the
-  > version link and the `complete` flip land together as the transaction's last
-  > statement (readers hide a running run's version; a committed one is already
-  > complete).
-- **Auto-pull**: `dataset_hmis_scheduled_imports` (one-shot and recurring rows,
-  rolling-window selection resolved at fire time) is fired by a ~60 s tick in
-  main.ts (`import_hmis_data_dhis2/scheduler.ts`): queued runs drain FIFO first,
-  then due schedules (occurrence math per IANA timezone, 4 h grace at every
-  cadence, deterministic per-row jitter, `last_fired_at` CAS idempotency).
-  Recurring rows carry a `recurrence` JSON union (migration 064): daily / weekly
-  / monthly-nth-weekday-only (ruled), each with an explicit anchor (weekly
-  `firstRunDate`, monthly `anchorMonth`); occurrences are exact arithmetic from
-  the anchor, never counted from the last fire; the weekly UI offers 1/2/4 weeks
-  (server accepts 1–13). Schedules have no URL of their own: runs pin (the
-  queued-run URL guard), policies follow the stored connection. Refusals/misses
-  are loud (`last_outcome` + datasets-summary attention flag). Two accepted
-  limitations (ruled): a crash between the CAS claim and the outcome write
-  silently consumes that occurrence, and rolling-window "current month" resolves
-  from the server clock, not the schedule's timezone (≤hours of skew,
-  self-correcting).
-- **Import selects indicators; the data ids it fetches are expanded where pairs
-  are enumerated**. A window or schedule selection carries `indicatorIds`;
-  `validateRunSelection` (shared by launch, enqueue and the scheduler's fire
-  path) expands them with `expandIndicatorSelection` (lib, S5): a sum expands to
-  its members, a calculated flattens through the resolver to the counts it
-  reaches, the DHIS2 elements among them contribute their data ids, and
-  population terms and Uploaded indicators (whatever their data id's shape) are
-  dropped and listed (`populationTermsDropped`, `uploadedIndicatorsDropped`,
-  shown in the run detail). The expansion is persisted on the run row's
-  `selection` as `dataIds` and carried in the worker message, so the worker
-  fetches each data id and writes rows under that same key without re-resolving:
-  a queued run reuses its enqueue-time `dataIds` (its `total_pairs` was recorded
-  then), so an element added after enqueue is not in that run. A pair is
-  `{ dataId, periodId }` everywhere: the run's pairs, progress, fetch stats and
-  failed fetches, the version row's stats, and the ledger, which is keyed by
-  `data_id`. The client labels pairs through the dictionary keyed by data id
-  (`indicatorsByDataId`, S5): the running run's pairs in flight, the run
-  detail's failed and skipped pairs, the By indicator tab and its per-month
-  detail show the indicator under each data id, or the data id alone where no
-  indicator carries it. A pairs selection (retry failed, re-import from the
-  ledger) names (data id, month) pairs; `validateRunSelection` checks each data
-  id belongs to a DHIS2 element and resolves nothing. The client reads the same
-  expansion before launch through `describeDhis2Selection` (lib), a thin wrapper
-  that joins each data id to the DHIS2 element indicator carrying it and passes
-  the dropped lists through; the wizard renders it, the server never calls it.
-  Both pinned by `server/tests/indicator_selection_expansion_test.ts`. Before
-  launch the wizard's Review step also asks DHIS2 what those data ids are, once
-  each time the step opens, through the stateless
-  `classifyDatasetHmisDhis2Selection` (the stored connection, `classifyElements`
-  with one attempt and a 15 s budget per call), and lists the formula ids and
-  the not-found ids as the dispatcher bullet below describes, each list ending
-  with the repair note. It is a preview: it never blocks the launch, a
-  connection or DHIS2 error is one line in place of the lists, and the run's own
-  classification is the one that counts. A pairs selection (retry failed,
-  re-import) is not asked, since its wizard has no description to read the data
-  ids from.
-- The worker classifies every data id of the run from DHIS2 metadata
-  (dispatcher, `dispatch.ts`) and has one fetch route: bare data elements and
-  operands → dataValueSets country-pulls (the values facilities reported, no
-  DHIS2-side formula), one per selector × month selected by
-  `period=<instance period id>` (an opaque token the DHIS2 server interprets in
-  its own calendar, the same contract as DHIS2's own analytics `pe:`, and the
-  app never converts calendars/dates; a calendar-configured server does not read
-  startDate/endDate as Gregorian), level-2 subtree split on size/timeout. The
-  selector follows the version DHIS2 reports at run start (`getDhis2Version`,
-  `pullByForVersion`; an unreadable version fails the run rather than guess, and
-  `run_stats` records `dhis2Version` and `pullBy`): `dataElement=` on 2.39 and
-  later, one pull per data element; `dataSet=` on an earlier release, whose
-  export ignores `dataElement=` (the resolved selection is empty and it answers
-  409 E2001, Mauritania 2026-10-21), one pull per monthly data set an element is
-  collected in (`getMonthlyDataSetIdByElement`, the first monthly set; the
-  export's SQL filters by the set's elements, so any set holding the element
-  returns the same values), carrying every element of the set and reduced per
-  element on our side, so elements sharing a set share pulls the way operands
-  sharing an element do (`buildPullTasks`). A data-set export also requires the
-  credentials user's data-read sharing on the set (409 E2010, a permanent pair
-  error like any 4xx). By data set, an element in no monthly data set is a third
-  refused bucket, `classification.noMonthlyDataSetIds`: permanent ledger errors
-  naming the DHIS2 administrator's remedy, data kept. Every other id gets no
-  fetch and a permanent ledger error: a DHIS2 formula (what DHIS2 calls an
-  indicator; its existing data stays), or a data id that matches no data element
-  or operand at all. A data id can reach these buckets only from the stored
-  dictionary or from a change on the DHIS2 side: a typed DHIS2 element id is
-  refused at save time unless DHIS2 confirms it as an element or operand the
-  picker would accept (S5, `Dhis2ElementIdCheck`), so a formula id, an unknown
-  id, a non-monthly element and an unlisted combo are never saved by hand; the
-  run's classification still decides, because an element can be retyped,
-  re-aggregated or moved out of its monthly data set after the save, and the
-  DHIS2 id repair fixes the ids stored before the check existed. Every message
-  that names a formula id calls it a "DHIS2 formula" and says once that DHIS2
-  calls it an indicator; the internal names keep DHIS2's word: `run_stats` rows
-  store `dhis2IndicatorIds`, and the dispatcher's reason `dhis2_indicator`
-  matches it. Both kinds of id carry one repair note, whose authoritative
-  wording is: "Ask the FASTR team to run the DHIS2 id repair. It keeps the data
-  already imported." The repair is S5's `fix_dhis2_ids.ts`, run by the team
-  inside the instance's container, which keeps each indicator's id; nothing in
-  the app repairs one, since an indicator with data can be neither deleted nor
-  given a new DHIS2 id (S5). The client's `dhis2IdRepairNote`
-  (`hmis/_shared/indicator_display.ts`) carries the note verbatim and is shown
-  above both lists in the run detail, under both lists in the import wizard's
-  Review step, and under the formula list in the Refresh DHIS2 names modal (S5);
-  every refused pair's ledger message ends with the same two sentences. The run
-  detail's banners list `classification.dhis2IndicatorIds` and
-  `classification.unknownIds`, each with the note, and
-  `classification.noMonthlyDataSetIds` with its own remedy, each id as
-  `indicator id · label (UID)` through the dictionary keyed by data id
-  (`dataIdWithIndicator`), bare where no indicator carries it; a line above them
-  states the DHIS2 version and the selector the run used. The pull-route
-  contract is pinned by `server/tests/dhis2_pull_route_test.ts`. A response
-  containing any period other than the requested one fails the pull loudly
-  (permanent). The evidence base (verdicts E1–E13, incl. the calendar finding
-  and the sizing fact that DVS deep-history backfill ≈ 10 MB per dense
-  element-month) lives outside this repo in `~/projects/apps/wb-fastr-dhis2-lab`
-  (RESULTS.md; DHIS2 caches analytics responses, so never time a repeated
-  identical request).
-- Each pair integrates in its own small transaction: scoped delete (against an
-  UNLOGGED facility-scope snapshot table captured at run start) → insert →
-  ledger upsert → run counters. A run that dies keeps every completed pair. The
-  version row is minted lazily at the first successful pair
-  (dataset_hmis.version_id is a NOT NULL FK; no empty versions) and its
-  counts/staging_result are finalized at run end.
-- There is no shadow verification against analytics: DVS-analytics divergence is
-  normal on real servers, and dataValueSets is authoritative. Migration 063
-  drops the `shadow_passed` column; older `run_stats` blobs may carry a `shadow`
-  key.
-- Concurrency: the partial unique index is the whole story. CSV and DHIS2 share
-  the claim. Windowed deletes refuse while a run is `running`. db_startup sweeps
-  stale `running` rows to `error` after a restart (dropping a CSV run's staging
-  tables). Run cancel terminates the worker; completed DHIS2 pairs stay, a CSV
-  run's single transaction rolls back whole.
+- `dataset_hmis_import_runs` (main DB): one row per run, with trigger/user, `route` (`dhis2|csv`), selection JSON (DHIS2: a window of INDICATORS with its expansion to the elements it fetches, or explicit (data id, month) pairs) or `csv_config` JSON (CSV: `{ fileName, filePin, columns,
+  mapping }`; the route→fields pairing is enforced in code), status (`queued|running|needs_review|complete|error|cancelled`), pair counters (DHIS2 only), throttled `progress` JSON (by-route union: in-flight pairs vs a staging/integrating percentage), `run_stats` (DHIS2: classification + per-pair fetch stats; CSV: the staging diagnostics), `version_id`. A partial unique index allows at most one `running` row. The INSERT (or the queued→running UPDATE) is the launch claim, shared by both routes; queued rows of either route drain FIFO through the same scheduler tick. Every DHIS2 run uses the stored credentials (`instance_dhis2_credentials`, instance-wide, password AES-GCM-encrypted with `DHIS2_CREDENTIALS_ENCRYPTION_KEY`), decrypted for the run only inside the worker via `getStoredDhis2CredentialsDecrypted` (the wizard's pre-launch classification decrypts them in its route handler); CSV fires need no credentials.
+- **CSV runs** (`import_hmis_data_csv/` worker, `"hmis"` worker key): the wizard is client-local: its file input is an ordinary instance asset (uploaded or picked, S4), named by `fileName` in the launch payload. After the columns are chosen the wizard's Mapping step calls `scanDatasetHmisCsvIndicatorValues` (stateless: `scan_indicator_values.ts` streams the file and returns every distinct value of the indicator column with its row count, sorted by descending count, plus the `AssetFilePin` of the bytes it read; above `HMIS_CSV_MAX_DISTINCT_INDICATOR_VALUES`, 2000, it refuses naming the count and the column), and the user points each value at an indicator that has rows or skips it, seeded by `autoSelectHmisCsvMapping` (lib). The launch payload carries the scan's `pin` and the `mapping` (`HmisCsvMapping`, every value to a data id or null); `validateCsvRunConfig` passes the pin to `resolveAssetFileOrThrow` as the expected pin, so a file swapped between the scan and the launch is refused with "The file has changed", checks every target is the data id of an indicator with rows, named by at most one value, and at least one value mapped, and stores the mapping on the run row. Every deferred read re-checks the pin, so an overwrite while a run queues or holds fails loudly. Nothing about a mapping is remembered between imports. Inputs persist after the run. The stage leg streams the CSV into **per-run staging tables** (`_run_{runId}` suffix), then gates: every validation drop counter zero AND
+  > 0 rows staged → auto-integrate unattended (rows under skipped values are counted in `skippedByMapping` and never gate); dropped rows → `needs_review` with diagnostics on the run row, **releasing the running slot** (the per-run table survives the hold; "Integrate anyway" re-claims, or queues; "Discard" cancels and drops it; those are the hold's only two actions); zero staged rows → loud `error`. The integrate leg is a single-transaction merge; the version link and the `complete` flip land together as the transaction's last statement (readers hide a running run's version; a committed one is already complete).
+- **Auto-pull**: `dataset_hmis_scheduled_imports` (one-shot and recurring rows, rolling-window selection resolved at fire time) is fired by a ~60 s tick in main.ts (`import_hmis_data_dhis2/scheduler.ts`): queued runs drain FIFO first, then due schedules (occurrence math per IANA timezone, 4 h grace at every cadence, deterministic per-row jitter, `last_fired_at` CAS idempotency). Recurring rows carry a `recurrence` JSON union (migration 064): daily / weekly / monthly-nth-weekday-only (ruled), each with an explicit anchor (weekly `firstRunDate`, monthly `anchorMonth`); occurrences are exact arithmetic from the anchor, never counted from the last fire; the weekly UI offers 1/2/4 weeks (server accepts 1–13). Schedules have no URL of their own: runs pin (the queued-run URL guard), policies follow the stored connection. Refusals/misses are loud (`last_outcome` + datasets-summary attention flag). Two accepted limitations (ruled): a crash between the CAS claim and the outcome write silently consumes that occurrence, and rolling-window "current month" resolves from the server clock, not the schedule's timezone (≤hours of skew, self-correcting).
+- **Import selects indicators; the data ids it fetches are expanded where pairs are enumerated**. A window or schedule selection carries `indicatorIds`; `validateRunSelection` (shared by launch, enqueue and the scheduler's fire path) expands them with `expandIndicatorSelection` (lib, S5): a sum expands to its members, a calculated flattens through the resolver to the counts it reaches, the DHIS2 elements among them contribute their data ids, and population terms and Uploaded indicators (whatever their data id's shape) are dropped and listed (`populationTermsDropped`, `uploadedIndicatorsDropped`, shown in the run detail). The expansion is persisted on the run row's `selection` as `dataIds` and carried in the worker message, so the worker fetches each data id and writes rows under that same key without re-resolving: a queued run reuses its enqueue-time `dataIds` (its `total_pairs` was recorded then), so an element added after enqueue is not in that run. A pair is `{ dataId, periodId }` everywhere: the run's pairs, progress, fetch stats and failed fetches, the version row's stats, and the ledger, which is keyed by `data_id`. The client labels pairs through the dictionary keyed by data id (`indicatorsByDataId`, S5): the running run's pairs in flight, the run detail's failed and skipped pairs, the By indicator tab and its per-month detail show the indicator under each data id, or the data id alone where no indicator carries it. A pairs selection (retry failed, re-import from the ledger) names (data id, month) pairs; `validateRunSelection` checks each data id belongs to a DHIS2 element and resolves nothing. The client reads the same expansion before launch through `describeDhis2Selection` (lib), a thin wrapper that joins each data id to the DHIS2 element indicator carrying it and passes the dropped lists through; the wizard renders it, the server never calls it. Both pinned by `server/tests/indicator_selection_expansion_test.ts`. Before launch the wizard's Review step also asks DHIS2 what those data ids are, once each time the step opens, through the stateless `classifyDatasetHmisDhis2Selection` (the stored connection, `classifyElements` with one attempt and a 15 s budget per call), and lists the formula ids and the not-found ids as the dispatcher bullet below describes, each list ending with the repair note. It is a preview: it never blocks the launch, a connection or DHIS2 error is one line in place of the lists, and the run's own classification is the one that counts. A pairs selection (retry failed, re-import) is not asked, since its wizard has no description to read the data ids from.
+- The worker classifies every data id of the run from DHIS2 metadata (dispatcher, `dispatch.ts`) and has one fetch route: bare data elements and operands → dataValueSets country-pulls (the values facilities reported, no DHIS2-side formula), one per selector × month selected by `period=<instance period id>` (an opaque token the DHIS2 server interprets in its own calendar, the same contract as DHIS2's own analytics `pe:`, and the app never converts calendars/dates; a calendar-configured server does not read startDate/endDate as Gregorian), level-2 subtree split on size/timeout. The selector follows the version DHIS2 reports at run start (`getDhis2Version`, `pullByForVersion`; an unreadable version fails the run rather than guess, and `run_stats` records `dhis2Version` and `pullBy`): `dataElement=` on 2.39 and later, one pull per data element; `dataSet=` on an earlier release, whose export ignores `dataElement=` (the resolved selection is empty and it answers 409 E2001, Mauritania 2026-10-21), one pull per monthly data set an element is collected in (`getMonthlyDataSetIdByElement`, the first monthly set; the export's SQL filters by the set's elements, so any set holding the element returns the same values), carrying every element of the set and reduced per element on our side, so elements sharing a set share pulls the way operands sharing an element do (`buildPullTasks`). A data-set export also requires the credentials user's data-read sharing on the set (409 E2010, a permanent pair error like any 4xx). By data set, an element in no monthly data set is a third refused bucket, `classification.noMonthlyDataSetIds`: permanent ledger errors naming the DHIS2 administrator's remedy, data kept. Every other id gets no fetch and a permanent ledger error: a DHIS2 formula (what DHIS2 calls an indicator; its existing data stays), or a data id that matches no data element or operand at all. A data id can reach these buckets only from the stored dictionary or from a change on the DHIS2 side: a typed DHIS2 element id is refused at save time unless DHIS2 confirms it as an element or operand the picker would accept (S5, `Dhis2ElementIdCheck`), so a formula id, an unknown id, a non-monthly element and an unlisted combo are never saved by hand; the run's classification still decides, because an element can be retyped, re-aggregated or moved out of its monthly data set after the save, and the DHIS2 id repair fixes the ids stored before the check existed. Every message that names a formula id calls it a "DHIS2 formula" and says once that DHIS2 calls it an indicator; the internal names keep DHIS2's word: `run_stats` rows store `dhis2IndicatorIds`, and the dispatcher's reason `dhis2_indicator` matches it. Both kinds of id carry one repair note, whose authoritative wording is: "Ask the FASTR team to run the DHIS2 id repair. It keeps the data already imported." The repair is S5's `fix_dhis2_ids.ts`, run by the team inside the instance's container, which keeps each indicator's id; nothing in the app repairs one, since an indicator with data can be neither deleted nor given a new DHIS2 id (S5). The client's `dhis2IdRepairNote` (`hmis/_shared/indicator_display.ts`) carries the note verbatim and is shown above both lists in the run detail, under both lists in the import wizard's Review step, and under the formula list in the Refresh DHIS2 names modal (S5); every refused pair's ledger message ends with the same two sentences. The run detail's banners list `classification.dhis2IndicatorIds` and `classification.unknownIds`, each with the note, and `classification.noMonthlyDataSetIds` with its own remedy, each id as `indicator id · label (UID)` through the dictionary keyed by data id (`dataIdWithIndicator`), bare where no indicator carries it; a line above them states the DHIS2 version and the selector the run used. The pull-route contract is pinned by `server/tests/dhis2_pull_route_test.ts`. A response containing any period other than the requested one fails the pull loudly (permanent). The evidence base (verdicts E1–E13, incl. the calendar finding and the sizing fact that DVS deep-history backfill ≈ 10 MB per dense element-month) lives outside this repo in `~/projects/apps/wb-fastr-dhis2-lab` (RESULTS.md; DHIS2 caches analytics responses, so never time a repeated identical request).
+- Each pair integrates in its own small transaction: scoped delete (against an UNLOGGED facility-scope snapshot table captured at run start) → insert → ledger upsert → run counters. A run that dies keeps every completed pair. The version row is minted lazily at the first successful pair (dataset_hmis.version_id is a NOT NULL FK; no empty versions) and its counts/staging_result are finalized at run end.
+- There is no shadow verification against analytics: DVS-analytics divergence is normal on real servers, and dataValueSets is authoritative. Migration 063 drops the `shadow_passed` column; older `run_stats` blobs may carry a `shadow` key.
+- Concurrency: the partial unique index is the whole story. CSV and DHIS2 share the claim. Windowed deletes refuse while a run is `running`. db_startup sweeps stale `running` rows to `error` after a restart (dropping a CSV run's staging tables). Run cancel terminates the worker; completed DHIS2 pairs stay, a CSV run's single transaction rolls back whole.
 
 ## HFA import runs
 
-Every HFA import is a row in `hfa_import_runs` (main DB), running the HMIS CSV
-run shape (`import_hfa_data_csv/` worker, `"hfa"` worker key). The HMIS section
-above is the authority on the shared mechanism; HFA differs only here:
+Every HFA import is a row in `hfa_import_runs` (main DB), running the HMIS CSV run shape (`import_hfa_data_csv/` worker, `"hfa"` worker key). The HMIS section above is the authority on the shared mechanism; HFA differs only here:
 
-- **Smaller machine, by design**: no queue, no scheduler, no versions plane. A
-  second launch while one runs is **refused explicitly**, not queued.
-- Row shape: `csv_config` JSON
-  (`{ csvFileName, csvFilePin, xlsFormFileName,
-  xlsFormFilePin, mappings }`,
-  two pinned assets), `time_point` denormalized from the mappings as the outcome
-  link (HFA outcomes live in the time-point plane, not a versions table),
-  `diagnostics` (the staging result, `DatasetHfaCsvStagingResult`, written at
-  the hold AND at complete; rides the polled list, no detail route; a TEXT
-  column parsed without a schema, so a renamed key is rewritten in place by an
-  instance migration, as 093 did for `nDictionaryVariables` and
-  `nXlsFormQuestionsNotInCsv`, and 213 dropped `nRowsInvalidFacilityNotFound`
-  and `facilityNotFoundSample`), `n_rows_integrated` (the data rows the
-  integrate leg inserted). The diagnostics carry `csvColsNotInXlsFormSample` (at
-  most 10 headers other than the facility id column that match no question, file
-  order) and `xlsFormQuestionsNotInCsvSample` (at most 10 ids of staged-type
-  questions no column matched, form order), and the facility columns' outcome:
-  `facilityMatch` (known, new, and registry facilities absent from the file),
-  `facilityChanges` (per column group: changed, kept, taken), `labelResolution`,
-  `facilitiesWithoutAdminTuple` (new facilities whose file tuple is incomplete,
-  count and up to 10 ids), and, written at complete, `orphanedGeojsonAreaIds`
-  and `orphanedScopeAreas` (the HFA maps' area ids and the scopes' HFA area 2s
-  that match no registry area after the write). The staging summary lists each.
-  The fields are optional, so a run staged before they existed shows the counts
-  alone.
-- **The import writes the HFA registry.** The mappings carry `facilityColumns`,
-  the decided change groups (`facilityChanges`) and `recodes`, and every launch
-  carries them. The stage leg reads each kept row's facility values through the
-  facility columns, stages them into a per-run facilities table (with whether
-  the registry knew each facility), and recomputes the changes against the
-  registry: a decision that no longer matches the file and the registry in any
-  (facility, column, from, to) fails the run, naming the facilities. The
-  integrate leg writes the facilities in the same transaction as the data
-  (below). The writer and its rules are SYSTEM_05 "HFA registry writes".
-- **Clean condition** (`isCleanHfaStaging`):
-  `nRowsInvalidMissingFacilityId = 0 AND facilitiesWithoutAdminTuple.count = 0 AND nRowsTotal > 0`.
-  A held run's "Integrate anyway" leaves out the rows with no facility id and
-  the new facilities with an incomplete tuple, with their data. An existing
-  facility with an incomplete file tuple keeps its registry tuple and is no
-  hold. Duplicates and filtered-out rows never gate. Both are resolved by user
-  intent at wizard time. Nothing staged → loud `error`.
-- Launch re-validates statelessly: the time point exists, both assets resolve
-  (stamping the pins), the XLSForm has `survey`+`choices`, the mappings clean up
-  (trimmed time point, non-blank filter values, no duplicate override facility),
-  every column the mappings name is a header of the file, and the facility
-  columns, decisions and recodes are well-formed: a non-blank level-1 value;
-  levels 2 to the HFA admin depth mapped all or none, and all when the registry
-  is empty; a label for a mapped custom column the HFA structure schema has not
-  switched on; a correction column different from its column; each change group
-  decided once, over a mapped column, with distinct members and exceptions among
-  them, an admin value being a tuple at the admin depth; recodes over mapped
-  recodable columns. An empty registry is no refusal: the import creates the
-  facilities.
-- The wizard's stateless reads beside the duplicates preview:
-  `parseDatasetHfaCsvHeaders` also returns the encoded headers holding a
-  non-blank cell (`scanHfaHeadersWithValues`, for the facility id default),
-  `previewDatasetHfaFacilityColumns` summarizes each mapped column over the kept
-  rows (blank cells, distinct values, codes the XLSForm does not label, admin
-  values the registry lacks), `previewDatasetHfaFacilityChanges` returns the
-  changes preview with a recode row for each new facility and each facility with
-  a change in a recodable column (its recodable values and the context columns
-  asked for), and `getDatasetHfaLatestMappings` returns the latest complete
-  run's mappings to pre-fill from.
-- A launch or an "Integrate anyway" whose run moves `structure_last_updated`
-  also notifies the structure channel when the worker finishes.
-- A whole round at registry scale is pinned by
-  `server/tests/hfa_round_reimport_test.ts`: 2,363 facilities in a registry
-  imported before sources existed, and a survey export with duplicate
-  submissions, ODK codes, a correction column, unresolved codes and renamed,
-  retyped and moved facilities. Through launch validation and the worker's two
-  legs, keeping every change leaves the registry byte-identical and leaves the
-  stamp alone; importing the round again with the defaults leaves the data, the
-  sources and the run extract m010 reads unchanged; taking one admin change
-  moves that facility alone, in the registry and in the extract; and the round's
-  weights then import, skipping the sampling frame's facilities the data lacks.
+- **Smaller machine, by design**: no queue, no scheduler, no versions plane. A second launch while one runs is **refused explicitly**, not queued.
+- Row shape: `csv_config` JSON (`{ csvFileName, csvFilePin, xlsFormFileName,
+  xlsFormFilePin, mappings }`, two pinned assets), `time_point` denormalized from the mappings as the outcome link (HFA outcomes live in the time-point plane, not a versions table), `diagnostics` (the staging result, `DatasetHfaCsvStagingResult`, written at the hold AND at complete; rides the polled list, no detail route; a TEXT column parsed without a schema, so a renamed key is rewritten in place by an instance migration, as 093 did for `nDictionaryVariables` and `nXlsFormQuestionsNotInCsv`, and 213 dropped `nRowsInvalidFacilityNotFound` and `facilityNotFoundSample`), `n_rows_integrated` (the data rows the integrate leg inserted). The diagnostics carry `csvColsNotInXlsFormSample` (at most 10 headers other than the facility id column that match no question, file order) and `xlsFormQuestionsNotInCsvSample` (at most 10 ids of staged-type questions no column matched, form order), and the facility columns' outcome: `facilityMatch` (known, new, and registry facilities absent from the file), `facilityChanges` (per column group: changed, kept, taken), `labelResolution`, `facilitiesWithoutAdminTuple` (new facilities whose file tuple is incomplete, count and up to 10 ids), and, written at complete, `orphanedGeojsonAreaIds` and `orphanedScopeAreas` (the HFA maps' area ids and the scopes' HFA area 2s that match no registry area after the write). The staging summary lists each. The fields are optional, so a run staged before they existed shows the counts alone.
+- **The import writes the HFA registry.** The mappings carry `facilityColumns`, the decided change groups (`facilityChanges`) and `recodes`, and every launch carries them. The stage leg reads each kept row's facility values through the facility columns, stages them into a per-run facilities table (with whether the registry knew each facility), and recomputes the changes against the registry: a decision that no longer matches the file and the registry in any (facility, column, from, to) fails the run, naming the facilities. The integrate leg writes the facilities in the same transaction as the data (below). The writer and its rules are SYSTEM_05 "HFA registry writes".
+- **Clean condition** (`isCleanHfaStaging`): `nRowsInvalidMissingFacilityId = 0 AND facilitiesWithoutAdminTuple.count = 0 AND nRowsTotal > 0`. A held run's "Integrate anyway" leaves out the rows with no facility id and the new facilities with an incomplete tuple, with their data. An existing facility with an incomplete file tuple keeps its registry tuple and is no hold. Duplicates and filtered-out rows never gate. Both are resolved by user intent at wizard time. Nothing staged → loud `error`.
+- Launch re-validates statelessly: the time point exists, both assets resolve (stamping the pins), the XLSForm has `survey`+`choices`, the mappings clean up (trimmed time point, non-blank filter values, no duplicate override facility), every column the mappings name is a header of the file, and the facility columns, decisions and recodes are well-formed: a non-blank level-1 value; levels 2 to the HFA admin depth mapped all or none, and all when the registry is empty; a label for a mapped custom column the HFA structure schema has not switched on; a correction column different from its column; each change group decided once, over a mapped column, with distinct members and exceptions among them, an admin value being a tuple at the admin depth; recodes over mapped recodable columns. An empty registry is no refusal: the import creates the facilities.
+- The wizard's stateless reads beside the duplicates preview: `parseDatasetHfaCsvHeaders` also returns the encoded headers holding a non-blank cell (`scanHfaHeadersWithValues`, for the facility id default), `previewDatasetHfaFacilityColumns` summarizes each mapped column over the kept rows (blank cells, distinct values, codes the XLSForm does not label, admin values the registry lacks), `previewDatasetHfaFacilityChanges` returns the changes preview with a recode row for each new facility and each facility with a change in a recodable column (its recodable values and the context columns asked for), and `getDatasetHfaLatestMappings` returns the latest complete run's mappings to pre-fill from.
+- A launch or an "Integrate anyway" whose run moves `structure_last_updated` also notifies the structure channel when the worker finishes.
+- A whole round at registry scale is pinned by `server/tests/hfa_round_reimport_test.ts`: 2,363 facilities in a registry imported before sources existed, and a survey export with duplicate submissions, ODK codes, a correction column, unresolved codes and renamed, retyped and moved facilities. Through launch validation and the worker's two legs, keeping every change leaves the registry byte-identical and leaves the stamp alone; importing the round again with the defaults leaves the data, the sources and the run extract m010 reads unchanged; taking one admin change moves that facility alone, in the registry and in the extract; and the round's weights then import, skipping the sampling frame's facilities the data lacks.
 
 ## ICEH import runs
 
-Every ICEH import is a row in `iceh_import_runs` (main DB), running the same
-shape (`import_iceh_data/` worker, `"iceh"` worker key). ICEH differs only here:
+Every ICEH import is a row in `iceh_import_runs` (main DB), running the same shape (`import_iceh_data/` worker, `"iceh"` worker key). ICEH differs only here:
 
-- **Smallest machine**: no queue, no scheduler, no versions plane, no staging
-  tables: the zip is parsed and validated **in memory** (ICEH is small). A
-  second launch while one runs is refused explicitly. The run rows are ICEH's
-  durable import history.
-- Row shape: `zip_config` JSON (`{ zipFileName, zipFilePin }`, one pinned
-  asset), `diagnostics` (the staging result, written at the hold AND at
-  complete; rides the polled list, no detail route), no outcome-link column (the
-  outcome plane is the cumulative `iceh_indicators`/`iceh_data` store).
-- **Clean condition**:
-  `nRowsSkippedUnknownStrat + nRowsSkippedInvalidYear +
-  nRowsSkippedUnknownIndicator = 0 AND nRowsValid > 0`.
-  The strat and indicator counters keep ≤5 samples each (`MAX_SKIP_SAMPLES`).
-  `nRowsSkippedMissingEstimate` never gates. "NA" estimates are a normal feature
-  of Retriever exports. Zero valid rows → loud `error`.
-- **needs_review holds re-ingest**: staging is in-memory, so nothing survives
-  the hold. "Integrate anyway" re-claims and re-runs the full ingest from the
-  zip asset with the gate skipped (`skipReviewGate` on `zip_config`);
-  deterministic, seconds at ICEH scale. The spawn re-checks the pin, so a zip
-  deleted or overwritten during the hold errors the run loudly.
-- Launch re-validates statelessly: zip parseable (preview parse) and the
-  country-ISO match against `_INSTANCE_COUNTRY_ISO3`.
+- **Smallest machine**: no queue, no scheduler, no versions plane, no staging tables: the zip is parsed and validated **in memory** (ICEH is small). A second launch while one runs is refused explicitly. The run rows are ICEH's durable import history.
+- Row shape: `zip_config` JSON (`{ zipFileName, zipFilePin }`, one pinned asset), `diagnostics` (the staging result, written at the hold AND at complete; rides the polled list, no detail route), no outcome-link column (the outcome plane is the cumulative `iceh_indicators`/`iceh_data` store).
+- **Clean condition**: `nRowsSkippedUnknownStrat + nRowsSkippedInvalidYear +
+  nRowsSkippedUnknownIndicator = 0 AND nRowsValid > 0`. The strat and indicator counters keep ≤5 samples each (`MAX_SKIP_SAMPLES`). `nRowsSkippedMissingEstimate` never gates. "NA" estimates are a normal feature of Retriever exports. Zero valid rows → loud `error`.
+- **needs_review holds re-ingest**: staging is in-memory, so nothing survives the hold. "Integrate anyway" re-claims and re-runs the full ingest from the zip asset with the gate skipped (`skipReviewGate` on `zip_config`); deterministic, seconds at ICEH scale. The spawn re-checks the pin, so a zip deleted or overwritten during the hold errors the run loudly.
+- Launch re-validates statelessly: zip parseable (preview parse) and the country-ISO match against `_INSTANCE_COUNTRY_ISO3`.
 - The completion flip lives inside the merge transaction.
 
 ## Staging (phase 1)
 
-Rows stream into UNLOGGED staging tables via buffered `VALUES` inserts. Both CSV
-families name their tables per run (`_run_{runId}` suffix, derived from the run
-id, never recorded), which is what lets a `needs_review` hold release the
-running slot. UNLOGGED = no WAL = fast, but **truncated by a Postgres crash**
-(they survive clean restarts). Dropped on integration success/error, on worker
-error, and on cancel/discard/sweep; staging also pre-drops stale tables at
-start.
+Rows stream into UNLOGGED staging tables via buffered `VALUES` inserts. Both CSV families name their tables per run (`_run_{runId}` suffix, derived from the run id, never recorded), which is what lets a `needs_review` hold release the running slot. UNLOGGED = no WAL = fast, but **truncated by a Postgres crash** (they survive clean restarts). Dropped on integration success/error, on worker error, and on cancel/discard/sweep; staging also pre-drops stale tables at start.
 
-- Buffer sizes are per-pipeline: HMIS CSV 10 000, HFA CSV 100 000. (HMIS-DHIS2
-  stages no table: the run worker holds each pull in memory and integrates per
-  pair.)
-- Escaping is uniform: `''`-doubling only, through the shared `escapeSqlString`
-  in `server/db/utils.ts` for HMIS, HFA and structure.
-- Row-level validation counts and samples drops (on the run row); reference
-  validation runs at staging, and HMIS checks facilities again at integration
-  (facilities can be deleted between phases; the facility FKs are RESTRICT),
-  while HFA recomputes its facility changes there instead. The file's indicator
-  column is `data_id` in `HmisCsvColumns` and in every staging table, and
-  staging resolves nothing: each cell's value is derived by
-  `csvIndicatorValueFromCell` (trimmed, the same derivation the scan uses) and
-  looked up in the run's mapping, loaded into a per-run mapping table; a value
-  mapped to a data id lands under it, a value mapped to null is counted in
-  `skippedByMapping` and dropped, and a value absent from the mapping fails the
-  run naming it, since the scan and the launch pinned the same bytes and a gap
-  is a defect, not a user state. Pinned by
-  `server/tests/csv_mapping_staging_test.ts` on the real stage leg and the real
-  scan.
-- CSV parsing goes through `getCsvStreamComponents`
-  (`get_csv_components_streaming_fast.ts`): one sequential loop over 2 MB
-  chunks, each cut at its last newline outside quotes (quoted fields with
-  embedded newlines survive chunking), parsed, and delivered row by row in file
-  order with the callback awaited per row, so the next chunk is read only after
-  the chunk's rows are consumed; there is no queue. A callback that throws
-  rejects the stream with its own error and no later row is delivered, which is
-  what lets a worker's stage leg fail through its own catch when a database
-  insert fails. A row with more columns than the header (under `strict`, a
-  different count) rejects the stream naming the row, whichever row it is.
-  `server/tests/csv_stream_reader_test.ts` pins the column check, the rejection,
-  and 500,000 rows arriving complete and in order in under 10 seconds.
-- HMIS-DHIS2 semantics (run worker, the pure reduce in `dispatch.ts`, pinned by
-  `server/tests/dhis2_skip_and_record_test.ts`): a facility value is accepted
-  only as a non-negative integer (numeric parse, so a NUMBER-typed "12.0" counts
-  as 12); anything else (fractional, negative, blank, non-numeric) is **skipped
-  and recorded**, never fails the pair: the pair's ledger row carries
-  `skipped_values` and a sample of at most 10 `{ facilityId, value }` (migration
-  085), the run detail and the HMIS Data page's Ledger tab (its Skipped values
-  column) show the count, and the pair integrates and stays `ready`. Failing the
-  pair would block a data id's month for every facility in the country on one
-  facility's decimal, and the ledger has no per-facility grain. Accepted values
-  are summed per facility across COC×AOC (operands restricted to their COC
-  first), so the stored count is a non-negative integer by construction and
-  nothing truncates. A dataValueSets body without `dataValues` IS a legitimate
-  empty month. The facility scope is the UID-shape-filtered `facilities_hmis`
-  list snapshotted at run start; failed pairs never delete anything.
-- HFA XLSForm: `survey`+`choices` sheets required; only
-  `select_one`/`select_multiple`/`integer`/`decimal` questions are staged, each
-  as a variable whose id is the question's; `select_multiple` expands to one
-  binary variable per choice (variable id `{question}_{choice}`: selected `1`,
-  unselected `0`, unanswered parent `""` on every expanded variable, a `-99`
-  don't-know parent marks unselected choices `-99`); a variable id that
-  `isReservedHfaId` rejects (`weight`, `variable_id`, `time_point`, an R
-  keyword, any case, expanded ids included) aborts staging; duplicate question
-  ids are a hard error. A CSV header (its last `/` segment, for an ODK group
-  path) matches the question with that id, else the one question whose id equals
-  it ignoring case, and the variable id is always the form's spelling: survey
-  firms re-case the form's names. Two columns other than the facility id column
-  matching one staged question abort staging, naming both. When no column other
-  than the facility id column matches a staged-type question, even if some match
-  questions of other types, staging aborts before any table is created, naming
-  the first columns other than the facility id column that match no question and
-  the first staged-type questions no column matched, so the worker's zero-rows
-  message (facility ids and filters) is reached only in the case it describes.
-  The header convention is `findXlsFormQuestionForHeader`
-  (`server_only_funcs_csvs/resolve_odk_labels.ts`), shared with the facility
-  columns' label resolution. Pinned by
-  `server/tests/hfa_csv_column_matching_test.ts`.
-- HFA facility columns: the stage leg and the two facility previews read each
-  facility from its kept row, the row its data comes from, through
-  `createHfaFacilityCollector` (`server_only_funcs_csvs/scan_hfa_rows.ts`).
-  Level 1 is the mapping's one value for every facility. A mapped column may
-  carry a correction column, whose trimmed cell wins where it is non-blank. Each
-  header, original or correction, is resolved through the XLSForm by its own
-  name: a header matching a `select_one` question has its codes replaced by
-  choice labels, and a code the choice list lacks stays raw and is counted per
-  registry column (`labelResolution`: codes resolved and up to 10 distinct
-  unresolved), over the kept rows only. Text questions are never staged as data,
-  so a column such as `id_fac_type_other` reaches the changes step only as a
-  context column of the recode rows. Pinned by
-  `server/tests/hfa_facility_changes_test.ts` and
-  `server/tests/hfa_import_facilities_test.ts`.
-- HFA row filtering + dedup (order fixed: **filter → review → resolve**; all
-  fields in the run's mappings JSON): `rowFilters` (ANDed; trimmed-string
-  `equals`/`not_equals` on the raw cell) drop rows before any duplicate
-  handling, then facilities with >1 surviving row resolve to one each via
-  `dedupStrategy` ("first"/"last" in file order; the review UI's bulk quick-set)
-  plus per-facility `dedupOverrides` (wizard duplicates step, which always
-  shows: when the scan finds no facility with more than one row, it says there
-  is nothing to resolve). Row numbers everywhere are the **1-based data-row
-  position in the file** (header excluded), computed by
-  `server_only_funcs_csvs/scan_hfa_rows.ts` (shared by the stage leg and the
-  stateless previews), never read from a column. The kept row is
-  `resolveHfaKeptRows`, shared by the stage leg and the previews. The stage leg
-  stamps `row_seq` into the raw temp table, materializes the resolved keep-set
-  into the per-run keep-rows table, and joins it; every override is validated
-  against the post-filter duplicate structure and a stale override fails staging
-  loudly, never a silent fallback.
-- ICEH stages no tables: the run worker's stage leg parses and validates the zip
-  in memory; rows are written inside one transaction at integration.
+- Buffer sizes are per-pipeline: HMIS CSV 10 000, HFA CSV 100 000. (HMIS-DHIS2 stages no table: the run worker holds each pull in memory and integrates per pair.)
+- Escaping is uniform: `''`-doubling only, through the shared `escapeSqlString` in `server/db/utils.ts` for HMIS, HFA and structure.
+- Row-level validation counts and samples drops (on the run row); reference validation runs at staging, and HMIS checks facilities again at integration (facilities can be deleted between phases; the facility FKs are RESTRICT), while HFA recomputes its facility changes there instead. The file's indicator column is `data_id` in `HmisCsvColumns` and in every staging table, and staging resolves nothing: each cell's value is derived by `csvIndicatorValueFromCell` (trimmed, the same derivation the scan uses) and looked up in the run's mapping, loaded into a per-run mapping table; a value mapped to a data id lands under it, a value mapped to null is counted in `skippedByMapping` and dropped, and a value absent from the mapping fails the run naming it, since the scan and the launch pinned the same bytes and a gap is a defect, not a user state. Pinned by `server/tests/csv_mapping_staging_test.ts` on the real stage leg and the real scan.
+- CSV parsing goes through `getCsvStreamComponents` (`get_csv_components_streaming_fast.ts`): one sequential loop over 2 MB chunks, each cut at its last newline outside quotes (quoted fields with embedded newlines survive chunking), parsed, and delivered row by row in file order with the callback awaited per row, so the next chunk is read only after the chunk's rows are consumed; there is no queue. A callback that throws rejects the stream with its own error and no later row is delivered, which is what lets a worker's stage leg fail through its own catch when a database insert fails. A row with more columns than the header (under `strict`, a different count) rejects the stream naming the row, whichever row it is. `server/tests/csv_stream_reader_test.ts` pins the column check, the rejection, and 500,000 rows arriving complete and in order in under 10 seconds.
+- HMIS-DHIS2 semantics (run worker, the pure reduce in `dispatch.ts`, pinned by `server/tests/dhis2_skip_and_record_test.ts`): a facility value is accepted only as a non-negative integer (numeric parse, so a NUMBER-typed "12.0" counts as 12); anything else (fractional, negative, blank, non-numeric) is **skipped and recorded**, never fails the pair: the pair's ledger row carries `skipped_values` and a sample of at most 10 `{ facilityId, value }` (migration 085), the run detail and the HMIS Data page's Ledger tab (its Skipped values column) show the count, and the pair integrates and stays `ready`. Failing the pair would block a data id's month for every facility in the country on one facility's decimal, and the ledger has no per-facility grain. Accepted values are summed per facility across COC×AOC (operands restricted to their COC first), so the stored count is a non-negative integer by construction and nothing truncates. A dataValueSets body without `dataValues` IS a legitimate empty month. The facility scope is the UID-shape-filtered `facilities_hmis` list snapshotted at run start; failed pairs never delete anything.
+- HFA XLSForm: `survey`+`choices` sheets required; only `select_one`/`select_multiple`/`integer`/`decimal` questions are staged, each as a variable whose id is the question's; `select_multiple` expands to one binary variable per choice (variable id `{question}_{choice}`: selected `1`, unselected `0`, unanswered parent `""` on every expanded variable, a `-99` don't-know parent marks unselected choices `-99`); a variable id that `isReservedHfaId` rejects (`weight`, `variable_id`, `time_point`, an R keyword, any case, expanded ids included) aborts staging; duplicate question ids are a hard error. A CSV header (its last `/` segment, for an ODK group path) matches the question with that id, else the one question whose id equals it ignoring case, and the variable id is always the form's spelling: survey firms re-case the form's names. Two columns other than the facility id column matching one staged question abort staging, naming both. When no column other than the facility id column matches a staged-type question, even if some match questions of other types, staging aborts before any table is created, naming the first columns other than the facility id column that match no question and the first staged-type questions no column matched, so the worker's zero-rows message (facility ids and filters) is reached only in the case it describes. The header convention is `findXlsFormQuestionForHeader` (`server_only_funcs_csvs/resolve_odk_labels.ts`), shared with the facility columns' label resolution. Pinned by `server/tests/hfa_csv_column_matching_test.ts`.
+- HFA facility columns: the stage leg and the two facility previews read each facility from its kept row, the row its data comes from, through `createHfaFacilityCollector` (`server_only_funcs_csvs/scan_hfa_rows.ts`). Level 1 is the mapping's one value for every facility. A mapped column may carry a correction column, whose trimmed cell wins where it is non-blank. Each header, original or correction, is resolved through the XLSForm by its own name: a header matching a `select_one` question has its codes replaced by choice labels, and a code the choice list lacks stays raw and is counted per registry column (`labelResolution`: codes resolved and up to 10 distinct unresolved), over the kept rows only. Text questions are never staged as data, so a column such as `id_fac_type_other` reaches the changes step only as a context column of the recode rows. Pinned by `server/tests/hfa_facility_changes_test.ts` and `server/tests/hfa_import_facilities_test.ts`.
+- HFA row filtering + dedup (order fixed: **filter → review → resolve**; all fields in the run's mappings JSON): `rowFilters` (ANDed; trimmed-string `equals`/`not_equals` on the raw cell) drop rows before any duplicate handling, then facilities with >1 surviving row resolve to one each via `dedupStrategy` ("first"/"last" in file order; the review UI's bulk quick-set) plus per-facility `dedupOverrides` (wizard duplicates step, which always shows: when the scan finds no facility with more than one row, it says there is nothing to resolve). Row numbers everywhere are the **1-based data-row position in the file** (header excluded), computed by `server_only_funcs_csvs/scan_hfa_rows.ts` (shared by the stage leg and the stateless previews), never read from a column. The kept row is `resolveHfaKeptRows`, shared by the stage leg and the previews. The stage leg stamps `row_seq` into the raw temp table, materializes the resolved keep-set into the per-run keep-rows table, and joins it; every override is validated against the post-filter duplicate structure and a stale override fails staging loudly, never a silent fallback.
+- ICEH stages no tables: the run worker's stage leg parses and validates the zip in memory; rows are written inside one transaction at integration.
 
 ## Integration (phase 2): three different contracts
 
-All HMIS/HFA integration runs in **one transaction** (`mainDb.begin`, tuned
-`SET LOCAL`s; note `synchronous_commit = OFF` trades durability on OS crash for
-speed: atomicity holds).
+All HMIS/HFA integration runs in **one transaction** (`mainDb.begin`, tuned `SET LOCAL`s; note `synchronous_commit = OFF` trades durability on OS crash for speed: atomicity holds).
 
-**HMIS (CSV)** first verifies the per-run staging table exists AND that its
-`COUNT(*)` equals the recorded `finalStagingRowCount`. The table and the
-recorded diagnostics are separate artifacts that desynchronize when a Postgres
-crash truncates the UNLOGGED table. Then:
+**HMIS (CSV)** first verifies the per-run staging table exists AND that its `COUNT(*)` equals the recorded `finalStagingRowCount`. The table and the recorded diagnostics are separate artifacts that desynchronize when a Postgres crash truncates the UNLOGGED table. Then:
 
-- **Merge**: UPDATE matched rows → DELETE matched from staging → INSERT
-  remainder. Absent cells keep their prior value (by design).
-- **DHIS2 scoped delete-then-insert lives in the run worker, per pair**: DELETE
-  the pair's rows for the snapshotted facility scope, INSERT what DHIS2
-  returned. DHIS2 is authoritative over the fetched scope. This is what removes
-  phantom cells DHIS2 stopped reporting. Caveats: a CSV-origin facility with a
-  UID-shaped id is inside the scope (no per-row origin marker exists); DHIS2
-  staleness is trusted as ground truth.
-- Version records (`dataset_hmis_versions`): id = MAX+1 minted **inside** the
-  writing transaction (CSV integrate leg; DHIS2 lazy mint; windowed deletes with
-  negative counts); all writers are mutually excluded by the single-running
-  claim + delete guard. Ids are monotonic, never reset: the client cache key
-  component and staleness marker. The CSV run's `version_id` and its `complete`
-  flip land in ONE guarded statement, last in the merge transaction (HFA/ICEH's
-  model): a cancel that flips first rolls the merge back whole; a merge that
-  commits is already complete. So a CSV run can never be error/cancelled with a
-  version, and the crash / cancel / sweep paths reconcile version rows for DHIS2
-  runs only. Post-commit: drop staging → notify.
+- **Merge**: UPDATE matched rows → DELETE matched from staging → INSERT remainder. Absent cells keep their prior value (by design).
+- **DHIS2 scoped delete-then-insert lives in the run worker, per pair**: DELETE the pair's rows for the snapshotted facility scope, INSERT what DHIS2 returned. DHIS2 is authoritative over the fetched scope. This is what removes phantom cells DHIS2 stopped reporting. Caveats: a CSV-origin facility with a UID-shaped id is inside the scope (no per-row origin marker exists); DHIS2 staleness is trusted as ground truth.
+- Version records (`dataset_hmis_versions`): id = MAX+1 minted **inside** the writing transaction (CSV integrate leg; DHIS2 lazy mint; windowed deletes with negative counts); all writers are mutually excluded by the single-running claim + delete guard. Ids are monotonic, never reset: the client cache key component and staleness marker. The CSV run's `version_id` and its `complete` flip land in ONE guarded statement, last in the merge transaction (HFA/ICEH's model): a cancel that flips first rolls the merge back whole; a merge that commits is already complete. So a CSV run can never be error/cancelled with a version, and the crash / cancel / sweep paths reconcile version rows for DHIS2 runs only. Post-commit: drop staging → notify.
 
-**HFA, full replace per time_point, with the registry write**: in one
-transaction, in this order (forced by the schema: the facility FK on `hfa_data`
-is immediate, and the composite FK on `facilities_hfa` needs the admin rows
-first): stamp `hfa_time_points.imported_at` (the time point must pre-exist);
-DELETE `hfa_data` + `hfa_variables` for that time point (FK cascades to values);
-`writeHfaFacilitiesFromImport` over the staged facilities (lock, recompute and
-match the decisions, admin areas, facilities, sources; a facility the stage leg
-found known that is now new with an incomplete tuple refuses the run, since its
-data would go unseen); insert the dictionary (`variable_id`, `variable_label`,
-`variable_type`, then the per-variable values) and the data, without the new
-facilities the writer left out; `finishHfaRegistryWrite` (admin-area cleanup and
-the structure stamp, when a registry row changed); the orphan reports into the
-diagnostics; flip complete. No merge → **no phantom-value hazard** within a time
-point; other time points untouched (rounds). **No version records**. Staleness
-identity is a hash over `hfa_time_points` (label, sort_order, imported_at).
-Weights (`hfa_facility_weights`) are populated by the weights import
-(`importHfaFacilityWeights`, S5), never here; HFA data deletion preserves time
-points, weights, indicator code and the registry.
+**HFA, full replace per time_point, with the registry write**: in one transaction, in this order (forced by the schema: the facility FK on `hfa_data` is immediate, and the composite FK on `facilities_hfa` needs the admin rows first): stamp `hfa_time_points.imported_at` (the time point must pre-exist); DELETE `hfa_data` + `hfa_variables` for that time point (FK cascades to values); `writeHfaFacilitiesFromImport` over the staged facilities (lock, recompute and match the decisions, admin areas, facilities, sources; a facility the stage leg found known that is now new with an incomplete tuple refuses the run, since its data would go unseen); insert the dictionary (`variable_id`, `variable_label`, `variable_type`, then the per-variable values) and the data, without the new facilities the writer left out; `finishHfaRegistryWrite` (admin-area cleanup and the structure stamp, when a registry row changed); the orphan reports into the diagnostics; flip complete. No merge → **no phantom-value hazard** within a time point; other time points untouched (rounds). **No version records**. Staleness identity is a hash over `hfa_time_points` (label, sort_order, imported_at). Weights (`hfa_facility_weights`) are populated by the weights import (`importHfaFacilityWeights`, S5), never here; HFA data deletion preserves time points, weights, indicator code and the registry.
 
-**ICEH, cumulative per-indicator replace**: only indicators with valid data rows
-in the uploaded file are replaced (DELETE cascades to `iceh_data`, then
-re-insert); others kept, because the upstream Retriever caps exports at 12
-indicators. Rows whose code is absent from the xlsx are counted stage-side
-(`nRowsSkippedUnknownIndicator`, gates the review hold) and never inserted. No
-staging table, no versions; staleness identity is `getIcehCacheHash` = md5 of
-the latest run's `id:status` + `MAX(ended_at)` + indicator/data counts + years
-(two consumers: the client display cache and the results-run capture staleness
-hash).
+**ICEH, cumulative per-indicator replace**: only indicators with valid data rows in the uploaded file are replaced (DELETE cascades to `iceh_data`, then re-insert); others kept, because the upstream Retriever caps exports at 12 indicators. Rows whose code is absent from the xlsx are counted stage-side (`nRowsSkippedUnknownIndicator`, gates the review hold) and never inserted. No staging table, no versions; staleness identity is `getIcehCacheHash` = md5 of the latest run's `id:status` + `MAX(ended_at)` + indicator/data counts + years (two consumers: the client display cache and the results-run capture staleness hash).
 
 ## Client
 
-The Data switchboard (`data/data.tsx`) is the tab page: one table per family
-(HMIS, HFA, ICEH) and, for a settings-configuring user, the instance settings,
-each row a label, a summary and a status mark (Ready, Partial, Missing, Not
-set). It holds and sets the chat's `data` view at mount (S13), whose state is
-every row's label and status and never its summary, and its `openSubPage` is the
-one sync site for the pages it opens: it sets `data_page` with the page id
-(`DataPageId`, S13's registry) and, on a family's page, the family, before the
-full-page view opens, and restores the view it covered when the page closes
-(`restoreCopilotView`), unless the switchboard itself unmounted meanwhile, since
-its own cleanup restored the view it holds. The views a page opens keep its
-`data_page`, since a page opens them through its own editor wrapper, not the
-shell's, except the HFA indicators manager (S5), which sets `hfa_indicators` on
-top and whose code editor and Excel import set `hfa_indicator_editor` and
-`hfa_indicator_import` on top of that (S13).
+The Data switchboard (`data/data.tsx`) is the tab page: one table per family (HMIS, HFA, ICEH) and, for a settings-configuring user, the instance settings, each row a label, a summary and a status mark (Ready, Partial, Missing, Not set). It holds and sets the chat's `data` view at mount (S13), whose state is every row's label and status and never its summary, and its `openSubPage` is the one sync site for the pages it opens: it sets `data_page` with the page id (`DataPageId`, S13's registry) and, on a family's page, the family, before the full-page view opens, and restores the view it covered when the page closes (`restoreCopilotView`), unless the switchboard itself unmounted meanwhile, since its own cleanup restored the view it holds. The views a page opens keep its `data_page`, since a page opens them through its own editor wrapper, not the shell's, except the HFA indicators manager (S5), which sets `hfa_indicators` on top and whose code editor and Excel import set `hfa_indicator_editor` and `hfa_indicator_import` on top of that (S13).
 
-One imports surface per family, opened from a single `Imports` button in the
-dataset page's admin controls, the seam between the viewer and the imports
-layer: that one button and `Delete data`, with no wizard shortcuts (ruled),
-except the HMIS ledger's two pair actions, "Re-import this indicator" and "Retry
-failed pairs", which moved with the ledger onto the HMIS Data page and open the
-DHIS2 wizard from there (below). HMIS puts them in the page's heading bar beside
-an "Import running" badge from the SSE `hmisImportRunActive` flag; the queued
-count and the scheduled-import attention flag show only inside the imports view
-(Current tab badge, attention banner). HFA and ICEH keep them in an admin
-sidebar with no heading (HFA also `Manage time points`). The surface's toolbar
-owns the actions. The runs query polls every 2 s while a run is active,
-needs_review runs render as Current cards with the staging diagnostics +
-Integrate anyway / Discard, History rows click through to a run detail, and the
-wizard is a client-local modal (nothing persists before launch). Every wizard
-file slot is S4's `FileUploadSelector`: upload a new file or pick an existing
-instance asset; either way the wizard holds an asset `fileName`, which is what
-launch/parse payloads name. Selection re-parses via the slot's direct `onChange`
-callback (never an effect on the fileName signal: re-uploading the same name
-leaves the signal unchanged, and only the callback re-parses the new bytes).
+One imports surface per family, opened from a single `Imports` button in the dataset page's admin controls, the seam between the viewer and the imports layer: that one button and `Delete data`, with no wizard shortcuts (ruled), except the HMIS ledger's two pair actions, "Re-import this indicator" and "Retry failed pairs", which moved with the ledger onto the HMIS Data page and open the DHIS2 wizard from there (below). HMIS puts them in the page's heading bar beside an "Import running" badge from the SSE `hmisImportRunActive` flag; the queued count and the scheduled-import attention flag show only inside the imports view (Current tab badge, attention banner). HFA and ICEH keep them in an admin sidebar with no heading (HFA also `Manage time points`). The surface's toolbar owns the actions. The runs query polls every 2 s while a run is active, needs_review runs render as Current cards with the staging diagnostics + Integrate anyway / Discard, History rows click through to a run detail, and the wizard is a client-local modal (nothing persists before launch). Every wizard file slot is S4's `FileUploadSelector`: upload a new file or pick an existing instance asset; either way the wizard holds an asset `fileName`, which is what launch/parse payloads name. Selection re-parses via the slot's direct `onChange` callback (never an effect on the fileName signal: re-uploading the same name leaves the signal unchanged, and only the callback re-parses the new bytes).
 
-- **HMIS** (`data/hmis/dataset/`): the HMIS Data page has two tabs,
-  Visualization and Ledger. The page owns every read and the view state (the
-  tab, the display-info holder, the `vizConfig` store and the ledger rows); the
-  tab bodies are renders over it, so a tab switch is never a fetch.
-  Visualization is `dataset_display_presentation.tsx`'s
-  `DatasetDisplayPresentation` over the display cache below, its rows read under
-  `indicator_common_id`, the server column: one figure at a time by a radio, the
-  panther timeseries line graph (count or sum of records per indicator and
-  month, under S10's `liveFigureStyle`) or the presence heat map (panther's
-  `PresenceGrid`, a DOM grid of indicator × month or year, a cell filled where
-  the indicator has a record in the period, hover from the cell's title; no
-  figure package and no server call). The presentation builds the grid's columns
-  through panther's `presenceGridColumnsFromPeriods` over the display cache's
-  period bounds and the `heatMapAxis` period type, its rows from the selected
-  indicators and their label replacements, and its cells from the rows'
-  `period_id` mapped to a column id; the look is the app's earlier local table,
-  unchanged. The indicator multi-select applies to both figures. Ledger is
-  `ledger_table.tsx`: the import ledger pivoted by data id (its key), each row
-  labelled through the T2 indicators cache (indicator id and label beside a
-  "DHIS2 id" column that shows the key only under a DHIS2 element; an Uploaded
-  indicator's key is opaque and never shown), click-through to a per-month
-  detail (`import_ledger_indicator_detail.tsx`, headed the same way). The ledger
-  is a full-table read, a page-level `createSignal<StateHolder>` +
-  `createEffect` fetched on mount and again on `datasetVersions.hmis` or
-  `hmisImportRunActive`; stale rows stay visible until fresh ones arrive.
-  "Re-import this indicator" closes the detail with a pair list and "Retry
-  failed pairs" hands the table's pair list to the page; both open the DHIS2
-  wizard's `presetPairs` entry from the page, and a result shows a dismissible
-  notice pointing at Imports (the manager's `importNotice` shape). The imports
-  view (`data/hmis/imports/`) has Current / Future / History tabs (SSE summary
-  fields as the wake-up signal, routed through the shell's `refresh()`). The
-  shell owns every read. The tabs are stateless: panther's `StateHolderWrapper`
-  keys its ready branch on the data object, so every silent runs/scheduling
-  fetch (the 2 s poll included) remounts the tab area, and a tab-owned query
-  would refetch on every poll. The staging summary the hold and the run detail
-  render lists rows under skipped values as a statistic beside the row counts,
-  never as a validation issue. A run detail's failed pairs feed the wizard's
-  `presetPairs` entry from the shell (a cancelled wizard lands on the tab, not
-  back in the detail; accepted). Two wizards: DHIS2 (indicators/time/
-  config/review; the Indicators step picks from the dictionary list without its
-  Uploaded rows, which a DHIS2 import cannot fetch, over a search box and a
-  selected count (S5), and refuses Next, with the reason under the table, while
-  the selection expands to no DHIS2 element or a selected calculated does not
-  resolve; the Review keeps the indicator and element counts and lists the
-  covered elements, one row per DHIS2 element indicator with its DHIS2 id, in
-  expansion order, followed by the dropped parts, Uploaded members and
-  population terms, each with the reason it is not fetched, all from
-  `describeDhis2Selection` over the dictionary the picker loaded; a preset-pairs
-  run skips the Indicators step and shows no list) and CSV (upload → columns →
-  mapping → review: the Mapping step lists every distinct value of the indicator
-  column with its row count and a searchable picker over the indicators with
-  rows, seeded by auto-selection, with a Skip entry; counts of mapped, skipped
-  and undecided values; Next and the launch refuse while any value is undecided,
-  an indicator is chosen for two values, or every value is skipped), both with
-  the launch-or-queue fork. The DHIS2 wizard has three hosts, the imports view,
-  the HMIS Data page's Ledger tab and the indicator manager's "Import HMIS data
-  from DHIS2" bulk action (S5), and takes only its entry from any of them: it
-  reads the stored connection's URL from the SSE summary's `dhis2ConnectionUrl`,
-  shows a notice pointing to the Data page's DHIS2 connection row instead of the
-  steps while none is stored, and reads the Start-vs-Queue fork from the SSE
-  summary's `hmisImportRunActive`, live in every host. A `new` entry may carry
-  `indicatorIds` to preselect; every seeded selection (those ids, or a stored
-  schedule's) drops the ids the picker does not list, Uploaded indicators and
-  ids no longer in the dictionary, once when the dictionary first loads, and the
-  Indicators step names each with its reason above the table. The imports view's
-  `refresh()` on the wizard's result is what refetches its runs and schedules
-  after a launch. A run detail's Version row opens the version's
-  `import_information.tsx`, whose period-indicator list labels each data id
-  through the dictionary and shows the key only under a DHIS2 element (its
-  raw-metadata dump is the stored JSON as is).
-- **HFA** (`data/hfa/imports/`): Current card + History table, no tabs; six-step
-  wizard (upload both files → mappings + filters → facility columns → duplicates
-  → changes → review; Start only, refusal inline). The run row is HFA's only
-  durable import record. Every facility read runs on the way forward (the
-  columns preview on each visit to its step and after each edit, the duplicates
-  scan on Next from the facility columns, the changes review on Next from the
-  duplicates), and an edit upstream drops the review, so no step shows reads of
-  stale choices. Pickers are pre-filled once the files are parsed: the facility
-  id from the latest complete run's column where this file has it with values,
-  else the first of `id_fac_txt`, `id_fac` with values; each facility column
-  from the latest complete run's header found by its raw text, else the
-  questionnaire's name ignoring case, its correction column the same way from
-  the column's name; level 1 from the registry's value, else the instance's
-  country. Each pre-filled picker says where its value came from until edited.
-  The facility columns step shows each mapped column's preview under its pickers
-  and refuses Next on the launch validation's facility-column rules. The changes
-  step (`facility_changes_step.tsx`, whose state the wizard owns through
-  `createHfaFacilityChangesState` so it survives moving between steps) shows the
-  match, each column's change groups in a searchable table with keep or take per
-  group, a group's facilities with their value's origin and keep or take each, a
-  required rule per column for cells of unknown origin, a confirmation that the
-  ids are new when the registry has facilities and the file knows none, the
-  admin areas the decisions would empty (with their scopes and maps, read again
-  whenever an admin decision changes) and the paths they add, and the shared
-  `RecodeEditor` (S5) over the new facilities and the taken changes, with the
-  file's other columns as context (each mapped recodable column's `_other`
-  column shown by default). Decisions are kept per group and facility, so a
-  reloaded review keeps every one still current. Leaving the step forward writes
-  them into the mappings, each group as its most common decision plus
-  exceptions, and drops recodes on cells the import does not write. The staging
-  summary has a Facilities block (match, changes per column, new facilities
-  without complete admin areas, unlabelled codes, orphaned map areas and scope
-  areas), and the needs-review card names both hold reasons and says that
-  integrating anyway leaves them out.
-- **ICEH** (`data/iceh/imports/`): the leaner twin, Current card plus History
-  table; two-step wizard (upload zip + preview → review); needs_review cards
-  show the skip counters/samples.
-- Every wizard (the three import families and the results-package wizard) is an
-  ephemeral modal.
-- Destructive data deletes require typing "yes please delete" in all three
-  families.
-- Display caches: HMIS items keyed
-  `versionId_countIndicatorsVersion_structureLastUpdated`, with the HMIS schema
-  hash in the uniqueness keys; one view, by the indicators that have rows (the
-  ledger's data ids joined to the dictionary and shown under
-  `indicator_common_id`; sums have no rows and do not appear, their totals are
-  in packages); HFA/ICEH use server-provided cache hashes from the T1 SSE store.
-  The delete-data window selects indicators (`indicatorsToInclude`, stored under
-  that name in deletion version rows); the rows deleted are those under the
-  selected indicators' data ids.
+- **HMIS** (`data/hmis/dataset/`): the HMIS Data page has two tabs, Visualization and Ledger. The page owns every read and the view state (the tab, the display-info holder, the `vizConfig` store and the ledger rows); the tab bodies are renders over it, so a tab switch is never a fetch. Visualization is `dataset_display_presentation.tsx`'s `DatasetDisplayPresentation` over the display cache below, its rows read under `indicator_common_id`, the server column: one figure at a time by a radio, the panther timeseries line graph (count or sum of records per indicator and month, under S10's `liveFigureStyle`) or the presence heat map (panther's `PresenceGrid`, a DOM grid of indicator × month or year, a cell filled where the indicator has a record in the period, hover from the cell's title; no figure package and no server call). The presentation builds the grid's columns through panther's `presenceGridColumnsFromPeriods` over the display cache's period bounds and the `heatMapAxis` period type, its rows from the selected indicators and their label replacements, and its cells from the rows' `period_id` mapped to a column id; the look is the app's earlier local table, unchanged. The indicator multi-select applies to both figures. Ledger is `ledger_table.tsx`: the import ledger pivoted by data id (its key), each row labelled through the T2 indicators cache (indicator id and label beside a "DHIS2 id" column that shows the key only under a DHIS2 element; an Uploaded indicator's key is opaque and never shown), click-through to a per-month detail (`import_ledger_indicator_detail.tsx`, headed the same way). The ledger is a full-table read, a page-level `createSignal<StateHolder>` + `createEffect` fetched on mount and again on `datasetVersions.hmis` or `hmisImportRunActive`; stale rows stay visible until fresh ones arrive. "Re-import this indicator" closes the detail with a pair list and "Retry failed pairs" hands the table's pair list to the page; both open the DHIS2 wizard's `presetPairs` entry from the page, and a result shows a dismissible notice pointing at Imports (the manager's `importNotice` shape). The imports view (`data/hmis/imports/`) has Current / Future / History tabs (SSE summary fields as the wake-up signal, routed through the shell's `refresh()`). The shell owns every read. The tabs are stateless: panther's `StateHolderWrapper` keys its ready branch on the data object, so every silent runs/scheduling fetch (the 2 s poll included) remounts the tab area, and a tab-owned query would refetch on every poll. The staging summary the hold and the run detail render lists rows under skipped values as a statistic beside the row counts, never as a validation issue. A run detail's failed pairs feed the wizard's `presetPairs` entry from the shell (a cancelled wizard lands on the tab, not back in the detail; accepted). Two wizards: DHIS2 (indicators/time/ config/review; the Indicators step picks from the dictionary list without its Uploaded rows, which a DHIS2 import cannot fetch, over a search box and a selected count (S5), and refuses Next, with the reason under the table, while the selection expands to no DHIS2 element or a selected calculated does not resolve; the Review keeps the indicator and element counts and lists the covered elements, one row per DHIS2 element indicator with its DHIS2 id, in expansion order, followed by the dropped parts, Uploaded members and population terms, each with the reason it is not fetched, all from `describeDhis2Selection` over the dictionary the picker loaded; a preset-pairs run skips the Indicators step and shows no list) and CSV (upload → columns → mapping → review: the Mapping step lists every distinct value of the indicator column with its row count and a searchable picker over the indicators with rows, seeded by auto-selection, with a Skip entry; counts of mapped, skipped and undecided values; Next and the launch refuse while any value is undecided, an indicator is chosen for two values, or every value is skipped), both with the launch-or-queue fork. The DHIS2 wizard has three hosts, the imports view, the HMIS Data page's Ledger tab and the indicator manager's "Import HMIS data from DHIS2" bulk action (S5), and takes only its entry from any of them: it reads the stored connection's URL from the SSE summary's `dhis2ConnectionUrl`, shows a notice pointing to the Data page's DHIS2 connection row instead of the steps while none is stored, and reads the Start-vs-Queue fork from the SSE summary's `hmisImportRunActive`, live in every host. A `new` entry may carry `indicatorIds` to preselect; every seeded selection (those ids, or a stored schedule's) drops the ids the picker does not list, Uploaded indicators and ids no longer in the dictionary, once when the dictionary first loads, and the Indicators step names each with its reason above the table. The imports view's `refresh()` on the wizard's result is what refetches its runs and schedules after a launch. A run detail's Version row opens the version's `import_information.tsx`, whose period-indicator list labels each data id through the dictionary and shows the key only under a DHIS2 element (its raw-metadata dump is the stored JSON as is).
+- **HFA** (`data/hfa/imports/`): Current card + History table, no tabs; six-step wizard (upload both files → mappings + filters → facility columns → duplicates → changes → review; Start only, refusal inline). The run row is HFA's only durable import record. Every facility read runs on the way forward (the columns preview on each visit to its step and after each edit, the duplicates scan on Next from the facility columns, the changes review on Next from the duplicates), and an edit upstream drops the review, so no step shows reads of stale choices. Pickers are pre-filled once the files are parsed: the facility id from the latest complete run's column where this file has it with values, else the first of `id_fac_txt`, `id_fac` with values; each facility column from the latest complete run's header found by its raw text, else the questionnaire's name ignoring case, its correction column the same way from the column's name; level 1 from the registry's value, else the instance's country. Each pre-filled picker says where its value came from until edited. The facility columns step shows each mapped column's preview under its pickers and refuses Next on the launch validation's facility-column rules. The changes step (`facility_changes_step.tsx`, whose state the wizard owns through `createHfaFacilityChangesState` so it survives moving between steps) shows the match, each column's change groups in a searchable table with keep or take per group, a group's facilities with their value's origin and keep or take each, a required rule per column for cells of unknown origin, a confirmation that the ids are new when the registry has facilities and the file knows none, the admin areas the decisions would empty (with their scopes and maps, read again whenever an admin decision changes) and the paths they add, and the shared `RecodeEditor` (S5) over the new facilities and the taken changes, with the file's other columns as context (each mapped recodable column's `_other` column shown by default). Decisions are kept per group and facility, so a reloaded review keeps every one still current. Leaving the step forward writes them into the mappings, each group as its most common decision plus exceptions, and drops recodes on cells the import does not write. The staging summary has a Facilities block (match, changes per column, new facilities without complete admin areas, unlabelled codes, orphaned map areas and scope areas), and the needs-review card names both hold reasons and says that integrating anyway leaves them out.
+- **ICEH** (`data/iceh/imports/`): the leaner twin, Current card plus History table; two-step wizard (upload zip + preview → review); needs_review cards show the skip counters/samples.
+- Every wizard (the three import families and the results-package wizard) is an ephemeral modal.
+- Destructive data deletes require typing "yes please delete" in all three families.
+- Display caches: HMIS items keyed `versionId_countIndicatorsVersion_structureLastUpdated`, with the HMIS schema hash in the uniqueness keys; one view, by the indicators that have rows (the ledger's data ids joined to the dictionary and shown under `indicator_common_id`; sums have no rows and do not appear, their totals are in packages); HFA/ICEH use server-provided cache hashes from the T1 SSE store. The delete-data window selects indicators (`indicatorsToInclude`, stored under that name in deletion version rows); the rows deleted are those under the selected indicators' data ids.
 
 ## The run-capture seam (`server/runs/capture_inputs/**`)
 
-A dataset reaches a reader only through a results package. The crossing is the
-per-family capture functions (`computeDataset{Hmis,Hfa,Iceh}RunCapture`), S6
-code that lives inside the generation pipeline (SYSTEMS.md §4.1) because it
-reads main and writes the run workspace; the pipeline's stage 1,
-`generate_run/prepare_inputs.ts` (S8), drives them for the families the wizard's
-step 1 selected. Each capture validates and records the staleness metadata FIRST
-(hash-after-export could mask a concurrent instance import), then `COPY`s
-main-DB data to the run's tmp dir (`DatasetCsvTarget` names the SAME file by its
-Postgres-container path and its Deno path), and returns the rows the run mirrors
-into its inputs plus the dataset version stamps the manifest records
-(`RunDataset`, `lib/types/run_datasets.ts`; read back by
-`getRunDatasetsFromManifest`). The facilities parquet is built from
-`RUN_FACILITY_COLUMN_NAMES` rows.
+A dataset reaches a reader only through a results package. The crossing is the per-family capture functions (`computeDataset{Hmis,Hfa,Iceh}RunCapture`), S6 code that lives inside the generation pipeline (SYSTEMS.md §4.1) because it reads main and writes the run workspace; the pipeline's stage 1, `generate_run/prepare_inputs.ts` (S8), drives them for the families the wizard's step 1 selected. Each capture validates and records the staleness metadata FIRST (hash-after-export could mask a concurrent instance import), then `COPY`s main-DB data to the run's tmp dir (`DatasetCsvTarget` names the SAME file by its Postgres-container path and its Deno path), and returns the rows the run mirrors into its inputs plus the dataset version stamps the manifest records (`RunDataset`, `lib/types/run_datasets.ts`; read back by `getRunDatasetsFromManifest`). The facilities parquet is built from `RUN_FACILITY_COLUMN_NAMES` rows.
 
-- The run's input mirrors are the metadata twins of the CSVs:
-  `hfa_*_snapshot.json` (HFA, service-category-scoped),
-  `iceh_indicators_snapshot.json`, and `indicators.json` (the analysed indicator
-  set, resolved at capture). Modules read `../datasets/{type}.csv`; PO metadata
-  reads the manifest's indicator catalog, built from the mirrors at finalize.
+- The run's input mirrors are the metadata twins of the CSVs: `hfa_*_snapshot.json` (HFA, service-category-scoped), `iceh_indicators_snapshot.json`, and `indicators.json` (the analysed indicator set, resolved at capture). Modules read `../datasets/{type}.csv`; PO metadata reads the manifest's indicator catalog, built from the mirrors at finalize.
 
 ## Traps
 
-- **`COUNT(*)` returns a string** through the worker/bulk connections (no int8
-  parser configured). Always `Number()` it. Older staging results persisted
-  `finalStagingRowCount` etc. as JSON strings; comparisons must coerce.
-- JS row validation is narrower than the staging tables' CHECK constraints (e.g.
-  period year bounds), so one out-of-range row aborts the whole batch with a raw
-  Postgres error instead of a counted drop.
+- **`COUNT(*)` returns a string** through the worker/bulk connections (no int8 parser configured). Always `Number()` it. Older staging results persisted `finalStagingRowCount` etc. as JSON strings; comparisons must coerce.
+- JS row validation is narrower than the staging tables' CHECK constraints (e.g. period year bounds), so one out-of-range row aborts the whole batch with a raw Postgres error instead of a counted drop.
 
 ## Open items (deferred findings + standing reform)
 
-- select_multiple missingness resolved (see Staging); data staged before the
-  change keeps the old explicit-`0` rows until re-imported.
-- HFA: the final staging table is LOGGED while the dict tables are UNLOGGED
-  (mixed crash durability).
-- `getCsvDetails` (both CSV families' header parse) reads the whole file into
-  memory for headers; the streaming variant's header read is one 64 KB
-  `file.read()`, and a header row wider than that is truncated silently (a
-  10,000-column header parses as 8,331 headers), as is a short read.
-- Ethiopian-calendar period math (`periodIdForDate`,
-  `lib/period_id_for_date.ts`, used by the DHIS2 wizard, the import scheduler
-  and the scope editor's year slider) assumes 12 months (no Pagume);
-  untranslated strings in the delete flows and Period/TimeIndex selectors;
-  `facilityOwnwershipsToInclude` typo is the persisted canonical field (fixing
-  it = stored-JSON migration).
-- **Decoupling: heal the db→worker inversion.** The run spawn sites
-  (`dataset_*_import_runs.ts`) still live in `server/db/instance/` and spawn Web
-  Workers (the directory lie survived the consolidation; the fixed staging-table
-  names did not).
-- The CSV wizard still takes the imports view's `runsQuery` for its
-  Start-vs-Queue fork; the DHIS2 wizard reads the SSE summary's
-  `hmisImportRunActive` instead and takes nothing from its host.
-- **Decoupling: dual CSV parsers.** papaparse vs panther `parseCSV`; evaluate
-  consuming panther's `_100_csv`/`_232_csv` (panther's modules are whole-string
-  today. Adoption would mean adding streaming there first).
-- **HMIS Data resets the indicator selection on every refetch.** The display
-  effect (`data/hmis/dataset/dataset.tsx:88-116`) re-runs on
-  `datasetVersions.hmis`, `countIndicatorsVersion`, the HMIS schema,
-  `structureLastUpdated` and `hmisImportRunActive`, and each run sets
-  `vizConfig.indicators` to every indicator (110-113), so a narrowed selection
-  is lost at every import start and end. Seed it on the first load only; on a
-  later refetch keep the selection intersected with the new list, and take the
-  whole new list when the selection held every previous indicator.
-- **The HFA Time points row tells the user to import first.** Its empty summary
-  reads "No time points (import data to create)" (`data/data.tsx:349-353`), but
-  the HFA import wizard only picks an existing time point
-  (`data/hfa/imports/wizard.tsx:109-117`, 410-420) and the time points page says
-  to add one before importing (`data/hfa/_shared/time_points.tsx:235-242`). Make
-  it en "No time points (add one before importing data or weights)", fr "Aucun
-  point temporel (en ajouter un avant d'importer des données ou des
-  pondérations)", pt "Nenhum ponto temporal (adicione um antes de importar dados
-  ou pesos)".
-- **The switchboard comment says every row opens a full-page view.**
-  `data/data.tsx:85` says so, but AI context and DHIS2 connection open modals
-  (226-227, 252-253). Replace its first sentence with "A sub-page opens as a
-  full-page view over the shell; its Back closes it."
+- select_multiple missingness resolved (see Staging); data staged before the change keeps the old explicit-`0` rows until re-imported.
+- HFA: the final staging table is LOGGED while the dict tables are UNLOGGED (mixed crash durability).
+- `getCsvDetails` (both CSV families' header parse) reads the whole file into memory for headers; the streaming variant's header read is one 64 KB `file.read()`, and a header row wider than that is truncated silently (a 10,000-column header parses as 8,331 headers), as is a short read.
+- Ethiopian-calendar period math (`periodIdForDate`, `lib/period_id_for_date.ts`, used by the DHIS2 wizard, the import scheduler and the scope editor's year slider) assumes 12 months (no Pagume); untranslated strings in the delete flows and Period/TimeIndex selectors; `facilityOwnwershipsToInclude` typo is the persisted canonical field (fixing it = stored-JSON migration).
+- **Decoupling: heal the db→worker inversion.** The run spawn sites (`dataset_*_import_runs.ts`) still live in `server/db/instance/` and spawn Web Workers (the directory lie survived the consolidation; the fixed staging-table names did not).
+- The CSV wizard still takes the imports view's `runsQuery` for its Start-vs-Queue fork; the DHIS2 wizard reads the SSE summary's `hmisImportRunActive` instead and takes nothing from its host.
+- **Decoupling: dual CSV parsers.** papaparse vs panther `parseCSV`; evaluate consuming panther's `_100_csv`/`_232_csv` (panther's modules are whole-string today. Adoption would mean adding streaming there first).
+- **HMIS Data resets the indicator selection on every refetch.** The display effect (`data/hmis/dataset/dataset.tsx:88-116`) re-runs on `datasetVersions.hmis`, `countIndicatorsVersion`, the HMIS schema, `structureLastUpdated` and `hmisImportRunActive`, and each run sets `vizConfig.indicators` to every indicator (110-113), so a narrowed selection is lost at every import start and end. Seed it on the first load only; on a later refetch keep the selection intersected with the new list, and take the whole new list when the selection held every previous indicator.
+- **The HFA Time points row tells the user to import first.** Its empty summary reads "No time points (import data to create)" (`data/data.tsx:349-353`), but the HFA import wizard only picks an existing time point (`data/hfa/imports/wizard.tsx:109-117`, 410-420) and the time points page says to add one before importing (`data/hfa/_shared/time_points.tsx:235-242`). Make it en "No time points (add one before importing data or weights)", fr "Aucun point temporel (en ajouter un avant d'importer des données ou des pondérations)", pt "Nenhum ponto temporal (adicione um antes de importar dados ou pesos)".
+- **The switchboard comment says every row opens a full-page view.** `data/data.tsx:85` says so, but AI context and DHIS2 connection open modals (226-227, 252-253). Replace its first sentence with "A sub-page opens as a full-page view over the shell; its Back closes it."
 
 ### HFA follow-on work
 
-- **Sierra Leone round 1 re-import (operational, not code).** Re-upload the
-  corrected 365-row weights file (`HFA_SL_R1_weigths_NEW.csv`; `id_fac_txt` is
-  the safe key), fix the instance's `ind274` from `binary`/`sum` to
-  `numeric`/`avg`, re-import round 1 with filter `id_resp_consent equals 1`,
-  dedup `first`, overrides 433 → row 60 and 442 → row 430, rerun M10. Oracle:
-  the six vaccine indicators must match `vaccine_availability_viviane.do`
-  (measles 0.94505 N=364, penta 0.92603 N=365, bcg 0.93699, polio 0.93681, pcv
-  0.95068, hpv 0.89779).
-- **Remove dataset rows in-platform** (M, app-only). Hard-delete rows after
-  ingest so ODK→platform direct upload stays usable (settled: hard-delete).
-  Open: UI entry point, selection model, whether a delete mints a new dataset
-  version (almost certainly: cache-key advance + history), and the
-  re-validation/weights recompute trigger. Touches
-  `worker_routines/import_hfa_data_csv/`, `dataset_hfa.ts`, version handling +
-  Valkey invalidation.
-- **Sentinel Layer 1: import review/correction UI** (M, app-only). The deferred
-  human-correction step: a review screen between staging and finalize reading
-  the staged classification from the per-run dict-values staging table (in
-  `main`, so an ordinary `mainDb` route can read/correct it), a class dropdown
-  to reclassify, corrections persisted back to staging so finalize promotes
-  them. Work: get/update staged-sentinels routes + a new wizard step.
-- **Parked, on-demand:** upload bugs (admin areas / facilities / weights),
-  revisit with concrete repros; `"Other"` (`-96`) coding with AI, exploratory.
+- **Sierra Leone round 1 re-import (operational, not code).** Re-upload the corrected 365-row weights file (`HFA_SL_R1_weigths_NEW.csv`; `id_fac_txt` is the safe key), fix the instance's `ind274` from `binary`/`sum` to `numeric`/`avg`, re-import round 1 with filter `id_resp_consent equals 1`, dedup `first`, overrides 433 → row 60 and 442 → row 430, rerun M10. Oracle: the six vaccine indicators must match `vaccine_availability_viviane.do` (measles 0.94505 N=364, penta 0.92603 N=365, bcg 0.93699, polio 0.93681, pcv 0.95068, hpv 0.89779).
+- **Remove dataset rows in-platform** (M, app-only). Hard-delete rows after ingest so ODK→platform direct upload stays usable (settled: hard-delete). Open: UI entry point, selection model, whether a delete mints a new dataset version (almost certainly: cache-key advance + history), and the re-validation/weights recompute trigger. Touches `worker_routines/import_hfa_data_csv/`, `dataset_hfa.ts`, version handling + Valkey invalidation.
+- **Sentinel Layer 1: import review/correction UI** (M, app-only). The deferred human-correction step: a review screen between staging and finalize reading the staged classification from the per-run dict-values staging table (in `main`, so an ordinary `mainDb` route can read/correct it), a class dropdown to reclassify, corrections persisted back to staging so finalize promotes them. Work: get/update staged-sentinels routes + a new wizard step.
+- **Parked, on-demand:** upload bugs (admin areas / facilities / weights), revisit with concrete repros; `"Other"` (`-96`) coding with AI, exploratory.

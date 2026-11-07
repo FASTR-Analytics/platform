@@ -1,29 +1,12 @@
 # PROTOCOL (App): The Query Test Rig
 
-> **App-specific authoring protocol** (not panther's cross-project
-> `PROTOCOL_*`). This is the _recipe_. Read it when **adding a case** to the S9
-> query rig or changing SQL assembly. The query pipeline's ownership and
-> architecture belong to **S9**: see `SYSTEM_09_viz_query_cache.md`; this file
-> is the how-to. Sibling rig: `./validate_migrations`
-> (`PROTOCOL_APP_MIGRATIONS.md`).
+> **App-specific authoring protocol** (not panther's cross-project `PROTOCOL_*`). This is the _recipe_. Read it when **adding a case** to the S9 query rig or changing SQL assembly. The query pipeline's ownership and architecture belong to **S9**: see `SYSTEM_09_viz_query_cache.md`; this file is the how-to. Sibling rig: `./validate_migrations` (`PROTOCOL_APP_MIGRATIONS.md`).
 
 ---
 
 ## What it is
 
-`./validate_queries` builds a **real results package** per declarative fixture.
-The fixture's rows are written as the module's raw output CSV, then the
-**production** parquet writer and package builder (`buildRunPackageIntoTmp`)
-produce the parquet and the manifest into a throwaway runs directory. It then
-runs the **production** run read path (`server/run_query/run_read.ts`:
-`getPresentationObjectItemsFromRun`, `getPossibleValuesFromRun`,
-`getResultsValueInfoFromRun`, `getResultsObjectItemsFromRun`, and
-`computeRunReplicantOptions` from `run_data_reads.ts`) against it over a
-`RunReadContext` at the case's scope (the "All data" definition, unless the case
-carries a `scope`). Config → SQL → DuckDB over parquet → real rows: the engine
-production serves from, not a stand-in. Nothing is mocked and there is no test
-seam. A throwaway Postgres survives only for what the package builder reads from
-the MAIN database (the per-family structure schema rows in `instance_config`).
+`./validate_queries` builds a **real results package** per declarative fixture. The fixture's rows are written as the module's raw output CSV, then the **production** parquet writer and package builder (`buildRunPackageIntoTmp`) produce the parquet and the manifest into a throwaway runs directory. It then runs the **production** run read path (`server/run_query/run_read.ts`: `getPresentationObjectItemsFromRun`, `getPossibleValuesFromRun`, `getResultsValueInfoFromRun`, `getResultsObjectItemsFromRun`, and `computeRunReplicantOptions` from `run_data_reads.ts`) against it over a `RunReadContext` at the case's scope (the "All data" definition, unless the case carries a `scope`). Config → SQL → DuckDB over parquet → real rows: the engine production serves from, not a stand-in. Nothing is mocked and there is no test seam. A throwaway Postgres survives only for what the package builder reads from the MAIN database (the per-family structure schema rows in `instance_config`).
 
 ```bash
 ./validate_queries            # ~15s: container up, 20 packages built, 321 cases
@@ -31,11 +14,7 @@ the MAIN database (the per-family structure schema rows in `instance_config`).
 
 (once the `postgres:17.4` image is cached locally; the first run pulls it.)
 
-Also offered as an optional prompt in `./deploy`, next to migration validation.
-**Not** in `deno task typecheck`, not because it is slow, but because it needs a
-running Docker daemon, and the typecheck gate must work without one. The rig
-typechecks itself before running, since `query_rig/` sits outside
-`lint_systems`' tracked globs.
+Also offered as an optional prompt in `./deploy`, next to migration validation. **Not** in `deno task typecheck`, not because it is slow, but because it needs a running Docker daemon, and the typecheck gate must work without one. The rig typechecks itself before running, since `query_rig/` sits outside `lint_systems`' tracked globs.
 
 | File                         | Role                                                                            |
 | ---------------------------- | ------------------------------------------------------------------------------- |
@@ -48,8 +27,7 @@ typechecks itself before running, since `query_rig/` sits outside
 
 ## Adding a case
 
-Add a row to `CASES` in `query_rig/cases.ts`. That is the whole operation: one
-literal, one place to look.
+Add a row to `CASES` in `query_rig/cases.ts`. That is the whole operation: one literal, one place to look.
 
 ```ts
 {
@@ -64,124 +42,46 @@ literal, one place to look.
 }
 ```
 
-- `expect` is one of `{status:"ok", rows}`,
-  `{status:"no_data_available" |
-  "too_many_items"}`, `{values}` (option lists,
-  **ordered**), `{dimStatus}` (one dimension's option-list status),
-  `{periodBounds}` (the metric-info payload's bounds, `null` for none),
-  `{replicantIds}` (the replicant read's option ids, ordered, empty for
-  `no_values_available`), `{rawCount}` (the raw preview's `totalCount`, which
-  must also be its row count, 0 for `no_data_available`), or `{err}` (substring
-  match).
-- `calendar: "ethiopian"` flips `setCalendar()` for that case:
-  `getQuarterIdExpression` emits different SQL per calendar.
-- `scope: geographyOnlyScopeDefinition("A2_south")` reads through a context
-  whose `scope` is that `ScopeDefinition` and whose `scopeToken` is its hash.
-  The rig builds the context itself, because the production gate
-  (`getReadyRunReadContext`) loads the definition from a `scopes` row and the
-  rig's scopes exist only in the case table. Absent = the "All data" definition.
-  `hmisScope`, `hfaScope` and `icehScope` in `cases.ts` build "All data" with
-  one family's section limited, and `excluding(family)` drops one. Scope is a
-  predicate on the view the query runs against, which the caller's fetch config
-  never shows, so pair every scoped case with the "All data" reading of the same
-  query. On every items case the runner also asserts that the echoed
-  `fetchConfig` is the request and that the holder's `runId` / `scopeToken` are
-  the context's.
-- `entry: "possibleValues"` with `disOpt` runs the option-list query instead of
-  the items query, reusing `fetchConfig.filters` as the filter set.
-- `entry: "metricInfo"` resolves the fixture's `metric` through the enricher and
-  asserts a `dimStatus`: `status`, `namedCount` (sentinel excluded), and
-  `isSingleValueDim` (which runs the real `getSingleValueDimsFromPossibleValues`
-  over the whole payload), or the payload's `periodBounds`. Requires the fixture
-  to declare a `metric`.
-- `entry: "replicantOptions"` with `disOpt` as `replicateBy` runs the replicant
-  read's compute below its cache (`computeRunReplicantOptions`) with the whole
-  `fetchConfig`, period filter included.
+- `expect` is one of `{status:"ok", rows}`, `{status:"no_data_available" |
+  "too_many_items"}`, `{values}` (option lists, **ordered**), `{dimStatus}` (one dimension's option-list status), `{periodBounds}` (the metric-info payload's bounds, `null` for none), `{replicantIds}` (the replicant read's option ids, ordered, empty for `no_values_available`), `{rawCount}` (the raw preview's `totalCount`, which must also be its row count, 0 for `no_data_available`), or `{err}` (substring match).
+- `calendar: "ethiopian"` flips `setCalendar()` for that case: `getQuarterIdExpression` emits different SQL per calendar.
+- `scope: geographyOnlyScopeDefinition("A2_south")` reads through a context whose `scope` is that `ScopeDefinition` and whose `scopeToken` is its hash. The rig builds the context itself, because the production gate (`getReadyRunReadContext`) loads the definition from a `scopes` row and the rig's scopes exist only in the case table. Absent = the "All data" definition. `hmisScope`, `hfaScope` and `icehScope` in `cases.ts` build "All data" with one family's section limited, and `excluding(family)` drops one. Scope is a predicate on the view the query runs against, which the caller's fetch config never shows, so pair every scoped case with the "All data" reading of the same query. On every items case the runner also asserts that the echoed `fetchConfig` is the request and that the holder's `runId` / `scopeToken` are the context's.
+- `entry: "possibleValues"` with `disOpt` runs the option-list query instead of the items query, reusing `fetchConfig.filters` as the filter set.
+- `entry: "metricInfo"` resolves the fixture's `metric` through the enricher and asserts a `dimStatus`: `status`, `namedCount` (sentinel excluded), and `isSingleValueDim` (which runs the real `getSingleValueDimsFromPossibleValues` over the whole payload), or the payload's `periodBounds`. Requires the fixture to declare a `metric`.
+- `entry: "replicantOptions"` with `disOpt` as `replicateBy` runs the replicant read's compute below its cache (`computeRunReplicantOptions`) with the whole `fetchConfig`, period filter included.
 - `entry: "rawPreview"` runs the raw-rows preview. It takes no fetch config.
 
 ## The scope matrix
 
-`SCOPE_MATRIX_ROWS` in `cases.ts` holds one row per branch of
-`scopePredicateFor` (the table in SYSTEM_09 "The scoped view"), and each row
-generates five cases, one per read kind: items, option list, metric info,
-replicant options and raw preview. A row is the fixture, the scope, the
-dimension to group by, the grouped `rows` and the `rawCount`; the other
-expectations follow from those. To cover a new branch, add one row.
+`SCOPE_MATRIX_ROWS` in `cases.ts` holds one row per branch of `scopePredicateFor` (the table in SYSTEM_09 "The scoped view"), and each row generates five cases, one per read kind: items, option list, metric info, replicant options and raw preview. A row is the fixture, the scope, the dimension to group by, the grouped `rows` and the `rawCount`; the other expectations follow from those. To cover a new branch, add one row.
 
-A row whose dimension does not apply to its fixture spreads the fixture's entry
-in `WHOLE`, the "All data" reading, which is itself a row. That is how the
-default principle is asserted, and how one family's section is shown not to
-touch another family's results objects: the same rows as under "All data", on
-every read kind. Each family has a fixture with its dimension columns and one
-without, so each section's dimensions are pinned both applying and not applying.
-Pick a scope that removes a whole group, so the option lists change as well as
-the sums: a year range that keeps every area leaves the option-list, metric-info
-and replicant cases green under a broken predicate.
+A row whose dimension does not apply to its fixture spreads the fixture's entry in `WHOLE`, the "All data" reading, which is itself a row. That is how the default principle is asserted, and how one family's section is shown not to touch another family's results objects: the same rows as under "All data", on every read kind. Each family has a fixture with its dimension columns and one without, so each section's dimensions are pinned both applying and not applying. Pick a scope that removes a whole group, so the option lists change as well as the sums: a year range that keeps every area leaves the option-list, metric-info and replicant cases green under a broken predicate.
 
 ## Adding a fixture
 
-Only when no existing fixture can express the shape: a different physical time
-column, a missing `facility_id`, a different **column type**. Fixtures are
-synthetic and small: 2–8 hand-designed rows sitting on semantic edges. Never
-seed from a dump: it can't be committed and it makes assertions drift. The one
-exception is F9, which generates 501 rows because the behaviour under test _is_
-a 500-row boundary; generate rather than enumerate when the count is the point.
+Only when no existing fixture can express the shape: a different physical time column, a missing `facility_id`, a different **column type**. Fixtures are synthetic and small: 2–8 hand-designed rows sitting on semantic edges. Never seed from a dump: it can't be committed and it makes assertions drift. The one exception is F9, which generates 501 rows because the behaviour under test _is_ a 500-row boundary; generate rather than enumerate when the count is the point.
 
-A results object's parquet schema comes from the module's declared
-`createTableStatementPossibleColumns` (types are declared, never inferred), so
-each fixture declares `roColumns` **with explicit types** in that authoring
-vocabulary (`TEXT` / `INTEGER` / `NUMERIC`, the last landing as `DOUBLE`). The
-types are load-bearing, not decoration. See the F2/F3 pair below.
+A results object's parquet schema comes from the module's declared `createTableStatementPossibleColumns` (types are declared, never inferred), so each fixture declares `roColumns` **with explicit types** in that authoring vocabulary (`TEXT` / `INTEGER` / `NUMERIC`, the last landing as `DOUBLE`). The types are load-bearing, not decoration. See the F2/F3 pair below.
 
 ## Rules that keep the rig honest
 
-**Rows compare as a multiset.** The queries carry no `ORDER BY`, so sequence
-comparison is flaky by construction. `harness.ts` canonicalises before
-comparing. Option lists are the exception: there, order _is_ the assertion.
+**Rows compare as a multiset.** The queries carry no `ORDER BY`, so sequence comparison is flaky by construction. `harness.ts` canonicalises before comparing. Option lists are the exception: there, order _is_ the assertion.
 
-**Assert what our code guarantees, not what the database happens to do.** The
-`possibleValues` cases pin the sentinel in the **last** position because TS puts
-it there; the relative order of the named values is DuckDB's under the pinned
-`@duckdb/node-api` version. If a DuckDB bump reshuffles those, it is an engine
-ordering change, not a regression.
+**Assert what our code guarantees, not what the database happens to do.** The `possibleValues` cases pin the sentinel in the **last** position because TS puts it there; the relative order of the named values is DuckDB's under the pinned `@duckdb/node-api` version. If a DuckDB bump reshuffles those, it is an engine ordering change, not a regression.
 
-**Design numbers so a wrong implementation cannot coincidentally pass.** The
-roll-up PAE case uses 60/200 and 20/800 precisely because mean-of-ratios
-(0.1625) and the correct recompute-after-union (80/1000 = 0.08) diverge. Equal
-numbers would have proved nothing.
+**Design numbers so a wrong implementation cannot coincidentally pass.** The roll-up PAE case uses 60/200 and 20/800 precisely because mean-of-ratios (0.1625) and the correct recompute-after-union (80/1000 = 0.08) diverge. Equal numbers would have proved nothing.
 
-**Reproduce the route's sequence, not just the query function.**
-`validateFetchConfig` runs in the **handler**, not inside
-`getPresentationObjectItemsFromRun`. The runner calls it explicitly. Skip it and
-every SQL-safety case silently becomes a no-op.
+**Reproduce the route's sequence, not just the query function.** `validateFetchConfig` runs in the **handler**, not inside `getPresentationObjectItemsFromRun`. The runner calls it explicitly. Skip it and every SQL-safety case silently becomes a no-op.
 
-**Calendar is a run input.** The read path takes it from the manifest, never
-from the env global, so a case's `calendar` is applied by handing the read
-function a context whose manifest copy says so (`contextFor` in `mod.ts`).
+**Calendar is a run input.** The read path takes it from the manifest, never from the env global, so a case's `calendar` is applied by handing the read function a context whose manifest copy says so (`contextFor` in `mod.ts`).
 
-**Never encode behaviour you have not judged.** When a case fails, the default
-assumption is that the _code_ is wrong, not the expectation. Only pin observed
-behaviour after confirming it is intended, and say so in a comment with the
-reason. Two live examples:
+**Never encode behaviour you have not judged.** When a case fails, the default assumption is that the _code_ is wrong, not the expectation. Only pin observed behaviour after confirming it is intended, and say so in a comment with the reason. Two live examples:
 
-- `rollupDim` absent from `groupBys` does not error: `buildRollupQuery` returns
-  `null` and the roll-up row is silently omitted. Intended: those checks are the
-  SQL-safety boundary, and the client owns the collapse decision (S9). The case
-  pins the contract; it does not bless the silence.
-- The `quarter_id` + calendar-filter block in `getPeriodFilterExactBounds` looks
-  dead and is not. Deleting it turns "show all data" into `no_data_available`.
-- `COUNT(...)` values are **numbers** on the wire. The rig's Postgres era pinned
-  them as strings (`"4"`) because postgres.js serialises bigint as text; DuckDB
-  returns them as numbers, which is what production has served since the runs
-  cutover. Found on 2026-09-04 when the rig moved onto the run read path. The
-  two cases were corrected, and this is the class of gap the move exists to
-  expose.
+- `rollupDim` absent from `groupBys` does not error: `buildRollupQuery` returns `null` and the roll-up row is silently omitted. Intended: those checks are the SQL-safety boundary, and the client owns the collapse decision (S9). The case pins the contract; it does not bless the silence.
+- The `quarter_id` + calendar-filter block in `getPeriodFilterExactBounds` looks dead and is not. Deleting it turns "show all data" into `no_data_available`.
+- `COUNT(...)` values are **numbers** on the wire. The rig's Postgres era pinned them as strings (`"4"`) because postgres.js serialises bigint as text; DuckDB returns them as numbers, which is what production has served since the runs cutover. Found on 2026-09-04 when the rig moved onto the run read path. The two cases were corrected, and this is the class of gap the move exists to expose.
 
-**Prove a new guard's case can fail.** Passing tests prove nothing on their own.
-Temporarily break the mechanism, confirm the case goes red, then restore.
-Verified controls so far (the failure texts were recorded on the rig's Postgres
-era, 2026-08; DuckDB words the same failures differently: the case that goes red
-is the control, not the text):
+**Prove a new guard's case can fail.** Passing tests prove nothing on their own. Temporarily break the mechanism, confirm the case goes red, then restore. Verified controls so far (the failure texts were recorded on the rig's Postgres era, 2026-08; DuckDB words the same failures differently: the case that goes red is the control, not the text):
 
 | Break                                                                    | Expected failure                                                                                                                       |
 | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -213,8 +113,7 @@ is the control, not the text):
 | drop the predicate from the facilities views                             | 1 red: "facilities view: it takes the area of its own family's section"                                                                |
 | swap the two families in `FACILITIES_FAMILY`                             | 2 red: that case and "the HMIS section's area leaves the HFA view whole"                                                               |
 
-Check `git status` on the file first and restore by copy if it has uncommitted
-changes. `git checkout` would discard parallel work.
+Check `git status` on the file first and restore by copy if it has uncommitted changes. `git checkout` would discard parallel work.
 
 ## The fixtures
 
@@ -241,22 +140,12 @@ changes. `git checkout` would discard parallel work.
 | `hfa_dated_rounds` (F19)     | the HFA shape with a physical `year` column beside `time_point`                                                                               | the HFA section having no years: another section's year range leaves an HFA results object whole and its period bounds unclamped                                                                                                              |
 | `iceh_no_dims` (F20)         | family `iceh` with neither a `year` nor an `iceh_indicator` column                                                                            | the ICEH years and indicators not applying                                                                                                                                                                                                    |
 
-**F2/F3 are a minimal pair and the rig's central argument.** They differ in one
-thing: `time_point`'s declared column type. The blank fold emits `btrim()` and
-returns a text sentinel from its `CASE`, both of which Postgres rejects on a
-numeric column, so a name-only gate turns working visualizations into a hard SQL
-error. Results-column types are authored per module, so the same disaggregation
-option genuinely is text in one instance and integer in another. No SQL-string
-assertion can see this class of bug; only execution can.
+**F2/F3 are a minimal pair and the rig's central argument.** They differ in one thing: `time_point`'s declared column type. The blank fold emits `btrim()` and returns a text sentinel from its `CASE`, both of which Postgres rejects on a numeric column, so a name-only gate turns working visualizations into a hard SQL error. Results-column types are authored per module, so the same disaggregation option genuinely is text in one instance and integer in another. No SQL-string assertion can see this class of bug; only execution can.
 
 ## Out of scope
 
-Valkey / `TimCacheC` (S3 machinery, another container); version-hash
-byte-identity (a pure assertion needing no DB); the route-level Zod schema
-(already a boundary schema); the client tier.
+Valkey / `TimCacheC` (S3 machinery, another container); version-hash byte-identity (a pure assertion needing no DB); the route-level Zod schema (already a boundary schema); the client tier.
 
 ## Anti-cruft contract
 
-One rig, one case table. No `Deno.test`, no `deno task test`: a plain loop with
-a pass/fail summary, so there is no gravity well for stray unit tests to
-accumulate in. Coverage grows by adding rows, not files.
+One rig, one case table. No `Deno.test`, no `deno task test`: a plain loop with a pass/fail summary, so there is no gravity well for stray unit tests to accumulate in. Coverage grows by adding rows, not files.

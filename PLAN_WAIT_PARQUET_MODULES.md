@@ -1,137 +1,43 @@
 # PLAN: Parquet-only results packages
 
-A generation writes every table twice today. Postgres `COPY`s each family's
-extract as CSV into the run directory and DuckDB converts it to a parquet twin;
-R reads and writes CSV; finalize converts each raw output CSV into a normalized
-parquet sibling. This plan makes parquet the only tabular format in a package:
-DuckDB's Postgres extension writes each extract straight from Postgres into the
-run, the person-years file and the facilities tables are written as parquet,
-every module reads and writes parquet through arrow, and the file R writes is
-the file the app serves, validated against the module's declared schema. No CSV
-is written, converted or kept; the raw-CSV duplication the package format
-accepts as a cost goes with it, the Postgres container stops writing into the
-runs volume, and finalize stops rewriting outputs.
+A generation writes every table twice today. Postgres `COPY`s each family's extract as CSV into the run directory and DuckDB converts it to a parquet twin; R reads and writes CSV; finalize converts each raw output CSV into a normalized parquet sibling. This plan makes parquet the only tabular format in a package: DuckDB's Postgres extension writes each extract straight from Postgres into the run, the person-years file and the facilities tables are written as parquet, every module reads and writes parquet through arrow, and the file R writes is the file the app serves, validated against the module's declared schema. No CSV is written, converted or kept; the raw-CSV duplication the package format accepts as a cost goes with it, the Postgres container stops writing into the runs volume, and finalize stops rewriting outputs.
 
 **Next step: Do 1.**
 
-Branch: `main` in this repo; `parquet` in wb-fastr-modules (§0). Repos: this one
-and `wb-fastr-modules` (`FASTR_MODULES_LOCAL_DIR`). Read first:
-[CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md),
-[SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md) "The results
-package format", "Generation", "m012" and "population.csv",
-[SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md) "The run-capture seam" and
-the HFA and ICEH import sections,
-[SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) "The scoped view",
-[PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) "Run Manifest
-Transforms", [PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md),
-and the modules repo's `DOC_MODULES.md`. Start when: both trees are clean,
-the host R has the `arrow` package, and the dev `main` database holds HMIS
-data.
+Branch: `main` in this repo; `parquet` in wb-fastr-modules (§0). Repos: this one and `wb-fastr-modules` (`FASTR_MODULES_LOCAL_DIR`). Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md) "The results package format", "Generation", "m012" and "population.csv", [SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md) "The run-capture seam" and the HFA and ICEH import sections, [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) "The scoped view", [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) "Run Manifest Transforms", [PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md), and the modules repo's `DOC_MODULES.md`. Start when: both trees are clean, the host R has the `arrow` package, and the dev `main` database holds HMIS data.
 
 ## §0 How to work this plan
 
-The instruction is "Do the next step of PLAN_PARQUET_MODULES.md." Branch, floor,
-conditional gates, reading order and the review cadence are
-[PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and
-[panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md).
-The log is §6. The last step is 7; its close commit deletes this file. Nothing
-in this plan ships (ruling 16).
+The instruction is "Do the next step of PLAN_PARQUET_MODULES.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 7; its close commit deletes this file. Nothing in this plan ships (ruling 16).
 
-Steps in the modules repo (5 and 7) are worked in the
-`FASTR_MODULES_LOCAL_DIR` checkout on its branch `parquet`, created from `main`
-in step 5. Production instances fetch `main`, so they keep generating with the
-CSV modules until the branch is merged, which happens after the fleet runs the
-new app and is outside the plan (ruling 14). The modules repo's floor, green at
-the end of each of its steps: `deno fmt --check`, `deno task typecheck`,
-`deno task build` leaving the tree unchanged, and
-`deno run --allow-read --allow-net .validation/validate_definitions.ts`.
+Steps in the modules repo (5 and 7) are worked in the `FASTR_MODULES_LOCAL_DIR` checkout on its branch `parquet`, created from `main` in step 5. Production instances fetch `main`, so they keep generating with the CSV modules until the branch is merged, which happens after the fleet runs the new app and is outside the plan (ruling 14). The modules repo's floor, green at the end of each of its steps: `deno fmt --check`, `deno task typecheck`, `deno task build` leaving the tree unchanged, and `deno run --allow-read --allow-net .validation/validate_definitions.ts`.
 
 Vocabulary, used throughout:
 
-- **extract**: a family's dataset as a package carries it,
-  `inputs/datasets/<family>.parquet`, the full dataset of that family.
-- **results object**: one table a module writes, declared in its definition
-  with an id that is its file name and a column schema with types.
-- **serving file**: the parquet file the read path opens for a results object:
-  under this plan the file R wrote, at `outputs/<moduleId>/<id>`.
-- **declared schema**: a results object's `createTableStatementPossibleColumns`
-  entry; the vocabulary stays `TEXT`, `INTEGER`, `NUMERIC`, each optionally
-  `NOT NULL`, and maps to DuckDB `VARCHAR`, `INTEGER`, `DOUBLE`.
-- **the extension**: DuckDB's `postgres` extension, loaded into the same
-  in-process DuckDB the read path uses.
-- **the seed**: a synthetic HFA round and ICEH dataset written into the dev
-  `main` database through the app's own import code (step 1), so every
-  registry module can generate on dev.
-- **baseline package**: a package generated by the CSV-era pipeline from the
-  same data the parquet pipeline is then run on, labelled `parquet-baseline`.
-- **parity**: for every results object a baseline and a new package share, the
-  same rows, compared by `compare_packages.ts` (step 1).
+- **extract**: a family's dataset as a package carries it, `inputs/datasets/<family>.parquet`, the full dataset of that family.
+- **results object**: one table a module writes, declared in its definition with an id that is its file name and a column schema with types.
+- **serving file**: the parquet file the read path opens for a results object: under this plan the file R wrote, at `outputs/<moduleId>/<id>`.
+- **declared schema**: a results object's `createTableStatementPossibleColumns` entry; the vocabulary stays `TEXT`, `INTEGER`, `NUMERIC`, each optionally `NOT NULL`, and maps to DuckDB `VARCHAR`, `INTEGER`, `DOUBLE`.
+- **the extension**: DuckDB's `postgres` extension, loaded into the same in-process DuckDB the read path uses.
+- **the seed**: a synthetic HFA round and ICEH dataset written into the dev `main` database through the app's own import code (step 1), so every registry module can generate on dev.
+- **baseline package**: a package generated by the CSV-era pipeline from the same data the parquet pipeline is then run on, labelled `parquet-baseline`.
+- **parity**: for every results object a baseline and a new package share, the same rows, compared by `compare_packages.ts` (step 1).
 
 Rules peculiar to this plan:
 
-- Generation on the dev instance is broken from the end of step 2 until the end
-  of step 5 (the app expects parquet modules the local checkout does not yet
-  have). The floor does not include a generation; the parity gates do, where
-  the steps say so.
-- Every line number here was read from the code when the plan was written;
-  where the code has moved, the code wins.
+- Generation on the dev instance is broken from the end of step 2 until the end of step 5 (the app expects parquet modules the local checkout does not yet have). The floor does not include a generation; the parity gates do, where the steps say so.
+- Every line number here was read from the code when the plan was written; where the code has moved, the code wins.
 
 ## §1 The problem
 
-- **Every extract is written twice and kept twice.** `prepareRunInputs` has
-  Postgres `COPY` the extract as CSV into the run's tmp dir through the
-  Postgres container's own view of the volume
-  ([prepare_inputs.ts:122-131](server/worker_routines/generate_run/prepare_inputs.ts#L122-L131),
-  the `COPY` at [hmis.ts:206-208](server/runs/capture_inputs/hmis.ts#L206-L208),
-  [hfa.ts:142-144](server/runs/capture_inputs/hfa.ts#L142-L144),
-  [iceh.ts:44-57](server/runs/capture_inputs/iceh.ts#L44-L57)), then converts
-  it to a parquet twin and lists both in the package
-  ([prepare_inputs.ts:290-311](server/worker_routines/generate_run/prepare_inputs.ts#L290-L311)).
-  On the dev instance `hmis.csv` is 396 MB beside a 6.2 MB `hmis.parquet`.
-  Modules read the CSV
-  ([get_script_with_parameters.ts:90-94](server/server_only_funcs/get_script_with_parameters.ts#L90-L94)).
-- **Postgres writes into the runs volume.** The `COPY` path is a third view of
-  the runs directory, `RUNS_DIR_PATH_POSTGRES_INTERNAL`
-  ([exposed_env_vars.ts:127-132](server/exposed_env_vars.ts#L127-L132)), which
-  needs the runs volume mounted into the Postgres container, a `chmod 777` on
-  every target dir ([hmis.ts:37-44](server/runs/capture_inputs/hmis.ts#L37-L44))
-  and a `.env`, Dockerfile and `pg_run` line each; S08 "Path namespaces" records
-  that crossing them "silently breaks either R execution or the COPY".
-- **Facilities and person-years go through a temp CSV.** `exportRowsToParquet`
-  serialises rows to a CSV with a NULL sentinel and converts it
-  ([pg_export.ts](server/runs/pg_export.ts)); the person-years file is written
-  as CSV by hand
-  ([prepare_inputs.ts:389-470](server/worker_routines/generate_run/prepare_inputs.ts#L389-L470)).
-- **Every module output is written twice and kept twice.** R writes CSV;
-  finalize rebuilds a `{id}.parquet` sibling with four normalizations
-  ([write_results_object_parquet.ts](server/run_query/write_results_object_parquet.ts),
-  [build_run_package.ts:323-350](server/runs/build_run_package.ts#L323-L350)).
-  On the dev package `37572e10`, m001's `M1_output_completeness.csv` is 442 MB
-  beside a 2.9 MB parquet; m002's `M2_adjusted_data.csv` 494 MB beside 26 MB.
-  S08 measures 73.2% of dev run bytes as duplicate content and names
-  parquet-native R as the ruled remedy.
-- **Two of the four normalizations are unreachable.** The facility-column drop
-  fires only for a declared facility column, and no module declares one
-  (undeclared headers are a hard error); the 6-digit `quarter_id` rewrite fires
-  only for a results object with `quarter_id` and no `period_id`, and none
-  exists. The redundant-period drop exists because m001 and m002 declare
-  `quarter_id` and `year` beside `period_id`
-  ([m001/\_results_objects.ts](../wb-fastr-modules/m001/_results_objects.ts),
-  [m002/\_results_objects.ts](../wb-fastr-modules/m002/_results_objects.ts))
-  while their scripts no longer write them (m001/script.R:198,
-  m002/script.R:219).
-- **CSV loses what parquet keeps.** `'NA'` text versus a missing value, `''`
-  versus NULL, encodings (m005 and m006 pass `fileEncoding = "UTF-8"`), and
-  every number's full precision all depend on writer and reader conventions
-  that the four normalizations exist to repair.
-- **Reuse copies the heavy file.** A reused module copies its raw CSVs from the
-  source package
-  ([execute_module.ts:154-217](server/worker_routines/generate_run/execute_module.ts#L154-L217)),
-  the one duplication S08 "No links" accepts on purpose.
-- **Dev cannot generate six of the eight modules' siblings.** The dev `main`
-  database holds HMIS data only (no `hfa_data`, no `iceh_data`), so m010 and
-  m009 have never run on dev, and a change to the pipeline cannot be proved
-  on every module there.
+- **Every extract is written twice and kept twice.** `prepareRunInputs` has Postgres `COPY` the extract as CSV into the run's tmp dir through the Postgres container's own view of the volume ([prepare_inputs.ts:122-131](server/worker_routines/generate_run/prepare_inputs.ts#L122-L131), the `COPY` at [hmis.ts:206-208](server/runs/capture_inputs/hmis.ts#L206-L208), [hfa.ts:142-144](server/runs/capture_inputs/hfa.ts#L142-L144), [iceh.ts:44-57](server/runs/capture_inputs/iceh.ts#L44-L57)), then converts it to a parquet twin and lists both in the package ([prepare_inputs.ts:290-311](server/worker_routines/generate_run/prepare_inputs.ts#L290-L311)). On the dev instance `hmis.csv` is 396 MB beside a 6.2 MB `hmis.parquet`. Modules read the CSV ([get_script_with_parameters.ts:90-94](server/server_only_funcs/get_script_with_parameters.ts#L90-L94)).
+- **Postgres writes into the runs volume.** The `COPY` path is a third view of the runs directory, `RUNS_DIR_PATH_POSTGRES_INTERNAL` ([exposed_env_vars.ts:127-132](server/exposed_env_vars.ts#L127-L132)), which needs the runs volume mounted into the Postgres container, a `chmod 777` on every target dir ([hmis.ts:37-44](server/runs/capture_inputs/hmis.ts#L37-L44)) and a `.env`, Dockerfile and `pg_run` line each; S08 "Path namespaces" records that crossing them "silently breaks either R execution or the COPY".
+- **Facilities and person-years go through a temp CSV.** `exportRowsToParquet` serialises rows to a CSV with a NULL sentinel and converts it ([pg_export.ts](server/runs/pg_export.ts)); the person-years file is written as CSV by hand ([prepare_inputs.ts:389-470](server/worker_routines/generate_run/prepare_inputs.ts#L389-L470)).
+- **Every module output is written twice and kept twice.** R writes CSV; finalize rebuilds a `{id}.parquet` sibling with four normalizations ([write_results_object_parquet.ts](server/run_query/write_results_object_parquet.ts), [build_run_package.ts:323-350](server/runs/build_run_package.ts#L323-L350)). On the dev package `37572e10`, m001's `M1_output_completeness.csv` is 442 MB beside a 2.9 MB parquet; m002's `M2_adjusted_data.csv` 494 MB beside 26 MB. S08 measures 73.2% of dev run bytes as duplicate content and names parquet-native R as the ruled remedy.
+- **Two of the four normalizations are unreachable.** The facility-column drop fires only for a declared facility column, and no module declares one (undeclared headers are a hard error); the 6-digit `quarter_id` rewrite fires only for a results object with `quarter_id` and no `period_id`, and none exists. The redundant-period drop exists because m001 and m002 declare `quarter_id` and `year` beside `period_id` ([m001/\_results_objects.ts](../wb-fastr-modules/m001/_results_objects.ts), [m002/\_results_objects.ts](../wb-fastr-modules/m002/_results_objects.ts)) while their scripts no longer write them (m001/script.R:198, m002/script.R:219).
+- **CSV loses what parquet keeps.** `'NA'` text versus a missing value, `''` versus NULL, encodings (m005 and m006 pass `fileEncoding = "UTF-8"`), and every number's full precision all depend on writer and reader conventions that the four normalizations exist to repair.
+- **Reuse copies the heavy file.** A reused module copies its raw CSVs from the source package ([execute_module.ts:154-217](server/worker_routines/generate_run/execute_module.ts#L154-L217)), the one duplication S08 "No links" accepts on purpose.
+- **Dev cannot generate six of the eight modules' siblings.** The dev `main` database holds HMIS data only (no `hfa_data`, no `iceh_data`), so m010 and m009 have never run on dev, and a change to the pipeline cannot be proved on every module there.
 
 ## §2 The model
 
@@ -156,128 +62,35 @@ A package holds one file per table, and that file is parquet:
 ```
 
 The extract is one DuckDB statement: `COPY (SELECT * FROM postgres_query('pg',
-<the family's export SQL>)) TO '<family>.parquet'`, the export SQL unchanged in
-substance and executed by Postgres, the rows streamed in Postgres's `ORDER BY`
-order into a parquet whose types are the SQL's casts. Postgres never sees the
-runs volume. The facilities tables are the same statement over
-`facilities_<family>`. The person-years rows and the query rig's fixture rows go
-through one in-memory writer, the DuckDB appender.
+<the family's export SQL>)) TO '<family>.parquet'`, the export SQL unchanged in substance and executed by Postgres, the rows streamed in Postgres's `ORDER BY` order into a parquet whose types are the SQL's casts. Postgres never sees the runs volume. The facilities tables are the same statement over `facilities_<family>`. The person-years rows and the query rig's fixture rows go through one in-memory writer, the DuckDB appender.
 
-A module's contract is its declared schema. R writes each results object as
-parquet with exactly the declared types; a declared column may be absent, an
-undeclared column or a wrong type fails the module, immediately after R runs
-and again after a reuse copy, with the reason in the module log. Finalize
-validates the same way, reads metadata (columns, row count, time column,
-period bounds) and stamps the manifest; it writes no data file. The manifest
-names each results object's serving file by package-relative path, and the
-read path opens that path. Packages written before this plan keep their raw
-CSVs and `.csv.parquet` twins untouched; transform block 14 stamps their
-paths.
+A module's contract is its declared schema. R writes each results object as parquet with exactly the declared types; a declared column may be absent, an undeclared column or a wrong type fails the module, immediately after R runs and again after a reuse copy, with the reason in the module log. Finalize validates the same way, reads metadata (columns, row count, time column, period bounds) and stamps the manifest; it writes no data file. The manifest names each results object's serving file by package-relative path, and the read path opens that path. Packages written before this plan keep their raw CSVs and `.csv.parquet` twins untouched; transform block 14 stamps their paths.
 
-Memoization is unchanged in shape: inputKeys hash the bytes of the parquet
-inputs and outputs. Both writers are byte-deterministic for the same rows
-(measured: two extracts of 3.3M rows and two arrow writes of 2M rows were
-byte-identical), and a non-deterministic byte could only cost a re-run.
+Memoization is unchanged in shape: inputKeys hash the bytes of the parquet inputs and outputs. Both writers are byte-deterministic for the same rows (measured: two extracts of 3.3M rows and two arrow writes of 2M rows were byte-identical), and a non-deterministic byte could only cost a re-run.
 
-The R image gains `arrow` and a versioned tag; the dev host's `Rscript` needs
-`arrow` too. Module scripts read with `arrow::read_parquet` (column projection
-where they read a subset) and write with `arrow::write_parquet` from frames
-typed per the declaration, header-only outputs included.
+The R image gains `arrow` and a versioned tag; the dev host's `Rscript` needs `arrow` too. Module scripts read with `arrow::read_parquet` (column projection where they read a subset) and write with `arrow::write_parquet` from frames typed per the declaration, header-only outputs included.
 
-Dev proves the whole change: a seeded HFA round and ICEH dataset let every
-registry module generate there, a baseline package is generated by the CSV
-pipeline before any change, and the ported pipeline must reproduce it row for
-row.
+Dev proves the whole change: a seeded HFA round and ICEH dataset let every registry module generate there, a baseline package is generated by the CSV pipeline before any change, and the ported pipeline must reproduce it row for row.
 
 ## §3 Rulings
 
-1. **Parquet is the only tabular format a generation writes or reads.** No
-   CSV is written, converted, hashed, listed or kept in a package. Repo assets
-   a module pins (`assetsToImport`) are copied verbatim in their authored
-   format; they are inputs, not pipeline tables.
-2. **The extension writes the extracts and the facilities tables.** One DuckDB
-   statement per file: `postgres_query` runs the family's export SQL on
-   Postgres and DuckDB writes the parquet. The export SQL keeps its `ORDER BY`
-   (the bytes are an inputKey ingredient) and casts every non-text column to
-   the type the package declares: `period_id` integer, `count` bigint, `weight`
-   double precision, `year` and `sample_size` integer, `estimate` and
-   `standard_error` double precision. Row order is preserved end to end
-   (measured: zero order breaks over 3.3M rows) and the writers test pins it.
-3. **Postgres never writes into the runs volume.** `RUNS_DIR_PATH_POSTGRES_INTERNAL`,
-   `DatasetCsvTarget`, `ensureDatasetCsvTargetDir` and the `chmod` go; so do
-   the Dockerfile `ENV`, the `.env.example` line and the `pg_run` mount.
-   _(proposed)_ The fleet's Postgres containers may keep mounting the volume;
-   nothing reads it.
-4. **The extension connects with the app's own credentials** (`_PG_HOST`,
-   `_PG_PORT`, `postgres`, `_PG_PASSWORD`) by URI with the password
-   URL-encoded, `READ_ONLY`, to the database the capture is given by id. The
-   extension lives in a fixed directory, `.duckdb_extensions/` at the repo root
-   (git-ignored; `/app/.duckdb_extensions` in the image), located from
-   `import.meta.url` so it never depends on the working directory. Every
-   connection that needs it runs `INSTALL postgres` then `LOAD postgres`:
-   the image build pre-installs it (`install_duckdb_extensions.ts`), so in
-   production `INSTALL` finds the file and touches no network; in dev the first
-   use downloads it. _(proposed)_
-5. **In-memory rows are written through the DuckDB appender**, one writer
-   (`writeRowsToParquet`) for the person-years file and the query rig's
-   fixtures; the temp-CSV writer and `writeParquetFromCsv` are deleted.
-6. **The person-years file is `inputs/population.parquet`**: `admin_area_2..N`
-   VARCHAR, `period_id` INTEGER, `population_type` VARCHAR, `person_years`
-   DOUBLE; header-only is a typed 0-row file. The manifest's `population`
-   stamp is unchanged.
-7. **A results object is one file, written by R, served as written.** Its id
-   ends in `.parquet` and is its file name; the serving file is
-   `outputs/<moduleId>/<id>`. There is no normalized sibling and no rewrite.
-8. **The module contract is validated, not repaired.** After R writes
-   (`executeRunModule`) and after a reuse copy (`reuseRunModule`), every
-   declared results object with a column schema is checked: every file column
-   is declared, every file column's DuckDB type equals the declared type's
-   mapping, a declared column may be absent. A failure is written to the module
-   log and fails the module, like a missing declared file does today. Finalize
-   runs the same check and reads metadata; a results object that fails there
-   fails the generation (execution already validated it, so a failure at
-   finalize is a defect, never a data condition). `NOT NULL` stays unenforced,
-   as today.
-9. **A results object declares at most one of `period_id`, `quarter_id`,
-   `year`, and never `month`.** The GitHub (authoring) schema enforces it,
-   with the `.parquet` id rule; the installed schema stays as it is, since
-   stored blobs carry `.csv` ids and the m001 and m002 declarations forever.
-   m001 and m002 drop `quarter_id` and `year` from their declarations.
-10. **Manifest v16: `resultsObjects[].hasParquet` becomes `parquet`**, the
-    serving file's package-relative path or `null` (a file-only results object,
-    or a module that never ran). Transform block 14 rewrites every existing
-    entry (`true` → `outputs/<moduleId>/<id>.parquet`, `false` → `null`).
-    `runResultsObjectParquetPath` is deleted; readers join `runDir` and
-    `ro.parquet`. No `PO_CACHE_VERSION` bump: payload shapes do not change.
-11. **Stage vocabulary.** `converting {family}` leaves `RunStage`; the
-    `runs_progress` data transform gains a block that rewrites a stored
-    `converting` stage to `exporting` of the same family, so no stored row
-    carries a kind the code lacks.
-12. **The R image is `timroberton/comb:wb-fastr-r-2`, one image, one tag,**
-    `arrow` added, the number bumped whenever `_r_container/Dockerfile`
-    changes (the README states the rule), so the inputKey's image ingredient
-    is true. `R_DOCKER_IMAGE_TAG` is that constant in both modes; the `-local`
-    tag goes. Step 4 builds the image locally to prove it; the push is outside
-    the plan and precedes the deploy of the app that names it. _(proposed)_
-13. **The modules repo work lands on branch `parquet`**, created from `main`
-    in step 5. Ruled.
-14. **Release order, a fact about the code and outside the plan.** The new app
-    refuses the CSV modules at the authoring schema (the id rule), and the
-    parquet modules fail on the old image at `library(arrow)`, so the fleet
-    deploy of the app precedes the merge of `parquet` into the modules repo's
-    `main`. Both are loud and leave no package.
-15. **Parity is the gate for the port, on dev, for all eight modules.**
-    `compare_packages.ts` compares two packages results object by results
-    object: it refuses two packages whose `datasets` stamps differ for any
-    family (a comparison is always between the same data); columns in one and
-    not the other are reported; text and integer columns compare exactly,
-    `DOUBLE` columns after `round(x, 6)`; the symmetric difference must be
-    empty and the row counts equal. The seed (step 1) is what lets m010 and
-    m009 generate on dev.
-16. **Nothing ships.** No deploy, no image push, no modules merge is a step;
-    each is outside the plan.
-17. **Downloads serve the stored file.** The package page's file rows and the
-    results-file viewer's Download hand out the parquet as stored. _(proposed)_
+1. **Parquet is the only tabular format a generation writes or reads.** No CSV is written, converted, hashed, listed or kept in a package. Repo assets a module pins (`assetsToImport`) are copied verbatim in their authored format; they are inputs, not pipeline tables.
+2. **The extension writes the extracts and the facilities tables.** One DuckDB statement per file: `postgres_query` runs the family's export SQL on Postgres and DuckDB writes the parquet. The export SQL keeps its `ORDER BY` (the bytes are an inputKey ingredient) and casts every non-text column to the type the package declares: `period_id` integer, `count` bigint, `weight` double precision, `year` and `sample_size` integer, `estimate` and `standard_error` double precision. Row order is preserved end to end (measured: zero order breaks over 3.3M rows) and the writers test pins it.
+3. **Postgres never writes into the runs volume.** `RUNS_DIR_PATH_POSTGRES_INTERNAL`, `DatasetCsvTarget`, `ensureDatasetCsvTargetDir` and the `chmod` go; so do the Dockerfile `ENV`, the `.env.example` line and the `pg_run` mount. _(proposed)_ The fleet's Postgres containers may keep mounting the volume; nothing reads it.
+4. **The extension connects with the app's own credentials** (`_PG_HOST`, `_PG_PORT`, `postgres`, `_PG_PASSWORD`) by URI with the password URL-encoded, `READ_ONLY`, to the database the capture is given by id. The extension lives in a fixed directory, `.duckdb_extensions/` at the repo root (git-ignored; `/app/.duckdb_extensions` in the image), located from `import.meta.url` so it never depends on the working directory. Every connection that needs it runs `INSTALL postgres` then `LOAD postgres`: the image build pre-installs it (`install_duckdb_extensions.ts`), so in production `INSTALL` finds the file and touches no network; in dev the first use downloads it. _(proposed)_
+5. **In-memory rows are written through the DuckDB appender**, one writer (`writeRowsToParquet`) for the person-years file and the query rig's fixtures; the temp-CSV writer and `writeParquetFromCsv` are deleted.
+6. **The person-years file is `inputs/population.parquet`**: `admin_area_2..N` VARCHAR, `period_id` INTEGER, `population_type` VARCHAR, `person_years` DOUBLE; header-only is a typed 0-row file. The manifest's `population` stamp is unchanged.
+7. **A results object is one file, written by R, served as written.** Its id ends in `.parquet` and is its file name; the serving file is `outputs/<moduleId>/<id>`. There is no normalized sibling and no rewrite.
+8. **The module contract is validated, not repaired.** After R writes (`executeRunModule`) and after a reuse copy (`reuseRunModule`), every declared results object with a column schema is checked: every file column is declared, every file column's DuckDB type equals the declared type's mapping, a declared column may be absent. A failure is written to the module log and fails the module, like a missing declared file does today. Finalize runs the same check and reads metadata; a results object that fails there fails the generation (execution already validated it, so a failure at finalize is a defect, never a data condition). `NOT NULL` stays unenforced, as today.
+9. **A results object declares at most one of `period_id`, `quarter_id`, `year`, and never `month`.** The GitHub (authoring) schema enforces it, with the `.parquet` id rule; the installed schema stays as it is, since stored blobs carry `.csv` ids and the m001 and m002 declarations forever. m001 and m002 drop `quarter_id` and `year` from their declarations.
+10. **Manifest v16: `resultsObjects[].hasParquet` becomes `parquet`**, the serving file's package-relative path or `null` (a file-only results object, or a module that never ran). Transform block 14 rewrites every existing entry (`true` → `outputs/<moduleId>/<id>.parquet`, `false` → `null`). `runResultsObjectParquetPath` is deleted; readers join `runDir` and `ro.parquet`. No `PO_CACHE_VERSION` bump: payload shapes do not change.
+11. **Stage vocabulary.** `converting {family}` leaves `RunStage`; the `runs_progress` data transform gains a block that rewrites a stored `converting` stage to `exporting` of the same family, so no stored row carries a kind the code lacks.
+12. **The R image is `timroberton/comb:wb-fastr-r-2`, one image, one tag,** `arrow` added, the number bumped whenever `_r_container/Dockerfile` changes (the README states the rule), so the inputKey's image ingredient is true. `R_DOCKER_IMAGE_TAG` is that constant in both modes; the `-local` tag goes. Step 4 builds the image locally to prove it; the push is outside the plan and precedes the deploy of the app that names it. _(proposed)_
+13. **The modules repo work lands on branch `parquet`**, created from `main` in step 5. Ruled.
+14. **Release order, a fact about the code and outside the plan.** The new app refuses the CSV modules at the authoring schema (the id rule), and the parquet modules fail on the old image at `library(arrow)`, so the fleet deploy of the app precedes the merge of `parquet` into the modules repo's `main`. Both are loud and leave no package.
+15. **Parity is the gate for the port, on dev, for all eight modules.** `compare_packages.ts` compares two packages results object by results object: it refuses two packages whose `datasets` stamps differ for any family (a comparison is always between the same data); columns in one and not the other are reported; text and integer columns compare exactly, `DOUBLE` columns after `round(x, 6)`; the symmetric difference must be empty and the row counts equal. The seed (step 1) is what lets m010 and m009 generate on dev.
+16. **Nothing ships.** No deploy, no image push, no modules merge is a step; each is outside the plan.
+17. **Downloads serve the stored file.** The package page's file rows and the results-file viewer's Download hand out the parquet as stored. _(proposed)_
 
 ## §4 Steps
 
@@ -285,56 +98,20 @@ row.
 
 Repo: this one.
 
-**Surface.** `seed_dev_data.ts` (new, root), `generate_package.ts` (new, root),
-`compare_packages.ts` (new, root), `server/tests/_harness/hfa_synthetic_round.ts`
-(new), `server/tests/hfa_round_reimport_test.ts`, `Dockerfile`, `deno.json`
-(the `typecheck` task's root-script list), `SYSTEM_08_results_packages.md`,
-`SYSTEM_06_ingestion.md`.
+**Surface.** `seed_dev_data.ts` (new, root), `generate_package.ts` (new, root), `compare_packages.ts` (new, root), `server/tests/_harness/hfa_synthetic_round.ts` (new), `server/tests/hfa_round_reimport_test.ts`, `Dockerfile`, `deno.json` (the `typecheck` task's root-script list), `SYSTEM_08_results_packages.md`, `SYSTEM_06_ingestion.md`.
 
 **Deliverable.**
 
-- `hfa_synthetic_round.ts` holds the round generator
-  `hfa_round_reimport_test.ts` carries today (`FACILITIES`, `HEADERS`,
-  `surveyRows`, `writeXlsForm`, the weights file), with two modes: the test's
-  messy round over its own facility list, and a clean round over a registry
-  it is given (one full submission per facility, no changes, every variable
-  filled). The test imports it and pins what it pins today.
-- `seed_dev_data.ts` writes the seed into the database the `.env` names,
-  through the app's own code and nothing else: the clean HFA round for time
-  point `R1` through `validateHfaCsvRunConfig`, `stageHfaCsvIntoTables` and
-  `integrateStagedHfaData`, weights of 1 through the weights import, and
-  three indicators with `R1` code over `hr_01`, `svc_01` and `fin_01` through
-  `saveHfaIndicatorsBatch`; an ICEH zip in the Retriever shape `stageIcehZip`
-  parses (`results_csv.csv` and an `indicators.xlsx` with the "ICEH Indicators
-  Definition" sheet), built in memory, over four indicators, three years and
-  the `national`, `area`, `wealth_quintiles` and `wealth_deciles` strata,
-  through `stageIcehZip` and `integrateIcehData`. It refuses to run when the
-  database already holds `hfa_data` or `iceh_data` rows, and it never touches
-  the HMIS tables.
-- `generate_package.ts <label> --families hmis,hfa,iceh --modules m012,m001,…`
-  launches a generation through `launchRunGeneration`
-  ([launch.ts:95](server/worker_routines/generate_run/launch.ts#L95)) with the
-  wizard's own reads: the module options and pinned `gitRef` from
-  `getRunGenerationModuleOptions`, parameter selections from
-  `getModuleDefaultsSnapshot`, `createdBy` the literal `generate_package`. It
-  waits on `runs.status` until `ready` or `failed`, prints the run id and the
-  stage it ended in, and exits non-zero on failure. Like `fix_dhis2_ids.ts` it
-  runs inside an instance container or locally with `--env-file`; the
-  Dockerfile copies it, and `compare_packages.ts`, beside `fix_dhis2_ids.ts`,
-  so a parity check can run inside any instance's container.
-- `compare_packages.ts <run A> <run B>` (a run id or a label each) implements
-  ruling 15 over DuckDB, prints one line per results object (rows in A, rows
-  in B, columns only in A, only in B, differing rows) and exits non-zero on any
-  difference or on unequal dataset stamps.
-- SYSTEM_08 names the two package scripts in "Generation"; SYSTEM_06 names the
-  seed beside the import sections it drives.
+- `hfa_synthetic_round.ts` holds the round generator `hfa_round_reimport_test.ts` carries today (`FACILITIES`, `HEADERS`, `surveyRows`, `writeXlsForm`, the weights file), with two modes: the test's messy round over its own facility list, and a clean round over a registry it is given (one full submission per facility, no changes, every variable filled). The test imports it and pins what it pins today.
+- `seed_dev_data.ts` writes the seed into the database the `.env` names, through the app's own code and nothing else: the clean HFA round for time point `R1` through `validateHfaCsvRunConfig`, `stageHfaCsvIntoTables` and `integrateStagedHfaData`, weights of 1 through the weights import, and three indicators with `R1` code over `hr_01`, `svc_01` and `fin_01` through `saveHfaIndicatorsBatch`; an ICEH zip in the Retriever shape `stageIcehZip` parses (`results_csv.csv` and an `indicators.xlsx` with the "ICEH Indicators Definition" sheet), built in memory, over four indicators, three years and the `national`, `area`, `wealth_quintiles` and `wealth_deciles` strata, through `stageIcehZip` and `integrateIcehData`. It refuses to run when the database already holds `hfa_data` or `iceh_data` rows, and it never touches the HMIS tables.
+- `generate_package.ts <label> --families hmis,hfa,iceh --modules m012,m001,…` launches a generation through `launchRunGeneration` ([launch.ts:95](server/worker_routines/generate_run/launch.ts#L95)) with the wizard's own reads: the module options and pinned `gitRef` from `getRunGenerationModuleOptions`, parameter selections from `getModuleDefaultsSnapshot`, `createdBy` the literal `generate_package`. It waits on `runs.status` until `ready` or `failed`, prints the run id and the stage it ended in, and exits non-zero on failure. Like `fix_dhis2_ids.ts` it runs inside an instance container or locally with `--env-file`; the Dockerfile copies it, and `compare_packages.ts`, beside `fix_dhis2_ids.ts`, so a parity check can run inside any instance's container.
+- `compare_packages.ts <run A> <run B>` (a run id or a label each) implements ruling 15 over DuckDB, prints one line per results object (rows in A, rows in B, columns only in A, only in B, differing rows) and exits non-zero on any difference or on unequal dataset stamps.
+- SYSTEM_08 names the two package scripts in "Generation"; SYSTEM_06 names the seed beside the import sections it drives.
 
 **Not in this step.** Any change to what a generation writes.
 
-**Gates.** The floor. On the dev instance: `seed_dev_data.ts` ends with
-`hfa_data` and `iceh_data` rows; `generate_package.ts parquet-baseline
---families hmis,hfa,iceh --modules m012,m001,m002,m011,m005,m006,m010,m009`
-ends `ready` with every module `done`; `compare_packages.ts parquet-baseline
+**Gates.** The floor. On the dev instance: `seed_dev_data.ts` ends with `hfa_data` and `iceh_data` rows; `generate_package.ts parquet-baseline
+--families hmis,hfa,iceh --modules m012,m001,m002,m011,m005,m006,m010,m009` ends `ready` with every module `done`; `compare_packages.ts parquet-baseline
 parquet-baseline` reports no difference.
 
 **Ends with.** One commit, and the baseline package on the dev instance.
@@ -343,85 +120,24 @@ parquet-baseline` reports no difference.
 
 Repo: this one.
 
-**Surface.** `server/runs/pg_export.ts`, `server/run_query/rows_to_parquet.ts`
-(new), `server/run_query/csv_to_parquet.ts` (deleted),
-`server/run_query/duckdb_executor.ts`, `server/run_query/mod.ts`,
-`server/runs/mod.ts`, `server/runs/capture_inputs/{hmis,hfa,iceh}.ts`,
-`server/worker_routines/generate_run/{prepare_inputs,pipeline,worker,resolve_reuse}.ts`,
-`server/server_only_funcs/get_script_with_parameters.ts`,
-`server/server_only_funcs/get_script_with_parameters_hfa.ts`,
-`server/exposed_env_vars.ts`, `server/utils/disk_space.ts`,
-`lib/types/run_generation.ts`, `lib/run_progress.ts`,
-`server/db/migrations/data_transforms/runs_progress.ts`,
-`install_duckdb_extensions.ts` (new, root), `Dockerfile`, `.env.example`,
-`pg_run`, `run`, `.gitignore`, `deno.json`,
-`server/tests/parquet_writers_test.ts` (new),
-`server/tests/{geojson_capture,hfa_round_reimport,run_progress}_test.ts`,
-`query_rig/build_package.ts`, the lib and client comments that cite S08
-"population.csv" (`lib/figure_package_issue.ts`,
-`lib/population_person_years.ts`, `lib/types/run_generation.ts`,
-`lib/types/run_manifest.ts`, `lib/types/_module_definition_github.ts`,
-`client/src/components/results_packages/package_view/status_bar.tsx`),
-`SYSTEM_08_results_packages.md`, `SYSTEM_06_ingestion.md`,
-`SYSTEM_02_persistence.md`, `SYSTEM_04_assets_upload.md`,
-`SYSTEM_05_facilities_indicators.md`, `SYSTEM_09_viz_query_cache.md`,
-`SYSTEM_15_admin_ops.md`.
+**Surface.** `server/runs/pg_export.ts`, `server/run_query/rows_to_parquet.ts` (new), `server/run_query/csv_to_parquet.ts` (deleted), `server/run_query/duckdb_executor.ts`, `server/run_query/mod.ts`, `server/runs/mod.ts`, `server/runs/capture_inputs/{hmis,hfa,iceh}.ts`, `server/worker_routines/generate_run/{prepare_inputs,pipeline,worker,resolve_reuse}.ts`, `server/server_only_funcs/get_script_with_parameters.ts`, `server/server_only_funcs/get_script_with_parameters_hfa.ts`, `server/exposed_env_vars.ts`, `server/utils/disk_space.ts`, `lib/types/run_generation.ts`, `lib/run_progress.ts`, `server/db/migrations/data_transforms/runs_progress.ts`, `install_duckdb_extensions.ts` (new, root), `Dockerfile`, `.env.example`, `pg_run`, `run`, `.gitignore`, `deno.json`, `server/tests/parquet_writers_test.ts` (new), `server/tests/{geojson_capture,hfa_round_reimport,run_progress}_test.ts`, `query_rig/build_package.ts`, the lib and client comments that cite S08 "population.csv" (`lib/figure_package_issue.ts`, `lib/population_person_years.ts`, `lib/types/run_generation.ts`, `lib/types/run_manifest.ts`, `lib/types/_module_definition_github.ts`, `client/src/components/results_packages/package_view/status_bar.tsx`), `SYSTEM_08_results_packages.md`, `SYSTEM_06_ingestion.md`, `SYSTEM_02_persistence.md`, `SYSTEM_04_assets_upload.md`, `SYSTEM_05_facilities_indicators.md`, `SYSTEM_09_viz_query_cache.md`, `SYSTEM_15_admin_ops.md`.
 
 **Deliverable.**
 
-- `duckdb_executor.ts` owns the extension directory (ruling 4) and
-  `loadPostgresExtension(conn)`; `install_duckdb_extensions.ts` calls it once
-  and the Dockerfile runs it after the sources are copied; `run` runs it
-  before starting the server; `.gitignore` lists `.duckdb_extensions/`.
+- `duckdb_executor.ts` owns the extension directory (ruling 4) and `loadPostgresExtension(conn)`; `install_duckdb_extensions.ts` calls it once and the Dockerfile runs it after the sources are copied; `run` runs it before starting the server; `.gitignore` lists `.duckdb_extensions/`.
 - `pg_export.ts` exports `exportPostgresQueryToParquet({ databaseId, sql,
   parquetPath })` (ruling 2): attach by URI, `COPY (SELECT * FROM
-  postgres_query('pg', $fastr$<sql>$fastr$)) TO '<tmp>' (FORMAT PARQUET)`,
-  rename into place; a SQL containing the dollar tag is refused.
-- `rows_to_parquet.ts` exports `writeRowsToParquet(rows, columns, parquetPath)`
-  over `createAppender` (ruling 5) and the `ParquetColumn` type; `ExportedColumn`,
-  `CsvColumn`, `writeParquetFromCsv` and `exportRowsToParquet` are gone.
-- Each capture takes `{ databaseId, parquetPath }` in place of
-  `DatasetCsvTarget`, writes the extract through `exportPostgresQueryToParquet`
-  with the casts of ruling 2 inside its export SQL, writes the facilities
-  parquet the same way (`SELECT <RUN_FACILITY_COLUMN_NAMES> FROM
-  facilities_<family> ORDER BY facility_id`), and no longer returns facility
-  rows. `prepareRunInputs` takes the database id after `mainDb`
-  (`worker.ts` passes `"main"`), writes `population.parquet` through
-  `writeRowsToParquet` (ruling 6), lists `inputs/datasets/<family>.parquet`,
-  `inputs/facilities_<family>.parquet` and `inputs/population.parquet`, hashes
-  the parquet files, and reports no `converting` stage. `extractColumnType`,
-  `readCsvHeaders`'s use here and the `.csv` listing are gone.
-- `resolve_reuse.ts` names the inputs `datasets/<family>.parquet` and
-  `population.parquet`; the two generators substitute
-  `'<datasetsDir>/<family>.parquet'` and `'<inputs>/population.parquet'`.
-- `RunStage` loses `converting`; `runStageLabel` and `runProgressSteps` lose
-  the case; the `runs_progress` data transform gains the block of ruling 11,
-  its skip gate forced for a progress containing `"converting"` (the
-  skip-gate gotcha), and `run_progress_test.ts` pins it beside the stage
-  table.
-- `checkSpaceForDataset`'s estimate is the parquet's, with the ratio to
-  `pg_total_relation_size` measured on the dev instance in the step and stated
-  in the comment.
-- `parquet_writers_test.ts`, over a throwaway database on the dev Postgres like
-  `geojson_capture_test.ts`: an export preserves the SQL's `ORDER BY` (a
-  Postgres-side `row_number()` is strictly increasing in the file), carries the
-  cast types, keeps NULL, `''` and `'NA'` text apart, and is byte-identical
-  across two writes; `writeRowsToParquet` keeps NULLs and writes a typed 0-row
-  file. `hfa_round_reimport_test.ts`'s `extract()` compares the parquet's rows
-  (through `executeSqlOverParquet`, `ORDER BY ALL`) instead of CSV text, and
-  `geojson_capture_test.ts` passes its database id.
-- Docs: SYSTEM_08 "The results package format" (the inputs tree), "Generation"
-  (the prepare stage), "The stage", "Path namespaces" and "The runs directory
-  holds packages" (two views of the runs dir, not three; no Postgres mount),
-  "population.csv" renamed "population.parquet" with the citations in lib and
-  the client following; SYSTEM_06 "The run-capture seam"; SYSTEM_02's
-  `.unsafe()` group (1) no longer names `COPY`; SYSTEM_04:225 and
-  SYSTEM_05:764 name the parquet; SYSTEM_09's header names
-  `rows_to_parquet.ts` as the one in-memory writer; SYSTEM_15 states the new
-  disk estimate.
+  postgres_query('pg', $fastr$<sql>$fastr$)) TO '<tmp>' (FORMAT PARQUET)`, rename into place; a SQL containing the dollar tag is refused.
+- `rows_to_parquet.ts` exports `writeRowsToParquet(rows, columns, parquetPath)` over `createAppender` (ruling 5) and the `ParquetColumn` type; `ExportedColumn`, `CsvColumn`, `writeParquetFromCsv` and `exportRowsToParquet` are gone.
+- Each capture takes `{ databaseId, parquetPath }` in place of `DatasetCsvTarget`, writes the extract through `exportPostgresQueryToParquet` with the casts of ruling 2 inside its export SQL, writes the facilities parquet the same way (`SELECT <RUN_FACILITY_COLUMN_NAMES> FROM
+  facilities_<family> ORDER BY facility_id`), and no longer returns facility rows. `prepareRunInputs` takes the database id after `mainDb` (`worker.ts` passes `"main"`), writes `population.parquet` through `writeRowsToParquet` (ruling 6), lists `inputs/datasets/<family>.parquet`, `inputs/facilities_<family>.parquet` and `inputs/population.parquet`, hashes the parquet files, and reports no `converting` stage. `extractColumnType`, `readCsvHeaders`'s use here and the `.csv` listing are gone.
+- `resolve_reuse.ts` names the inputs `datasets/<family>.parquet` and `population.parquet`; the two generators substitute `'<datasetsDir>/<family>.parquet'` and `'<inputs>/population.parquet'`.
+- `RunStage` loses `converting`; `runStageLabel` and `runProgressSteps` lose the case; the `runs_progress` data transform gains the block of ruling 11, its skip gate forced for a progress containing `"converting"` (the skip-gate gotcha), and `run_progress_test.ts` pins it beside the stage table.
+- `checkSpaceForDataset`'s estimate is the parquet's, with the ratio to `pg_total_relation_size` measured on the dev instance in the step and stated in the comment.
+- `parquet_writers_test.ts`, over a throwaway database on the dev Postgres like `geojson_capture_test.ts`: an export preserves the SQL's `ORDER BY` (a Postgres-side `row_number()` is strictly increasing in the file), carries the cast types, keeps NULL, `''` and `'NA'` text apart, and is byte-identical across two writes; `writeRowsToParquet` keeps NULLs and writes a typed 0-row file. `hfa_round_reimport_test.ts`'s `extract()` compares the parquet's rows (through `executeSqlOverParquet`, `ORDER BY ALL`) instead of CSV text, and `geojson_capture_test.ts` passes its database id.
+- Docs: SYSTEM_08 "The results package format" (the inputs tree), "Generation" (the prepare stage), "The stage", "Path namespaces" and "The runs directory holds packages" (two views of the runs dir, not three; no Postgres mount), "population.csv" renamed "population.parquet" with the citations in lib and the client following; SYSTEM_06 "The run-capture seam"; SYSTEM_02's `.unsafe()` group (1) no longer names `COPY`; SYSTEM_04:225 and SYSTEM_05:764 name the parquet; SYSTEM_09's header names `rows_to_parquet.ts` as the one in-memory writer; SYSTEM_15 states the new disk estimate.
 
-**Not in this step.** Module outputs, the manifest, the read path, the
-`.parquet` id rule, the R image, the module scripts.
+**Not in this step.** Module outputs, the manifest, the read path, the `.parquet` id rule, the R image, the module scripts.
 
 **Gates.** The floor; `./validate_queries`.
 
@@ -431,60 +147,18 @@ Repo: this one.
 
 Repo: this one.
 
-**Surface.** `server/runs/results_object_parquet.ts` (new),
-`server/run_query/write_results_object_parquet.ts` (deleted),
-`server/run_query/mod.ts`, `server/runs/mod.ts`,
-`server/runs/build_run_package.ts`, `server/runs/run_paths.ts`,
-`server/runs/manifest_transform.ts`,
-`server/worker_routines/generate_run/execute_module.ts`,
-`server/run_query/run_read.ts`, `lib/types/run_manifest.ts`,
-`lib/api-routes/instance/run_generation.ts` (the comment at 192),
-`server/server_only_funcs/get_script_with_parameters_hfa.ts` (the two id
-gates, 461 and 658), `query_rig/{build_package,fixtures}.ts`,
-`server/tests/{m012_expression_parity,run_manifest_transform,population_coverage_issue}_test.ts`,
-`SYSTEM_08_results_packages.md`, `SYSTEM_09_viz_query_cache.md`,
-`PROTOCOL_APP_MIGRATIONS.md`.
+**Surface.** `server/runs/results_object_parquet.ts` (new), `server/run_query/write_results_object_parquet.ts` (deleted), `server/run_query/mod.ts`, `server/runs/mod.ts`, `server/runs/build_run_package.ts`, `server/runs/run_paths.ts`, `server/runs/manifest_transform.ts`, `server/worker_routines/generate_run/execute_module.ts`, `server/run_query/run_read.ts`, `lib/types/run_manifest.ts`, `lib/api-routes/instance/run_generation.ts` (the comment at 192), `server/server_only_funcs/get_script_with_parameters_hfa.ts` (the two id gates, 461 and 658), `query_rig/{build_package,fixtures}.ts`, `server/tests/{m012_expression_parity,run_manifest_transform,population_coverage_issue}_test.ts`, `SYSTEM_08_results_packages.md`, `SYSTEM_09_viz_query_cache.md`, `PROTOCOL_APP_MIGRATIONS.md`.
 
 **Deliverable.**
 
-- `results_object_parquet.ts` holds the declared-type mapping
-  (`duckDbTypeForDeclaredColumnType`, moved) and
-  `validateResultsObjectParquet(path, declaredColumns)` (ruling 8), which
-  returns the file's columns with their DuckDB types. `executeRunModule`
-  calls it for every declared results object with a column schema right after
-  the missing-file check, `reuseRunModule` right after the copy, each failure
-  written to the module log through `writeToLog` before it throws.
-- `buildRunPackageIntoTmp` validates through the same function, reads metadata
-  with `readParquetQueryMetadata` from the serving file and stamps
-  `parquet: "outputs/<moduleId>/<id>"`; `buildResultsObjectParquet`,
-  `readCsvHeaders`, `computeResultsObjectColumnsToExclude` and
-  `writeNormalizedResultsObjectParquet` are gone, with the per-results-object
-  degrade (ruling 8).
-- `runResultsObjectSchema` carries `parquet: z.string().nullable()` in place
-  of `hasParquet`; `RUN_MANIFEST_SCHEMA_VERSION` is 16; transform block 14
-  does ruling 10 and `run_manifest_transform_test.ts` pins it (a v15 package
-  with one `true` and one `false` entry); the header comment of
-  `run_manifest.ts` and PROTOCOL_APP_MIGRATIONS's worked list name v16.
-  `run_read.ts` reads `ro.parquet` at its four `hasParquet` sites (263, 1012,
-  1109, 1192) and `runResultsObjectParquetPath` is deleted.
-- The two HFA id gates test for `M10_hfa_results_variants.parquet` and
-  `M10_hfa_response_status.parquet`.
-- The query rig writes each fixture's results object with `writeRowsToParquet`
-  under the fixture's declared types, and fixture ids end in `.parquet`.
-  `m012_expression_parity_test.ts` writes `M2_adjusted_data.parquet` and
-  `population.parquet` through `writeRowsToParquet` and reads
-  `M12_indicator_values.parquet` through `executeSqlOverParquet`;
-  `population_coverage_issue_test.ts`'s fixture id ends in `.parquet`.
-- Docs: SYSTEM_08 "The results package format" (the outputs tree, invariant 2
-  without its duplication clause, invariant 4's "post-normalization" wording,
-  the `manifestSchemaVersion` paragraph with v16), "Results ingestion" replaced
-  by the contract of ruling 8, "Generation" (execute and finalize), "Module
-  outputs must derive their admin columns" unchanged, Open items ("No links"
-  loses its remedy sentence; "Deferred" loses parquet-native R); SYSTEM_09's
-  header and "The scoped view" name the serving file by its manifest path.
+- `results_object_parquet.ts` holds the declared-type mapping (`duckDbTypeForDeclaredColumnType`, moved) and `validateResultsObjectParquet(path, declaredColumns)` (ruling 8), which returns the file's columns with their DuckDB types. `executeRunModule` calls it for every declared results object with a column schema right after the missing-file check, `reuseRunModule` right after the copy, each failure written to the module log through `writeToLog` before it throws.
+- `buildRunPackageIntoTmp` validates through the same function, reads metadata with `readParquetQueryMetadata` from the serving file and stamps `parquet: "outputs/<moduleId>/<id>"`; `buildResultsObjectParquet`, `readCsvHeaders`, `computeResultsObjectColumnsToExclude` and `writeNormalizedResultsObjectParquet` are gone, with the per-results-object degrade (ruling 8).
+- `runResultsObjectSchema` carries `parquet: z.string().nullable()` in place of `hasParquet`; `RUN_MANIFEST_SCHEMA_VERSION` is 16; transform block 14 does ruling 10 and `run_manifest_transform_test.ts` pins it (a v15 package with one `true` and one `false` entry); the header comment of `run_manifest.ts` and PROTOCOL_APP_MIGRATIONS's worked list name v16. `run_read.ts` reads `ro.parquet` at its four `hasParquet` sites (263, 1012, 1109, 1192) and `runResultsObjectParquetPath` is deleted.
+- The two HFA id gates test for `M10_hfa_results_variants.parquet` and `M10_hfa_response_status.parquet`.
+- The query rig writes each fixture's results object with `writeRowsToParquet` under the fixture's declared types, and fixture ids end in `.parquet`. `m012_expression_parity_test.ts` writes `M2_adjusted_data.parquet` and `population.parquet` through `writeRowsToParquet` and reads `M12_indicator_values.parquet` through `executeSqlOverParquet`; `population_coverage_issue_test.ts`'s fixture id ends in `.parquet`.
+- Docs: SYSTEM_08 "The results package format" (the outputs tree, invariant 2 without its duplication clause, invariant 4's "post-normalization" wording, the `manifestSchemaVersion` paragraph with v16), "Results ingestion" replaced by the contract of ruling 8, "Generation" (execute and finalize), "Module outputs must derive their admin columns" unchanged, Open items ("No links" loses its remedy sentence; "Deferred" loses parquet-native R); SYSTEM_09's header and "The scoped view" name the serving file by its manifest path.
 
-**Not in this step.** The `.parquet` id rule and the period-column rule in the
-authoring schema (step 6), the R image, the module scripts.
+**Not in this step.** The `.parquet` id rule and the period-column rule in the authoring schema (step 6), the R image, the module scripts.
 
 **Gates.** The floor; `./validate_queries`.
 
@@ -494,26 +168,16 @@ authoring schema (step 6), the R image, the module scripts.
 
 Repo: this one.
 
-**Surface.** `_r_container/{Dockerfile,README.md,build}`,
-`server/worker_routines/generate_run/r_docker_image.ts`, `CLAUDE.md` (the
-line "R runs on the host with `Rscript`"), `SYSTEM_08_results_packages.md`.
+**Surface.** `_r_container/{Dockerfile,README.md,build}`, `server/worker_routines/generate_run/r_docker_image.ts`, `CLAUDE.md` (the line "R runs on the host with `Rscript`"), `SYSTEM_08_results_packages.md`.
 
 **Deliverable.**
 
-- `_r_container/Dockerfile` installs `arrow` after the packages it has;
-  `build` builds the one tag of ruling 12 and pushes it only when told to;
-  the README states the tag, the bump rule, the host requirement and that the
-  push precedes the deploy of the app that names the tag, and no longer names
-  `run_module_iterator.ts`. `R_DOCKER_IMAGE_TAG` is
-  `timroberton/comb:wb-fastr-r-2` in both modes.
-- CLAUDE.md: "R runs on the host with `Rscript` and the `arrow` package".
-  SYSTEM_08 "Generation" states the tag and its rule.
+- `_r_container/Dockerfile` installs `arrow` after the packages it has; `build` builds the one tag of ruling 12 and pushes it only when told to; the README states the tag, the bump rule, the host requirement and that the push precedes the deploy of the app that names the tag, and no longer names `run_module_iterator.ts`. `R_DOCKER_IMAGE_TAG` is `timroberton/comb:wb-fastr-r-2` in both modes.
+- CLAUDE.md: "R runs on the host with `Rscript` and the `arrow` package". SYSTEM_08 "Generation" states the tag and its rule.
 
 **Not in this step.** Module scripts; the push.
 
-**Gates.** The floor. The image built locally:
-`docker run --rm timroberton/comb:wb-fastr-r-2 Rscript -e 'library(arrow); library(INLA)'`
-exits 0.
+**Gates.** The floor. The image built locally: `docker run --rm timroberton/comb:wb-fastr-r-2 Rscript -e 'library(arrow); library(INLA)'` exits 0.
 
 **Ends with.** One commit.
 
@@ -521,66 +185,29 @@ exits 0.
 
 Repo: wb-fastr-modules, branch `parquet` created from `main` (ruling 13).
 
-**Surface.** `m001 m002 m005 m006 m009 m010 m011 m012`: `script.R`,
-`_core.ts`, `_results_objects.ts`, `_metrics.ts` or `_metrics/*.ts`
-(`resultsObjectId`), every `definition.json` (regenerated); `DOC_MODULES.md`;
-`.gitignore`.
+**Surface.** `m001 m002 m005 m006 m009 m010 m011 m012`: `script.R`, `_core.ts`, `_results_objects.ts`, `_metrics.ts` or `_metrics/*.ts` (`resultsObjectId`), every `definition.json` (regenerated); `DOC_MODULES.md`; `.gitignore`.
 
 **Deliverable.**
 
-- Every results object id ends in `.parquet` (`M1_output_outliers.csv` →
-  `M1_output_outliers.parquet`), in the declarations, the metrics, the
-  `results_object` data sources and the scripts. m001 and m002 drop
-  `quarter_id` and `year` from their declarations (ruling 9).
-- Every script reads parquet and writes parquet with `arrow`: a header probe
-  reads the schema alone (`arrow::open_dataset(path)$schema$names`), never the
-  rows; a `fread(select = …)` becomes
-  `as.data.table(arrow::read_parquet(path, col_select = …))`; a `read.csv`
-  becomes `as.data.frame(arrow::read_parquet(path))`, so base-frame indexing
-  keeps its semantics; a `readr::read_csv` becomes `arrow::read_parquet`.
-  Every write is `arrow::write_parquet(frame, id)` with the frame's columns
-  typed per the declaration (`as.integer`, `as.numeric`, `as.character`),
-  header-only outputs included (m001's dummy frames, m010's `writeLines`
-  header and empty variants, m011's `write_admin` empty branch, m012's empty
-  output). No `na =`, `row.names =`, `fileEncoding =` arguments remain.
-  Frontmatter defaults above `#---` name parquet files.
-- Repo assets (m005's `survey_data_unified.csv`,
-  `population_estimates_only.csv`) stay as they are (ruling 1).
-- `DOC_MODULES.md` states the contract: parquet in and out, the declared types
-  as the file's types, a declared column may be absent, one period column and
-  no `month`, typed empty frames, the `#---` rule with parquet examples, and
-  the `.parquet` id rule. `.gitignore` ignores `*.parquet` beside the
-  `M1_*.csv` lines.
+- Every results object id ends in `.parquet` (`M1_output_outliers.csv` → `M1_output_outliers.parquet`), in the declarations, the metrics, the `results_object` data sources and the scripts. m001 and m002 drop `quarter_id` and `year` from their declarations (ruling 9).
+- Every script reads parquet and writes parquet with `arrow`: a header probe reads the schema alone (`arrow::open_dataset(path)$schema$names`), never the rows; a `fread(select = …)` becomes `as.data.table(arrow::read_parquet(path, col_select = …))`; a `read.csv` becomes `as.data.frame(arrow::read_parquet(path))`, so base-frame indexing keeps its semantics; a `readr::read_csv` becomes `arrow::read_parquet`. Every write is `arrow::write_parquet(frame, id)` with the frame's columns typed per the declaration (`as.integer`, `as.numeric`, `as.character`), header-only outputs included (m001's dummy frames, m010's `writeLines` header and empty variants, m011's `write_admin` empty branch, m012's empty output). No `na =`, `row.names =`, `fileEncoding =` arguments remain. Frontmatter defaults above `#---` name parquet files.
+- Repo assets (m005's `survey_data_unified.csv`, `population_estimates_only.csv`) stay as they are (ruling 1).
+- `DOC_MODULES.md` states the contract: parquet in and out, the declared types as the file's types, a declared column may be absent, one period column and no `month`, typed empty frames, the `#---` rule with parquet examples, and the `.parquet` id rule. `.gitignore` ignores `*.parquet` beside the `M1_*.csv` lines.
 
-**Not in this step.** The authoring schema (step 6); the vendored copy (step
-7).
+**Not in this step.** The authoring schema (step 6); the vendored copy (step 7).
 
-**Gates.** The modules repo's floor (§0). In this repo:
-`deno task test:files server/tests/m012_expression_parity_test.ts` (it runs
-the real script on the host `Rscript`); on the dev
-instance `generate_package.ts parquet-port --families hmis,hfa,iceh --modules
-m012,m001,m002,m011,m005,m006,m010,m009` ends `ready`, and
-`compare_packages.ts parquet-baseline parquet-port` reports no difference for
-every results object (ruling 15).
+**Gates.** The modules repo's floor (§0). In this repo: `deno task test:files server/tests/m012_expression_parity_test.ts` (it runs the real script on the host `Rscript`); on the dev instance `generate_package.ts parquet-port --families hmis,hfa,iceh --modules
+m012,m001,m002,m011,m005,m006,m010,m009` ends `ready`, and `compare_packages.ts parquet-baseline parquet-port` reports no difference for every results object (ruling 15).
 
-**Ends with.** One commit per module plus one for the docs, each green on the
-modules floor; the parity gate runs on the last.
+**Ends with.** One commit per module plus one for the docs, each green on the modules floor; the parity gate runs on the last.
 
 ### Step 6: The authoring schema
 
 Repo: this one.
 
-**Surface.** `lib/types/_module_definition_github.ts`,
-`server/tests/run_generation_module_options_test.ts`,
-`SYSTEM_08_results_packages.md`.
+**Surface.** `lib/types/_module_definition_github.ts`, `server/tests/run_generation_module_options_test.ts`, `SYSTEM_08_results_packages.md`.
 
-**Deliverable.** `resultsObjectDefinitionGithub` refines `id` to
-`/^[A-Za-z0-9_]+\.parquet$/` and the column schema to at most one of
-`period_id`, `quarter_id`, `year` and no `month` (ruling 9), each with a
-message naming the rule; the installed schema is untouched. The module-options
-test keeps passing against the ported checkout. SYSTEM_08 "Loading" states both
-rules and the release order of ruling 14 beside the deploy-order rule it
-already carries.
+**Deliverable.** `resultsObjectDefinitionGithub` refines `id` to `/^[A-Za-z0-9_]+\.parquet$/` and the column schema to at most one of `period_id`, `quarter_id`, `year` and no `month` (ruling 9), each with a message naming the rule; the installed schema is untouched. The module-options test keeps passing against the ported checkout. SYSTEM_08 "Loading" states both rules and the release order of ruling 14 beside the deploy-order rule it already carries.
 
 **Not in this step.** The vendored copy.
 
@@ -592,12 +219,9 @@ already carries.
 
 Repo: wb-fastr-modules, branch `parquet`.
 
-**Surface.** `.validation/_module_definition_github.ts`,
-`.validation/conditional_formatting_standalone.ts`,
-`.validation/disaggregation_options.ts`, every `definition.json`.
+**Surface.** `.validation/_module_definition_github.ts`, `.validation/conditional_formatting_standalone.ts`, `.validation/disaggregation_options.ts`, every `definition.json`.
 
-**Deliverable.** `./vendor_schema` run; definitions rebuilt and validating
-under the new rules.
+**Deliverable.** `./vendor_schema` run; definitions rebuilt and validating under the new rules.
 
 **Not in this step.** Anything else.
 
@@ -607,19 +231,14 @@ under the new rules.
 
 ## §5 Out of scope
 
-- Shipping anything: the image push, the fleet deploy and the merge of
-  `parquet` into the modules repo's `main` happen after the plan closes.
-- Renaming `createTableStatementPossibleColumns` or its `TEXT NOT NULL`
-  vocabulary; enforcing `NOT NULL`.
-- A CSV conversion on download. Downloads serve the stored parquet (ruling
-  17).
+- Shipping anything: the image push, the fleet deploy and the merge of `parquet` into the modules repo's `main` happen after the plan closes.
+- Renaming `createTableStatementPossibleColumns` or its `TEXT NOT NULL` vocabulary; enforcing `NOT NULL`.
+- A CSV conversion on download. Downloads serve the stored parquet (ruling 17).
 - Repo assets in parquet: m005's two backbones stay authored CSV.
-- Removing the runs-volume mount from the fleet's Postgres containers: hosting
-  configuration outside this repo; nothing reads it after step 2.
+- Removing the runs-volume mount from the fleet's Postgres containers: hosting configuration outside this repo; nothing reads it after step 2.
 - `checkSpaceForModuleRun` and the volume-resize call.
 - The v1 branch of the modules repo and version 1 instances.
-- The two open items S08 lists for script parameter escaping and the registry
-  label lookup.
+- The two open items S08 lists for script parameter escaping and the registry label lookup.
 
 ## §6 Log
 

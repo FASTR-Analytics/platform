@@ -22,51 +22,23 @@ docs_absorbed:
 
 # S10: Figure Rendering & Export Engine
 
-Pure transforms from data+config to pixels and files: a stored **FigureBundle**
-rebuilt to panther `FigureInputs` by one `buildFigureInputs` transform,
-slide→page rendering, PDF/PPTX/DOCX export.
+Pure transforms from data+config to pixels and files: a stored **FigureBundle** rebuilt to panther `FigureInputs` by one `buildFigureInputs` transform, slide→page rendering, PDF/PPTX/DOCX export.
 
 ## Scope
 
-The `globs:` frontmatter above is the lint-enforced manifest
-(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
-`client/src/generate_visualization/**` (`buildFigureInputs`, the bundle resolver
-`resolve_figure_from_metric.ts` + `resolve_bundle_from_metric_and_config.ts`,
-the stale predicate `figure_staleness.ts`, special chart modes, the
-conditional-formatting compile path, `GLOBAL_STYLE_OPTIONS`);
-`generate_slide_deck/**` (`convertSlideToPageInputs`); `generate_report/**` (the
-app's half of report rendering: figure rasters and their ink, below; the
-document builder itself is Report Forge's, S12); `client/src/exports/**` (incl.
-`get_table_export_aoa.ts`); lib render contracts (`_figure_bundle.ts`,
-`brand_presets.ts`, `key_colors.ts`, slide-font types);
-`state/products/t2_images.ts`; the two schema and predicate pins under
-`server/tests/` (`figure_bundle_schema_test.ts`, `figure_staleness_test.ts`).
-Non-lint assets reviewed here: `client/src/font-map.json` and
-`client/public/fonts/` (102 font files plus `fonts.css`, `font-preload.html` and
-`font-map.json`).
+The `globs:` frontmatter above is the lint-enforced manifest (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1. `client/src/generate_visualization/**` (`buildFigureInputs`, the bundle resolver `resolve_figure_from_metric.ts` + `resolve_bundle_from_metric_and_config.ts`, the stale predicate `figure_staleness.ts`, special chart modes, the conditional-formatting compile path, `GLOBAL_STYLE_OPTIONS`); `generate_slide_deck/**` (`convertSlideToPageInputs`); `generate_report/**` (the app's half of report rendering: figure rasters and their ink, below; the document builder itself is Report Forge's, S12); `client/src/exports/**` (incl. `get_table_export_aoa.ts`); lib render contracts (`_figure_bundle.ts`, `brand_presets.ts`, `key_colors.ts`, slide-font types); `state/products/t2_images.ts`; the two schema and predicate pins under `server/tests/` (`figure_bundle_schema_test.ts`, `figure_staleness_test.ts`). Non-lint assets reviewed here: `client/src/font-map.json` and `client/public/fonts/` (102 font files plus `fonts.css`, `font-preload.html` and `font-map.json`).
 
 ## Contract
 
-One renderer per artifact class shared by screen and export; stored snapshots
-are pure-JSON FigureBundles rebuilt to transient `FigureInputs` at render by
-`buildFigureInputs`. Render never re-queries. `figureBundleSchema` (strict Zod,
-[lib/types/_figure_bundle.ts](lib/types/_figure_bundle.ts)) binds every stored
-figure block across both document surfaces; the legacy-block repair arm is S2's
-`_figure_block.ts` transform (co-reviewed).
+One renderer per artifact class shared by screen and export; stored snapshots are pure-JSON FigureBundles rebuilt to transient `FigureInputs` at render by `buildFigureInputs`. Render never re-queries. `figureBundleSchema` (strict Zod, [lib/types/_figure_bundle.ts](lib/types/_figure_bundle.ts)) binds every stored figure block across both document surfaces; the legacy-block repair arm is S2's `_figure_block.ts` transform (co-reviewed).
 
 ## FigureBundle architecture
 
-This section is the authoritative description of the FigureBundle. Sibling
-slices live in S9 (the upstream capture side), S12 (the two storage surfaces),
-and S2 (the boot-time backfill). The stale badge is built (see "The captured
-pair and staleness" below); the deferred Visualization rename is in Open items.
+This section is the authoritative description of the FigureBundle. Sibling slices live in S9 (the upstream capture side), S12 (the two storage surfaces), and S2 (the boot-time backfill). The stale badge is built (see "The captured pair and staleness" below); the deferred Visualization rename is in Open items.
 
 ### The idea
 
-The snapshot surfaces (slides and reports) store the **upstream inputs** of a
-figure as a pure-JSON `FigureBundle` and build `FigureInputs`, panther's
-post-transform render artifact, at render time, with the same transform the live
-editor runs each reactive tick.
+The snapshot surfaces (slides and reports) store the **upstream inputs** of a figure as a pure-JSON `FigureBundle` and build `FigureInputs`, panther's post-transform render artifact, at render time, with the same transform the live editor runs each reactive tick.
 
 ```text
 FigureBundle  ──buildFigureInputs()──▶  FigureInputs  ──panther──▶  pixels
@@ -74,29 +46,14 @@ FigureBundle  ──buildFigureInputs()──▶  FigureInputs  ──panther─
  or transient for the live viz)          never persisted)
 ```
 
-Storing `FigureInputs` instead is ruled out for four reasons, each a property of
-that type:
+Storing `FigureInputs` instead is ruled out for four reasons, each a property of that type:
 
-1. **Schema-invisible drift.** `FigureInputs` is panther's internal shape;
-   stored copies would sit behind `z.unknown()` in every document schema,
-   invisible to the migration skip-gate, and every panther shape change would
-   mean hand-migrating frozen blobs.
-2. **A serializability hazard.** `FigureInputs.style` is full of **functions**
-   (`seriesColorFunc`, `valuesColorFunc`, `TableCellInfoFunc`, …) that cannot go
-   into Postgres JSON / IndexedDB, so a stored copy would need a strip-on-write,
-   rebuild-on-read pipeline.
-3. **A half-live inconsistency.** `style`, `formatAs` and `geo` are re-derived
-   live at render; freezing `caption`, labels, sort and data beside them lets a
-   metric `formatAs` flip render a "percent" style over a frozen "number"
-   caption.
-4. **The undefined sentinel.** Gap cells and optional `*Prop` fields in the
-   transformed grid are legitimately `undefined`, and `JSON.stringify` drops
-   `undefined` (shifting array indices, losing keys), so a stored grid would
-   need an encode/decode layer on every wire path.
+1. **Schema-invisible drift.** `FigureInputs` is panther's internal shape; stored copies would sit behind `z.unknown()` in every document schema, invisible to the migration skip-gate, and every panther shape change would mean hand-migrating frozen blobs.
+2. **A serializability hazard.** `FigureInputs.style` is full of **functions** (`seriesColorFunc`, `valuesColorFunc`, `TableCellInfoFunc`, …) that cannot go into Postgres JSON / IndexedDB, so a stored copy would need a strip-on-write, rebuild-on-read pipeline.
+3. **A half-live inconsistency.** `style`, `formatAs` and `geo` are re-derived live at render; freezing `caption`, labels, sort and data beside them lets a metric `formatAs` flip render a "percent" style over a frozen "number" caption.
+4. **The undefined sentinel.** Gap cells and optional `*Prop` fields in the transformed grid are legitimately `undefined`, and `JSON.stringify` drops `undefined` (shifting array indices, losing keys), so a stored grid would need an encode/decode layer on every wire path.
 
-Because the bundle is pure JSON (frozen `items` are plain query rows; no
-transformed grid; no functions), it needs none of that: there is no
-strip/hydrate pipeline and no sentinel layer.
+Because the bundle is pure JSON (frozen `items` are plain query rows; no transformed grid; no functions), it needs none of that: there is no strip/hydrate pipeline and no sentinel layer.
 
 ### Vocabulary
 
@@ -108,17 +65,11 @@ strip/hydrate pipeline and no sentinel layer.
 | **FigureInputs**                                    | Panther's transient render-input type. **Never persisted** under this design.                        | In-memory |
 | **`buildFigureInputs(bundle, deckStyle?)`**         | The one transform inputs → `FigureInputs`.                                                           | none      |
 
-The rename of _presentation object_ → _Visualization_ end-to-end
-(`PresentationObjectConfig` and its kin) is deliberately **not** part of this
-work. It is a separable mechanical pass (see Open items), so the PO names stay
-in code.
+The rename of _presentation object_ → _Visualization_ end-to-end (`PresentationObjectConfig` and its kin) is deliberately **not** part of this work. It is a separable mechanical pass (see Open items), so the PO names stay in code.
 
 ### The bundle shape
 
-Defined in [lib/types/_figure_bundle.ts](lib/types/_figure_bundle.ts):
-`figureBundleSchema` (a `z.strictObject`) and the document-embedded wrapper
-`figureBlockSchema = { type: "figure", bundle?: FigureBundle }` (bundle absent =
-empty placeholder). Every field is plain JSON; nothing is stripped on write.
+Defined in [lib/types/_figure_bundle.ts](lib/types/_figure_bundle.ts): `figureBundleSchema` (a `z.strictObject`) and the document-embedded wrapper `figureBlockSchema = { type: "figure", bundle?: FigureBundle }` (bundle absent = empty placeholder). Every field is plain JSON; nothing is stripped on write.
 
 ```ts
 FigureBundle = {
@@ -143,373 +94,96 @@ FigureBundle = {
 };
 ```
 
-`scope` and `provenance.runId` record what the bundle was resolved under: the
-package, and the hash of the scope's definition at that moment
-(`scopeDefinitionHash`, `lib/types/scope.ts`). The bundle records the hash and
-not the scope's id. `adminArea2` is the area the definition holds the figure's
-own family to (the HMIS section's for an HMIS metric, the HFA section's for an
-HFA one, null for ICEH, which has no geography), kept because the roll-up row
-label is rendered from the frozen bundle (below). Every assembly site stamps
-them from its container's `PackageScope` (the product's live
-`{ runId, scopeId }`, read from the T1 products row by the deck and report
-editors) through `figureScopeStamp(scope, scopeToken, family)`
-(`client/src/state/instance/t1_store.ts`), which takes the hash from the
-`scopeToken` of the payload the bundle is built from (the definition the server
-computed the rows under) and the area from the T1 scopes list, by the metric's
-family: the metric-keyed resolvers, `makeFigureBundleFromFetchedData` and the
-live editor's transient bundle. A bundle backfilled by the stored-figure
-transform keeps the area its product had, whatever the figure's family (S2). The
-stamp lives on the bundle and never in `config`, so it stays out of the fetch
-hash (S9). Both are required, and a definition with no area is an explicit
-`adminArea2: null`. The pin is `server/tests/figure_bundle_schema_test.ts`.
+`scope` and `provenance.runId` record what the bundle was resolved under: the package, and the hash of the scope's definition at that moment (`scopeDefinitionHash`, `lib/types/scope.ts`). The bundle records the hash and not the scope's id. `adminArea2` is the area the definition holds the figure's own family to (the HMIS section's for an HMIS metric, the HFA section's for an HFA one, null for ICEH, which has no geography), kept because the roll-up row label is rendered from the frozen bundle (below). Every assembly site stamps them from its container's `PackageScope` (the product's live `{ runId, scopeId }`, read from the T1 products row by the deck and report editors) through `figureScopeStamp(scope, scopeToken, family)` (`client/src/state/instance/t1_store.ts`), which takes the hash from the `scopeToken` of the payload the bundle is built from (the definition the server computed the rows under) and the area from the T1 scopes list, by the metric's family: the metric-keyed resolvers, `makeFigureBundleFromFetchedData` and the live editor's transient bundle. A bundle backfilled by the stored-figure transform keeps the area its product had, whatever the figure's family (S2). The stamp lives on the bundle and never in `config`, so it stays out of the fetch hash (S9). Both are required, and a definition with no area is an explicit `adminArea2: null`. The pin is `server/tests/figure_bundle_schema_test.ts`.
 
-**Why `resultsValue` is a projection, not the whole metric (proven, not
-asserted):** `buildFigureInputs` and every downstream builder
-(`get*JsonDataConfig`, `getDisaggregatorDisplayProp`) is typed to
-`ResultsValueForVisualization` (`lib/types/modules.ts`) = exactly
-`{formatAs,
-valueProps, valueLabelReplacements?}`. The type system guarantees
-the build _cannot_ read a fourth metric field, so the bundle stores that
-existing type verbatim. `IndicatorMetadata`, `PeriodBounds`, and
-`ResultsValueForVisualization` are all reused, not redefined, and each
-sub-schema is `z.strictObject` locked to a `Required<T>` parse so a new field in
-the source type is a compile error here (the stored shape can't silently drift
-past the skip-gate).
+**Why `resultsValue` is a projection, not the whole metric (proven, not asserted):** `buildFigureInputs` and every downstream builder (`get*JsonDataConfig`, `getDisaggregatorDisplayProp`) is typed to `ResultsValueForVisualization` (`lib/types/modules.ts`) = exactly `{formatAs,
+valueProps, valueLabelReplacements?}`. The type system guarantees the build _cannot_ read a fourth metric field, so the bundle stores that existing type verbatim. `IndicatorMetadata`, `PeriodBounds`, and `ResultsValueForVisualization` are all reused, not redefined, and each sub-schema is `z.strictObject` locked to a `Required<T>` parse so a new field in the source type is a compile error here (the stored shape can't silently drift past the skip-gate).
 
 ### `buildFigureInputs`: one transform, two item sources
 
-[client/src/generate_visualization/build_figure_inputs.ts](client/src/generate_visualization/build_figure_inputs.ts).
-Signature `buildFigureInputs(bundle, deckStyle?, chartPalette?)`, returning
-`{ ok: true, inputs: FigureInputs } | { ok: false, unavailable: FigureUnavailable }`.
-It does three things in one pass: the data transform
-(`getTimeseriesDataTransformed` + the `get*JsonDataConfig` builders), style
-derivation, and geo resolution. It then branches on `effectiveConfig.d.type`
-(timeseries / table / chart / map / pie). A state the user can act on is the
-`ok: false` result, never a throw: `FigureUnavailable`
-([lib/types/\_figure_bundle.ts](lib/types/_figure_bundle.ts)) carries data and
-no sentence, and today one state is built, a map whose boundaries are not in the
-instance's store (`no_boundaries`, `source: "instance"`, with the family and
-level). The display writes the words: `describeFigureUnavailable` in
-`components/_shared/figure_preview.ts` is the one localized wording, used by the
-report embed, the explore preview and the figure editor; the raster, the HTML
-export and the slide converter degrade to their placeholder or `missing` state;
-the AI tool path raises its `AIToolFailure` from the reason. Everything else is
-a bug and **throws** (callers catch). Timeseries and pie transform their data
-eagerly (`get*DataTransformed`) so transform-time throws (e.g. pie's
-negative-value rejection) surface inside the caller's catch rather than at
-measure time in panther; the other types pass `{jsonArray, jsonDataConfig}`
-untransformed. Pie never passes an explicit legend: CF is unwired for slices
-(they color via the series sentinel), so a carried `cf*` state must not surface
-a threshold/scale legend; panther derives the categorical slice legend from
-series headers, swatched by the same `seriesColorFunc` as the slices.
+[client/src/generate_visualization/build_figure_inputs.ts](client/src/generate_visualization/build_figure_inputs.ts). Signature `buildFigureInputs(bundle, deckStyle?, chartPalette?)`, returning `{ ok: true, inputs: FigureInputs } | { ok: false, unavailable: FigureUnavailable }`. It does three things in one pass: the data transform (`getTimeseriesDataTransformed` + the `get*JsonDataConfig` builders), style derivation, and geo resolution. It then branches on `effectiveConfig.d.type` (timeseries / table / chart / map / pie). A state the user can act on is the `ok: false` result, never a throw: `FigureUnavailable` ([lib/types/\_figure_bundle.ts](lib/types/_figure_bundle.ts)) carries data and no sentence, and today one state is built, a map whose boundaries are not in the instance's store (`no_boundaries`, `source: "instance"`, with the family and level). The display writes the words: `describeFigureUnavailable` in `components/_shared/figure_preview.ts` is the one localized wording, used by the report embed, the explore preview and the figure editor; the raster, the HTML export and the slide converter degrade to their placeholder or `missing` state; the AI tool path raises its `AIToolFailure` from the reason. Everything else is a bug and **throws** (callers catch). Timeseries and pie transform their data eagerly (`get*DataTransformed`) so transform-time throws (e.g. pie's negative-value rejection) surface inside the caller's catch rather than at measure time in panther; the other types pass `{jsonArray, jsonDataConfig}` untransformed. Pie never passes an explicit legend: CF is unwired for slices (they color via the series sentinel), so a carried `cf*` state must not surface a threshold/scale legend; panther derives the categorical slice legend from series headers, swatched by the same `seriesColorFunc` as the slices.
 
 The elegant consequence the whole design turns on:
 
-> **A FigureBundle is precisely the argument set `buildFigureInputs` consumes.**
-> A snapshot is literally "capture the current build inputs into a bundle." One
-> build function, two item sources: **live query** vs **baked items**.
+> **A FigureBundle is precisely the argument set `buildFigureInputs` consumes.** A snapshot is literally "capture the current build inputs into a bundle." One build function, two item sources: **live query** vs **baked items**.
 
 | Caller                                                                                  | Surface                    | Items               | Localization source                                       |
 | --------------------------------------------------------------------------------------- | -------------------------- | ------------------- | --------------------------------------------------------- |
 | `figure_editor.tsx` (the live FigureInputs memo), `insert_figure/preset_preview.tsx`    | **Live editor draft**      | live query          | the edited figure's own, a **transient** bundle each tick |
 | `convert_slide_to_page_inputs.ts`, `report_figure_embed.tsx`, `exports/**`, AI previews | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                            |
 
-So the live editor and every stored figure run **identical code**, and a figure
-renders identically to the draft it was captured from when the two pairs match:
-the stored bundle carries the scope it was resolved under, and the live editor's
-transient bundle carries the host product's, so the same `buildFigureInputs`
-path labels both the same way. `deckStyle?` is the deck-level theme; slides pass
-it, the others omit it.
+So the live editor and every stored figure run **identical code**, and a figure renders identically to the draft it was captured from when the two pairs match: the stored bundle carries the scope it was resolved under, and the live editor's transient bundle carries the host product's, so the same `buildFigureInputs` path labels both the same way. `deckStyle?` is the deck-level theme; slides pass it, the others omit it.
 
 ### The four invariants (load-bearing)
 
-1. **Render never re-queries.** A figure renders only from its baked `items`;
-   `metricId` exists _solely_ for the explicit (future) "Update data" action.
-2. **The bundle is pure serializable JSON**: no functions,
-   structured-clone-safe, no `undefined`-valued keys (absent, not `undefined`).
+1. **Render never re-queries.** A figure renders only from its baked `items`; `metricId` exists _solely_ for the explicit (future) "Update data" action.
+2. **The bundle is pure serializable JSON**: no functions, structured-clone-safe, no `undefined`-valued keys (absent, not `undefined`).
 3. **One build function** serves both the live visualization and stored figures.
-4. **`FigureInputs` is transient**: built at render, handed to panther, never
-   persisted.
+4. **`FigureInputs` is transient**: built at render, handed to panther, never persisted.
 
 ### Localization is captured, not ambient (the rule that prevents regressions)
 
-The principle, in Tim's words: **capture locale into the bundle and use the
-bundle's locale for ALL rendering: every surface, never an ambient read.**
-`localization = {language, calendar, countryIso3, fiscalYear}` is frozen in the
-bundle exactly like `config` and `items`, and `buildFigureInputs` resolves
-**all** figure text/dates from `bundle.localization` only. It must **never**
-read or write the global `t3`/`getCalendar`/`getLanguage` singletons.
+The principle, in Tim's words: **capture locale into the bundle and use the bundle's locale for ALL rendering: every surface, never an ambient read.** `localization = {language, calendar, countryIso3, fiscalYear}` is frozen in the bundle exactly like `config` and `items`, and `buildFigureInputs` resolves **all** figure text/dates from `bundle.localization` only. It must **never** read or write the global `t3`/`getCalendar`/`getLanguage` singletons.
 
-- **What a NEW figure captures = the INSTANCE locale**, not the per-user UI
-  toggle: `getSnapshotInstanceLocalization()`
-  (`client/src/state/instance/t1_store.ts`) returns
-  `{language, calendar, countryIso3, fiscalYear}` read from the instance state.
-  Figures are instance-language artifacts. The instance read belongs to the
-  create and preview call sites only: the insert wizard and its previews, the
-  explore view, the package's preset viewer, the AI's `from_metric` create.
-- **An EXISTING figure carries its own locale forward.**
-  `makeFigureBundleFromFetchedData` takes `localization` as an argument and
-  reads no store, so every rebuild of a stored figure (the editor's coherent
-  bundle and its close, "Update to \<package\>", `update_figure`,
-  `update_report_figure`) passes that figure's `bundle.localization` back in.
-  Rebuilding is for data and config; it is not a reason to relabel a figure, and
-  before this was threaded an edit made after `INSTANCE_LANGUAGE` changed would
-  flip a figure's legend while its stored caption stayed put.
-- **A preset's caption resolves in the figure's language, not the viewer's.**
-  `deriveConfigFromVizPreset` collapses the preset's `TranslatableString`
-  captions to the plain strings the config stores, so the language it is given
-  is baked in: the insert wizard and the explore view pass the instance's, the
-  same one the figure's bundle will carry. (Captions are user content from the
-  moment the author edits them, so they are never re-resolved; only this
-  pre-fill has a language to choose.)
-- **The threaded reads** (all app-side; panther unchanged): every language read
-  in the build path is an explicit `pickLang(bundle.localization.language,
-  …)`
-  (`lib/translate/t-func.ts`), never `t3`; `withReplicant` takes
-  `bundle.localization.countryIso3`; chart/table calendar comes from
-  `bundle.localization.calendar`.
-- **Timeseries period axis** is the one string panther formats itself, and it
-  reads its calendar from the **figure style** (`style.xPeriodAxis.calendar`,
-  set by the timeseries builders `get_style_from_po/_{1..4}` and
-  `_6_disruptions_v2`), so it's a calendar concern handled by the same bundle
-  thread, **not** a new `TimeseriesInputs` prop or a `FigureInputs`-shape change
-  (panther's period formatting is calendar-only, no language).
-- **Fiscal-year reporting is a figure-style calendar, nothing more.**
-  [resolve_figure_calendar.ts](lib/resolve_figure_calendar.ts) is the ONE place
-  `INSTANCE_FISCAL_YEAR=july` becomes a panther calendar: it returns
-  `"gregorian-fy-july"` only for a gregorian, quarterly, timeseries figure and
-  otherwise passes `localization.calendar` through. `get_style_from_po.ts` calls
-  it, so the relabeled axis (large ticks on July, band reading FY2025/26) rides
-  the same bundle thread as every other calendar decision. It changes nothing
-  about how periods are stored, filtered, sorted or fetched. The period-range
-  filter above a chart still reads calendar quarters, which is intended. The
-  three guards are load-bearing (quarterly-only, timeseries-only,
-  gregorian-only); the server also refuses fiscal-year + Ethiopian at boot
-  ([exposed_env_vars.ts](server/exposed_env_vars.ts)), and this function is the
-  second line of defence that protects already-stored bundles.
-- **Figures are always instance-language.** A Senegal figure carries French
-  legends whatever the author's session language; the EN/FR UI toggle is
-  **chrome-only** (menus/buttons). The live editor preview uses the edited
-  figure's own language, which for a new figure is the instance's (WYSIWYG:
-  preview == capture == what every viewer sees).
-- **Why frozen-in-bundle and not "pass current env":** export surfaces (PDF,
-  PPTX, emailed decks) have _no_ ambient env to read, so the bundle must carry
-  its own. Making it always-frozen (rather than per-surface A/B) is the simpler,
-  single rule.
+- **What a NEW figure captures = the INSTANCE locale**, not the per-user UI toggle: `getSnapshotInstanceLocalization()` (`client/src/state/instance/t1_store.ts`) returns `{language, calendar, countryIso3, fiscalYear}` read from the instance state. Figures are instance-language artifacts. The instance read belongs to the create and preview call sites only: the insert wizard and its previews, the explore view, the package's preset viewer, the AI's `from_metric` create.
+- **An EXISTING figure carries its own locale forward.** `makeFigureBundleFromFetchedData` takes `localization` as an argument and reads no store, so every rebuild of a stored figure (the editor's coherent bundle and its close, "Update to \<package\>", `update_figure`, `update_report_figure`) passes that figure's `bundle.localization` back in. Rebuilding is for data and config; it is not a reason to relabel a figure, and before this was threaded an edit made after `INSTANCE_LANGUAGE` changed would flip a figure's legend while its stored caption stayed put.
+- **A preset's caption resolves in the figure's language, not the viewer's.** `deriveConfigFromVizPreset` collapses the preset's `TranslatableString` captions to the plain strings the config stores, so the language it is given is baked in: the insert wizard and the explore view pass the instance's, the same one the figure's bundle will carry. (Captions are user content from the moment the author edits them, so they are never re-resolved; only this pre-fill has a language to choose.)
+- **The threaded reads** (all app-side; panther unchanged): every language read in the build path is an explicit `pickLang(bundle.localization.language,
+  …)` (`lib/translate/t-func.ts`), never `t3`; `withReplicant` takes `bundle.localization.countryIso3`; chart/table calendar comes from `bundle.localization.calendar`.
+- **Timeseries period axis** is the one string panther formats itself, and it reads its calendar from the **figure style** (`style.xPeriodAxis.calendar`, set by the timeseries builders `get_style_from_po/_{1..4}` and `_6_disruptions_v2`), so it's a calendar concern handled by the same bundle thread, **not** a new `TimeseriesInputs` prop or a `FigureInputs`-shape change (panther's period formatting is calendar-only, no language).
+- **Fiscal-year reporting is a figure-style calendar, nothing more.** [resolve_figure_calendar.ts](lib/resolve_figure_calendar.ts) is the ONE place `INSTANCE_FISCAL_YEAR=july` becomes a panther calendar: it returns `"gregorian-fy-july"` only for a gregorian, quarterly, timeseries figure and otherwise passes `localization.calendar` through. `get_style_from_po.ts` calls it, so the relabeled axis (large ticks on July, band reading FY2025/26) rides the same bundle thread as every other calendar decision. It changes nothing about how periods are stored, filtered, sorted or fetched. The period-range filter above a chart still reads calendar quarters, which is intended. The three guards are load-bearing (quarterly-only, timeseries-only, gregorian-only); the server also refuses fiscal-year + Ethiopian at boot ([exposed_env_vars.ts](server/exposed_env_vars.ts)), and this function is the second line of defence that protects already-stored bundles.
+- **Figures are always instance-language.** A Senegal figure carries French legends whatever the author's session language; the EN/FR UI toggle is **chrome-only** (menus/buttons). The live editor preview uses the edited figure's own language, which for a new figure is the instance's (WYSIWYG: preview == capture == what every viewer sees).
+- **Why frozen-in-bundle and not "pass current env":** export surfaces (PDF, PPTX, emailed decks) have _no_ ambient env to read, so the bundle must carry its own. Making it always-frozen (rather than per-surface A/B) is the simpler, single rule.
 
 ### Geo
 
-`GeoRef` is a discriminated union. A new bundle names its geometry:
-`makeFigureBundleFromFetchedData`, the one in-app bundle builder, writes
-`{kind:"level", level, family}` for every map, and `family` picks the `hmis` or
-`hfa` registry (absent, in a bundle stored before the split, meaning `hmis`).
-`{kind:"data", data}` is read-only history: bundles stored before the capture
-carry the instance's whole boundary file, and since a stored bundle is never
-rewritten they keep drawing their own copy; nothing writes it any more.
+`GeoRef` is a discriminated union. A new bundle names its geometry: `makeFigureBundleFromFetchedData`, the one in-app bundle builder, writes `{kind:"level", level, family}` for every map, and `family` picks the `hmis` or `hfa` registry (absent, in a bundle stored before the split, meaning `hmis`). `{kind:"data", data}` is read-only history: bundles stored before the capture carry the instance's whole boundary file, and since a stored bundle is never rewritten they keep drawing their own copy; nothing writes it any more.
 
-A `level` bundle resolves against its OWN package, `provenance.runId`, never the
-container's, through the run-geo store (`t2_run_geojson.ts`, SYSTEM_09), which
-answers in four states:
+A `level` bundle resolves against its OWN package, `provenance.runId`, never the container's, through the run-geo store (`t2_run_geojson.ts`, SYSTEM_09), which answers in four states:
 
 - `ready`: the package's captured file, drawn.
-- `loading`: the stamp, or the file it lists, has not arrived. The result is
-  `boundaries_loading`, a neutral line naming no action, and the store's version
-  signal rebuilds a tracked render when it lands. Every transition is forward: a
-  figure never draws one plane and then the other.
-- `not_in_package`: the package was generated without that level. The result is
-  `no_boundaries` with `source: "package"`, worded as a regeneration.
-- `run_unknown`: the package predates the capture (its stamp is `null`), or the
-  run is gone. The instance's file is drawn (`getGeoJsonSync`), else
-  `no_boundaries` with `source: "instance"`, worded as an upload.
+- `loading`: the stamp, or the file it lists, has not arrived. The result is `boundaries_loading`, a neutral line naming no action, and the store's version signal rebuilds a tracked render when it lands. Every transition is forward: a figure never draws one plane and then the other.
+- `not_in_package`: the package was generated without that level. The result is `no_boundaries` with `source: "package"`, worded as a regeneration.
+- `run_unknown`: the package predates the capture (its stamp is `null`), or the run is gone. The instance's file is drawn (`getGeoJsonSync`), else `no_boundaries` with `source: "instance"`, worded as an upload.
 
-This interacts with staleness. A stale map figure, one whose `provenance.runId`
-is not its container's package, draws its own package's boundaries for as long
-as that package exists, because the store and the routes are keyed by run; only
-once the run is deleted does it draw the instance's current boundaries until it
-is re-resolved, where a stale `data` bundle draws its own frozen copy. No bundle
-stored before the capture changes what it draws: a `data` bundle keeps its copy,
-and a `level` bundle sits on a pre-capture package whose `null` stamp takes
-`run_unknown`, which is the instance read it always made.
+This interacts with staleness. A stale map figure, one whose `provenance.runId` is not its container's package, draws its own package's boundaries for as long as that package exists, because the store and the routes are keyed by run; only once the run is deleted does it draw the instance's current boundaries until it is re-resolved, where a stale `data` bundle draws its own frozen copy. No bundle stored before the capture changes what it draws: a `data` bundle keeps its copy, and a `level` bundle sits on a pre-capture package whose `null` stamp takes `run_unknown`, which is the instance read it always made.
 
-A caller that builds after an await, where a sync read tracks nothing, awaits
-`awaitFigureBoundaries(bundle)` first: the slide converter (thumbnails, the
-presenter, the deck exports, the editor's page build, the copilot's drafts), the
-report raster's `rasterize` and `measure` (a failed measure is stored and never
-retried), the HTML report export, the figure preview helper and the editor's
-download. Without it a deck exported before the files land would export every
-map as a placeholder. A report's embeds and the deck rail render through a
-tracked read and take `boundaries_loading` until the files land.
+A caller that builds after an await, where a sync read tracks nothing, awaits `awaitFigureBoundaries(bundle)` first: the slide converter (thumbnails, the presenter, the deck exports, the editor's page build, the copilot's drafts), the report raster's `rasterize` and `measure` (a failed measure is stored and never retried), the HTML report export, the figure preview helper and the editor's download. Without it a deck exported before the files land would export every map as a placeholder. A report's embeds and the deck rail render through a tracked read and take `boundaries_loading` until the files land.
 
-The map branch transforms its data once (`getMapDataTransformed`, whose own call
-in panther passes a transformed input through), and
-`generate_visualization/map_coverage.ts` tallies from it how many distinct data
-areas meet a boundary of the same name, how many boundaries carry no data, and
-the matched share. A map whose data areas meet no boundary at all is the
-`no_area_matches` reason (with the data-area and boundary counts, and `source`,
-the plane the boundaries came from, so a package's frozen copy is worded as a
-regeneration) instead of an empty country, in every surface that renders it,
-decks, reports and exports included; that is the one thing the tally changes in
-a rendered product. Any other share renders, and the counts themselves are shown
-only where a figure is authored (SYSTEM_11).
+The map branch transforms its data once (`getMapDataTransformed`, whose own call in panther passes a transformed input through), and `generate_visualization/map_coverage.ts` tallies from it how many distinct data areas meet a boundary of the same name, how many boundaries carry no data, and the matched share. A map whose data areas meet no boundary at all is the `no_area_matches` reason (with the data-area and boundary counts, and `source`, the plane the boundaries came from, so a package's frozen copy is worded as a regeneration) instead of an empty country, in every surface that renders it, decks, reports and exports included; that is the one thing the tally changes in a rendered product. Any other share renders, and the counts themselves are shown only where a figure is authored (SYSTEM_11).
 
-The `resolve_figure_from_metric` resolver:
-`generate_visualization/resolve_figure_from_metric.ts` (+
-`resolve_bundle_from_metric_and_config.ts`) is the shared
-snapshot-a-figure-into-FigureBlock core consumed by the report editor
-(`report/report.tsx`) and the slide editor; the same-named file under
-`products/copilot/slide_ai/` is a thin S13 AI adapter that delegates to it.
+The `resolve_figure_from_metric` resolver: `generate_visualization/resolve_figure_from_metric.ts` (+ `resolve_bundle_from_metric_and_config.ts`) is the shared snapshot-a-figure-into-FigureBlock core consumed by the report editor (`report/report.tsx`) and the slide editor; the same-named file under `products/copilot/slide_ai/` is a thin S13 AI adapter that delegates to it.
 
 ### A bundle owns its data
 
-`makeFigureBundleFromFetchedData` (in `resolve_figure_from_metric.ts`) is the
-one place a bundle that is validated, stored or shared is assembled from fetched
-data, and `resolveFigureBundleFromMetric` builds through it rather than
-repeating the fields. It deep-copies everything it writes: `config`, `items`,
-`resultsValue`, `indicatorMetadata` and `dateRange` are
-`structuredClone(unwrap(...))` of what the caller handed over, never aliases of
-it, and `geo` is a three-field literal it builds itself. The Explore data table
-([data_table.tsx](client/src/components/explore/data_table/data_table.tsx))
-builds a transient render-only bundle of its own from the grid-items read; it is
-never validated or stored, and folding it in is S13's figure-resolution reuse
-item, not part of this contract.
+`makeFigureBundleFromFetchedData` (in `resolve_figure_from_metric.ts`) is the one place a bundle that is validated, stored or shared is assembled from fetched data, and `resolveFigureBundleFromMetric` builds through it rather than repeating the fields. It deep-copies everything it writes: `config`, `items`, `resultsValue`, `indicatorMetadata` and `dateRange` are `structuredClone(unwrap(...))` of what the caller handed over, never aliases of it, and `geo` is a three-field literal it builds itself. The Explore data table ([data_table.tsx](client/src/components/explore/data_table/data_table.tsx)) builds a transient render-only bundle of its own from the grid-items read; it is never validated or stored, and folding it in is S13's figure-resolution reuse item, not part of this contract.
 
-That is load-bearing, not hygiene. The items cache
-(`state/_infra/reactive_cache.ts`) serves its row objects BY REFERENCE, and
-callers also pass live Solid store objects (the metrics store, a preset config).
-When a bundle lands in a store (the slide editor's `tempSlide`, whose
-`trackStore` effect walks every nested child), Solid's `wrap` defines
-`Symbol(solid-proxy)` on the RAW object it reads, and that brand is permanent:
-`unwrap` swaps proxy children for their targets, it never deletes a symbol key.
+That is load-bearing, not hygiene. The items cache (`state/_infra/reactive_cache.ts`) serves its row objects BY REFERENCE, and callers also pass live Solid store objects (the metrics store, a preset config). When a bundle lands in a store (the slide editor's `tempSlide`, whose `trackStore` effect walks every nested child), Solid's `wrap` defines `Symbol(solid-proxy)` on the RAW object it reads, and that brand is permanent: `unwrap` swaps proxy children for their targets, it never deletes a symbol key.
 
-A branded object fails a `z.record` in the zod the CLIENT bundles (4.3.6): its
-record parse enumerates `Reflect.ownKeys` with no enumerability filter and
-rejects a non-string key (`client/node_modules/zod/v4/core/schemas.js:1361`), so
-`jsonArrayItemSchema`, `valueLabelReplacements` and the config's own records all
-reject it, while a `z.strictObject` uses `for...in` and never sees it. That is
-how one aliased, branded cache row made every later bundle off that cache entry
-invalid ("Invalid figure bundle at \"items.0.Symbol(solid-proxy)\"") until the
-fetch config changed. From zod 4.4.3 on, which is what `deno.lock` pins for the
-server, the record parse skips non-enumerable keys and Solid's brand is
-non-enumerable, so the SYMPTOM is contingent on the client's pin
-(`client/package.json` asks for `^4.3.6`). The aliasing is not: a bundle that is
-validated, stored or shared owns its data whichever zod the client bundles,
-which is why the fix is in the constructor and not in the schema or in the
-editor that happened to do the branding.
+A branded object fails a `z.record` in the zod the CLIENT bundles (4.3.6): its record parse enumerates `Reflect.ownKeys` with no enumerability filter and rejects a non-string key (`client/node_modules/zod/v4/core/schemas.js:1361`), so `jsonArrayItemSchema`, `valueLabelReplacements` and the config's own records all reject it, while a `z.strictObject` uses `for...in` and never sees it. That is how one aliased, branded cache row made every later bundle off that cache entry invalid ("Invalid figure bundle at \"items.0.Symbol(solid-proxy)\"") until the fetch config changed. From zod 4.4.3 on, which is what `deno.lock` pins for the server, the record parse skips non-enumerable keys and Solid's brand is non-enumerable, so the SYMPTOM is contingent on the client's pin (`client/package.json` asks for `^4.3.6`). The aliasing is not: a bundle that is validated, stored or shared owns its data whichever zod the client bundles, which is why the fix is in the constructor and not in the schema or in the editor that happened to do the branding.
 
 ## Special chart modes: the style pipeline
 
-`buildFigureInputs` derives every figure's `style` through one dispatcher,
-`getStyleFromPresentationObject`
-([get_style_from_po.ts](client/src/generate_visualization/get_style_from_po.ts)),
-which delegates to five per-mode builders (`get_style_from_po/_1_standard.ts` …
-`_6_disruptions_v2.ts`). Each builder returns a **complete**
-`CustomFigureStyleOptions`: mode-specific values hardcoded, shared layout
-deliberately duplicated for explicitness; common helpers (text style, table
-layout/cells, map regions, pie slices, the standard series/map color funcs) live
-in `_0_common.ts`, which also owns `GLOBAL_STYLE_OPTIONS`, applied app-wide via
-`setGlobalStyle` at boot ([index.tsx:12](client/src/index.tsx#L12)).
-`liveFigureStyle` (`live_figure_style.ts`) is the one transform for a figure
-read on screen at one design unit per CSS pixel (the Explore figure view, S11;
-the HMIS dataset display, S6): over the figure's own style it sets one-pixel
-strokes on axes, grid and lines, base-300 grid lines, a 12-unit base (the data
-grid's `ui-text-small`, 12 CSS pixels) with every chart label key at relative
-size 1, and abbreviated tick labels on a numeric value axis, leaving a percent
-or rate axis its own formatter. It is the one deliberate per-surface text size
-in the app, against PROTOCOL_ALL_SIZING rule 3: a live figure's labels read
-beside a data grid at the grid's size.
+`buildFigureInputs` derives every figure's `style` through one dispatcher, `getStyleFromPresentationObject` ([get_style_from_po.ts](client/src/generate_visualization/get_style_from_po.ts)), which delegates to five per-mode builders (`get_style_from_po/_1_standard.ts` … `_6_disruptions_v2.ts`). Each builder returns a **complete** `CustomFigureStyleOptions`: mode-specific values hardcoded, shared layout deliberately duplicated for explicitness; common helpers (text style, table layout/cells, map regions, pie slices, the standard series/map color funcs) live in `_0_common.ts`, which also owns `GLOBAL_STYLE_OPTIONS`, applied app-wide via `setGlobalStyle` at boot ([index.tsx:12](client/src/index.tsx#L12)). `liveFigureStyle` (`live_figure_style.ts`) is the one transform for a figure read on screen at one design unit per CSS pixel (the Explore figure view, S11; the HMIS dataset display, S6): over the figure's own style it sets one-pixel strokes on axes, grid and lines, base-300 grid lines, a 12-unit base (the data grid's `ui-text-small`, 12 CSS pixels) with every chart label key at relative size 1, and abbreviated tick labels on a numeric value axis, leaving a percent or rate axis its own formatter. It is the one deliberate per-surface text size in the app, against PROTOCOL_ALL_SIZING rule 3: a live figure's labels read beside a data grid at the grid's size.
 
 ### Roll-up row label under a single-area scope
 
-`getRollupRowLabel` (in `get_data_config_from_po.ts`) has one display-side
-override: when the bundle's `scope.adminArea2` is set and the label context
-resolves national, it renders the pinned form ("{Area} — All areas"). The scope
-filter is server-injected and never in the PO config, so without this a scoped
-container's roll-up row would read "National" while totalling one area. The
-scope is read from the bundle, never from a global store, so an export, a
-thumbnail or a version preview labels the row correctly outside any authoring
-shell; `buildFigureInputs` threads `bundle.scope` through the data-config
-builders for this one reason. Full ruling in SYSTEM_09 "Roll-up"; the scope
-itself in SYSTEM_08.
+`getRollupRowLabel` (in `get_data_config_from_po.ts`) has one display-side override: when the bundle's `scope.adminArea2` is set and the label context resolves national, it renders the pinned form ("{Area} — All areas"). The scope filter is server-injected and never in the PO config, so without this a scoped container's roll-up row would read "National" while totalling one area. The scope is read from the bundle, never from a global store, so an export, a thumbnail or a version preview labels the row correctly outside any authoring shell; `buildFigureInputs` threads `bundle.scope` through the data-config builders for this one reason. Full ruling in SYSTEM_09 "Roll-up"; the scope itself in SYSTEM_08.
 
 ### The captured pair and staleness
 
-A figure is stale when what its bundle records differs from what its container
-serves from: `isFigureBundleStale(bundle, containerScope)` in
-[figure_staleness.ts](client/src/generate_visualization/figure_staleness.ts)
-compares `provenance.runId` against the container's package and
-`scope.definitionHash` against the current hash of the container's scope; a
-difference in either half makes it stale. The container side is a
-`ResolvedPackageScope`: callers pass the product's `PackageScope` through
-`resolveScope` (T1), so the check follows the scopes list. Editing a scope's
-definition therefore marks every figure resolved under it stale, in every
-product that carries the scope, and renaming a scope does not. Two scopes whose
-definitions hash the same are interchangeable to the check. It is pure
-(type-only imports, so `server/tests/figure_staleness_test.ts` loads it under
-Deno). `findStaleFiguresInLayout` and `findStaleFiguresInReport` walk a slide
-layout and a report's figure registry with it. Nothing rewrites a stored bundle
-behind the user: mixed-package documents are a visible state, and reattaching or
-rescoping never blocks and has no pre-flight. The affordance is S11's
-`StaleFigureBadge` (`components/_shared/figure_editor/stale_figure_badge.tsx`);
-its update action, `updateFigureToScope`, re-resolves `{ metricId, config }`
-under the container's current pair through `resolveFigureBundleInteractively`
-(the human path: a stored replicant value missing under the new package is
-auto-defaulted, never thrown on), with the metric taken from the target
-package's authoring context (S9's `t2_run_authoring_context.ts`) through
-`resolveFigureMetric` (`lib/retired_metrics.ts`, S8): the figure's own metric
-when the package carries it, else the successor of a retired one with the config
-carried across, else nothing. Every path that acts on a stored figure's metric
-resolves it there, so a figure of a retired metric updates, edits (S11's editor
-opens on the successor with the carried config, without a live collab binding,
-since the editor would otherwise adopt the stored config from the shared doc)
-and answers the copilot's figure tools (S13) as its successor, and is stored as
-such on the next write. A failure shows its reason on the figure and leaves the
-old bundle in place. That reason is the lookup's own when the figure has no
-metric in the package (`describeFigureMetricAbsence`, beside the badge: the bare
-id, or the retired metric with its module and its successor's module), else one
-rule shared with the server, `lib/figure_package_issue.ts` (S8): metric
-unavailable, then a requested disaggregation the package's results object lacks;
-below it, the read's own statuses (too many data points, no data). The deck and
-report editors (S12) count stale figures and offer "Update all visualizations".
+A figure is stale when what its bundle records differs from what its container serves from: `isFigureBundleStale(bundle, containerScope)` in [figure_staleness.ts](client/src/generate_visualization/figure_staleness.ts) compares `provenance.runId` against the container's package and `scope.definitionHash` against the current hash of the container's scope; a difference in either half makes it stale. The container side is a `ResolvedPackageScope`: callers pass the product's `PackageScope` through `resolveScope` (T1), so the check follows the scopes list. Editing a scope's definition therefore marks every figure resolved under it stale, in every product that carries the scope, and renaming a scope does not. Two scopes whose definitions hash the same are interchangeable to the check. It is pure (type-only imports, so `server/tests/figure_staleness_test.ts` loads it under Deno). `findStaleFiguresInLayout` and `findStaleFiguresInReport` walk a slide layout and a report's figure registry with it. Nothing rewrites a stored bundle behind the user: mixed-package documents are a visible state, and reattaching or rescoping never blocks and has no pre-flight. The affordance is S11's `StaleFigureBadge` (`components/_shared/figure_editor/stale_figure_badge.tsx`); its update action, `updateFigureToScope`, re-resolves `{ metricId, config }` under the container's current pair through `resolveFigureBundleInteractively` (the human path: a stored replicant value missing under the new package is auto-defaulted, never thrown on), with the metric taken from the target package's authoring context (S9's `t2_run_authoring_context.ts`) through `resolveFigureMetric` (`lib/retired_metrics.ts`, S8): the figure's own metric when the package carries it, else the successor of a retired one with the config carried across, else nothing. Every path that acts on a stored figure's metric resolves it there, so a figure of a retired metric updates, edits (S11's editor opens on the successor with the carried config, without a live collab binding, since the editor would otherwise adopt the stored config from the shared doc) and answers the copilot's figure tools (S13) as its successor, and is stored as such on the next write. A failure shows its reason on the figure and leaves the old bundle in place. That reason is the lookup's own when the figure has no metric in the package (`describeFigureMetricAbsence`, beside the badge: the bare id, or the retired metric with its module and its successor's module), else one rule shared with the server, `lib/figure_package_issue.ts` (S8): metric unavailable, then a requested disaggregation the package's results object lacks; below it, the read's own statuses (too many data points, no data). The deck and report editors (S12) count stale figures and offer "Update all visualizations".
 
 ### Sample sizes in table headers (`s.showNValues`)
 
-v1 display policy for the `__n_*` columns S9 emits. The data half is `nProps` on
-the table data config
-([get_data_config_from_po.ts](client/src/generate_visualization/get_data_config_from_po.ts)):
-`{ <valueProp>: __n_<valueProp> }` whenever the toggle is on. The display half
-is `getTableColHeadersContent` in `_0_common.ts`, wired into `_1_standard.ts`
-(every table renders through it).
+v1 display policy for the `__n_*` columns S9 emits. The data half is `nProps` on the table data config ([get_data_config_from_po.ts](client/src/generate_visualization/get_data_config_from_po.ts)): `{ <valueProp>: __n_<valueProp> }` whenever the toggle is on. The display half is `getTableColHeadersContent` in `_0_common.ts`, wired into `_1_standard.ts` (every table renders through it).
 
-- **Column item headers only.** panther fires the header `textFormatter` for
-  col-GROUP headers as well, with a span-wide digest, so the formatter gates on
-  `info.isGroupHeader`. Without it a group label reports the largest n beneath
-  it as its own. Rows and cells stay undecorated (panther supports both;
-  `TableCellInfo.sampleN` is available for a later per-cell policy).
-- **`(n=max)` over the header's slice.** A column whose n is constant shows
-  exactly that n, since max equals it. `n=0` is suppressed: it is a finite
-  number to panther and would render.
-- **Everything self-gates on the data.** No eligibility flag travels with the
-  figure. Absent `sampleN` (items carry no `__n_*`, or roll-up exclusion left no
-  numeric cell) leaves the label untouched, so figures stored before the feature
-  render exactly as before, live and stored alike. The editor toggle is offered
-  only for HFA facility-level metrics (`datasetFamily` + `hasFacilityLevelRows`
-  on the enriched metric), a UI affordance, not a gate.
-- **Roll-up exclusion is perpendicular.** A roll-up row on the opposite axis
-  would otherwise dominate every column's digest (verified: 212 instead of
-  55/32). panther keys this off `liveDomainExcludeIds`, which the data config
-  already sets whenever roll-up is active, no extra wiring.
+- **Column item headers only.** panther fires the header `textFormatter` for col-GROUP headers as well, with a span-wide digest, so the formatter gates on `info.isGroupHeader`. Without it a group label reports the largest n beneath it as its own. Rows and cells stay undecorated (panther supports both; `TableCellInfo.sampleN` is available for a later per-cell policy).
+- **`(n=max)` over the header's slice.** A column whose n is constant shows exactly that n, since max equals it. `n=0` is suppressed: it is a finite number to panther and would render.
+- **Everything self-gates on the data.** No eligibility flag travels with the figure. Absent `sampleN` (items carry no `__n_*`, or roll-up exclusion left no numeric cell) leaves the label untouched, so figures stored before the feature render exactly as before, live and stored alike. The editor toggle is offered only for HFA facility-level metrics (`datasetFamily` + `hasFacilityLevelRows` on the enriched metric), a UI affordance, not a gate.
+- **Roll-up exclusion is perpendicular.** A roll-up row on the opposite axis would otherwise dominate every column's digest (verified: 212 instead of 55/32). panther keys this off `liveDomainExcludeIds`, which the data config already sets whenever roll-up is active, no extra wiring.
 
-A **special mode** is a boolean flag on `config.s` that overrides most
-user-facing style properties with hardcoded rendering. A mode is active only
-when its flag is set AND `config.d.type` matches its gate, the `is*Active`
-checks in
-[special_chart_checks.ts](client/src/generate_visualization/special_chart_checks.ts),
-the single home for mode gating (its per-metric `canUse*` arrays decide whether
-the editor shows a mode's toggle). Dispatch priority in
-`getStyleFromPresentationObject`: coverage → percent-change → disruptions →
-disruptions-v2 → standard. Every mode is a hardcoded rendering of the metrics
-the table names; "colour each value by its own indicator's rule" is NOT a mode
-but the `indicator` conditional-formatting source (below).
+A **special mode** is a boolean flag on `config.s` that overrides most user-facing style properties with hardcoded rendering. A mode is active only when its flag is set AND `config.d.type` matches its gate, the `is*Active` checks in [special_chart_checks.ts](client/src/generate_visualization/special_chart_checks.ts), the single home for mode gating (its per-metric `canUse*` arrays decide whether the editor shows a mode's toggle). Dispatch priority in `getStyleFromPresentationObject`: coverage → percent-change → disruptions → disruptions-v2 → standard. Every mode is a hardcoded rendering of the metrics the table names; "colour each value by its own indicator's rule" is NOT a mode but the `indicator` conditional-formatting source (below).
 
 | Mode           | Flag (`config.s`)           | Gate (`d.type`) | Metrics                  | Builder behavior                                                                                                             |
 | -------------- | --------------------------- | --------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -518,376 +192,88 @@ but the `indicator` conditional-formatting source (below).
 | Disruptions    | `specialDisruptionsChart`   | timeseries      | m3-02/03/04/05-01        | red/green diff areas, solid-vs-dashed lines distinguishing the two series                                                    |
 | Disruptions V2 | `specialDisruptionsChartV2` | timeseries      | m11-01-01/02/03/04       | grey credible band + green/red exceedance via panther `areas.diff.pairs` on the wide 4-series shape (`_6_disruptions_v2.ts`) |
 
-Legacy `diffAreas` configs are converted to `specialDisruptionsChart` by the
-po_config data transform (Block 9, S2's machinery); no render or UI adapter
-remains.
+Legacy `diffAreas` configs are converted to `specialDisruptionsChart` by the po_config data transform (Block 9, S2's machinery); no render or UI adapter remains.
 
-**The override contract (spans S10/S11).** The UI half lives in the style panel
-(S11 custody, `components/_shared/figure_editor/editor_panel_style/`): the panel
-gates each mode's toggle by `canUse*` (an active-but-no-longer-allowed mode is
-still listed so the user can switch away), and `setMode()` in `_timeseries.tsx`
-forces the hidden properties to safe defaults on every mode switch (e.g.
-`barsStacked=false`). The renderer builders hardcode those same values as the
-safety net for saved configs never touched via the UI.
+**The override contract (spans S10/S11).** The UI half lives in the style panel (S11 custody, `components/_shared/figure_editor/editor_panel_style/`): the panel gates each mode's toggle by `canUse*` (an active-but-no-longer-allowed mode is still listed so the user can switch away), and `setMode()` in `_timeseries.tsx` forces the hidden properties to safe defaults on every mode switch (e.g. `barsStacked=false`). The renderer builders hardcode those same values as the safety net for saved configs never touched via the UI.
 
-**Conditional formatting: four sources, one paint path.** `cfMode` selects
-`none`, `scale`, `thresholds` (a figure-level `ThresholdsRule`) or `indicator`
-("each value's colour and legend come from its own indicator's rule",
-`IndicatorMetadata.thresholds`). All of them paint through the SAME mechanism:
-the content sites (`getTableCellsContent`, `getMapRegionsContent`, the bars
-branch of `_1_standard.ts`) emit panther's value-colour sentinel and
-`compileCfToValuesColorFunc` (`conditional_formatting/compile.ts`) compiles the
-source into ONE figure-wide `FigureValuesColorFunc`. Only the `indicator` source
-reads the element it is handed: its headers walk the id chain to `ruleForValue`,
-and a value whose indicator has no rule returns `undefined`: panther's decline,
-rendered as "none" on a cell or region and as the series colour on a bar. THE
-boundary rule (an exact cutoff belongs to the better side; diverging rules
-ignore direction) is `thresholdBucketIndex` in
-`lib/types/conditional_formatting.ts`, honoured by colour (panther's `boundary`
-option), label (`bucketLabels`), legend and AI text alike. A "scorecard" is
-simply a table whose source is `indicator` (m012's preset).
+**Conditional formatting: four sources, one paint path.** `cfMode` selects `none`, `scale`, `thresholds` (a figure-level `ThresholdsRule`) or `indicator` ("each value's colour and legend come from its own indicator's rule", `IndicatorMetadata.thresholds`). All of them paint through the SAME mechanism: the content sites (`getTableCellsContent`, `getMapRegionsContent`, the bars branch of `_1_standard.ts`) emit panther's value-colour sentinel and `compileCfToValuesColorFunc` (`conditional_formatting/compile.ts`) compiles the source into ONE figure-wide `FigureValuesColorFunc`. Only the `indicator` source reads the element it is handed: its headers walk the id chain to `ruleForValue`, and a value whose indicator has no rule returns `undefined`: panther's decline, rendered as "none" on a cell or region and as the series colour on a bar. THE boundary rule (an exact cutoff belongs to the better side; diverging rules ignore direction) is `thresholdBucketIndex` in `lib/types/conditional_formatting.ts`, honoured by colour (panther's `boundary` option), label (`bucketLabels`), legend and AI text alike. A "scorecard" is simply a table whose source is `indicator` (m012's preset).
 
-**Legends.** `getLegendFromConfig`
-([conditional_formatting.ts](client/src/generate_visualization/conditional_formatting.ts))
-returns the hardcoded per-mode `LegendInput` for active special modes (localized
-from the figure's `FigureLocalization`: EN/FR/PT), and otherwise falls through
-to the conditional-formatting compile path (`selectCf` + `compileCfToLegend`),
-emitted ONLY for figures that paint CF (`figurePaintsCf`: table, map, bars) so a
-stray `cf*` state never replaces the categorical series legend of lines, points
-or slices. A `thresholds` legend lists buckets best-first (`legendBucketOrder`)
-with authored labels or the derived wording. The `indicator` legend is DERIVED,
-never authored: unanimous displayed rules (`displayedRules`, keyed on cutoffs +
-colours + labels + the owner's format) → that rule's list in its owner's format;
-differing → the distinct swatches with a "varies by indicator" note; none → no
-legend.
+**Legends.** `getLegendFromConfig` ([conditional_formatting.ts](client/src/generate_visualization/conditional_formatting.ts)) returns the hardcoded per-mode `LegendInput` for active special modes (localized from the figure's `FigureLocalization`: EN/FR/PT), and otherwise falls through to the conditional-formatting compile path (`selectCf` + `compileCfToLegend`), emitted ONLY for figures that paint CF (`figurePaintsCf`: table, map, bars) so a stray `cf*` state never replaces the categorical series legend of lines, points or slices. A `thresholds` legend lists buckets best-first (`legendBucketOrder`) with authored labels or the derived wording. The `indicator` legend is DERIVED, never authored: unanimous displayed rules (`displayedRules`, keyed on cutoffs + colours + labels + the owner's format) → that rule's list in its owner's format; differing → the distinct swatches with a "varies by indicator" note; none → no legend.
 
-**Effective indicator facts.** Split on purpose, one authoritative site each:
-THE resolution RULE is the file header of
-[resolve_effective_indicator_facts.ts](lib/resolve_effective_indicator_facts.ts);
-what follows is the WIRING map: which surface takes which answer, and why.
+**Effective indicator facts.** Split on purpose, one authoritative site each: THE resolution RULE is the file header of [resolve_effective_indicator_facts.ts](lib/resolve_effective_indicator_facts.ts); what follows is the WIRING map: which surface takes which answer, and why.
 
-Every metric DECLARES its format source
-(`formatAs: "percent" | "number" |
-"indicator"`, authored in
-`wb-fastr-modules`). `"percent"`/`"number"` mean the values are the metric's own
-quantity and the format is a constant everywhere (m10-02 don't-know RATES stay
-percent on count questions; m9-02-01 CIX/SII stays number). `"indicator"` means
-the values ARE the displayed indicator's own quantity, so format is a per-value
-fact carried by `IndicatorMetadata.format_as`: HFA per `getHfaIndicatorMeasure`,
-HMIS indicators per each indicator's own `format_as`, ICEH alike.
-`INDICATOR_FORMAT_METRIC_IDS` (lib) is the frozen REPAIR list for metrics that
-predate the declaration: m7-01-01/02/03, m8-01-01, m10-01-01/02, m10-03-01/02.
-It keeps the m7/m8 ids although those modules are dropped: stored blobs still
-name them, and stored vocabulary never shrinks. It never grows. A metric
-authored now declares `"indicator"` itself, as `m12-01-01` does. See "Repair and
-normalization" below.
+Every metric DECLARES its format source (`formatAs: "percent" | "number" |
+"indicator"`, authored in `wb-fastr-modules`). `"percent"`/`"number"` mean the values are the metric's own quantity and the format is a constant everywhere (m10-02 don't-know RATES stay percent on count questions; m9-02-01 CIX/SII stays number). `"indicator"` means the values ARE the displayed indicator's own quantity, so format is a per-value fact carried by `IndicatorMetadata.format_as`: HFA per `getHfaIndicatorMeasure`, HMIS indicators per each indicator's own `format_as`, ICEH alike. `INDICATOR_FORMAT_METRIC_IDS` (lib) is the frozen REPAIR list for metrics that predate the declaration: m7-01-01/02/03, m8-01-01, m10-01-01/02, m10-03-01/02. It keeps the m7/m8 ids although those modules are dropped: stored blobs still name them, and stored vocabulary never shrinks. It never grows. A metric authored now declares `"indicator"` itself, as `m12-01-01` does. See "Repair and normalization" below.
 
-`resolveEffectiveIndicatorFacts` (config-based, pre-query, for the editor; takes
-the `indicatorFormats` + `indicatorRules` maps of the metric-info payload) and
-`resolveEffectiveIndicatorFactsFromItems` (render twin over a stored
-`FigureBundle`) both return
-`{ axisFormat, formatForValue(ids),
-declaredFormatForValue(ids), ruleForValue(ids), displayedRules }`.
-Which one a consumer wants is decided by WHAT it is doing, never by a flag:
+`resolveEffectiveIndicatorFacts` (config-based, pre-query, for the editor; takes the `indicatorFormats` + `indicatorRules` maps of the metric-info payload) and `resolveEffectiveIndicatorFactsFromItems` (render twin over a stored `FigureBundle`) both return `{ axisFormat, formatForValue(ids),
+declaredFormatForValue(ids), ruleForValue(ids), displayedRules }`. Which one a consumer wants is decided by WHAT it is doing, never by a flag:
 
-- `ruleForValue(ids)` is THE source for a value's CF rule under the `indicator`
-  source (`compileCfToValuesColorFunc`): the same id chains as the format, the
-  same first-DECLARING stopping rule; an all-`undefined` chain (the indicator
-  pinned by `filterBy`) resolves to the sole displayed indicator's rule, and an
-  indicator that declares no rule is never coloured by a neighbour's.
-- `formatForValue(ids)` is THE source for any individual value's format. Every
-  surface that writes one number calls it: table cells (`getTableCellsContent`),
-  chart/timeseries data labels (`_1_standard.ts`), map regions
-  (`getMapRegionsContent`). The caller passes the ids that identify the value,
-  most specific first, through the shared helpers `getIndicatorIdsForCell` /
-  `getIndicatorIdsForChartValue` / `getIndicatorIdsForMapRegion`, and the first
-  id that DECLARES a format wins, not the first id found, because the catalog
-  deliberately carries label-only entries (HFA categories and variant items,
-  ICEH strat codes, HMIS indicators) that would otherwise mask the formatted
-  indicator beside them. A cell's id list includes all FOUR table headers:
-  `getStartingConfigForPresentationObject` assigns display options in order, so
-  an indicator dimension routinely lands on `rowGroup` or `colGroup` (panther's
-  `TableCellInfo` carries both group headers for exactly this reason).
-- `axisFormat` is the collapsed answer (the format every displayed indicator
-  agrees on, else `"number"`), and ONLY for figure-wide decisions that cannot be
-  per-value: the shared scale axis and its tick labels, the `forceYMax1` clamp,
-  the pie completion envelope, the scale legend. The collapse is lossy by nature
-  and must never reach an individual value.
+- `ruleForValue(ids)` is THE source for a value's CF rule under the `indicator` source (`compileCfToValuesColorFunc`): the same id chains as the format, the same first-DECLARING stopping rule; an all-`undefined` chain (the indicator pinned by `filterBy`) resolves to the sole displayed indicator's rule, and an indicator that declares no rule is never coloured by a neighbour's.
+- `formatForValue(ids)` is THE source for any individual value's format. Every surface that writes one number calls it: table cells (`getTableCellsContent`), chart/timeseries data labels (`_1_standard.ts`), map regions (`getMapRegionsContent`). The caller passes the ids that identify the value, most specific first, through the shared helpers `getIndicatorIdsForCell` / `getIndicatorIdsForChartValue` / `getIndicatorIdsForMapRegion`, and the first id that DECLARES a format wins, not the first id found, because the catalog deliberately carries label-only entries (HFA categories and variant items, ICEH strat codes, HMIS indicators) that would otherwise mask the formatted indicator beside them. A cell's id list includes all FOUR table headers: `getStartingConfigForPresentationObject` assigns display options in order, so an indicator dimension routinely lands on `rowGroup` or `colGroup` (panther's `TableCellInfo` carries both group headers for exactly this reason).
+- `axisFormat` is the collapsed answer (the format every displayed indicator agrees on, else `"number"`), and ONLY for figure-wide decisions that cannot be per-value: the shared scale axis and its tick labels, the `forceYMax1` clamp, the pie completion envelope, the scale legend. The collapse is lossy by nature and must never reach an individual value.
 
-Surfaces that legitimately take `axisFormat` alone: the four special chart modes
-(`_2_coverage.ts`, `_3_percent_change.ts`, `_4_disruptions.ts`,
-`_6_disruptions_v2.ts`). The coverage and disruptions metrics gated into them
-(m4/m6/m11) are constant-format, so `axisFormat` equals the declaration; the
-percent-change chart (m3, m12) formats its value axis as the standard builder
-does, from the same collapse, and its change labels are always a percent. Pie
-slice labels are also not per-value (a slice label is `label share%`, a fraction
-of the pie's denominator, never a raw value), and the doughnut centre label is
-formatted inside panther from the slice sum.
+Surfaces that legitimately take `axisFormat` alone: the four special chart modes (`_2_coverage.ts`, `_3_percent_change.ts`, `_4_disruptions.ts`, `_6_disruptions_v2.ts`). The coverage and disruptions metrics gated into them (m4/m6/m11) are constant-format, so `axisFormat` equals the declaration; the percent-change chart (m3, m12) formats its value axis as the standard builder does, from the same collapse, and its change labels are always a percent. Pie slice labels are also not per-value (a slice label is `label share%`, a fraction of the pie's denominator, never a raw value), and the doughnut centre label is formatted inside panther from the slice sum.
 
-Consumers re-check the RESOLVED format, not stored flags: `forceYMax1` applies
-`max: 1` only when `axisFormat` is percent (`_1_standard.ts` ×2,
-`_2_coverage.ts`, `_3_percent_change.ts`, `_4_disruptions.ts`,
-`_6_disruptions_v2.ts`), the same pattern as `isPieCompletionMode`: an
-`"indicator"` metric's format is filter-sensitive, so a stranded flag degrades
-to auto instead of clamping counts at 1.
+Consumers re-check the RESOLVED format, not stored flags: `forceYMax1` applies `max: 1` only when `axisFormat` is percent (`_1_standard.ts` ×2, `_2_coverage.ts`, `_3_percent_change.ts`, `_4_disruptions.ts`, `_6_disruptions_v2.ts`), the same pattern as `isPieCompletionMode`: an `"indicator"` metric's format is filter-sensitive, so a stranded flag degrades to auto instead of clamping counts at 1.
 
-**Editor/render divergence** is confined to `"indicator"` metrics whose
-possible-values status disagrees with the actual rows, and only ever in
-`axisFormat` (`formatForValue` reads the same catalog on both sides). The editor
-resolves `"number"` on `too_many_values`, `error` AND `no_values_available` (all
-three are "cannot enumerate"), while the renderer sees the rows' unanimous
-format; and a possible-but-rowless indicator value counts for the editor but not
-the renderer. The consequence is not cosmetic: the CF editor picks a percent
-control vs a number input off `axisFormat`, so on a diverging figure the user
-types a threshold in the wrong units. That is why the CF editor's `ValueInput`
-scales BOTH percent and `rate_per_10k` between stored and displayed units rather
-than trusting a raw number input, and why its top cutoff has no hardcoded
-ceiling of 1. (Also confirmed: `resultsValueInfo` does NOT refetch on a filter
-edit, since its cache keys on `(runId, definitionHash, metricId)` only, which is
-exactly why the resolver is config-based and reacts to the draft config with no
-fetch.)
+**Editor/render divergence** is confined to `"indicator"` metrics whose possible-values status disagrees with the actual rows, and only ever in `axisFormat` (`formatForValue` reads the same catalog on both sides). The editor resolves `"number"` on `too_many_values`, `error` AND `no_values_available` (all three are "cannot enumerate"), while the renderer sees the rows' unanimous format; and a possible-but-rowless indicator value counts for the editor but not the renderer. The consequence is not cosmetic: the CF editor picks a percent control vs a number input off `axisFormat`, so on a diverging figure the user types a threshold in the wrong units. That is why the CF editor's `ValueInput` scales BOTH percent and `rate_per_10k` between stored and displayed units rather than trusting a raw number input, and why its top cutoff has no hardcoded ceiling of 1. (Also confirmed: `resultsValueInfo` does NOT refetch on a filter edit, since its cache keys on `(runId, definitionHash, metricId)` only, which is exactly why the resolver is config-based and reacts to the draft config with no fetch.)
 
-RULED: the CF editor's scaling factor stays `axisFormat`-driven (cutoffs are
-figure-wide, so there is no per-value answer), even though the factor is
-therefore filter-sensitive on an `"indicator"` metric (add a percent indicator
-to a rate figure and the same stored `0.0005` box switches from "5 per 10k" to
-raw). Cutoffs are stored and compared raw, so colouring never moves; the
-mitigation is that the active unit is VISIBLE on the control (PercentSelect
-shows `%`, the number input shows a "per 10k" marker when the axis is a rate,
-bare otherwise), so a unit switch is something the user sees rather than
-discovers by mis-typing. `scaleValueForFormat` also rounds the displayed value
-to 6 decimals: ×10,000 on a stored fraction otherwise redisplays the "3" the
-user just typed as `2.9999999999999996`.
+RULED: the CF editor's scaling factor stays `axisFormat`-driven (cutoffs are figure-wide, so there is no per-value answer), even though the factor is therefore filter-sensitive on an `"indicator"` metric (add a percent indicator to a rate figure and the same stored `0.0005` box switches from "5 per 10k" to raw). Cutoffs are stored and compared raw, so colouring never moves; the mitigation is that the active unit is VISIBLE on the control (PercentSelect shows `%`, the number input shows a "per 10k" marker when the axis is a rate, bare otherwise), so a unit switch is something the user sees rather than discovers by mis-typing. `scaleValueForFormat` also rounds the displayed value to 6 decimals: ×10,000 on a stored fraction otherwise redisplays the "3" the user just typed as `2.9999999999999996`.
 
-**`rate_per_10k`** is stored as a bare rate and written as a per-10,000 count.
-Two rules, each with one implementation: `scaleValueForFormat` /
-`unscaleValueForFormat` (`lib/indicator_value_scale.ts`) own the scaling (×100
-for percent, ×10,000 for rate: `formatIndicatorValue`, the CF and indicator
-editors' inputs and the AI text all go through it), and `formatRateAuto` owns
-the decimals: the fewest (≤3) that print the scaled value EXACTLY, decided per
-value. Every rate LABEL follows `formatRateAuto`: the scale axis (via panther's
-`tickLabelFormatter` escape, since panther's `format` field is two-way), data
-labels, the scale legend (`scaleLegendFormat`), the threshold legend, the CF
-editor preview (`buildAutoValueFormatter`). The one deliberate non-label
-exception: the AI CSV (`format_metric_data_for_ai.ts`) emits rates at a fixed
-`toFixed(2)`. A CSV column wants a stable width, not per-value decimals. The
-`s.decimalPlaces` knob does NOT apply to rates (it defaults to 0 and would print
-`1` beside an axis tick reading `1.2`), and no list-wide auto count applies
-either, since sizing for a DISTINCT list rounds a 0.25 boundary to "0.3" while
-the axis prints "0.25". Because the knob is inert on a pure-rate figure, the
-style panels hide the decimal-places control when
-`axisFormat === "rate_per_10k"`; on a MIXED "indicator" table it stays visible,
-since it genuinely works on the percent cells (the pie panel also keeps it:
-slice labels are percent shares whatever the metric's format). A related
-acceptance: the scale legend's boundary decimals are per-value, so a rate
-boundary list prints `0 / 0.25 / 0.5 /
-0.75 / 1` rather than a shared decimal
-count (`0.00 / 0.25 / 0.50 / …`), the direct consequence of the one-rule
-decision that fixed the duplicated-label bug; do not "fix" it back.
+**`rate_per_10k`** is stored as a bare rate and written as a per-10,000 count. Two rules, each with one implementation: `scaleValueForFormat` / `unscaleValueForFormat` (`lib/indicator_value_scale.ts`) own the scaling (×100 for percent, ×10,000 for rate: `formatIndicatorValue`, the CF and indicator editors' inputs and the AI text all go through it), and `formatRateAuto` owns the decimals: the fewest (≤3) that print the scaled value EXACTLY, decided per value. Every rate LABEL follows `formatRateAuto`: the scale axis (via panther's `tickLabelFormatter` escape, since panther's `format` field is two-way), data labels, the scale legend (`scaleLegendFormat`), the threshold legend, the CF editor preview (`buildAutoValueFormatter`). The one deliberate non-label exception: the AI CSV (`format_metric_data_for_ai.ts`) emits rates at a fixed `toFixed(2)`. A CSV column wants a stable width, not per-value decimals. The `s.decimalPlaces` knob does NOT apply to rates (it defaults to 0 and would print `1` beside an axis tick reading `1.2`), and no list-wide auto count applies either, since sizing for a DISTINCT list rounds a 0.25 boundary to "0.3" while the axis prints "0.25". Because the knob is inert on a pure-rate figure, the style panels hide the decimal-places control when `axisFormat === "rate_per_10k"`; on a MIXED "indicator" table it stays visible, since it genuinely works on the percent cells (the pie panel also keeps it: slice labels are percent shares whatever the metric's format). A related acceptance: the scale legend's boundary decimals are per-value, so a rate boundary list prints `0 / 0.25 / 0.5 /
+0.75 / 1` rather than a shared decimal count (`0.00 / 0.25 / 0.50 / …`), the direct consequence of the one-rule decision that fixed the duplicated-label bug; do not "fix" it back.
 
-**Repair and normalization.** `INDICATOR_FORMAT_METRIC_IDS`
-([indicator_format_metrics.ts](lib/indicator_format_metrics.ts)) is the frozen
-list of every metric that must read `"indicator"`. Most predate the three-way
-`formatAs` and have stored data to repair; m10-03-01/02 were authored
-`"indicator"` from day one and sit there defensively, for normalization only. It
-never grows. A metric authored now says `"indicator"` itself. It has two jobs:
-REPAIR of data written before the declaration (`manifest_transform` block 2 for
-run manifests; the figure-block sweep for stored bundles, see
-[SYSTEM_02](SYSTEM_02_persistence.md) and
-[PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md)), and NORMALIZATION at
-the fetch boundary in `validateDefinition`
-([load_module.ts](server/module_loader/load_module.ts)), which is what keeps a
-definition resolved at an older gitRef from stamping a stale declaration into a
-manifest that already carries the current schema version, a state no migration
-could then reach.
+**Repair and normalization.** `INDICATOR_FORMAT_METRIC_IDS` ([indicator_format_metrics.ts](lib/indicator_format_metrics.ts)) is the frozen list of every metric that must read `"indicator"`. Most predate the three-way `formatAs` and have stored data to repair; m10-03-01/02 were authored `"indicator"` from day one and sit there defensively, for normalization only. It never grows. A metric authored now says `"indicator"` itself. It has two jobs: REPAIR of data written before the declaration (`manifest_transform` block 2 for run manifests; the figure-block sweep for stored bundles, see [SYSTEM_02](SYSTEM_02_persistence.md) and [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md)), and NORMALIZATION at the fetch boundary in `validateDefinition` ([load_module.ts](server/module_loader/load_module.ts)), which is what keeps a definition resolved at an older gitRef from stamping a stale declaration into a manifest that already carries the current schema version, a state no migration could then reach.
 
-The figure-block sweep is the one place that INFERS rather than reads a
-declaration: a stored bundle carries no metric definition, so `inferFormatAs`
-returns `"indicator"` for the eight listed ids, `"number"` for m9-02-01, and
-otherwise keeps the original backfill heuristic (percent iff the bundle has
-indicators and every one declares percent). It deliberately does NOT run the
-live resolution rule: that one counts only values on an indicator DIMENSION, so
-a legacy figure displaying no indicator dimension would resolve `"number"` and
-freeze a percent metric's values as raw fractions, permanently.
+The figure-block sweep is the one place that INFERS rather than reads a declaration: a stored bundle carries no metric definition, so `inferFormatAs` returns `"indicator"` for the eight listed ids, `"number"` for m9-02-01, and otherwise keeps the original backfill heuristic (percent iff the bundle has indicators and every one declares percent). It deliberately does NOT run the live resolution rule: that one counts only values on an indicator DIMENSION, so a legacy figure displaying no indicator dimension would resolve `"number"` and freeze a percent metric's values as raw fractions, permanently.
 
-**Metric-gated knobs that are not modes.** `special_chart_checks.ts` carries
-`metricAllowsNegativeScale`, threaded through `buildFigureInputs`. It is the
-app's whole answer to negative values on a value axis.
-`ALLOW_NEGATIVE_SCALE_VALUES_METRICS` is the single list of metrics whose
-displayed values can go below zero: signed-by-construction (m9-02-01,
-m2-01-01..03, m3-0x-02) plus the volume metrics whose expected-value model can
-predict a negative (m3-0x-01, m3-0x-03). Listed metrics get panther's
-`"auto-zero"` axis minimum instead of the default `0`, which would map the
-negative outside the plot box, over the x-axis tick labels. `"auto-zero"` is a
-no-op on data that never crosses zero, so adding a metric cannot change how its
-existing non-negative charts render, which is what makes an always-on per-metric
-list the right shape here, rather than a per-chart toggle. It is applied in
-`_1_standard.ts` (both `yScaleAxis` and `xScaleAxis`, since horizontal charts
-route through the latter) and in `_4_disruptions.ts`. **Not** in
-`_3_percent_change.ts`: those bars plot raw volumes and the percent change only
-drives their color and data label, so that axis never carries a negative.
-`forceYMinAuto` is unrelated and unchanged. It stays the user's deliberate
-tight-fit (`"auto"`), which may start above zero.
+**Metric-gated knobs that are not modes.** `special_chart_checks.ts` carries `metricAllowsNegativeScale`, threaded through `buildFigureInputs`. It is the app's whole answer to negative values on a value axis. `ALLOW_NEGATIVE_SCALE_VALUES_METRICS` is the single list of metrics whose displayed values can go below zero: signed-by-construction (m9-02-01, m2-01-01..03, m3-0x-02) plus the volume metrics whose expected-value model can predict a negative (m3-0x-01, m3-0x-03). Listed metrics get panther's `"auto-zero"` axis minimum instead of the default `0`, which would map the negative outside the plot box, over the x-axis tick labels. `"auto-zero"` is a no-op on data that never crosses zero, so adding a metric cannot change how its existing non-negative charts render, which is what makes an always-on per-metric list the right shape here, rather than a per-chart toggle. It is applied in `_1_standard.ts` (both `yScaleAxis` and `xScaleAxis`, since horizontal charts route through the latter) and in `_4_disruptions.ts`. **Not** in `_3_percent_change.ts`: those bars plot raw volumes and the percent change only drives their color and data label, so that axis never carries a negative. `forceYMinAuto` is unrelated and unchanged. It stays the user's deliberate tight-fit (`"auto"`), which may start above zero.
 
-Known residue, same class: `forceYMax1` pins the axis at `1`, so a coverage
-value above 100% is drawn _above_ the plot box. Unaddressed by `"auto-zero"`,
-because a user who forces a max has asked for a fixed axis.
+Known residue, same class: `forceYMax1` pins the axis at `1`, so a coverage value above 100% is drawn _above_ the plot box. Unaddressed by `"auto-zero"`, because a user who forces a max has asked for a fixed axis.
 
-The same list drives the style-panel UI's `allowNegative`
-(`metricAllowsNegativeScale` at the three CF-editor call sites), so a metric
-whose axis fits below zero also accepts negative conditional-formatting
-thresholds. The CF editor's cutoff bounds are format-driven: only a percent has
-a natural floor (0, or -1 when signed) and ceiling (100%); counts and rates are
-unbounded in both directions.
+The same list drives the style-panel UI's `allowNegative` (`metricAllowsNegativeScale` at the three CF-editor call sites), so a metric whose axis fits below zero also accepts negative conditional-formatting thresholds. The CF editor's cutoff bounds are format-driven: only a percent has a natural floor (0, or -1 when signed) and ceiling (100%); counts and rates are unbounded in both directions.
 
 ## Slide→page rendering (generate_slide_deck)
 
-Three files:
-[convert_slide_to_page_inputs.ts](client/src/generate_slide_deck/convert_slide_to_page_inputs.ts)
-(578 LOC), `get_overlay_image.ts` (49 LOC) and `fastr_logos.ts` (the built-in
-FASTR logo table read by the transform, `slide_deck/logo_selector.tsx` and
-`slide_deck/style_editor/style_preview.tsx`). One transform,
-`convertSlideToPageInputs(slide, slideIndex, config) →
-APIResponse<PageInputs>`,
-serves all its call sites: screen (`slide_editor/slide_editor.tsx`,
-`slide_card.tsx`, `slide_presenter.tsx`, the deck version preview), AI previews
-(`draft_slide_preview.tsx`, `ai_tools/tools/drafts.tsx`), and the three deck
-exports, so a slide renders byte-identically everywhere. Every surface uses the
-same frame: `PAGE_WIDTH_DU` 1400 × `PAGE_HEIGHT_DU` 788
-(`lib/consts.ts:167-169`).
+Three files: [convert_slide_to_page_inputs.ts](client/src/generate_slide_deck/convert_slide_to_page_inputs.ts) (578 LOC), `get_overlay_image.ts` (49 LOC) and `fastr_logos.ts` (the built-in FASTR logo table read by the transform, `slide_deck/logo_selector.tsx` and `slide_deck/style_editor/style_preview.tsx`). One transform, `convertSlideToPageInputs(slide, slideIndex, config) →
+APIResponse<PageInputs>`, serves all its call sites: screen (`slide_editor/slide_editor.tsx`, `slide_card.tsx`, `slide_presenter.tsx`, the deck version preview), AI previews (`draft_slide_preview.tsx`, `ai_tools/tools/drafts.tsx`), and the three deck exports, so a slide renders byte-identically everywhere. Every surface uses the same frame: `PAGE_WIDTH_DU` 1400 × `PAGE_HEIGHT_DU` 788 (`lib/consts.ts:167-169`).
 
-The `Slide` union (`cover | section | content`, `lib/types/slides.ts`) maps to
-panther `PageInputs` discriminants `cover | section | freeform`.
+The `Slide` union (`cover | section | content`, `lib/types/slides.ts`) maps to panther `PageInputs` discriminants `cover | section | freeform`.
 
-**Style resolution order** (`buildStyleForSlide`): 0) the deck config's single
-`theme` id is looked up in `SLIDE_DECK_THEME_SPECS`
-(`lib/types/_slide_deck_themes.ts`), which is where the palette, face, layout
-and two treatments come from; 1) `getSlideDeckThemeColorPreset`: a brand id
-(`gff` / `nigeria`) → `getBrandPreset`, else panther `getColorPreset`; 2)
-panther `resolvePageStyle(layout, treatments, preset, pattern?)` on the spec's
-values; 3) app overrides: per-slide title/subtitle/presenter/date
-font-size/bold/italic knobs with hardcoded defaults, the spec's `fontFamily`,
-per-family letter spacing. A `DeckStyleContext = {fontFamily, colorPreset}` is
-created per content slide and threaded into
-`buildFigureInputs(bundle,
-deckStyle)` so embedded figures adopt the deck's font
-and palette (`getFigureFont` in `get_style_from_po/_0_common.ts`).
+**Style resolution order** (`buildStyleForSlide`): 0) the deck config's single `theme` id is looked up in `SLIDE_DECK_THEME_SPECS` (`lib/types/_slide_deck_themes.ts`), which is where the palette, face, layout and two treatments come from; 1) `getSlideDeckThemeColorPreset`: a brand id (`gff` / `nigeria`) → `getBrandPreset`, else panther `getColorPreset`; 2) panther `resolvePageStyle(layout, treatments, preset, pattern?)` on the spec's values; 3) app overrides: per-slide title/subtitle/presenter/date font-size/bold/italic knobs with hardcoded defaults, the spec's `fontFamily`, per-family letter spacing. A `DeckStyleContext = {fontFamily, colorPreset}` is created per content slide and threaded into `buildFigureInputs(bundle,
+deckStyle)` so embedded figures adopt the deck's font and palette (`getFigureFont` in `get_style_from_po/_0_common.ts`).
 
-Until 2026-09-24 those five values plus the overlay were six independent stored
-fields with six pickers in deck settings, and a colour could also be a raw hex
-(`ColorTheme`'s `custom` branch, hence the old `resolveColorThemeToPreset`).
-Block 7 of the `slide_deck_config` sweep scored every stored combination against
-the eleven themes and rewrote each deck to its nearest one.
+Until 2026-09-24 those five values plus the overlay were six independent stored fields with six pickers in deck settings, and a colour could also be a raw hex (`ColorTheme`'s `custom` branch, hence the old `resolveColorThemeToPreset`). Block 7 of the `slide_deck_config` sweep scored every stored combination against the eleven themes and rewrote each deck to its nearest one.
 
-`monochrome` was retired 2026-09-29. `resolveSlideDeckTheme` maps a stored
-retired id to its successor (`RETIRED_SLIDE_DECK_THEMES`: monochrome → minimal)
-for both the sweep and the version-snapshot read path, and the legacy scorer
-still scores against the frozen eleven (`SCORED_SLIDE_DECK_THEMES`, retired
-specs included) before resolving, so a restored pre-theme snapshot lands where
-its live deck did. The sweep runs its legacy-shape blocks (1, 3-5) only on a
-deck without a `theme`: re-seeding style defaults onto a themed deck would make
-block 7 re-score it instead of resolving its id.
+`monochrome` was retired 2026-09-29. `resolveSlideDeckTheme` maps a stored retired id to its successor (`RETIRED_SLIDE_DECK_THEMES`: monochrome → minimal) for both the sweep and the version-snapshot read path, and the legacy scorer still scores against the frozen eleven (`SCORED_SLIDE_DECK_THEMES`, retired specs included) before resolving, so a restored pre-theme snapshot lands where its live deck did. The sweep runs its legacy-shape blocks (1, 3-5) only on a deck without a `theme`: re-seeding style defaults onto a themed deck would make block 7 re-score it instead of resolving its id.
 
-A new deck is minted with `themeChosen: false` (`insertNewSlideDeckDetail`), and
-the deck editor opens
-[style_editor/theme_modal.tsx](client/src/components/products/slide_deck/style_editor/theme_modal.tsx)
-once on first open for an editor, as a new report is asked for its FASTR theme
-(S12). Choosing a theme anywhere (the modal, the Deck menu, settings) writes
-`themeChosen: true`; older decks carry no flag and are never asked.
+A new deck is minted with `themeChosen: false` (`insertNewSlideDeckDetail`), and the deck editor opens [style_editor/theme_modal.tsx](client/src/components/products/slide_deck/style_editor/theme_modal.tsx) once on first open for an editor, as a new report is asked for its FASTR theme (S12). Choosing a theme anywhere (the modal, the Deck menu, settings) writes `themeChosen: true`; older decks carry no flag and are never asked.
 
 Other resolution steps, all in the same pass:
 
-- **Overlay/pattern** (cover/section only; content slides never get one):
-  `pattern-*` values become panther `PatternConfig`s; the four image overlays
-  (`dots`/`rivers`/`waves`/`world`) load
-  `/images/{overlay}_for_{light|dark}_themes.png` picked by cover-background
-  luminance.
-- **Split fills** (content): `plain` → preset primary; `pattern` →
-  `{patternType, baseColor: primary}`; `image` → the image loads separately into
-  `PageInputs.splitImage` via the image cache.
-- **Logos:** per-slide `show|hide|inherit` over the deck default; FASTR builtins
-  load from the client root, custom logos from the server; load failures are
-  silently dropped; sizing via the `LOGO_SIZE_TARGET_AREA` /
-  `LOGO_SPACING_GAP_X` maps.
-- **Watermark** from `config.useWatermark`; footer =
-  `config.globalFooterText
+- **Overlay/pattern** (cover/section only; content slides never get one): `pattern-*` values become panther `PatternConfig`s; the four image overlays (`dots`/`rivers`/`waves`/`world`) load `/images/{overlay}_for_{light|dark}_themes.png` picked by cover-background luminance.
+- **Split fills** (content): `plain` → preset primary; `pattern` → `{patternType, baseColor: primary}`; `image` → the image loads separately into `PageInputs.splitImage` via the image cache.
+- **Logos:** per-slide `show|hide|inherit` over the deck default; FASTR builtins load from the client root, custom logos from the server; load failures are silently dropped; sizing via the `LOGO_SIZE_TARGET_AREA` / `LOGO_SPACING_GAP_X` maps.
+- **Watermark** from `config.useWatermark`; footer = `config.globalFooterText
   ?? slide.footer`.
 
-**Blocks** (`convertBlockToPageContentItem`): text → markdown item at
-`baseFontSize × MARKDOWN_TEXT_SIZE_SCALE` (1.6), while the stored `textSize`
-key's multiplier is commented out at render (Open item); text backgrounds via
-`resolveTextBackground` (`grey`/`primary`/`success`/`danger`; note `success`
-renders `_SLIDE_BACKGROUND_COLOR` = `_NIGERIA_GREEN`, not the success token, an
-Open item). Image blocks await `getImgFromCacheOrFetch`: no `imgFile` →
-`{spacer:true}`, fetch failure → a placeholder text item rendering the shared
-localized `unavailableItemMarkdown()`. Figure blocks: absent `bundle` → spacer;
-a `buildFigureInputs` throw or `ok: false` result → the same placeholder.
-Per-block degradation never aborts the slide.
+**Blocks** (`convertBlockToPageContentItem`): text → markdown item at `baseFontSize × MARKDOWN_TEXT_SIZE_SCALE` (1.6), while the stored `textSize` key's multiplier is commented out at render (Open item); text backgrounds via `resolveTextBackground` (`grey`/`primary`/`success`/`danger`; note `success` renders `_SLIDE_BACKGROUND_COLOR` = `_NIGERIA_GREEN`, not the success token, an Open item). Image blocks await `getImgFromCacheOrFetch`: no `imgFile` → `{spacer:true}`, fetch failure → a placeholder text item rendering the shared localized `unavailableItemMarkdown()`. Figure blocks: absent `bundle` → spacer; a `buildFigureInputs` throw or `ok: false` result → the same placeholder. Per-block degradation never aborts the slide.
 
 ## Image cache, fonts, brand contracts
 
-**Image cache** ([t2_images.ts](client/src/state/products/t2_images.ts), one
-export `getImgFromCacheOrFetch`): a `TimCacheD("img_cache")`, an in-memory LRU
-(100) over IndexedDB, keyed by URL with `versionHash = url` and `"any_version"`
-reads, so an entry never invalidates (Open item). 30s abort-timeout, 3 retries
-with exponential delay (CORS errors not retried), module-level per-URL failure
-backoff (capped 60s), in-flight promise dedupe. Exactly three consumers:
-`convertSlideToPageInputs` (logos, split images, image blocks),
-`get_overlay_image.ts`, and `style_preview.tsx`. Screen render and slide exports
-share it; report exports fetch directly.
+**Image cache** ([t2_images.ts](client/src/state/products/t2_images.ts), one export `getImgFromCacheOrFetch`): a `TimCacheD("img_cache")`, an in-memory LRU (100) over IndexedDB, keyed by URL with `versionHash = url` and `"any_version"` reads, so an entry never invalidates (Open item). 30s abort-timeout, 3 retries with exponential delay (CORS errors not retried), module-level per-URL failure backoff (capped 60s), in-flight promise dedupe. Exactly three consumers: `convertSlideToPageInputs` (logos, split images, image blocks), `get_overlay_image.ts`, and `style_preview.tsx`. Screen render and slide exports share it; report exports fetch directly.
 
-**Fonts**: two disjoint paths. Screen text uses hand-written `@font-face` rules
-in `client/src/app.css` (woff2). Export PDFs embed TTFs: the three PDF exporters
-pass `{basePath: "/fonts", fontMap: fontMap.ttf}` from
-`client/src/font-map.json` to panther `createPdfRenderContextWithFontsBrowser`,
-which fetches and `addFont`s each file into jsPDF. `SLIDE_FONTS`
-(`lib/types/_slide_fonts.ts`) registers the four deck families: International
-Inter (400/800), Fira Sans (400/800), Merriweather (400/700), Poppins (400/700).
-`getAllSlideFontVariants` expands a family to its 4–6 needed variants (markdown
-bold = `max(base, 700)`, so an extra 700 pair when the family's bold is 800).
+**Fonts**: two disjoint paths. Screen text uses hand-written `@font-face` rules in `client/src/app.css` (woff2). Export PDFs embed TTFs: the three PDF exporters pass `{basePath: "/fonts", fontMap: fontMap.ttf}` from `client/src/font-map.json` to panther `createPdfRenderContextWithFontsBrowser`, which fetches and `addFont`s each file into jsPDF. `SLIDE_FONTS` (`lib/types/_slide_fonts.ts`) registers the four deck families: International Inter (400/800), Fira Sans (400/800), Merriweather (400/700), Poppins (400/700). `getAllSlideFontVariants` expands a family to its 4–6 needed variants (markdown bold = `max(base, 700)`, so an extra 700 pair when the family's bold is 800).
 
-**Brand contracts:** [lib/brand_presets.ts](lib/brand_presets.ts) holds the two
-brand `ColorPreset`s (`gff` #09544F, `nigeria` #027D53). `gff` is the palette
-the `default` deck theme names, so `getSlideDeckThemeColorPreset` resolves it
-through `getBrandPreset`; the S2 `slide_deck_config` transform also reads both
-for its legacy-hex repair and for hue-scoring a deck onto its nearest theme.
-[lib/key_colors.ts](lib/key_colors.ts) mirrors the light halves of panther's CSS
-`--color-*` tokens for the deck presets, which resolve outside the DOM (the
-client's canvas keys are read from the CSS itself at boot, S14 "Boot"), and
-carries the CF traffic-light palette + qualitative scales (15 consumer files,
-including the style builders and the legend builder
-`conditional_formatting.ts`).
+**Brand contracts:** [lib/brand_presets.ts](lib/brand_presets.ts) holds the two brand `ColorPreset`s (`gff` #09544F, `nigeria` #027D53). `gff` is the palette the `default` deck theme names, so `getSlideDeckThemeColorPreset` resolves it through `getBrandPreset`; the S2 `slide_deck_config` transform also reads both for its legacy-hex repair and for hue-scoring a deck onto its nearest theme. [lib/key_colors.ts](lib/key_colors.ts) mirrors the light halves of panther's CSS `--color-*` tokens for the deck presets, which resolve outside the DOM (the client's canvas keys are read from the CSS itself at boot, S14 "Boot"), and carries the CF traffic-light palette + qualitative scales (15 consumer files, including the style builders and the legend builder `conditional_formatting.ts`).
 
 ## Report figures (generate_report)
 
-The report document builder (sanitize, materialize embeds, the theme sheet) is
-Report Forge's: `report-forge/ui/report_html.ts` and `report-forge/ui/exports/`
-(S12). What stays here is the half only this app can do, drawing a report's
-figures with panther. Three files behind `mod.ts`:
-[report_figure_raster.ts](client/src/generate_report/report_figure_raster.ts)
-(the content-keyed figure raster cache, the size cache, and `applyInkTheme`,
-which recolours a figure's text for the ground it sits on),
-`_report_export_maps.ts` (`loadImageEntry`, `figureInputsForDownload`) and
-`_media_placeholder.ts` (the localized "could not be displayed" placeholder,
-which `convertSlideToPageInputs` reads). `mod.ts` also re-exports the package's
-builder and ink names (`renderReportBodyHtml`, `materializeReportEmbeds`,
-`FigureInkTheme`, ...) so the app's figure code keeps one import. The folder
-imports `generate_visualization/`, lib, panther and `report-forge`, and nothing
-from `exports/` or `components/` (PROTOCOL_UI_STRUCTURE layers).
+The report document builder (sanitize, materialize embeds, the theme sheet) is Report Forge's: `report-forge/ui/report_html.ts` and `report-forge/ui/exports/` (S12). What stays here is the half only this app can do, drawing a report's figures with panther. Three files behind `mod.ts`: [report_figure_raster.ts](client/src/generate_report/report_figure_raster.ts) (the content-keyed figure raster cache, the size cache, and `applyInkTheme`, which recolours a figure's text for the ground it sits on), `_report_export_maps.ts` (`loadImageEntry`, `figureInputsForDownload`) and `_media_placeholder.ts` (the localized "could not be displayed" placeholder, which `convertSlideToPageInputs` reads). `mod.ts` also re-exports the package's builder and ink names (`renderReportBodyHtml`, `materializeReportEmbeds`, `FigureInkTheme`, ...) so the app's figure code keeps one import. The folder imports `generate_visualization/`, lib, panther and `report-forge`, and nothing from `exports/` or `components/` (PROTOCOL_UI_STRUCTURE layers).
 
 ## The export engine (client/src/exports)
 
-7 files, no barrel (callers import files directly). The deck engines are
-panther-side: `PageRenderer`, `createPdfRenderContextWithFontsBrowser`,
-`pagesToPptxBrowser`. The deck files are orchestrators: fetch detail → build
-model/PageInputs → panther → `saveAs`. The three report files are adapters over
-Report Forge's exporters (`report-forge/ui/exports/`): `reportDocumentOf` turns
-a stored `ReportDetail` into the package's `ReportDocument`, and
-`reportExportHostOf` is this app's half of an export (where an image lives, and
-a figure's pixels, drawn by panther from the report's own figure blocks). Every
-entry returns an `APIResponse` envelope (never throws), takes a `progress(pct)`
-callback, and yields to the UI between items. The paged report PDF is printed by
-the SERVER's headless Chrome (S12).
+7 files, no barrel (callers import files directly). The deck engines are panther-side: `PageRenderer`, `createPdfRenderContextWithFontsBrowser`, `pagesToPptxBrowser`. The deck files are orchestrators: fetch detail → build model/PageInputs → panther → `saveAs`. The three report files are adapters over Report Forge's exporters (`report-forge/ui/exports/`): `reportDocumentOf` turns a stored `ReportDetail` into the package's `ReportDocument`, and `reportExportHostOf` is this app's half of an export (where an image lives, and a figure's pixels, drawn by panther from the report's own figure blocks). Every entry returns an `APIResponse` envelope (never throws), takes a `progress(pct)` callback, and yields to the UI between items. The paged report PDF is printed by the SERVER's headless Chrome (S12).
 
 | Artifact   | Formats                                   | Pipeline                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | ---------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -895,106 +281,36 @@ the SERVER's headless Chrome (S12).
 | Report     | paged PDF, Word, HTML                     | The editor's Download dialog is Report Forge's and exports the LIVE document through the host interfaces (`imageHost`, `figures.rasterize`, `renderPdf`). From a stored report: `buildStandaloneReportHtml(detail, progress, opts)` (`export_report_as_html.ts`) is the same builder as the editor preview with figures as `getFigureAsDataUrlBrowser` PNGs at `FIGURE_EXPORT_WIDTH_PX` and images inlined; `buildReportPdfFromDetail` (`export_report_as_paged_pdf.ts`) builds the complete paged document and `renderReportPdf` prints it with headless Chrome, forcing the open editor's page breaks (`registerReportPageLayout`) when the fetched body is the body it laid out, so the PDF and the editor's page boxes agree |
 | Single viz | PNG, table CSV, data CSV, JSON definition | in the editor (`figure_editor.tsx`, outside `exports/`): transient bundle → `getFigureAsCanvas` at `FIGURE_EXPORT_WIDTH_PX` 1920; multi-replicant download disabled                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
-The email exits are the only non-download paths: `ShareSlideDeck` →
-`exportSlideDeckAsPdfBase64` → `sendSlideDeckEmail`, and `ShareReport` →
-`buildReportAttachment` → `sendReportEmail` (S12's SendGrid routes). A report
-goes as its paged PDF, the same bytes Download saves.
+The email exits are the only non-download paths: `ShareSlideDeck` → `exportSlideDeckAsPdfBase64` → `sendSlideDeckEmail`, and `ShareReport` → `buildReportAttachment` → `sendReportEmail` (S12's SendGrid routes). A report goes as its paged PDF, the same bytes Download saves.
 
-**`getTableExportAoa`**
-([get_table_export_aoa.ts](client/src/exports/get_table_export_aoa.ts)) exports
-the **displayed** text, not raw values: it rebuilds the renderer's per-cell
-`textFormatter` from the hydrated style and replicates the renderer's guard
-order, emitting caption/col-group/header/row-group/footnote rows. Header labels
-come from panther's `resolveTableHeaders(data, style)`, the same
-label-resolution prelude the renderer runs, so header `textFormatter`s (sample
-sizes today) reach exports too. Reading the raw transformed labels instead
-diverges silently: nothing typechecks red. One consumer: the editor's table CSV
-(with BOM for Excel). It requires hydrated FigureInputs, since the formatter is
-a rebuilt closure.
+**`getTableExportAoa`** ([get_table_export_aoa.ts](client/src/exports/get_table_export_aoa.ts)) exports the **displayed** text, not raw values: it rebuilds the renderer's per-cell `textFormatter` from the hydrated style and replicates the renderer's guard order, emitting caption/col-group/header/row-group/footnote rows. Header labels come from panther's `resolveTableHeaders(data, style)`, the same label-resolution prelude the renderer runs, so header `textFormatter`s (sample sizes today) reach exports too. Reading the raw transformed labels instead diverges silently: nothing typechecks red. One consumer: the editor's table CSV (with BOM for Excel). It requires hydrated FigureInputs, since the formatter is a rebuilt closure.
 
-**Degradation contracts differ by artifact.** Reports swap failed/orphaned media
-tokens in place for the localized placeholder. Slide decks degrade per-block
-upstream in `convertSlideToPageInputs`, but a failed slide fetch or convert
-**aborts the whole deck export**.
+**Degradation contracts differ by artifact.** Reports swap failed/orphaned media tokens in place for the localized placeholder. Slide decks degrade per-block upstream in `convertSlideToPageInputs`, but a failed slide fetch or convert **aborts the whole deck export**.
 
-**UI entry points:** `DownloadSlideDeck` + `ShareSlideDeck` (deck page), Report
-Forge's download dialog (report page: File > Download), and the figure editor's
-download modal. Deck/report exports pass the raw DB label to `pdf.save`/`saveAs`
-(Open item).
+**UI entry points:** `DownloadSlideDeck` + `ShareSlideDeck` (deck page), Report Forge's download dialog (report page: File > Download), and the figure editor's download modal. Deck/report exports pass the raw DB label to `pdf.save`/`saveAs` (Open item).
 
 ## Open items
 
-- Sample sizes, deliberately deferred out of v1 (each is app-side only, since
-  panther already supports all of them): row and group headers, per-cell display
-  via `TableCellInfo.sampleN`, and AI-tool exposure of `s.showNValues` (no `s`
-  field is AI-editable today). If a per-cell formatter is ever added,
-  `getTableExportAoa` hand-builds its cell infos and would need to source them
-  from panther, the way it now sources header labels.
-- The three slide-deck exporters triplicate the fetch/convert loop (~150
-  duplicated lines; the two PDF variants differ only in their tail). Extract one
-  shared iterator.
-- Filename rules are inconsistent: deck/report exports pass the raw label (a `/`
-  or `:` in a label hits browser munging), the figure editor does
-  spaces→underscores. Pick one rule.
-- Deck exporters' catch drops non-Error detail
-  (`e instanceof Error ?
-  e.message : ""`); the report exporter uses
-  `String(e)`.
-- Slide `textSize` is dead at render: the `TEXT_SIZE_REL` multiplier is
-  commented out in `convertBlockToPageContentItem` while the editor still writes
-  the key, the schema validates it, and `lib/consts.ts:171-175` claims the
-  renderer maps it. Wire it back or delete the knob.
-- `config.showPageNumbers` is unwired: `PageInputs.pageNumber` is never set
-  anywhere (the `slideIndex` param is unread; the style block computes a
-  page-number color for text that never renders). `headerSize` is likewise a
-  dead stored knob.
-- Stale contract comments in the S2 migration transforms
-  (`slide_config.ts:26,86,205`; `reports.ts:65,85`) describe a
-  `figureInputsSchema`/`zFigureInputs` gate the transforms do not run.
-- The image cache never invalidates (version = URL): replacing a logo/image
-  asset at the same server path serves the stale image until site data is
-  cleared.
-- `client/index.html` preloads three nonexistent `/fonts/Inter-*.woff2` files
-  (404 on every load); `font-map.json` exists as byte-identical copies at
-  `client/src/` and `client/public/fonts/`, and its `woff2`/`boldVariants`
-  sections have zero consumers.
-- `loadLogos` logic is duplicated (`convert_slide_to_page_inputs.ts` vs
-  `style_preview.tsx`).
-- `resolveTextBackground("success")` renders `_SLIDE_BACKGROUND_COLOR` (=
-  `_NIGERIA_GREEN`), not the success token: misleading name or wrong color;
-  needs a ruling.
-- Deck PDF loads only the deck family's font variants: a figure styled with
-  another family hits "Font not found in map".
-- The figure editor's multi-replicant download is disabled (`allReplicants`
-  hard-coded false in `_shared/figure_editor/download_presentation_object.tsx`,
-  its selector commented out, and the editor has no multi-replicant branch).
-  Revive or delete.
-- The editor PNG honors transparency only in the no-padding branch
-  (`getFigureAsCanvas` fills white); blocked on a panther transparent flag.
+- Sample sizes, deliberately deferred out of v1 (each is app-side only, since panther already supports all of them): row and group headers, per-cell display via `TableCellInfo.sampleN`, and AI-tool exposure of `s.showNValues` (no `s` field is AI-editable today). If a per-cell formatter is ever added, `getTableExportAoa` hand-builds its cell infos and would need to source them from panther, the way it now sources header labels.
+- The three slide-deck exporters triplicate the fetch/convert loop (~150 duplicated lines; the two PDF variants differ only in their tail). Extract one shared iterator.
+- Filename rules are inconsistent: deck/report exports pass the raw label (a `/` or `:` in a label hits browser munging), the figure editor does spaces→underscores. Pick one rule.
+- Deck exporters' catch drops non-Error detail (`e instanceof Error ?
+  e.message : ""`); the report exporter uses `String(e)`.
+- Slide `textSize` is dead at render: the `TEXT_SIZE_REL` multiplier is commented out in `convertBlockToPageContentItem` while the editor still writes the key, the schema validates it, and `lib/consts.ts:171-175` claims the renderer maps it. Wire it back or delete the knob.
+- `config.showPageNumbers` is unwired: `PageInputs.pageNumber` is never set anywhere (the `slideIndex` param is unread; the style block computes a page-number color for text that never renders). `headerSize` is likewise a dead stored knob.
+- Stale contract comments in the S2 migration transforms (`slide_config.ts:26,86,205`; `reports.ts:65,85`) describe a `figureInputsSchema`/`zFigureInputs` gate the transforms do not run.
+- The image cache never invalidates (version = URL): replacing a logo/image asset at the same server path serves the stale image until site data is cleared.
+- `client/index.html` preloads three nonexistent `/fonts/Inter-*.woff2` files (404 on every load); `font-map.json` exists as byte-identical copies at `client/src/` and `client/public/fonts/`, and its `woff2`/`boldVariants` sections have zero consumers.
+- `loadLogos` logic is duplicated (`convert_slide_to_page_inputs.ts` vs `style_preview.tsx`).
+- `resolveTextBackground("success")` renders `_SLIDE_BACKGROUND_COLOR` (= `_NIGERIA_GREEN`), not the success token: misleading name or wrong color; needs a ruling.
+- Deck PDF loads only the deck family's font variants: a figure styled with another family hits "Font not found in map".
+- The figure editor's multi-replicant download is disabled (`allReplicants` hard-coded false in `_shared/figure_editor/download_presentation_object.tsx`, its selector commented out, and the editor has no multi-replicant branch). Revive or delete.
+- The editor PNG honors transparency only in the no-padding branch (`getFigureAsCanvas` fills white); blocked on a panther transparent flag.
 
-- **Deck-themed SERIES colors** (deferred half of the deck-colors work).
-  Structural figure colors (grid lines, borders, data-label backgrounds,
-  strokes) now resolve against the deck's `colorPreset` when a figure renders
-  inside a deck (`structuralColor()` in
-  [get_style_from_po/_0_common.ts](client/src/generate_visualization/get_style_from_po/_0_common.ts));
-  outside a deck they stay `{ key }` against the global palette, so standalone
-  visualizations, editor previews and exports are unchanged. Series colors were
-  deliberately left out: the next step is a `"deck-primary"` color scale that
-  returns `deckStyle.colorPreset.primary`. Note the semantic colors in
-  `_2_coverage`/`_3_percent_change`/`_4_disruptions`/`_6_disruptions_v2`
-  (good/bad/neutral, survey/projected) are intentionally NOT theme-routed: they
-  carry meaning.
+- **Deck-themed SERIES colors** (deferred half of the deck-colors work). Structural figure colors (grid lines, borders, data-label backgrounds, strokes) now resolve against the deck's `colorPreset` when a figure renders inside a deck (`structuralColor()` in [get_style_from_po/_0_common.ts](client/src/generate_visualization/get_style_from_po/_0_common.ts)); outside a deck they stay `{ key }` against the global palette, so standalone visualizations, editor previews and exports are unchanged. Series colors were deliberately left out: the next step is a `"deck-primary"` color scale that returns `deckStyle.colorPreset.primary`. Note the semantic colors in `_2_coverage`/`_3_percent_change`/`_4_disruptions`/`_6_disruptions_v2` (good/bad/neutral, survey/projected) are intentionally NOT theme-routed: they carry meaning.
 
 ### FigureBundle deferred phases
 
-The architecture is documented above and in [S9](SYSTEM_09_viz_query_cache.md),
-[S12](SYSTEM_12_documents_sharing.md), [S2](SYSTEM_02_persistence.md). One slice
-is deferred:
+The architecture is documented above and in [S9](SYSTEM_09_viz_query_cache.md), [S12](SYSTEM_12_documents_sharing.md), [S2](SYSTEM_02_persistence.md). One slice is deferred:
 
-- **The Visualization rename** (optional). Rename presentation object →
-  Visualization end-to-end: `PresentationObjectConfig`,
-  `ItemsHolderPresentationObject`, `server_only_funcs_presentation_objects/`,
-  and the dozens of files using those names. No behavior change: a large
-  mechanical sweep, so its own focused PR (like the snapshot-naming pass), never
-  bundled with feature work. The FigureBundle refactor deliberately kept the PO
-  names to keep this separable.
+- **The Visualization rename** (optional). Rename presentation object → Visualization end-to-end: `PresentationObjectConfig`, `ItemsHolderPresentationObject`, `server_only_funcs_presentation_objects/`, and the dozens of files using those names. No behavior change: a large mechanical sweep, so its own focused PR (like the snapshot-naming pass), never bundled with feature work. The FigureBundle refactor deliberately kept the PO names to keep this separable.

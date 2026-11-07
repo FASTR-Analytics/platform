@@ -1,22 +1,15 @@
 # Demo video: recordings to make
 
-Record each row as its own file, name it exactly as listed, and put it in
-`demo_video/shots/`. The assembler cuts each file to its slots under the
-narration; a file used in more than one part is listed once.
+Record each row as its own file, name it exactly as listed, and put it in `demo_video/shots/`. The assembler cuts each file to its slots under the narration; a file used in more than one part is listed once.
 
 ## How to record
 
 - Browser content only: no tab bar, no bookmarks bar. 1920x1080 at 30 fps.
 - Nav rail expanded. Browser zoom 125% so text reads at video size.
-- Have the page in position before you start, then act. Leave about two seconds
-  of padding at each end. Longer than the target is fine; shorter is not.
+- Have the page in position before you start, then act. Leave about two seconds of padding at each end. Longer than the target is fine; shorter is not.
 - Keep the cursor moving with purpose. No idle hovering, no reading pauses.
-- Stay off: the Users list and the Imports History tab (they list emails), the
-  Results list's Created-by column for more than two seconds, the DHIS2 wizard's
-  Review step (it warns that the play server no longer holds the elements), and
-  any Launch or Start button.
-- AI shots: questions and figures beside "Presentation Example - ANC"; the deck
-  build in a new deck inside a "Demo video" folder.
+- Stay off: the Users list and the Imports History tab (they list emails), the Results list's Created-by column for more than two seconds, the DHIS2 wizard's Review step (it warns that the play server no longer holds the elements), and any Launch or Start button.
+- AI shots: questions and figures beside "Presentation Example - ANC"; the deck build in a new deck inside a "Demo video" folder.
 
 ## The recordings
 

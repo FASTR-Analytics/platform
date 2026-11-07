@@ -22,49 +22,17 @@ docs_absorbed:
 
 # S3: Realtime Sync & Cache Invalidation
 
-The `last_updated → BroadcastChannel/SSE → version-hash` triangle: the typed
-notify hub, the instance SSE endpoint, the Valkey read-model cache, and the
-client store/cache infrastructure. One design idea carried through every layer:
-**every write bumps a version column; every read model, server Valkey entry or
-client IndexedDB entry, is keyed on that version, so invalidation is implicit
-(the next read misses) and nothing ever "clears a cache" on a normal write.**
-Reviewed against code (first review cycle, review-only; absorbs
-DOC_SSE_REALTIME + DOC_VALKEY_CACHE).
+The `last_updated → BroadcastChannel/SSE → version-hash` triangle: the typed notify hub, the instance SSE endpoint, the Valkey read-model cache, and the client store/cache infrastructure. One design idea carried through every layer: **every write bumps a version column; every read model, server Valkey entry or client IndexedDB entry, is keyed on that version, so invalidation is implicit (the next read misses) and nothing ever "clears a cache" on a normal write.** Reviewed against code (first review cycle, review-only; absorbs DOC_SSE_REALTIME + DOC_VALKEY_CACHE).
 
-Boundaries: the client _consumer_ rules (tiers, live/snapshot reads,
-never-refetch-after-mutation) are
-[PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md). This system owns the machinery
-those rules run on. The write side that bumps version columns is **S2**
-([SYSTEM_02_persistence.md](SYSTEM_02_persistence.md)). SSE is server _push_; it
-is not the request-scoped NDJSON `StreamWriter` in **S1**
-(SYSTEM_01_api_contract.md). The other BroadcastChannel,
-`RUN_GENERATION_ENDED_CHANNEL` (`worker_routines/generate_run/`), is **S8**'s
-internal worker plumbing (SYSTEM_08_results_packages.md). It feeds no SSE
-endpoint and is exempt from the notify-catalog rule.
-`server/middleware/cache.ts` (`cacheMiddleware`) sets HTTP `Cache-Control`
-headers on static assets, a completely different "cache", owned elsewhere. The
-collaboration WebSocket layer (live Yjs deltas, presence) is **S16**
-([SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)), strictly additive:
-its room checkpoints feed this system's triangle through the existing notify
-wrappers and post nothing new to the BroadcastChannels. Sub-file custody
-exceptions are in SYSTEMS.md §4.1 (`instance/logged_in_wrapper.tsx` is owned by
-S1, this system a reader).
+Boundaries: the client _consumer_ rules (tiers, live/snapshot reads, never-refetch-after-mutation) are [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md). This system owns the machinery those rules run on. The write side that bumps version columns is **S2** ([SYSTEM_02_persistence.md](SYSTEM_02_persistence.md)). SSE is server _push_; it is not the request-scoped NDJSON `StreamWriter` in **S1** (SYSTEM_01_api_contract.md). The other BroadcastChannel, `RUN_GENERATION_ENDED_CHANNEL` (`worker_routines/generate_run/`), is **S8**'s internal worker plumbing (SYSTEM_08_results_packages.md). It feeds no SSE endpoint and is exempt from the notify-catalog rule. `server/middleware/cache.ts` (`cacheMiddleware`) sets HTTP `Cache-Control` headers on static assets, a completely different "cache", owned elsewhere. The collaboration WebSocket layer (live Yjs deltas, presence) is **S16** ([SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)), strictly additive: its room checkpoints feed this system's triangle through the existing notify wrappers and post nothing new to the BroadcastChannels. Sub-file custody exceptions are in SYSTEMS.md §4.1 (`instance/logged_in_wrapper.tsx` is owned by S1, this system a reader).
 
 ## Contract
 
-Every mutation must stamp `last_updated` and notify, but that obligation lives
-in ~27 files owned by other systems. This system's _machinery_ is reviewed here;
-its _convention_ is a standing audit (SYSTEMS.md §4.3, audit 1).
+Every mutation must stamp `last_updated` and notify, but that obligation lives in ~27 files owned by other systems. This system's _machinery_ is reviewed here; its _convention_ is a standing audit (SYSTEMS.md §4.3, audit 1).
 
 ## SSE: the producer side
 
-Principles: (1) **mutations broadcast fresh state rather than returning it**; a
-route mutates, then `notify*()`s, and clients refetch off the SSE feed (the
-server half of the client never-manually-refetch rule). (2) **One typed
-`notify*` wrapper per event type**: call sites never build a raw SSE message.
-(3) **Subscribe before you build.** (4) **`last_updated` is the universal
-version token**: the same timestamp a write bumps is broadcast to clients and
-used as the cache version key.
+Principles: (1) **mutations broadcast fresh state rather than returning it**; a route mutates, then `notify*()`s, and clients refetch off the SSE feed (the server half of the client never-manually-refetch rule). (2) **One typed `notify*` wrapper per event type**: call sites never build a raw SSE message. (3) **Subscribe before you build.** (4) **`last_updated` is the universal version token**: the same timestamp a write bumps is broadcast to clients and used as the cache version key.
 
 ```text
 Route handler (after a successful DB write)
@@ -85,99 +53,17 @@ Exactly **one SSE-feeding** broadcast channel, with one endpoint:
 | -------------------- | ----------------------- | --------------------------------- | ----------------------------------------------------- |
 | `"instance_updates"` | `GET /instance_updates` | `routes/instance/instance-sse.ts` | `requireSignedIn()` (hard-deny) + per-message filter† |
 
-† The instance endpoint admits every logged-in user, so the two results-package
-generation messages (`run_progress` and `r_script`, which carry run labels,
-module ids and R error detail) are dropped in the forward loop for callers
-without `can_view_data`. The filter is LIVE: every `users_updated` passing
-through the same forward loop carries the full permission rows, and the filter
-re-derives the connection's entitlement from it (keyed on the connection's own
-email, which never changes), so a mid-session grant starts the stream and a
-revocation stops it without a reconnect. Per-message filtering is tolerable ONLY
-because these are ephemeral telemetry. Durable per-user state never relies on
-it: the runs CATALOGUE broadcasts a data-free nonce (`runs_catalog_updated`) and
-each entitled client fetches `listRunCatalog` through its per-request guard, so
-nothing sensitive rides the broadcast and permission changes take effect live.
-The one other per-connection rule on the instance channel is the ROSTER,
-projected per connection by `rosterForViewer` (`lib/permissions/`, S18) in
-`starting` and in every `users_updated` the forward loop passes: a connection
-whose user is absent from the `users` table (Clerk-authenticated but
-unapproved) receives `users: []`, until a roster payload names them, at which
-point the client's own-email re-derivation flips them approved; an approved
-connection receives directory rows (email, names, admin flag, scope access),
-its own row whole; a holder of `can_view_users` (an admin included) receives
-every roster row, flags included. The roster is an enumeration surface (emails,
-names, permission maps) with no consumer on the pending-approval screen. The
-same rule
-withholds the copilot grounding and the boundary files: an unapproved
-connection's `starting` carries `aiContext: ""` and `geojsonMaps: []`, its
-`config_updated` arrives with `aiContext` blanked, and `geojson_maps_updated`
-does not reach it. Deliberately NOT withheld from unapproved connections:
-`dhis2ConnectionUrl`, the structure/indicator/dataset summaries, and assets.
-The product plane rides the same roster rule: `buildInstanceState` leaves
-`products`, `folders`, `readyPackages`, `scopes` and the `lastUpdated` index
-empty for an unapproved connection, and the forward loop drops
-`products_upserted`, `products_deleted`, `folders_updated`, `scopes_updated` and
-`last_updated` while the connection's user is absent from the roster. The
-`readyPackages` labels are approved-user data by design: a deliberate narrowing
-of the run-label filter above to generation telemetry (`RunListingItem`'s
-progress, summary and provenance), because every product card shows the label of
-the package it serves from.
+† The instance endpoint admits every logged-in user, so the two results-package generation messages (`run_progress` and `r_script`, which carry run labels, module ids and R error detail) are dropped in the forward loop for callers without `can_view_data`. The filter is LIVE: every `users_updated` passing through the same forward loop carries the full permission rows, and the filter re-derives the connection's entitlement from it (keyed on the connection's own email, which never changes), so a mid-session grant starts the stream and a revocation stops it without a reconnect. Per-message filtering is tolerable ONLY because these are ephemeral telemetry. Durable per-user state never relies on it: the runs CATALOGUE broadcasts a data-free nonce (`runs_catalog_updated`) and each entitled client fetches `listRunCatalog` through its per-request guard, so nothing sensitive rides the broadcast and permission changes take effect live. The one other per-connection rule on the instance channel is the ROSTER, projected per connection by `rosterForViewer` (`lib/permissions/`, S18) in `starting` and in every `users_updated` the forward loop passes: a connection whose user is absent from the `users` table (Clerk-authenticated but unapproved) receives `users: []`, until a roster payload names them, at which point the client's own-email re-derivation flips them approved; an approved connection receives directory rows (email, names, admin flag, scope access), its own row whole; a holder of `can_view_users` (an admin included) receives every roster row, flags included. The roster is an enumeration surface (emails, names, permission maps) with no consumer on the pending-approval screen. The same rule withholds the copilot grounding and the boundary files: an unapproved connection's `starting` carries `aiContext: ""` and `geojsonMaps: []`, its `config_updated` arrives with `aiContext` blanked, and `geojson_maps_updated` does not reach it. Deliberately NOT withheld from unapproved connections: `dhis2ConnectionUrl`, the structure/indicator/dataset summaries, and assets. The product plane rides the same roster rule: `buildInstanceState` leaves `products`, `folders`, `readyPackages`, `scopes` and the `lastUpdated` index empty for an unapproved connection, and the forward loop drops `products_upserted`, `products_deleted`, `folders_updated`, `scopes_updated` and `last_updated` while the connection's user is absent from the roster. The `readyPackages` labels are approved-user data by design: a deliberate narrowing of the run-label filter above to generation telemetry (`RunListingItem`'s progress, summary and provenance), because every product card shows the label of the package it serves from.
 
-Every approved connection that is not a global admin gets only the products it
-can see: those whose scope it holds (every scope for an unrestricted user; a
-RESTRICTED one, whose `currentUserScopeAccess.all` is false, S18 "Scope access",
-holds its grants) and on which `productLevelFor` gives at least `view`, the one
-predicate `holdsProductLevel` in `server/auth/product_access.ts` (S18; S12
-"Contract" says what each level allows). A global admin's plane is whole.
-`buildInstanceState` cuts the
-`starting` payload with `restrictProductPlane`: the visible products; the
-folders whose subtree holds a visible product or that the connection created
-(`visibleFolderIds`), so a folder with nothing the user can see is not shown;
-every scope, or a restricted connection's granted ones; and the slide stamps of
-visible decks, read with their deck by `listSlideLastUpdated`, so no query names
-a slide. The forward loop is `createInstanceSseFilter` (`instance-sse.ts`),
-which holds the rules above and these, with no query: a visible upserted row is
-forwarded and its product remembered as held; a held row that is no longer
-visible (rescoped out of a grant, or its level lowered to `none`) is rewritten
-as `products_deleted` and remembered as withdrawn; a row neither visible nor
-held is dropped. A withdrawn product that becomes visible again ends the stream,
-because its slide stamps were withheld while it was hidden; the reconnect's
-`starting` carries fresh ones. A product the connection never held arrives as an
-ordinary upsert; the client holds no stamps for it, except for a slide id
-re-minted there, which the `(productId, slideId)` cache key handles (see "A
-stamp is for a row that still exists"). A `last_updated` passes when its deck
-(`productId`) is held. For a restricted connection `scopes_updated` is cut to
-the granted scopes. For every connection that is not a global admin the folder
-list is recomputed from what it holds on every product or folder message and
-sent as `folders_updated` when it changes. A restricted user's stored data bits
-never open the generation stream. A `users_updated` that changes the
-connection's own scope access or admin flag, or that drops an approved
-connection's user from the roster (a deleted user), ends the stream after
-forwarding it; the client reconnects and the new `starting` is built under the
-new access. The filter and `restrictProductPlane` are pinned by
-`server/tests/instance_sse_filter_test.ts`. No other message on the channel is
-filtered per user.
+Every approved connection that is not a global admin gets only the products it can see: those whose scope it holds (every scope for an unrestricted user; a RESTRICTED one, whose `currentUserScopeAccess.all` is false, S18 "Scope access", holds its grants) and on which `productLevelFor` gives at least `view`, the one predicate `holdsProductLevel` in `server/auth/product_access.ts` (S18; S12 "Contract" says what each level allows). A global admin's plane is whole. `buildInstanceState` cuts the `starting` payload with `restrictProductPlane`: the visible products; the folders whose subtree holds a visible product or that the connection created (`visibleFolderIds`), so a folder with nothing the user can see is not shown; every scope, or a restricted connection's granted ones; and the slide stamps of visible decks, read with their deck by `listSlideLastUpdated`, so no query names a slide. The forward loop is `createInstanceSseFilter` (`instance-sse.ts`), which holds the rules above and these, with no query: a visible upserted row is forwarded and its product remembered as held; a held row that is no longer visible (rescoped out of a grant, or its level lowered to `none`) is rewritten as `products_deleted` and remembered as withdrawn; a row neither visible nor held is dropped. A withdrawn product that becomes visible again ends the stream, because its slide stamps were withheld while it was hidden; the reconnect's `starting` carries fresh ones. A product the connection never held arrives as an ordinary upsert; the client holds no stamps for it, except for a slide id re-minted there, which the `(productId, slideId)` cache key handles (see "A stamp is for a row that still exists"). A `last_updated` passes when its deck (`productId`) is held. For a restricted connection `scopes_updated` is cut to the granted scopes. For every connection that is not a global admin the folder list is recomputed from what it holds on every product or folder message and sent as `folders_updated` when it changes. A restricted user's stored data bits never open the generation stream. A `users_updated` that changes the connection's own scope access or admin flag, or that drops an approved connection's user from the roster (a deleted user), ends the stream after forwarding it; the client reconnects and the new `starting` is built under the new access. The filter and `restrictProductPlane` are pinned by `server/tests/instance_sse_filter_test.ts`. No other message on the channel is filtered per user.
 
-`BroadcastChannel` in Deno is in-process: it fans out across the main thread and
-all Web Workers in the same process, which is how a background worker's progress
-reaches the main-thread SSE connection (PROTOCOL_APP_WORKER_ROUTINES.md).
+`BroadcastChannel` in Deno is in-process: it fans out across the main thread and all Web Workers in the same process, which is how a background worker's progress reaches the main-thread SSE connection (PROTOCOL_APP_WORKER_ROUTINES.md).
 
-**Message contract.** `InstanceSseMessage` (`lib/types/instance_sse.ts`) is a
-discriminated union keyed by `type`. The first message on any connection is
-always `{ type: "starting", data: <full state> }`;
-`{ type: "error", data: { message } }` terminates with an error.
+**Message contract.** `InstanceSseMessage` (`lib/types/instance_sse.ts`) is a discriminated union keyed by `type`. The first message on any connection is always `{ type: "starting", data: <full state> }`; `{ type: "error", data: { message } }` terminates with an error.
 
-`buildInstanceState` (`task_management/build_instance_state.ts`) is the instance
-`starting` builder in two halves: `buildInstanceGrounding` is the per-instance
-half the `/mcp` context cache uses (instance facts only: no roster, no
-catalogue, no product plane), and `buildInstanceState` fills the connection's
-share over it, the projected roster (S18 "The roster"), the viewer's assets,
-the catalogue when entitled and, for an approved caller, the product plane,
-each list degrading to empty on a read failure rather than stopping the
-boundary.
+`buildInstanceState` (`task_management/build_instance_state.ts`) is the instance `starting` builder in two halves: `buildInstanceGrounding` is the per-instance half the `/mcp` context cache uses (instance facts only: no roster, no catalogue, no product plane), and `buildInstanceState` fills the connection's share over it, the projected roster (S18 "The roster"), the viewer's assets, the catalogue when entitled and, for an approved caller, the product plane, each list degrading to empty on a read failure rather than stopping the boundary.
 
-**Connection lifecycle: subscribe-before-build.** The endpoint uses Hono's
-`streamSSE` and follows six steps:
+**Connection lifecycle: subscribe-before-build.** The endpoint uses Hono's `streamSSE` and follows six steps:
 
 ```text
 1. Authenticate: hard-deny unauthenticated clients
@@ -191,214 +77,48 @@ boundary.
      forward loop; BroadcastChannel cleanup in finally.
 ```
 
-Messages that arrive during the build wait in a `queue: []`; after `starting`
-they drain into a `ReadableStream` controller the forward loop reads.
+Messages that arrive during the build wait in a `queue: []`; after `starting` they drain into a `ReadableStream` controller the forward loop reads.
 
-**The notify catalog (normative).** Every broadcast to the SSE channel goes
-through a typed wrapper, never `postMessage` directly.
-`server/task_management/notify_instance_updated.ts` exposes
-`notifyInstanceUpdate(message)` plus sixteen wrappers, one per
-`InstanceSseMessage` type: `notifyInstanceConfigUpdated` (`config_updated`;
-`notifyInstanceConfigUpdatedFromDb` re-reads the config and calls it),
-`notifyInstanceUsersUpdated` (`users_updated`), `notifyInstanceAssetsUpdated`
-(`assets_updated`), `notifyInstanceGeoJsonMapsUpdated` (`geojson_maps_updated`),
-`notifyInstanceStructureUpdated` (`structure_updated`),
-`notifyInstanceIndicatorsUpdated` (`indicators_updated`: the dictionary counts
-and the four stamps `indicatorsVersion`, `countIndicatorsVersion`,
-`hfaIndicatorsVersion` and `hfaVerificationVersion`, fired by every HMIS and HFA
-dictionary write and by every HFA verification write; S5 "HFA indicator
-verification"), `notifyInstanceDatasetsUpdated` (`datasets_updated`),
-`notifyInstancePopulationUpdated` (`population_updated`: the population level
-setting, the stored row count, per-type coverage and the
-`population_last_updated` stamp, fired by every store write and by the two HMIS
-structure write routes; S5 "Population store"),
-`notifyInstanceRunsCatalogUpdated` (`runs_catalog_updated`: a data-free NONCE,
-`crypto.randomUUID()`: a timestamp collided when two mutations landed in the
-same millisecond and the client store's equality guard dropped the second
-refetch. Entitled clients refetch `listRunCatalog` per the † rule above, and
-every approved client refetches `listReadyPackages` in `t1_sse.tsx`'s
-ready-packages effect, which, once the list is stored, evicts the run-geo store
-(`t2_run_geojson.ts`) of every run not in it, memory and IDB, and evicts it
-whole for an unapproved user; fired by every in-process mutation of the
-catalogue's facts: launch (the route on success, and `generate_run/launch.ts` on
-the row-created-then-failed path), `deleteRun`, the generate-run worker's
-finalize-or-fail site plus the host's crash handler, `pinRun` / `unpinRun`, and
-the `products.run_id` movers `setProductPackage`, `duplicateProduct` and
-`deleteProducts`), `notifyInstancePinnedRunUpdated` (`pinned_run_updated`: the
-instance's pinned results package moved or was cleared, SYSTEM_08 "The pinned
-package"; carries the bare `pinnedRunId | null` and is deliberately UNFILTERED,
-the `config_updated` class: a run id alone is not sensitive (every approved user
-already sees the ids of the packages products serve from) and it is the ONE
-field every surface derives its Pinned badge from. Its callers,
-`server/runs/pin_run.ts`'s `pinRun` and `unpinRun`, each fire it once and then
-fire the catalogue nonce, because the catalogue rows carry the pinned flag),
-`notifyInstanceRunProgress` (`run_progress`), `notifyInstanceRScript`
-(`r_script`), and the product plane's five:
-`notifyInstanceProductsUpserted(mainDb, ids)` (`products_upserted`, the ONLY
-product-list message: it re-reads the summaries for the ids a mutation touched
-and broadcasts them per row, never the whole list, so a checkpoint on one deck
-never re-sends every card; a failed re-read is logged and swallowed because the
-write has already committed), `notifyInstanceProductsDeleted`
-(`products_deleted`), `notifyInstanceFoldersUpdated` (`folders_updated`, whole
-list), `notifyInstanceScopesChanged(mainDb)` (`scopes_updated`, whole list;
-there is no scope list route, so `starting` and this message are how a client
-holds scopes; it re-reads the list, logs and swallows a failed re-read, and is
-fired by every scope write in `server/routes/instance/scopes.ts` and, after
-their product broadcast, by every product route that changes a scope's product
-count: `createProduct`, `deleteProducts`, `setProductScope`, `duplicateProduct`,
-`createVisualization` and the three `copy*Version` routes; never by
-`notifyInstanceProductsUpserted`, which fires on every checkpoint) and
-`notifyInstanceLastUpdated(tableName, productId, ids, ts)` (`last_updated`,
-carrying `slides` only: a product's own stamp rides its summary, so emitting it
-here too would version the same read twice; `productId` names the deck the
-slides belong to, which is what the per-connection filter checks). Generation
-telemetry (`run_progress`, `r_script`) has no other channel: a product points
-only at a ready run, so nothing else has a live view of a generation. The
-generate_run emitters call `notifyInstanceRunProgress` / `notifyInstanceRScript`
-directly.
+**The notify catalog (normative).** Every broadcast to the SSE channel goes through a typed wrapper, never `postMessage` directly. `server/task_management/notify_instance_updated.ts` exposes `notifyInstanceUpdate(message)` plus sixteen wrappers, one per `InstanceSseMessage` type: `notifyInstanceConfigUpdated` (`config_updated`; `notifyInstanceConfigUpdatedFromDb` re-reads the config and calls it), `notifyInstanceUsersUpdated` (`users_updated`), `notifyInstanceAssetsUpdated` (`assets_updated`), `notifyInstanceGeoJsonMapsUpdated` (`geojson_maps_updated`), `notifyInstanceStructureUpdated` (`structure_updated`), `notifyInstanceIndicatorsUpdated` (`indicators_updated`: the dictionary counts and the four stamps `indicatorsVersion`, `countIndicatorsVersion`, `hfaIndicatorsVersion` and `hfaVerificationVersion`, fired by every HMIS and HFA dictionary write and by every HFA verification write; S5 "HFA indicator verification"), `notifyInstanceDatasetsUpdated` (`datasets_updated`), `notifyInstancePopulationUpdated` (`population_updated`: the population level setting, the stored row count, per-type coverage and the `population_last_updated` stamp, fired by every store write and by the two HMIS structure write routes; S5 "Population store"), `notifyInstanceRunsCatalogUpdated` (`runs_catalog_updated`: a data-free NONCE, `crypto.randomUUID()`: a timestamp collided when two mutations landed in the same millisecond and the client store's equality guard dropped the second refetch. Entitled clients refetch `listRunCatalog` per the † rule above, and every approved client refetches `listReadyPackages` in `t1_sse.tsx`'s ready-packages effect, which, once the list is stored, evicts the run-geo store (`t2_run_geojson.ts`) of every run not in it, memory and IDB, and evicts it whole for an unapproved user; fired by every in-process mutation of the catalogue's facts: launch (the route on success, and `generate_run/launch.ts` on the row-created-then-failed path), `deleteRun`, the generate-run worker's finalize-or-fail site plus the host's crash handler, `pinRun` / `unpinRun`, and the `products.run_id` movers `setProductPackage`, `duplicateProduct` and `deleteProducts`), `notifyInstancePinnedRunUpdated` (`pinned_run_updated`: the instance's pinned results package moved or was cleared, SYSTEM_08 "The pinned package"; carries the bare `pinnedRunId | null` and is deliberately UNFILTERED, the `config_updated` class: a run id alone is not sensitive (every approved user already sees the ids of the packages products serve from) and it is the ONE field every surface derives its Pinned badge from. Its callers, `server/runs/pin_run.ts`'s `pinRun` and `unpinRun`, each fire it once and then fire the catalogue nonce, because the catalogue rows carry the pinned flag), `notifyInstanceRunProgress` (`run_progress`), `notifyInstanceRScript` (`r_script`), and the product plane's five: `notifyInstanceProductsUpserted(mainDb, ids)` (`products_upserted`, the ONLY product-list message: it re-reads the summaries for the ids a mutation touched and broadcasts them per row, never the whole list, so a checkpoint on one deck never re-sends every card; a failed re-read is logged and swallowed because the write has already committed), `notifyInstanceProductsDeleted` (`products_deleted`), `notifyInstanceFoldersUpdated` (`folders_updated`, whole list), `notifyInstanceScopesChanged(mainDb)` (`scopes_updated`, whole list; there is no scope list route, so `starting` and this message are how a client holds scopes; it re-reads the list, logs and swallows a failed re-read, and is fired by every scope write in `server/routes/instance/scopes.ts` and, after their product broadcast, by every product route that changes a scope's product count: `createProduct`, `deleteProducts`, `setProductScope`, `duplicateProduct`, `createVisualization` and the three `copy*Version` routes; never by `notifyInstanceProductsUpserted`, which fires on every checkpoint) and `notifyInstanceLastUpdated(tableName, productId, ids, ts)` (`last_updated`, carrying `slides` only: a product's own stamp rides its summary, so emitting it here too would version the same read twice; `productId` names the deck the slides belong to, which is what the per-connection filter checks). Generation telemetry (`run_progress`, `r_script`) has no other channel: a product points only at a ready run, so nothing else has a live view of a generation. The generate_run emitters call `notifyInstanceRunProgress` / `notifyInstanceRScript` directly.
 
-**The `last_updated` entry point.**
-`notifyInstanceLastUpdated(tableName,
-productId, ids, ts)`, keyed by
-`LastUpdateTableName` (`lib/types/last_updated_tables.ts`,
-`"products" | "slides"`). Its callers are the slide routes
-(`server/routes/products/slides.ts`, `slide_decks.ts`) and the collab slide
-checkpoint (`server/routes/instance/collab.ts`), each acting on one deck. The
-client store keeps the matching `instanceState.lastUpdated.{products,slides}`
-index: `products[id]` from each summary's own stamp, `slides[id]` from the
-message. Both key the products T2 caches the editors read.
+**The `last_updated` entry point.** `notifyInstanceLastUpdated(tableName,
+productId, ids, ts)`, keyed by `LastUpdateTableName` (`lib/types/last_updated_tables.ts`, `"products" | "slides"`). Its callers are the slide routes (`server/routes/products/slides.ts`, `slide_decks.ts`) and the collab slide checkpoint (`server/routes/instance/collab.ts`), each acting on one deck. The client store keeps the matching `instanceState.lastUpdated.{products,slides}` index: `products[id]` from each summary's own stamp, `slides[id]` from the message. Both key the products T2 caches the editors read.
 
-**A stamp is for a row that still exists.** `notifyInstanceLastUpdated` means
-"re-read these rows", so only a row a client can still read may be named in one.
-The two writes that remove slides from a deck that SURVIVES stamp nothing for
-what they removed: the slide delete route names none of its `deletedIds`, and
-the version restore names only `plan.toInsert` and `plan.toUpdate`, never
-`plan.toDelete`. Both removals still reach every client, on `products_upserted`,
-in the deck summary's shrunken `slideIds`, and any editor open on a removed
-slide is told by `closeSlideRoom`. A deck delete removes its slides too and
-stamps nothing for them either (`deleteProducts`); it reaches clients as
-`products_deleted`, with no surviving summary to shrink, and `closeSlideRoom`
-tells every editor open on one of its slides. Stamping a deleted id instead made
-every client holding the deck fetch each removed slide and take a 404, because
-the rail still listed the id until the separate `products_upserted` landed, and
-it put a false "edited slide" line in the copilot's digest.
+**A stamp is for a row that still exists.** `notifyInstanceLastUpdated` means "re-read these rows", so only a row a client can still read may be named in one. The two writes that remove slides from a deck that SURVIVES stamp nothing for what they removed: the slide delete route names none of its `deletedIds`, and the version restore names only `plan.toInsert` and `plan.toUpdate`, never `plan.toDelete`. Both removals still reach every client, on `products_upserted`, in the deck summary's shrunken `slideIds`, and any editor open on a removed slide is told by `closeSlideRoom`. A deck delete removes its slides too and stamps nothing for them either (`deleteProducts`); it reaches clients as `products_deleted`, with no surviving summary to shrink, and `closeSlideRoom` tells every editor open on one of its slides. Stamping a deleted id instead made every client holding the deck fetch each removed slide and take a 404, because the rail still listed the id until the separate `products_upserted` landed, and it put a false "edited slide" line in the copilot's digest.
 
-Re-minting an id after a delete is safe without the stamp, but not because the
-stamp is absent. Ids are unique over the LIVE rows only, so a removed id can
-come back in another deck, and a client is never sent a stamp for a deck it does
-not hold (`routes/instance/instance-sse.ts` drops a `last_updated` whose product
-the connection cannot see). What makes it safe is that the slide cache is keyed
-by `(productId, slideId)` and not by the id alone
-([t2_slides.ts](client/src/state/products/t2_slides.ts)), so a removed row's
-entry can never be read as its successor's.
-`server/tests/slide_delete_no_stamp_test.ts` drives both routes and reads the
-hub's own channel.
+Re-minting an id after a delete is safe without the stamp, but not because the stamp is absent. Ids are unique over the LIVE rows only, so a removed id can come back in another deck, and a client is never sent a stamp for a deck it does not hold (`routes/instance/instance-sse.ts` drops a `last_updated` whose product the connection cannot see). What makes it safe is that the slide cache is keyed by `(productId, slideId)` and not by the id alone ([t2_slides.ts](client/src/state/products/t2_slides.ts)), so a removed row's entry can never be read as its successor's. `server/tests/slide_delete_no_stamp_test.ts` drives both routes and reads the hub's own channel.
 
-**The mutation recipe** (see `server/routes/products/slides.ts` and
-`server/routes/products/folders.ts`, in registry/`defineRoute` style): after a
-successful write, (1) row-level: a slide write that leaves its rows in place
-calls `notifyInstanceLastUpdated("slides", productId, ids, lastUpdated)` so
-clients invalidate those slides' caches; (2) product-level:
-`await
-notifyInstanceProductsUpserted(mainDb, [productId])` re-reads and
-broadcasts the touched summaries, whose stamps version the product detail
-caches, or `notifyInstanceProductsDeleted(ids)` on delete; (3) folder writes
-re-list and broadcast the whole list via `notifyInstanceFoldersUpdated`, guarded
-by `if (res.success)` (but see the stale-on-failure gotcha). The mutation
-response itself is just `success`/`err` plus any stamp the caller needs for its
-own optimistic lock. Clients never install list state from it.
+**The mutation recipe** (see `server/routes/products/slides.ts` and `server/routes/products/folders.ts`, in registry/`defineRoute` style): after a successful write, (1) row-level: a slide write that leaves its rows in place calls `notifyInstanceLastUpdated("slides", productId, ids, lastUpdated)` so clients invalidate those slides' caches; (2) product-level: `await
+notifyInstanceProductsUpserted(mainDb, [productId])` re-reads and broadcasts the touched summaries, whose stamps version the product detail caches, or `notifyInstanceProductsDeleted(ids)` on delete; (3) folder writes re-list and broadcast the whole list via `notifyInstanceFoldersUpdated`, guarded by `if (res.success)` (but see the stale-on-failure gotcha). The mutation response itself is just `success`/`err` plus any stamp the caller needs for its own optimistic lock. Clients never install list state from it.
 
-**One deliberate exception: collab checkpoint rebroadcasts.** S16's collab room
-checkpoints (debounced 1.5 s while users co-edit) notify on every checkpoint.
-Product documents need no list-level throttle: a product's summary is ONE row,
-re-read and pushed by `notifyInstanceProductsUpserted`, so a slide checkpoint
-stamps the slide and re-broadcasts its deck's summary, and a report checkpoint
-re-broadcasts its own. Net effect during active co-editing: an SSE message
-roughly every 1.5 s, the contract working as designed, worth knowing if
-broadcast volume ever becomes a concern.
+**One deliberate exception: collab checkpoint rebroadcasts.** S16's collab room checkpoints (debounced 1.5 s while users co-edit) notify on every checkpoint. Product documents need no list-level throttle: a product's summary is ONE row, re-read and pushed by `notifyInstanceProductsUpserted`, so a slide checkpoint stamps the slide and re-broadcasts its deck's summary, and a report checkpoint re-broadcasts its own. Net effect during active co-editing: an SSE message roughly every 1.5 s, the contract working as designed, worth knowing if broadcast volume ever becomes a concern.
 
-**The triangle.** A DB write bumps `last_updated` / `last_run_at` (S2). The same
-timestamp is (a) broadcast via `notifyInstanceLastUpdated` or a product summary
-→ client T1 store → client cache version keys flip → UI refetches
-(PROTOCOL_APP_STATE), and (b) recomputed into a Valkey `versionHash` wherever a
-server cache reads mutable data → next server read misses → fresh data. The
-load-bearing invariant: **every realtime/cached read model is keyed on a version
-column that _every_ write path bumps.** A write that forgets to bump leaves
-clients and caches stale with no error.
+**The triangle.** A DB write bumps `last_updated` / `last_run_at` (S2). The same timestamp is (a) broadcast via `notifyInstanceLastUpdated` or a product summary → client T1 store → client cache version keys flip → UI refetches (PROTOCOL_APP_STATE), and (b) recomputed into a Valkey `versionHash` wherever a server cache reads mutable data → next server read misses → fresh data. The load-bearing invariant: **every realtime/cached read model is keyed on a version column that _every_ write path bumps.** A write that forgets to bump leaves clients and caches stale with no error.
 
 **SSE gotchas** (verified current):
 
-- A failed post-write re-read silently strands clients: `if (res.success)` in
-  the folder routes, and the logged-and-swallowed summary re-read in
-  `notifyInstanceProductsUpserted`, mean a failure sends _nothing_. Clients stay
-  stale until the next mutation (Open items).
-- The channel-name string is duplicated between producer
-  (`notify_instance_updated.ts`) and consumer (`instance-sse.ts`); a
-  one-character drift silently breaks delivery (Open items).
+- A failed post-write re-read silently strands clients: `if (res.success)` in the folder routes, and the logged-and-swallowed summary re-read in `notifyInstanceProductsUpserted`, mean a failure sends _nothing_. Clients stay stale until the next mutation (Open items).
+- The channel-name string is duplicated between producer (`notify_instance_updated.ts`) and consumer (`instance-sse.ts`); a one-character drift silently breaks delivery (Open items).
 
-**Adding a real-time-updated entity:** add a union member to
-`InstanceSseMessage`; add a `notifyInstance<Thing>Updated` wrapper in
-`notify_instance_updated.ts`; include the entity in the `starting` snapshot
-builder (`buildInstanceState`); in each mutating route bump `last_updated` and
-call the wrapper; decide whether the forward loop must filter it per connection;
-confirm the client consumer (`t1_sse.tsx`) handles the new `type`.
+**Adding a real-time-updated entity:** add a union member to `InstanceSseMessage`; add a `notifyInstance<Thing>Updated` wrapper in `notify_instance_updated.ts`; include the entity in the `starting` snapshot builder (`buildInstanceState`); in each mutating route bump `last_updated` and call the wrapper; decide whether the forward loop must filter it per connection; confirm the client consumer (`t1_sse.tsx`) handles the new `type`.
 
 ## Valkey: the server read-model cache
 
-`TimCacheC<UniquenessParams, VersionParams, T>`
-(`server/valkey/cache_class_C.ts`; the "C" is historical, not a generation).
-Constructed with a `prefix` and three hash functions: `uniquenessHashFromParams`
-(Redis key identity, what the entry _is_), `versionHashFromParams` (staleness
-token, what _version_ it is), and
-`parseData(data) → { shouldStore, uniquenessHash, versionHash }`, which
-re-derives both hashes **from the resolved payload** for the write-time
-self-check. Redis key: `cache:<prefix>:<uniquenessHash>`; stored value:
-`JSON.stringify({ versionHash, data })`.
+`TimCacheC<UniquenessParams, VersionParams, T>` (`server/valkey/cache_class_C.ts`; the "C" is historical, not a generation). Constructed with a `prefix` and three hash functions: `uniquenessHashFromParams` (Redis key identity, what the entry _is_), `versionHashFromParams` (staleness token, what _version_ it is), and `parseData(data) → { shouldStore, uniquenessHash, versionHash }`, which re-derives both hashes **from the resolved payload** for the write-time self-check. Redis key: `cache:<prefix>:<uniquenessHash>`; stored value: `JSON.stringify({ versionHash, data })`.
 
-- **Read path:** `get(uniquenessParams, versionParams)` → in-flight
-  `_unresolved` map first (a matching-version computation already running
-  returns the _shared_ promise, thundering-herd dedup) → `getEx` (refreshes read
-  TTL) → stored `versionHash` === recomputed? hit : miss. No client → miss.
-  (`get` also accepts an `"any_version"` sentinel that skips the version check.)
-- **Write path:**
-  `setPromise(dataPromise, optimisticUniqueness,
-  optimisticVersion)` registers
-  in `_unresolved`, awaits, then `parseData` re-derives the hashes from the
-  actual payload. `shouldStore: false` → drop (error responses are never
-  cached). Version mismatch → logs `THE VERSION HASHES DON'T MATCH` and drops
-  rather than caching a mislabeled value. That log line is a real bug to chase,
-  not noise.
-- **Invalidation:** none, explicitly. A write bumps a version column; the next
-  read recomputes `versionHash`, mismatches, misses, recomputes. `.clear()`,
-  `.clearAll()` and `exists()` currently have zero call sites; the one
-  deliberate deletion is the run purge below.
-- **TTLs are generous: the cache is version-gated, not time-gated.** `READ_TTL`
-  30 days, refreshed on every `get` (so TTL is NOT a reliable invalidation
-  backstop: a hot stale-version entry never expires, it just keeps missing);
-  writes get 15 days + up to 15 days random jitter to stagger expiry.
-- **Degrade gracefully:** `connectValkey()` (called in `main.ts`) is a no-op
-  without `VALKEY_URL`; `getValkeyClient()` returns the client only while
-  `_available` (any connection error flips it false); every method null-checks
-  and try/catches, returning a miss. The app runs cache-disabled, never
-  cache-broken.
+- **Read path:** `get(uniquenessParams, versionParams)` → in-flight `_unresolved` map first (a matching-version computation already running returns the _shared_ promise, thundering-herd dedup) → `getEx` (refreshes read TTL) → stored `versionHash` === recomputed? hit : miss. No client → miss. (`get` also accepts an `"any_version"` sentinel that skips the version check.)
+- **Write path:** `setPromise(dataPromise, optimisticUniqueness,
+  optimisticVersion)` registers in `_unresolved`, awaits, then `parseData` re-derives the hashes from the actual payload. `shouldStore: false` → drop (error responses are never cached). Version mismatch → logs `THE VERSION HASHES DON'T MATCH` and drops rather than caching a mislabeled value. That log line is a real bug to chase, not noise.
+- **Invalidation:** none, explicitly. A write bumps a version column; the next read recomputes `versionHash`, mismatches, misses, recomputes. `.clear()`, `.clearAll()` and `exists()` currently have zero call sites; the one deliberate deletion is the run purge below.
+- **TTLs are generous: the cache is version-gated, not time-gated.** `READ_TTL` 30 days, refreshed on every `get` (so TTL is NOT a reliable invalidation backstop: a hot stale-version entry never expires, it just keeps missing); writes get 15 days + up to 15 days random jitter to stagger expiry.
+- **Degrade gracefully:** `connectValkey()` (called in `main.ts`) is a no-op without `VALKEY_URL`; `getValkeyClient()` returns the client only while `_available` (any connection error flips it false); every method null-checks and try/catches, returning a miss. The app runs cache-disabled, never cache-broken.
 
 **Two version layers on the run-keyed caches.** Each layer has a distinct job:
 
-1. **Identity**: the immutable `runId` (which run the data came from) leads the
-   UNIQUENESS hash and the `scopeToken` trails it. The token is the hash of the
-   scope's definition (`scopeDefinitionHash`, `lib/types/scope.ts`), not the
-   scope's id or label. Data never changes under a run, and an edited definition
-   hashes to new keys, so no write ever needs to out-version an entry.
-2. **`PO_CACHE_VERSION`** (`server/routes/caches/visualizations.ts`, currently
-   `"27"`, bump history in the adjacent comment) is a manually-bumped semantic
-   version used as the `versionHash` of all three; bump it when the _generated
-   SQL, payload semantics or payload shape_ change so old entries miss without a
-   prefix migration.
+1. **Identity**: the immutable `runId` (which run the data came from) leads the UNIQUENESS hash and the `scopeToken` trails it. The token is the hash of the scope's definition (`scopeDefinitionHash`, `lib/types/scope.ts`), not the scope's id or label. Data never changes under a run, and an edited definition hashes to new keys, so no write ever needs to out-version an entry.
+2. **`PO_CACHE_VERSION`** (`server/routes/caches/visualizations.ts`, currently `"27"`, bump history in the adjacent comment) is a manually-bumped semantic version used as the `versionHash` of all three; bump it when the _generated SQL, payload semantics or payload shape_ change so old entries miss without a prefix migration.
 
-**The cache catalog**: five `_UPPER_SNAKE` module-level singletons (four in
-`server/routes/caches/visualizations.ts`, one in
-`server/routes/caches/dataset.ts`). The four data caches are run-scoped: two
-reads on the same run under definitions that hash the same share entries.
+**The cache catalog**: five `_UPPER_SNAKE` module-level singletons (four in `server/routes/caches/visualizations.ts`, one in `server/routes/caches/dataset.ts`). The four data caches are run-scoped: two reads on the same run under definitions that hash the same share entries.
 
 | Singleton                        | prefix           | uniquenessHash                                              | versionHash                            |
 | -------------------------------- | ---------------- | ----------------------------------------------------------- | -------------------------------------- |
@@ -408,138 +128,35 @@ reads on the same run under definitions that hash the same share entries.
 | `_REPLICANT_OPTIONS_CACHE`       | `replicant_opts` | `runId::resultsObjectId::replicateBy::hash(fc)::scopeToken` | `PO_CACHE_VERSION`                     |
 | `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa_v2`      | constant `"hfa"` (instance-wide singleton)                  | `computeHfaCacheHash(hfa_time_points)` |
 
-Two key separators are live: `\|` (po_items, grid_items) and `::` (metric_info,
-replicant_opts). There is no HMIS display cache (`ds_hmis`/`ds_hmis_v2`); the
-tombstone comment in `dataset.ts` records why: with vizItems in the import
-ledger the read takes a few milliseconds, and a cache only adds liabilities
-(mid-run bypass dance, prefix-bump obligation). `getDatasetHmisDisplayInfo`
-computes live; client-side T2 caching remains.
+Two key separators are live: `\|` (po_items, grid_items) and `::` (metric_info, replicant_opts). There is no HMIS display cache (`ds_hmis`/`ds_hmis_v2`); the tombstone comment in `dataset.ts` records why: with vizItems in the import ledger the read takes a few milliseconds, and a cache only adds liabilities (mid-run bypass dance, prefix-bump obligation). `getDatasetHmisDisplayInfo` computes live; client-side T2 caching remains.
 
-**Purge on run deletion** (`server/runs/delete_run.ts`) is the one place that
-deliberately deletes entries rather than out-versioning them, and it is **disk
-reclamation, not correctness**: TTLs plus the version comparison in `get`
-already mean a dead run's entries are never served. Because `po_items`,
-`grid_items`, `metric_info` and `replicant_opts` fold `runId` into their
-UNIQUENESS hash, they are swept by prefix (`scanUniquenessHashes(runId…)` →
-`clearByUniquenessHash`).
+**Purge on run deletion** (`server/runs/delete_run.ts`) is the one place that deliberately deletes entries rather than out-versioning them, and it is **disk reclamation, not correctness**: TTLs plus the version comparison in `get` already mean a dead run's entries are never served. Because `po_items`, `grid_items`, `metric_info` and `replicant_opts` fold `runId` into their UNIQUENESS hash, they are swept by prefix (`scanUniquenessHashes(runId…)` → `clearByUniquenessHash`).
 
-**Rules.** Every cache is version-gated on a column bumped by _every_ write path
-to its data. Never `.clear()` on a normal write. `parseData` must derive the
-same hashes as the `*FromParams` functions: two computations of one key, keep
-them in lockstep. Never cache failures (`shouldStore: false`, all five do).
-Assume Valkey may be absent. Don't invent another caching mechanism: use
-`TimCacheC` for cross-process versioned read models; a process-local in-memory
-singleton (as the DHIS2 geojson session cache does, see SYSTEM_07) only for
-per-process ephemeral data.
+**Rules.** Every cache is version-gated on a column bumped by _every_ write path to its data. Never `.clear()` on a normal write. `parseData` must derive the same hashes as the `*FromParams` functions: two computations of one key, keep them in lockstep. Never cache failures (`shouldStore: false`, all five do). Assume Valkey may be absent. Don't invent another caching mechanism: use `TimCacheC` for cross-process versioned read models; a process-local in-memory singleton (as the DHIS2 geojson session cache does, see SYSTEM_07) only for per-process ephemeral data.
 
 ## Client cache machinery (`state/_infra/`)
 
-The client mirrors the server design (two-part version-in-key caching with
-in-flight dedup and no failure caching) in `createReactiveCache`
-(`client/src/state/_infra/reactive_cache.ts`), the factory behind every `t2_*`
-cache. Config: `name` (IndexedDB key prefix), `uniquenessKeys(params)`
-(auto-hashed with `|`), `versionKey(params, instanceState)` (reads the one T1
-store, the instance store, as a non-reactive snapshot), optional `maxSize`
-(memory LRU, default 100) and optional `shouldStore(data, params)` (a
-payload-side guard: a successful response it refuses is served but not stored).
-Cache key: `<name>/<uniquenessHash>::<versionHash>`. Version is part of the key,
-so a version flip is an automatic miss. Two tiers: memory LRU map, then
-IndexedDB (`idb-keyval`); an in-flight `_unresolved` map dedups concurrent
-identical fetches; failures are never cached; the sentinel version `"unknown"`
-(a `lastUpdated` field the store has not received yet) is refused by
-`setPromise`. Consumer semantics and the composite-key caveat are in
-PROTOCOL_APP_STATE "Sentinel version". `clearEntry` clears all versions of one
-uniqueness key; `clearEntriesWithPrefix` requires a STRICT prefix of the
-uniqueness keys (a complete key list matches nothing: full keys are followed by
-`::`, not `|`).
+The client mirrors the server design (two-part version-in-key caching with in-flight dedup and no failure caching) in `createReactiveCache` (`client/src/state/_infra/reactive_cache.ts`), the factory behind every `t2_*` cache. Config: `name` (IndexedDB key prefix), `uniquenessKeys(params)` (auto-hashed with `|`), `versionKey(params, instanceState)` (reads the one T1 store, the instance store, as a non-reactive snapshot), optional `maxSize` (memory LRU, default 100) and optional `shouldStore(data, params)` (a payload-side guard: a successful response it refuses is served but not stored). Cache key: `<name>/<uniquenessHash>::<versionHash>`. Version is part of the key, so a version flip is an automatic miss. Two tiers: memory LRU map, then IndexedDB (`idb-keyval`); an in-flight `_unresolved` map dedups concurrent identical fetches; failures are never cached; the sentinel version `"unknown"` (a `lastUpdated` field the store has not received yet) is refused by `setPromise`. Consumer semantics and the composite-key caveat are in PROTOCOL_APP_STATE "Sentinel version". `clearEntry` clears all versions of one uniqueness key; `clearEntriesWithPrefix` requires a STRICT prefix of the uniqueness keys (a complete key list matches nothing: full keys are followed by `::`, not `|`).
 
-Two version idioms exist. Product documents version on the SSE-pushed
-`lastUpdated` maps (`slide`, `slide_deck_detail`, `report_detail`). Package data
-(`state/products/t2_figure_data.ts`, `t2_replicant_options.ts`,
-`state/instance/t2_runs.ts`, `t2_run_authoring_context.ts`) versions on the
-constant `"immutable"` with the identity leading the UNIQUENESS key (`runId` in
-all four; the `state/products/` caches and the authoring context add the scope's
-definition hash beside it, read from T1 with `resolveScope` once, when the read
-starts): a ready package never changes, and an edited scope definition hashes to
-a new key, so nothing invalidates an entry and a late response cannot land under
-another package's key. The scope half has a response-side guard,
-`answersKeyedScope` (`t1_store.ts`), as each cache's `shouldStore`: the server
-resolves the scope id against the `scopes` row at request time, T1 learns of an
-edit only when `scopes_updated` arrives, and a response whose `scopeToken` is
-not the hash in its key is served but never stored. Old IndexedDB entries become
-unreachable via the version flip and age out: no purge.
+Two version idioms exist. Product documents version on the SSE-pushed `lastUpdated` maps (`slide`, `slide_deck_detail`, `report_detail`). Package data (`state/products/t2_figure_data.ts`, `t2_replicant_options.ts`, `state/instance/t2_runs.ts`, `t2_run_authoring_context.ts`) versions on the constant `"immutable"` with the identity leading the UNIQUENESS key (`runId` in all four; the `state/products/` caches and the authoring context add the scope's definition hash beside it, read from T1 with `resolveScope` once, when the read starts): a ready package never changes, and an edited scope definition hashes to a new key, so nothing invalidates an entry and a late response cannot land under another package's key. The scope half has a response-side guard, `answersKeyedScope` (`t1_store.ts`), as each cache's `shouldStore`: the server resolves the scope id against the `scopes` row at request time, T1 learns of an edit only when `scopes_updated` arrives, and a response whose `scopeToken` is not the hash in its key is served but never stored. Old IndexedDB entries become unreachable via the version flip and age out: no purge.
 
 Around it:
 
-- **`_infra/indexeddb_cache.ts` (`TimCacheD`)**: plain IndexedDB cache without
-  the reactive version machinery; used by `t2_images.ts` (URL-keyed, immutable,
-  failure backoff).
-- **`_infra/request_queue.ts`**: `RequestQueue(maxConcurrent)` concurrency
-  limiter; client singletons `poItemsQueue(15)` and `resultsValueInfoQueue(20)`
-  throttle PO-items / value-info fan-out. An **identical copy of the class**
-  lives at `server/utils/request_queue.ts` (instantiated in
-  `server/run_query/run_data_reads.ts` at 10/15), a cross-tier duplicate that
-  could live in `lib/` (Open items).
-- **`clear_caches.ts`**: `clearDataCache()` deletes every IndexedDB key except
-  the AI prefixes (`ai-conv`, `ai-documents`, `ai-attachments`) and clears the
-  memory of the instance geojson store and the run-geo store (whose
-  `run_geojson:` IDB keys that sweep already covers); `clearAiChatCache()`
-  deletes only the AI prefixes, so pending attachments survive a deploy and go
-  with Clear AI chat history.
-- **Deploy flush**: `instance/logged_in_wrapper.tsx` (S1 file, this system a
-  reader) compares the server's `serverVersion` against `localStorage` on boot
-  and calls `clearDataCache()` on change: client caches auto-invalidate on
-  deploy. (Dev has no deploy: stale IndexedDB can mask server fixes; clear site
-  data.)
+- **`_infra/indexeddb_cache.ts` (`TimCacheD`)**: plain IndexedDB cache without the reactive version machinery; used by `t2_images.ts` (URL-keyed, immutable, failure backoff).
+- **`_infra/request_queue.ts`**: `RequestQueue(maxConcurrent)` concurrency limiter; client singletons `poItemsQueue(15)` and `resultsValueInfoQueue(20)` throttle PO-items / value-info fan-out. An **identical copy of the class** lives at `server/utils/request_queue.ts` (instantiated in `server/run_query/run_data_reads.ts` at 10/15), a cross-tier duplicate that could live in `lib/` (Open items).
+- **`clear_caches.ts`**: `clearDataCache()` deletes every IndexedDB key except the AI prefixes (`ai-conv`, `ai-documents`, `ai-attachments`) and clears the memory of the instance geojson store and the run-geo store (whose `run_geojson:` IDB keys that sweep already covers); `clearAiChatCache()` deletes only the AI prefixes, so pending attachments survive a deploy and go with Clear AI chat history.
+- **Deploy flush**: `instance/logged_in_wrapper.tsx` (S1 file, this system a reader) compares the server's `serverVersion` against `localStorage` on boot and calls `clearDataCache()` on change: client caches auto-invalidate on deploy. (Dev has no deploy: stale IndexedDB can mask server fixes; clear site data.)
 
-**Adding a server cache:** define the `TimCacheC` singleton in the right
-`routes/caches/*.ts`; pick a `versionHash` source bumped by every write to the
-data; keep `uniquenessHashFromParams`/`parseData` hash-identical (same
-separator); `shouldStore: false` on failure; wrap the producer in `setPromise`;
-verify behavior with `getValkeyClient() === null`; if the payload shape can
-change across deploys, re-validate on read or plan a prefix/`PO_CACHE_VERSION`
-bump.
+**Adding a server cache:** define the `TimCacheC` singleton in the right `routes/caches/*.ts`; pick a `versionHash` source bumped by every write to the data; keep `uniquenessHashFromParams`/`parseData` hash-identical (same separator); `shouldStore: false` on failure; wrap the producer in `setPromise`; verify behavior with `getValkeyClient() === null`; if the payload shape can change across deploys, re-validate on read or plan a prefix/`PO_CACHE_VERSION` bump.
 
 ## Open items
 
-- **Decoupling: make the notify/stamp convention structural.** The
-  `last_updated → notify` triangle is enforced by hand in ~27 files. A
-  write-helper that does mutate + stamp + notify together (or a dev assertion
-  flagging mutations without a notify) would make §4.3 audit 1 mechanical.
-- A shared channel-name constant for `"instance_updates"`, currently a
-  duplicated string literal between producer and consumer.
-- Failed post-write re-read strands clients: define the handling (log it, or
-  always emit `last_updated` so clients self-invalidate).
-- Lint for raw `postMessage` / inline SSE messages outside the `notify_*` files
-  (scoped to the SSE channel; `RUN_GENERATION_ENDED_CHANNEL` is S8's and
-  exempt).
-- `ds_hfa` version lockstep spans files: `versionHashFromParams` uses the hash
-  the route computes with `computeHfaCacheHash` while `parseData` trusts
-  `res.data.cacheHash` from the producer (`server/db/instance/dataset_hfa.ts`):
-  two computations of one key, the duplication the "Rules" lockstep line exists
-  to kill, here spanning route and db.
-- Cross-deploy payload-shape handling is per-cache and partial:
-  `PO_CACHE_VERSION` covers the three run-keyed caches, `ds_hfa` uses a prefix
-  bump (`ds_hfa_v2`). Fold a deploy/build version into `versionHash`
-  generically, or document the per-cache choice.
-- `RequestQueue` is an identical class copy-pasted into
-  `client/src/state/_infra/` and `server/utils/`. Move one copy to `lib/`.
-- Cruft: rename away the opaque `TimCacheC`/`cache_class_C` suffix and
-  disambiguate "cache" (Valkey read-model) from `cacheMiddleware` (HTTP headers)
-  when touched.
-- **The approval reconnect unmounts the whole shell.** `reconnectForApproval`
-  (`state/instance/t1_sse.tsx:335-339`) runs when approval lands and when the
-  user's own scope access changes (245-250, 359-369), and its
-  `disconnectInstanceSSE` calls `resetInstanceState` (324), which sets `isReady`
-  false (`state/instance/t1_store.ts:42-43`, 143-145). Until the new `starting`
-  lands, the boundary renders its Loading fallback in place of `Instance`
-  (`t1_sse.tsx:435-462`), so every open full-page view closes with its unsaved
-  state and the tab returns to Products. The user is the same and `starting`
-  replaces the store whole (`initInstanceState`, `t1_store.ts:135-137`): close
-  and reopen the stream in `reconnectForApproval` without the reset, keep the
-  reset on the boundary's unmount (`t1_sse.tsx:346-350`), replace the sentence
-  at 331-334 with "The reconnect keeps the store: the user is the same, and the
-  new `starting` replaces it through `initInstanceState`, so the shell stays
-  mounted.", and delete the clause "`currentUserApproved` goes false transiently
-  on every reconnect (the store reset), and" at 355-357; the comment at 464-466
-  then holds.
+- **Decoupling: make the notify/stamp convention structural.** The `last_updated → notify` triangle is enforced by hand in ~27 files. A write-helper that does mutate + stamp + notify together (or a dev assertion flagging mutations without a notify) would make §4.3 audit 1 mechanical.
+- A shared channel-name constant for `"instance_updates"`, currently a duplicated string literal between producer and consumer.
+- Failed post-write re-read strands clients: define the handling (log it, or always emit `last_updated` so clients self-invalidate).
+- Lint for raw `postMessage` / inline SSE messages outside the `notify_*` files (scoped to the SSE channel; `RUN_GENERATION_ENDED_CHANNEL` is S8's and exempt).
+- `ds_hfa` version lockstep spans files: `versionHashFromParams` uses the hash the route computes with `computeHfaCacheHash` while `parseData` trusts `res.data.cacheHash` from the producer (`server/db/instance/dataset_hfa.ts`): two computations of one key, the duplication the "Rules" lockstep line exists to kill, here spanning route and db.
+- Cross-deploy payload-shape handling is per-cache and partial: `PO_CACHE_VERSION` covers the three run-keyed caches, `ds_hfa` uses a prefix bump (`ds_hfa_v2`). Fold a deploy/build version into `versionHash` generically, or document the per-cache choice.
+- `RequestQueue` is an identical class copy-pasted into `client/src/state/_infra/` and `server/utils/`. Move one copy to `lib/`.
+- Cruft: rename away the opaque `TimCacheC`/`cache_class_C` suffix and disambiguate "cache" (Valkey read-model) from `cacheMiddleware` (HTTP headers) when touched.
+- **The approval reconnect unmounts the whole shell.** `reconnectForApproval` (`state/instance/t1_sse.tsx:335-339`) runs when approval lands and when the user's own scope access changes (245-250, 359-369), and its `disconnectInstanceSSE` calls `resetInstanceState` (324), which sets `isReady` false (`state/instance/t1_store.ts:42-43`, 143-145). Until the new `starting` lands, the boundary renders its Loading fallback in place of `Instance` (`t1_sse.tsx:435-462`), so every open full-page view closes with its unsaved state and the tab returns to Products. The user is the same and `starting` replaces the store whole (`initInstanceState`, `t1_store.ts:135-137`): close and reopen the stream in `reconnectForApproval` without the reset, keep the reset on the boundary's unmount (`t1_sse.tsx:346-350`), replace the sentence at 331-334 with "The reconnect keeps the store: the user is the same, and the new `starting` replaces it through `initInstanceState`, so the shell stays mounted.", and delete the clause "`currentUserApproved` goes false transiently on every reconnect (the store reset), and" at 355-357; the comment at 464-466 then holds.

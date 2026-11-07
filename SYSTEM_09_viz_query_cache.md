@@ -24,39 +24,13 @@ globs:
 
 # S9: Visualization Query & Cache Service
 
-> **One read path.** `server/run_query/run_read.ts` is the only read path; the
-> SQL cores in `server_only_funcs_presentation_objects/` take their
-> `QueryContext` from the manifest and their executor from DuckDB over the run's
-> parquet. Caches are run-keyed. The constants in
-> `server/routes/caches/visualizations.ts` are the authority for the live keying
-> (`PO_CACHE_VERSION` is "27"); SYSTEM_03's cache catalog restates them.
-> Calendar threads via `QueryContext`, not `getCalendar()` at the call sites.
+> **One read path.** `server/run_query/run_read.ts` is the only read path; the SQL cores in `server_only_funcs_presentation_objects/` take their `QueryContext` from the manifest and their executor from DuckDB over the run's parquet. Caches are run-keyed. The constants in `server/routes/caches/visualizations.ts` are the authority for the live keying (`PO_CACHE_VERSION` is "27"); SYSTEM_03's cache catalog restates them. Calendar threads via `QueryContext`, not `getCalendar()` at the call sites.
 
-PO config → fetch-config contract → DuckDB SQL over the results package the
-caller names → run-keyed cached payloads, on both tiers. **This system does not
-define the package it reads**: the run-directory layout, the manifest contract
-and its schema version are S8's
-([SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md), "The results
-package format"). Reviewed against code (first review cycle). The adversarial
-review's fix batch landed (commits `ce33e3f7…`: period-CTE unification, PAE `=`
-guard, month/integer filter handling, replicant relative-filter resolution,
-error statuses, cache hash hardening, race guards); what remains is in Open
-items below.
+PO config → fetch-config contract → DuckDB SQL over the results package the caller names → run-keyed cached payloads, on both tiers. **This system does not define the package it reads**: the run-directory layout, the manifest contract and its schema version are S8's ([SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md), "The results package format"). Reviewed against code (first review cycle). The adversarial review's fix batch landed (commits `ce33e3f7…`: period-CTE unification, PAE `=` guard, month/integer filter handling, replicant relative-filter resolution, error statuses, cache hash hardening, race guards); what remains is in Open items below.
 
-This system's SQL behaviour is covered by `./validate_queries`: declarative
-fixtures built into real results packages by the production builder and read
-through the production run read path (DuckDB over parquet, the engine production
-serves from; moved off a throwaway-Postgres stand-in, which exposed that `COUNT`
-values are numbers on the wire, not the strings the Postgres era had pinned).
-Adding a case is one literal in `query_rig/cases.ts`; the recipe and the rules
-that keep it honest are [PROTOCOL_APP_QUERY_RIG.md](PROTOCOL_APP_QUERY_RIG.md).
+This system's SQL behaviour is covered by `./validate_queries`: declarative fixtures built into real results packages by the production builder and read through the production run read path (DuckDB over parquet, the engine production serves from; moved off a throwaway-Postgres stand-in, which exposed that `COUNT` values are numbers on the wire, not the strings the Postgres era had pinned). Adding a case is one literal in `query_rig/cases.ts`; the recipe and the rules that keep it honest are [PROTOCOL_APP_QUERY_RIG.md](PROTOCOL_APP_QUERY_RIG.md).
 
-Boundaries: the Valkey `TimCacheC` class, SSE, and the
-`last_updated → SSE → version-hash` triangle are **S3**; `buildFigureInputs` and
-everything after `FigureInputs` is **S10**; the editor UI is **S11**; the
-results package this system queries (parquet, manifest and metric catalog) is
-produced by **S8**; `facilities_hmis`/`facilities_hfa` and the instance
-facility-columns config are **S5**.
+Boundaries: the Valkey `TimCacheC` class, SSE, and the `last_updated → SSE → version-hash` triangle are **S3**; `buildFigureInputs` and everything after `FigureInputs` is **S10**; the editor UI is **S11**; the results package this system queries (parquet, manifest and metric catalog) is produced by **S8**; `facilities_hmis`/`facilities_hfa` and the instance facility-columns config are **S5**.
 
 ## The pipeline
 
@@ -81,62 +55,17 @@ Valkey po_items (server) / IndexedDB po_items (client)  →  buildFigureInputs (
 
 ## The fetch-config contract
 
-`GenericLongFormFetchConfig`
-([presentation_objects.ts:629](lib/types/presentation_objects.ts#L629)) is THE
-client→server query contract: `values` (`{prop, func}` pairs or PAE
-ingredients), `groupBys`, `filters`, `periodFilter`,
-`postAggregationExpression`, `rollupDim` (presence = roll-up on).
-`periodFilterExactBounds` is server-computed, never client-sent.
+`GenericLongFormFetchConfig` ([presentation_objects.ts:629](lib/types/presentation_objects.ts#L629)) is THE client→server query contract: `values` (`{prop, func}` pairs or PAE ingredients), `groupBys`, `filters`, `periodFilter`, `postAggregationExpression`, `rollupDim` (presence = roll-up on). `periodFilterExactBounds` is server-computed, never client-sent.
 
-Built only by `getFetchConfigFromPresentationObjectConfig`
-([get_fetch_config_from_po.ts](lib/get_fetch_config_from_po.ts)): `groupBys` =
-`disaggregateBy` disOpts plus `timeseriesGrouping` for timeseries (throws if a
-timeseries config lacks it); `values` = the PAE's `ingredientValues` when the
-metric has a post-aggregation expression, else filtered `valueProps` ×
-`valueFunc`; roll-up dimension baked in via `getEffectiveRollupDimension`.
-(Target model, ruled in S5's "additivity principle": calculated HMIS indicators
-are evaluated by THIS mechanism with row-restricted ingredients
-(`SUM(col) FILTER (WHERE indicator_common_id = …)`) and a catalog-supplied
-expression, on qualifying fetches. Qualification is RO-level
-(`indicator_common_id` column + all-SUM values
+Built only by `getFetchConfigFromPresentationObjectConfig` ([get_fetch_config_from_po.ts](lib/get_fetch_config_from_po.ts)): `groupBys` = `disaggregateBy` disOpts plus `timeseriesGrouping` for timeseries (throws if a timeseries config lacks it); `values` = the PAE's `ingredientValues` when the metric has a post-aggregation expression, else filtered `valueProps` × `valueFunc`; roll-up dimension baked in via `getEffectiveRollupDimension`. (Target model, ruled in S5's "additivity principle": calculated HMIS indicators are evaluated by THIS mechanism with row-restricted ingredients (`SUM(col) FILTER (WHERE indicator_common_id = …)`) and a catalog-supplied expression, on qualifying fetches. Qualification is RO-level (`indicator_common_id` column + all-SUM values
 
-- no metric-wide PAE), while `formatAs: "indicator"` stays the metric-level
-  formatting fact. Not built.)
+- no metric-wide PAE), while `formatAs: "indicator"` stays the metric-level formatting fact. Not built.)
 
-**The replicant pin and the options/items split.** `getFiltersWithReplicant`
-appends
-`{disOpt: replicateBy, values: [selectedReplicantValue ?? "UNSELECTED"]}` to the
-user's `filterBy`. The **items** fetch keeps that pin (it asks for the pinned
-pane's data); every **options** query passes `{excludeReplicantFilter: true}`,
-which omits only the appended pin while keeping the user's own `filterBy`,
-including a filter on the replicant column itself, which the server honors, so a
-replicant filtered to a subset lists exactly that subset. All four options
-callers (`resolveDefaultReplicant`, `ReplicateByOptions` ×2,
-`assert_replicant_valid` for AI figures, the copilot's
-`format_figure_config_for_ai`) build the pin-excluded config the same way and
-therefore share one `replicant_options` cache entry. Reusing a pin-excluded
-config for the items fetch would merge all replicant panes into one figure. Keep
-the two configs split.
+**The replicant pin and the options/items split.** `getFiltersWithReplicant` appends `{disOpt: replicateBy, values: [selectedReplicantValue ?? "UNSELECTED"]}` to the user's `filterBy`. The **items** fetch keeps that pin (it asks for the pinned pane's data); every **options** query passes `{excludeReplicantFilter: true}`, which omits only the appended pin while keeping the user's own `filterBy`, including a filter on the replicant column itself, which the server honors, so a replicant filtered to a subset lists exactly that subset. All four options callers (`resolveDefaultReplicant`, `ReplicateByOptions` ×2, `assert_replicant_valid` for AI figures, the copilot's `format_figure_config_for_ai`) build the pin-excluded config the same way and therefore share one `replicant_options` cache entry. Reusing a pin-excluded config for the items fetch would merge all replicant panes into one figure. Keep the two configs split.
 
-`hashFetchConfig`
-([get_fetch_config_from_po.ts:328](lib/get_fetch_config_from_po.ts#L328)) is the
-cache-uniqueness function on both tiers: values sorted by prop+func, groupBys
-sorted, filter values sorted and JSON-encoded (a bare `,`-join could collide on
-comma-holding values), periodFilter discriminated by type with only its own
-fields folded (relative filters hash on `nMonths`/`nYears`/ `nQuarters`, not on
-fabricated bounds, so their keys are stable across data growth), PAE, roll-up
-dimension. `periodFilterExactBounds` and display preferences (roll-up position)
-are deliberately absent.
+`hashFetchConfig` ([get_fetch_config_from_po.ts:328](lib/get_fetch_config_from_po.ts#L328)) is the cache-uniqueness function on both tiers: values sorted by prop+func, groupBys sorted, filter values sorted and JSON-encoded (a bare `,`-join could collide on comma-holding values), periodFilter discriminated by type with only its own fields folded (relative filters hash on `nMonths`/`nYears`/ `nQuarters`, not on fabricated bounds, so their keys are stable across data growth), PAE, roll-up dimension. `periodFilterExactBounds` and display preferences (roll-up position) are deliberately absent.
 
-**Wire boundary = SQL-injection boundary.** Every field below is interpolated
-into the raw SQL the DuckDB executor runs, and the route body is
-attacker-controllable, so type shape alone is not enough.
-`genericLongFormFetchConfigSchema` rejects at the route boundary (400) on
-`getRunPresentationObjectItems` and `getRunReplicantOptions`; the imperative
-`validateFetchConfig` re-guards in the shared handler body. Both live in
-[validate_fetch_config.ts](lib/validate_fetch_config.ts) (the schema moved
-there, co-located with the guard) and share the same primitives so they can't
-drift:
+**Wire boundary = SQL-injection boundary.** Every field below is interpolated into the raw SQL the DuckDB executor runs, and the route body is attacker-controllable, so type shape alone is not enough. `genericLongFormFetchConfigSchema` rejects at the route boundary (400) on `getRunPresentationObjectItems` and `getRunReplicantOptions`; the imperative `validateFetchConfig` re-guards in the shared handler body. Both live in [validate_fetch_config.ts](lib/validate_fetch_config.ts) (the schema moved there, co-located with the guard) and share the same primitives so they can't drift:
 
 | Raw-interpolated field                        | Made safe by                                                                                                                                                                                                  |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -147,128 +76,34 @@ drift:
 | `rollupDim`                                   | `isRollupDimension` closed union (admin levels + facility columns), and must be in `groupBys`                                                                                                                 |
 | roll-up sentinel                              | server constant (`ROLLUP_SENTINEL` / `ALL_FACILITIES_SENTINEL` by dimension kind)                                                                                                                             |
 
-`validateFetchConfig` also rejects never-eligible roll-up funcs (the table-blind
-half of the eligibility rule, described in Roll-up below).
+`validateFetchConfig` also rejects never-eligible roll-up funcs (the table-blind half of the eligibility rule, described in Roll-up below).
 
 ## SQL assembly
 
-All in `server_only_funcs_presentation_objects/`. Principles: build strings in
-helpers, execute once in the orchestrator; all CTEs for the main query go
-through `CTEManager`.
+All in `server_only_funcs_presentation_objects/`. Principles: build strings in helpers, execute once in the orchestrator; all CTEs for the main query go through `CTEManager`.
 
-- **`CTEManager`**
-  ([cte_manager.ts](server/server_only_funcs_presentation_objects/cte_manager.ts)).
-  `register` throws on same-name-different-definition (idempotent
-  re-registration OK); `fromQueryConfig` registers a `period_data` CTE when
-  `queryContext.needsPeriodCTE` (only the _needed_ derived columns) and a
-  `facility_subset` CTE
-  (`SELECT facility_id, <requested cols> FROM
-  facilities_hmis|facilities_hfa`,
-  family-resolved by `facilitiesTableForFamily`, which **throws** for
-  non-HMIS/HFA modules).
-- **`buildCombinedQuery`**
-  ([get_combined_query.ts](server/server_only_funcs_presentation_objects/get_combined_query.ts))
-  is the only full-query assembler and its ordering is load-bearing:
-  `sourceTable = periodCTEName || tableName` → `buildMainQuery` [+ `UNION ALL`
-  `buildRollupQuery`] → `applyPostAggregationExpression` (wraps in a subquery) →
-  prepend `WITH` (after the wrap, so CTEs stay top-level) → append `LIMIT`.
-- **`buildMainQuery`** selects `groupBys` + aggregate columns, grouping by
-  `[...groupBys, ...identityValueProps]`, `LEFT JOIN`ing the facility CTE with
-  `f.<col>` prefixes on enabled facility columns.
-- **`buildAggregateColumns(values, mode, sourceTable, queryContext, hasPAE)`**:
-  identity → bare prop in `"main"` mode, `SUM(prop)` in `"rollup"` mode
-  (defense-in-depth only: eligible identity metrics reach the roll-up solely as
-  PAE ingredients); any other func → `FUNC(prop) AS prop`; plus the sample-size
-  columns below.
-- **Sample size (`__n_*`)**: one extra column per displayed value, carried
-  through `items` to the table renderer (naming in
-  [lib/sample_n.ts](lib/sample_n.ts), emission in `buildSampleNColumns`).
-  Emitted only when `emitsSampleN(queryContext)`: `datasetFamily === "hfa"` (the
-  module's declared family, read from the manifest's module blob by
-  `getDatasetFamilyFromRun`) **and** `queryContext.hasFacilityId`. n is a survey
-  concept: an HMIS count over a table not grouped by period returns
-  facility-months (40 facilities × 36 months = 1440), and ICEH rows arrive
-  pre-aggregated. Always `COUNT(DISTINCT <sourceTable>.facility_id)`, never a
-  row count: HFA rows are facility × time_point, so a table spanning two rounds
-  would otherwise report double the sample. **The table qualifier is
-  mandatory**: the facilities CTE joins a column of the same name, and
-  unqualified Postgres rejects the query as ambiguous on every facility-column
-  disaggregation. Two rules:
-  - post-aggregation fetches → one **unfiltered** count aliased `__n_all`. The
-    M10 script drops rows whose indicator result is NA, so a facility having a
-    row already means it contributed. Deriving a denominator from the expression
-    instead is wrong on the shipped metrics:
-    `value = COALESCE(
-    sum_val, avg_num / avg_weight)` has a NULL divisor
-    for every sum-aggregation indicator (n would read 0), and
-    `value = dk_num /
-    resp_weight` has `resp_weight = 0`, not NULL, on
-    not-applicable rows.
-  - plain values →
-    `COUNT(DISTINCT …) FILTER (WHERE prop IS NOT NULL) AS
-    __n_<prop>` per
-    non-identity value. No shipped HFA module takes this path.
+- **`CTEManager`** ([cte_manager.ts](server/server_only_funcs_presentation_objects/cte_manager.ts)). `register` throws on same-name-different-definition (idempotent re-registration OK); `fromQueryConfig` registers a `period_data` CTE when `queryContext.needsPeriodCTE` (only the _needed_ derived columns) and a `facility_subset` CTE (`SELECT facility_id, <requested cols> FROM
+  facilities_hmis|facilities_hfa`, family-resolved by `facilitiesTableForFamily`, which **throws** for non-HMIS/HFA modules).
+- **`buildCombinedQuery`** ([get_combined_query.ts](server/server_only_funcs_presentation_objects/get_combined_query.ts)) is the only full-query assembler and its ordering is load-bearing: `sourceTable = periodCTEName || tableName` → `buildMainQuery` [+ `UNION ALL` `buildRollupQuery`] → `applyPostAggregationExpression` (wraps in a subquery) → prepend `WITH` (after the wrap, so CTEs stay top-level) → append `LIMIT`.
+- **`buildMainQuery`** selects `groupBys` + aggregate columns, grouping by `[...groupBys, ...identityValueProps]`, `LEFT JOIN`ing the facility CTE with `f.<col>` prefixes on enabled facility columns.
+- **`buildAggregateColumns(values, mode, sourceTable, queryContext, hasPAE)`**: identity → bare prop in `"main"` mode, `SUM(prop)` in `"rollup"` mode (defense-in-depth only: eligible identity metrics reach the roll-up solely as PAE ingredients); any other func → `FUNC(prop) AS prop`; plus the sample-size columns below.
+- **Sample size (`__n_*`)**: one extra column per displayed value, carried through `items` to the table renderer (naming in [lib/sample_n.ts](lib/sample_n.ts), emission in `buildSampleNColumns`). Emitted only when `emitsSampleN(queryContext)`: `datasetFamily === "hfa"` (the module's declared family, read from the manifest's module blob by `getDatasetFamilyFromRun`) **and** `queryContext.hasFacilityId`. n is a survey concept: an HMIS count over a table not grouped by period returns facility-months (40 facilities × 36 months = 1440), and ICEH rows arrive pre-aggregated. Always `COUNT(DISTINCT <sourceTable>.facility_id)`, never a row count: HFA rows are facility × time_point, so a table spanning two rounds would otherwise report double the sample. **The table qualifier is mandatory**: the facilities CTE joins a column of the same name, and unqualified Postgres rejects the query as ambiguous on every facility-column disaggregation. Two rules:
+  - post-aggregation fetches → one **unfiltered** count aliased `__n_all`. The M10 script drops rows whose indicator result is NA, so a facility having a row already means it contributed. Deriving a denominator from the expression instead is wrong on the shipped metrics: `value = COALESCE(
+    sum_val, avg_num / avg_weight)` has a NULL divisor for every sum-aggregation indicator (n would read 0), and `value = dk_num /
+    resp_weight` has `resp_weight = 0`, not NULL, on not-applicable rows.
+  - plain values → `COUNT(DISTINCT …) FILTER (WHERE prop IS NOT NULL) AS
+    __n_<prop>` per non-identity value. No shipped HFA module takes this path.
 
-  The `__n_` prefix is reserved: `validateDefinition` (S8) rejects a module
-  whose value props or PAE ingredients start with it. Adding the columns changed
-  the cached payload shape for unmodified rows, so `PO_CACHE_VERSION` went
-  "6"→"7".
-- **`applyPostAggregationExpression`** splits the PAE on `=` into
-  `value = expression`, rewrites `/col` → `/ NULLIF(col, 0)`, and wraps:
-  `SELECT <groupBys>, (<expr>) as <value>[, __n_all AS __n_<value>] FROM
-  (<query>) AS subq`.
-  The wrapper drops every inner column it doesn't re-project, so the n column
-  must be renamed here to the prop the client looks for, and the
-  `hasSampleNColumn` argument must agree with `emitsSampleN` or it re-projects a
-  column the inner query never selected. The validator guarantees exactly one
-  `=` (multi-`=` would silently drop middle terms). The NULLIF rewrite handles
-  bare-identifier denominators, every authored PAE's shape; a hand-crafted
-  function-call (`a/ABS(b)`) or decimal denominator would be mangled into
-  invalid SQL: an error, not wrong data, and deliberately not defended.
-- **`buildWhereClause`**: the value-escaping boundary. Integer columns
-  (`INTEGER_FILTER_COLUMNS` in lib: `year`, `quarter_id`, `period_id`) get
-  `Number(v)` coercion and `col IN (n, …)`, because their values are
-  boundary-validated numeric; everything else, including `time_point` (an HFA
-  text label) and the derived `month` column (`LPAD` text, `"03"`), gets
-  `UPPER(col) IN ('VAL', …)` with upper-casing and `''`-doubling. Period bounds
-  (below) append `col >= min AND col <= max`, skipped entirely (warn) when the
-  bounds don't self-identify one format.
-- **Multi-membership filter columns** have two registries in lib beside
-  `INTEGER_FILTER_COLUMNS`: `FILTER_ONLY_DISAGGREGATION_OPTIONS` (valid in
-  `filters`, rejected in `groupBys`/`disaggregateBy` by `validateFetchConfig`
-  and the client disaggregation pickers) and `MULTI_MEMBERSHIP_FILTER_COLUMNS`
-  (currently just `hfa_service_category`: a pipe-joined set column, e.g.
-  `"rmnch|nutrition"`). `buildWhereClause`'s first branch turns a filter on such
-  a column into set-membership overlap,
-  `string_to_array(UPPER(col), '|') && ARRAY['VAL', …]` (OR-of-many), instead of
-  exact-match; `getPossibleValuesCore` unnests it
-  (`unnest(string_to_array(col, '|'))`, `ORDER BY` the `disaggregation_value`
-  alias since an SRF can't repeat in ORDER BY) so filter chips offer single
-  category ids, not composites. The delimiter and the encode/decode helpers
-  (`serialiseMultiMembershipValues` / `parseMultiMembershipValues`) live once in
-  lib next to the registries. `PO_CACHE_VERSION` bumped "4"→"5" for the
-  filter-semantics change.
-- **Status envelope**
-  ([presentation_object_items_core.ts](server/server_only_funcs_presentation_objects/presentation_object_items_core.ts)):
-  runs inside `tryCatchDatabaseAsync`, fetches `MAX_ITEMS + 1` rows
-  (`MAX_ITEMS = 20000`) as an N+1 overflow probe. `> MAX_ITEMS` →
-  `too_many_items`; `0` rows or unresolvable bounds on a time-carrying metric →
-  `no_data_available`; else `ok` with `items` + `indicatorMetadata`. That
-  metadata is a MANIFEST LOOKUP, not a derivation or a dictionary read:
-  `getIndicatorMetadataFromRun` (`server/run_query/run_read.ts`) returns the
-  catalog stamped at finalize by `buildRunIndicatorCatalog` and recomputed
-  forward by manifest transform block 1, the "precomputed, never probed"
-  doctrine (SYSTEM_08). It is the full module catalog, which is what lets a
-  filter-pinned indicator still resolve its own `format_as` (SYSTEM_10). All
-  three are `{success: true}` payloads: size states are data, not errors. The
-  `dateRange` in the payload is the resolved _filter_ bounds when a period
-  filter is active, else the raw data bounds.
+  The `__n_` prefix is reserved: `validateDefinition` (S8) rejects a module whose value props or PAE ingredients start with it. Adding the columns changed the cached payload shape for unmodified rows, so `PO_CACHE_VERSION` went "6"→"7".
+- **`applyPostAggregationExpression`** splits the PAE on `=` into `value = expression`, rewrites `/col` → `/ NULLIF(col, 0)`, and wraps: `SELECT <groupBys>, (<expr>) as <value>[, __n_all AS __n_<value>] FROM
+  (<query>) AS subq`. The wrapper drops every inner column it doesn't re-project, so the n column must be renamed here to the prop the client looks for, and the `hasSampleNColumn` argument must agree with `emitsSampleN` or it re-projects a column the inner query never selected. The validator guarantees exactly one `=` (multi-`=` would silently drop middle terms). The NULLIF rewrite handles bare-identifier denominators, every authored PAE's shape; a hand-crafted function-call (`a/ABS(b)`) or decimal denominator would be mangled into invalid SQL: an error, not wrong data, and deliberately not defended.
+- **`buildWhereClause`**: the value-escaping boundary. Integer columns (`INTEGER_FILTER_COLUMNS` in lib: `year`, `quarter_id`, `period_id`) get `Number(v)` coercion and `col IN (n, …)`, because their values are boundary-validated numeric; everything else, including `time_point` (an HFA text label) and the derived `month` column (`LPAD` text, `"03"`), gets `UPPER(col) IN ('VAL', …)` with upper-casing and `''`-doubling. Period bounds (below) append `col >= min AND col <= max`, skipped entirely (warn) when the bounds don't self-identify one format.
+- **Multi-membership filter columns** have two registries in lib beside `INTEGER_FILTER_COLUMNS`: `FILTER_ONLY_DISAGGREGATION_OPTIONS` (valid in `filters`, rejected in `groupBys`/`disaggregateBy` by `validateFetchConfig` and the client disaggregation pickers) and `MULTI_MEMBERSHIP_FILTER_COLUMNS` (currently just `hfa_service_category`: a pipe-joined set column, e.g. `"rmnch|nutrition"`). `buildWhereClause`'s first branch turns a filter on such a column into set-membership overlap, `string_to_array(UPPER(col), '|') && ARRAY['VAL', …]` (OR-of-many), instead of exact-match; `getPossibleValuesCore` unnests it (`unnest(string_to_array(col, '|'))`, `ORDER BY` the `disaggregation_value` alias since an SRF can't repeat in ORDER BY) so filter chips offer single category ids, not composites. The delimiter and the encode/decode helpers (`serialiseMultiMembershipValues` / `parseMultiMembershipValues`) live once in lib next to the registries. `PO_CACHE_VERSION` bumped "4"→"5" for the filter-semantics change.
+- **Status envelope** ([presentation_object_items_core.ts](server/server_only_funcs_presentation_objects/presentation_object_items_core.ts)): runs inside `tryCatchDatabaseAsync`, fetches `MAX_ITEMS + 1` rows (`MAX_ITEMS = 20000`) as an N+1 overflow probe. `> MAX_ITEMS` → `too_many_items`; `0` rows or unresolvable bounds on a time-carrying metric → `no_data_available`; else `ok` with `items` + `indicatorMetadata`. That metadata is a MANIFEST LOOKUP, not a derivation or a dictionary read: `getIndicatorMetadataFromRun` (`server/run_query/run_read.ts`) returns the catalog stamped at finalize by `buildRunIndicatorCatalog` and recomputed forward by manifest transform block 1, the "precomputed, never probed" doctrine (SYSTEM_08). It is the full module catalog, which is what lets a filter-pinned indicator still resolve its own `format_as` (SYSTEM_10). All three are `{success: true}` payloads: size states are data, not errors. The `dateRange` in the payload is the resolved _filter_ bounds when a period filter is active, else the raw data bounds.
 
 ## Period semantics
 
-A results table has at most one **physical time column**, chosen at module
-import (S8 drops the redundant ones, priority `period_id` > `quarter_id` >
-`year`):
+A results table has at most one **physical time column**, chosen at module import (S8 drops the redundant ones, priority `period_id` > `quarter_id` > `year`):
 
 | Scenario | Physical     | Format              | Derivable via SQL                                    |
 | -------- | ------------ | ------------------- | ---------------------------------------------------- |
@@ -276,403 +111,85 @@ import (S8 drops the redundant ones, priority `period_id` > `quarter_id` >
 | 2        | `quarter_id` | `YYYYQ` (5 digits)  | `year`                                               |
 | 3        | `year`       | `YYYY` (4 digits)   | none                                                 |
 
-**Self-identifying values.** The three integer formats occupy disjoint
-digit-count ranges, so a stored period value carries its own unit. There is no
-`periodOption` tag anywhere. `inferPeriodFormatFromValue` (never throws;
-`undefined` outside every range) and `inferPeriodFormatFromValuesIfTheSame`
-(both bounds must self-identify AND agree, else the pair is rejected as a unit)
-in [lib/types/_metric_installed.ts](lib/types/_metric_installed.ts) are the
-single source of the value→format relationship. Writers of bounded filters must
-store real self-identifying values: open-endedness is a filter _type_
-(`from_month`), never a sentinel value; the save-time `.refine` on
-`periodFilterSchema` rejects mixed-format or out-of-order pairs.
+**Self-identifying values.** The three integer formats occupy disjoint digit-count ranges, so a stored period value carries its own unit. There is no `periodOption` tag anywhere. `inferPeriodFormatFromValue` (never throws; `undefined` outside every range) and `inferPeriodFormatFromValuesIfTheSame` (both bounds must self-identify AND agree, else the pair is rejected as a unit) in [lib/types/_metric_installed.ts](lib/types/_metric_installed.ts) are the single source of the value→format relationship. Writers of bounded filters must store real self-identifying values: open-endedness is a filter _type_ (`from_month`), never a sentinel value; the save-time `.refine` on `periodFilterSchema` rejects mixed-format or out-of-order pairs.
 
-**Derivation expressions** live once in
-[period_helpers.ts](server/server_only_funcs_presentation_objects/period_helpers.ts):
-`PERIOD_COLUMN_EXPRESSIONS` (year, month from `period_id`),
-`QUARTER_ID_COLUMN_EXPRESSIONS` (year from `quarter_id`), and
-`getQuarterIdExpression()`, which is **calendar-dependent**: Ethiopian Q1 is
-months 11–1 with Nov/Dec belonging to the _next_ year's Q1, so the generated SQL
-differs by instance calendar. `detectNeededPeriodColumns` scans groupBys,
-filters, and both periodFilter forms for derived-column references.
+**Derivation expressions** live once in [period_helpers.ts](server/server_only_funcs_presentation_objects/period_helpers.ts): `PERIOD_COLUMN_EXPRESSIONS` (year, month from `period_id`), `QUARTER_ID_COLUMN_EXPRESSIONS` (year from `quarter_id`), and `getQuarterIdExpression()`, which is **calendar-dependent**: Ethiopian Q1 is months 11–1 with Nov/Dec belonging to the _next_ year's Q1, so the generated SQL differs by instance calendar. `detectNeededPeriodColumns` scans groupBys, filters, and both periodFilter forms for derived-column references.
 
-**`QueryContext`**
-([types.ts](server/server_only_funcs_presentation_objects/types.ts), built by
-`buildQueryContextFromManifest` in [run_read.ts](server/run_query/run_read.ts)
-from the manifest's column stamps, never probed): `hasPeriodId` / `hasQuarterId`
-(mutually exclusive), `hasFacilityId`, `textColumns` (the VARCHAR columns of the
-results object and, when joined, of the family facilities parquet, which gates
-the blank fold), `neededPeriodColumns`, and
-`needsPeriodCTE = (hasPeriodId && needed.size > 0) || (hasQuarterId &&
-needed.has("year"))`.
-The quarter branch keys on `year` specifically because `quarter_id` itself is
-physical there. Its facility slice comes from `computeFacilityContext`
-([facility_context.ts](server/server_only_funcs_presentation_objects/facility_context.ts)):
-`enabledFacilityColumns` from the manifest's per-family structure schema,
-`requestedOptionalFacilityColumns` = requested ∩ enabled, `needsFacilityJoin`,
-and the facility/non-facility filter split (`getPeriodBoundsCore` is called with
-only the non-facility filters: it queries the bare `ro_*` view).
+**`QueryContext`** ([types.ts](server/server_only_funcs_presentation_objects/types.ts), built by `buildQueryContextFromManifest` in [run_read.ts](server/run_query/run_read.ts) from the manifest's column stamps, never probed): `hasPeriodId` / `hasQuarterId` (mutually exclusive), `hasFacilityId`, `textColumns` (the VARCHAR columns of the results object and, when joined, of the family facilities parquet, which gates the blank fold), `neededPeriodColumns`, and `needsPeriodCTE = (hasPeriodId && needed.size > 0) || (hasQuarterId &&
+needed.has("year"))`. The quarter branch keys on `year` specifically because `quarter_id` itself is physical there. Its facility slice comes from `computeFacilityContext` ([facility_context.ts](server/server_only_funcs_presentation_objects/facility_context.ts)): `enabledFacilityColumns` from the manifest's per-family structure schema, `requestedOptionalFacilityColumns` = requested ∩ enabled, `needsFacilityJoin`, and the facility/non-facility filter split (`getPeriodBoundsCore` is called with only the non-facility filters: it queries the bare `ro_*` view).
 
-**`getPeriodBoundsCore`**
-([period_bounds_core.ts](server/server_only_funcs_presentation_objects/period_bounds_core.ts))
-returns `{min, max}` of the metric's physical column (or derived year), choosing
-the SELECT by `firstPeriodOption` = the results object's stamped
-`physicalTimeColumn`. Its CTE gate and body come from the same single-source
-helpers as the main query (`needsPeriodCTEFor` / `buildPeriodCTESelectColumns`
-in period_helpers.ts); callers pass the period slice of their query context.
-When the year branch reads `MIN/MAX(year)` off the CTE, `year` is forced into
-the CTE's derived columns even if no filter referenced it. The no-filter bounds
-the value-info path and the replicant-options route need are the manifest's
-`periodBounds` stamp (`getRawPeriodBoundsFromRun`), not a query.
+**`getPeriodBoundsCore`** ([period_bounds_core.ts](server/server_only_funcs_presentation_objects/period_bounds_core.ts)) returns `{min, max}` of the metric's physical column (or derived year), choosing the SELECT by `firstPeriodOption` = the results object's stamped `physicalTimeColumn`. Its CTE gate and body come from the same single-source helpers as the main query (`needsPeriodCTEFor` / `buildPeriodCTESelectColumns` in period_helpers.ts); callers pass the period slice of their query context. When the year branch reads `MIN/MAX(year)` off the CTE, `year` is forced into the CTE's derived columns even if no filter referenced it. The no-filter bounds the value-info path and the replicant-options route need are the manifest's `periodBounds` stamp (`getRawPeriodBoundsFromRun`), not a query.
 
-**Period filters.** `PeriodFilter = RelativePeriodFilter | BoundedPeriodFilter`
-(strict discriminated union, each type carrying exactly its own fields).
-Relative types (`last_n_months`, `last_calendar_year/quarter`,
-`last_n_calendar_years/quarters`) carry only `nMonths`/`nYears`/`nQuarters`;
-bounded types (`custom`, `from_month`) carry `min`/`max`.
-`getPeriodFilterExactBounds`
-([get_fetch_config_from_po.ts:158](lib/get_fetch_config_from_po.ts#L158))
-resolves them server-side against the live data bounds: `custom` passes through;
-`from_month` re-anchors a drifted stored `min` to the live data's format
-(`reAnchorToFormat`) and takes `max` from the data so the range tracks new data;
-relative types do month-math via panther's period-id time functions.
-`getLastFullYearBounds` / `getLastFullQuarterBounds` branch on `getCalendar()`:
-the Ethiopian year rolls over at month 10→11 and quarters are 2–4 / 5–7 / 8–10 /
-11–1 (the 11/12-month branch has a confirmed year-off-by-one, F8a).
-Calendar-based filter types are hidden in the UI for `quarter_id` data; the
-defensive `quarter_id`+calendar block in `getPeriodFilterExactBounds` is NOT
-dead: drift arrivals (a filter authored under `period_id` surviving a module
-re-run to `quarter_id`) and AI/hand-crafted configs reach it, and it degrades to
-full bounds (verified by execution). Year-granularity data takes a different,
-earlier exit: every non-custom filter collapses to the latest year, ruled
-intended (the UI's only relative option for year data is "Last year", stored as
-`last_n_months(12)`, and module presets on annual metrics mean the same); the AI
-patch path rejects open-ended filters on year granularity so `from_month` cannot
-be authored onto annual data. Both pinned by rig cases (F7).
+**Period filters.** `PeriodFilter = RelativePeriodFilter | BoundedPeriodFilter` (strict discriminated union, each type carrying exactly its own fields). Relative types (`last_n_months`, `last_calendar_year/quarter`, `last_n_calendar_years/quarters`) carry only `nMonths`/`nYears`/`nQuarters`; bounded types (`custom`, `from_month`) carry `min`/`max`. `getPeriodFilterExactBounds` ([get_fetch_config_from_po.ts:158](lib/get_fetch_config_from_po.ts#L158)) resolves them server-side against the live data bounds: `custom` passes through; `from_month` re-anchors a drifted stored `min` to the live data's format (`reAnchorToFormat`) and takes `max` from the data so the range tracks new data; relative types do month-math via panther's period-id time functions. `getLastFullYearBounds` / `getLastFullQuarterBounds` branch on `getCalendar()`: the Ethiopian year rolls over at month 10→11 and quarters are 2–4 / 5–7 / 8–10 / 11–1 (the 11/12-month branch has a confirmed year-off-by-one, F8a). Calendar-based filter types are hidden in the UI for `quarter_id` data; the defensive `quarter_id`+calendar block in `getPeriodFilterExactBounds` is NOT dead: drift arrivals (a filter authored under `period_id` surviving a module re-run to `quarter_id`) and AI/hand-crafted configs reach it, and it degrades to full bounds (verified by execution). Year-granularity data takes a different, earlier exit: every non-custom filter collapses to the latest year, ruled intended (the UI's only relative option for year data is "Last year", stored as `last_n_months(12)`, and module presets on annual metrics mean the same); the AI patch path rejects open-ended filters on year granularity so `from_month` cannot be authored onto annual data. Both pinned by rig cases (F7).
 
-**`timeseriesGrouping` vs the physical column.** `config.d.timeseriesGrouping`
-is display grouping only (the timeseries X-axis; may be coarser than the data,
-never finer; persists across viz-type switches). Filtering, bounds, and the
-filter UI are always driven by the _physical_ column. A "last 6 months" filter
-on monthly data displayed quarterly filters `period_id` and groups by derived
-`quarter_id`: filter granularity ≠ display granularity, by design.
+**`timeseriesGrouping` vs the physical column.** `config.d.timeseriesGrouping` is display grouping only (the timeseries X-axis; may be coarser than the data, never finer; persists across viz-type switches). Filtering, bounds, and the filter UI are always driven by the _physical_ column. A "last 6 months" filter on monthly data displayed quarterly filters `period_id` and groups by derived `quarter_id`: filter granularity ≠ display granularity, by design.
 
-`convertPeriodValue`
-([lib/convert_period_value.ts](lib/convert_period_value.ts)) re-expresses a
-self-identifying value in a target format (`isEnd` anchors open conversions);
-Gregorian quarter math only, used by AI/validation period handling, not the
-query pipeline.
+`convertPeriodValue` ([lib/convert_period_value.ts](lib/convert_period_value.ts)) re-expresses a self-identifying value in a target format (`isEnd` anchors open conversions); Gregorian quarter math only, used by AI/validation period handling, not the query pipeline.
 
 ## Disaggregation options
 
-**Enrichment** (`enrichMetricFromManifest`,
-[run_read.ts](server/run_query/run_read.ts)) converts a manifest metric row into
-a `ResultsValue` on every read: nothing persisted. Module authors declare only
-`requiredDisaggregationOptions`; availability is the results object's
-`availableDisaggregationOptions` stamp, derived at finalize by
-`deriveAvailableDisaggregationOptions`
-([server/runs/disaggregation_availability.ts](server/runs/disaggregation_availability.ts))
-from the parquet's column set in three phases:
+**Enrichment** (`enrichMetricFromManifest`, [run_read.ts](server/run_query/run_read.ts)) converts a manifest metric row into a `ResultsValue` on every read: nothing persisted. Module authors declare only `requiredDisaggregationOptions`; availability is the results object's `availableDisaggregationOptions` stamp, derived at finalize by `deriveAvailableDisaggregationOptions` ([server/runs/disaggregation_availability.ts](server/runs/disaggregation_availability.ts)) from the parquet's column set in three phases:
 
-1. **Physical columns** from `PHYSICAL_DISAGGREGATION_COLUMNS`: admin areas 2–4,
-   indicator columns (`indicator_common_id`, `source_indicator`,
-   `target_population`, `ratio_type`), denominators, HFA columns
-   (`hfa_indicator`, `hfa_variant_item`, `hfa_category`, `hfa_sub_category`,
-   `hfa_service_category`, `time_point`), ICEH columns (`iceh_indicator`,
-   `strat`, `level`).
+1. **Physical columns** from `PHYSICAL_DISAGGREGATION_COLUMNS`: admin areas 2–4, indicator columns (`indicator_common_id`, `source_indicator`, `target_population`, `ratio_type`), denominators, HFA columns (`hfa_indicator`, `hfa_variant_item`, `hfa_category`, `hfa_sub_category`, `hfa_service_category`, `time_point`), ICEH columns (`iceh_indicator`, `strat`, `level`).
 
-   `hfa_variant_item` is a **plain groupable dimension** in no special registry
-   (`FILTER_ONLY_…`, `MULTI_MEMBERSHIP_…`, `INTEGER_…`). It follows
-   `hfa_category` mechanics, not `hfa_service_category`: the generic physical
-   path gives GROUP BY / filter / replicant / possible-values with zero
-   query-engine code. Its position in `ALL_DISAGGREGATION_OPTIONS` is
-   load-bearing and deliberate: **immediately after `hfa_indicator`**, because
-   starting-config slot assignment follows list order, and appending at the end
-   would default the no-preset table to time_point=col / item=rowGroup instead
-   of the headline indicator-row × item-col cross.
-2. **Facility columns**, double-gated: the table must have `facility_id` AND the
-   family's structure schema, frozen in the manifest as `structureSchemaHmis` /
-   `structureSchemaHfa` at generation, must enable each column (`includeTypes`,
-   `includeOwnership`, `includeCustom1..5`). Labels are display-only and not
-   consulted. `facility_name` is deliberately **not** a disaggregation option:
-   it is import/display metadata (toggled by `includeNames`, supplied by DHIS2
-   `displayName`), never a grouping dimension. Removed from
-   `ALL_DISAGGREGATION_OPTIONS`, so the omission is enforced by the type system
-   rather than by convention; `computeFacilityContext` derives its
-   facility-column narrowing as
-   `Extract<OptionalFacilityColumn,
+   `hfa_variant_item` is a **plain groupable dimension** in no special registry (`FILTER_ONLY_…`, `MULTI_MEMBERSHIP_…`, `INTEGER_…`). It follows `hfa_category` mechanics, not `hfa_service_category`: the generic physical path gives GROUP BY / filter / replicant / possible-values with zero query-engine code. Its position in `ALL_DISAGGREGATION_OPTIONS` is load-bearing and deliberate: **immediately after `hfa_indicator`**, because starting-config slot assignment follows list order, and appending at the end would default the no-preset table to time_point=col / item=rowGroup instead of the headline indicator-row × item-col cross.
+2. **Facility columns**, double-gated: the table must have `facility_id` AND the family's structure schema, frozen in the manifest as `structureSchemaHmis` / `structureSchemaHfa` at generation, must enable each column (`includeTypes`, `includeOwnership`, `includeCustom1..5`). Labels are display-only and not consulted. `facility_name` is deliberately **not** a disaggregation option: it is import/display metadata (toggled by `includeNames`, supplied by DHIS2 `displayName`), never a grouping dimension. Removed from `ALL_DISAGGREGATION_OPTIONS`, so the omission is enforced by the type system rather than by convention; `computeFacilityContext` derives its facility-column narrowing as `Extract<OptionalFacilityColumn,
    DisaggregationOption>`.
-3. **Time columns**, priority-branched: `period_id` → all four time options;
-   else `quarter_id` → `quarter_id` + `year`; else `year` → `year`.
+3. **Time columns**, priority-branched: `period_id` → all four time options; else `quarter_id` → `quarter_id` + `year`; else `year` → `year`.
 
-Each option gets `allowedPresentationOptions` from
-`getDisaggregationAllowedPresentationOptions` (time options:
-`["table", "chart"]`, excluded from timeseries, maps and pies, which
-deliberately aggregate over the period selection; `time_point` additionally
-allows `map` and `pie`: survey rounds are few, discrete, and never pooled, so
-they take a display slot like any other dimension). The enrichment also carries
-`hasFacilityLevelRows` (= the results object's `hasFacilityId` stamp; drives AVG
-roll-up eligibility) and `mostGranularTimePeriodColumnInResultsFile` (inferred
-from the options, priority period > quarter > year; `undefined` = no time
-dimension, a first-class state handled by guards everywhere: no timeseries
-option, no period filter UI). `resolveMetricFromRun` is the lookup wrapper
-(manifest metric → `enrichMetricFromManifest` → `{resultsValue, moduleId}`).
+Each option gets `allowedPresentationOptions` from `getDisaggregationAllowedPresentationOptions` (time options: `["table", "chart"]`, excluded from timeseries, maps and pies, which deliberately aggregate over the period selection; `time_point` additionally allows `map` and `pie`: survey rounds are few, discrete, and never pooled, so they take a display slot like any other dimension). The enrichment also carries `hasFacilityLevelRows` (= the results object's `hasFacilityId` stamp; drives AVG roll-up eligibility) and `mostGranularTimePeriodColumnInResultsFile` (inferred from the options, priority period > quarter > year; `undefined` = no time dimension, a first-class state handled by guards everywhere: no timeseries option, no period filter UI). `resolveMetricFromRun` is the lookup wrapper (manifest metric → `enrichMetricFromManifest` → `{resultsValue, moduleId}`).
 
-**Possible values**
-([possible_values_core.ts](server/server_only_funcs_presentation_objects/possible_values_core.ts))
-runs
-`SELECT DISTINCT <col> AS disaggregation_value … ORDER BY … LIMIT
-REPLICANT_OPTIONS_QUERY_LIMIT`
-(502) per option, with three column shapes: physical (direct), dynamic period
-(CTE when one is needed, else inline derivation expression), facility
-(`LEFT JOIN` to a hand-written `facility_subset` CTE over the family facilities
-table; stacks with the period CTE when both are needed). Null/empty values fold
-onto `BLANK_SENTINEL` where the blank fold applies, and are dropped where it
-does not (below). Results are `{id, label}` pairs, with labels resolved
-server-side from the module's `IndicatorMetadata` and then every
-`valueLabelReplacements` a metric on the results object declares
-(`valueLabelMapForRun`), falling back to the raw id, so a select never shows an
-id the figure beside it spells out.
+**Possible values** ([possible_values_core.ts](server/server_only_funcs_presentation_objects/possible_values_core.ts)) runs `SELECT DISTINCT <col> AS disaggregation_value … ORDER BY … LIMIT
+REPLICANT_OPTIONS_QUERY_LIMIT` (502) per option, with three column shapes: physical (direct), dynamic period (CTE when one is needed, else inline derivation expression), facility (`LEFT JOIN` to a hand-written `facility_subset` CTE over the family facilities table; stacks with the period CTE when both are needed). Null/empty values fold onto `BLANK_SENTINEL` where the blank fold applies, and are dropped where it does not (below). Results are `{id, label}` pairs, with labels resolved server-side from the module's `IndicatorMetadata` and then every `valueLabelReplacements` a metric on the results object declares (`valueLabelMapForRun`), falling back to the raw id, so a select never shows an id the figure beside it spells out.
 
-The cap counts NAMED values (`exceedsMaxReplicantOptions`), and the query budget
-is `MAX_REPLICANT_OPTIONS + 2` so the sentinel can neither displace a named
-value nor tip a dimension holding exactly 500 into `too_many_values`.
+The cap counts NAMED values (`exceedsMaxReplicantOptions`), and the query budget is `MAX_REPLICANT_OPTIONS + 2` so the sentinel can neither displace a named value nor tip a dimension holding exactly 500 into `too_many_values`.
 
-The server honors **all** filters it is passed, including one on the queried
-column itself (no self-strip: a replicant filtered to a subset returns exactly
-that subset). Who passes what: the filter-checkbox path (`getResultsValueInfo…`)
-passes **no** filters (full per-column value sets); the replicant-options route
-passes the user's `filterBy` with the auto-pin already excluded, plus
-`periodFilterExactBounds` resolved from the config's period filter exactly like
-the items query (physical column inferred period > quarter > year, live bounds,
-relative filters included, `from_month` re-anchored), so the option list matches
-the filtered figure's period window.
+The server honors **all** filters it is passed, including one on the queried column itself (no self-strip: a replicant filtered to a subset returns exactly that subset). Who passes what: the filter-checkbox path (`getResultsValueInfo…`) passes **no** filters (full per-column value sets); the replicant-options route passes the user's `filterBy` with the auto-pin already excluded, plus `periodFilterExactBounds` resolved from the config's period filter exactly like the items query (physical column inferred period > quarter > year, live bounds, relative filters included, `from_month` re-anchored), so the option list matches the filtered figure's period window.
 
-Per-option statuses (`DisaggregationPossibleValuesStatus`): `ok` (with values),
-`too_many_values` (> 500), `no_values_available` (zero rows), `error` (with
-message: both the metric-info path and the replicant-options route surface
-resolver failures as this status).
+Per-option statuses (`DisaggregationPossibleValuesStatus`): `ok` (with values), `too_many_values` (> 500), `no_values_available` (zero rows), `error` (with message: both the metric-info path and the replicant-options route surface resolver failures as this status).
 
-**Indicator metadata** is a manifest lookup (`getIndicatorMetadataFromRun`): the
-per-module catalog stamped at finalize by `buildRunIndicatorCatalog`
-([server/runs/indicator_catalog.ts](server/runs/indicator_catalog.ts)) from the
-run's own captured inputs, family-branched on the module definition, so it is
-frozen with the package, and the run id is its version. Only its DISPLAY fields
-cross the wire: `toIndicatorMetadataDisplay` strips the evaluation fields below,
-so nothing generation-only is frozen into a stored figure bundle. It rides
-inside items holders and labels possible values.
+**Indicator metadata** is a manifest lookup (`getIndicatorMetadataFromRun`): the per-module catalog stamped at finalize by `buildRunIndicatorCatalog` ([server/runs/indicator_catalog.ts](server/runs/indicator_catalog.ts)) from the run's own captured inputs, family-branched on the module definition, so it is frozen with the package, and the run id is its version. Only its DISPLAY fields cross the wire: `toIndicatorMetadataDisplay` strips the evaluation fields below, so nothing generation-only is frozen into a stored figure bundle. It rides inside items holders and labels possible values.
 
-**Catalog-expression post-aggregation.** A results object is catalog-evaluated
-iff a metric over it declares `catalogExpressionEvaluation`, a manifest lookup
-over `manifest.metrics`, never a shape guess. The client compiles the declared
-ingredient props into all-SUM `values`; the engine runs ordinary SQL; and
-`getPresentationObjectItemsFromRun` then applies each row's own indicator
-expression from the run catalog, emitting one `value` and dropping the
-ingredients. It runs over MAIN and ROLL-UP rows alike, which is what makes a
-national total a real rate rather than a mean of rates. The engine itself is
-untouched: no SQL emission, no PAE machinery change. Three guards protect the
-contract server-side (`readRunItems`): a client-sent `postAggregationExpression`
-is rejected (fetch-config validation accepts one unconditionally, so this is a
-real bypass without the guard), as is any `values[].func` other than SUM or any
-prop outside the declared set.
+**Catalog-expression post-aggregation.** A results object is catalog-evaluated iff a metric over it declares `catalogExpressionEvaluation`, a manifest lookup over `manifest.metrics`, never a shape guess. The client compiles the declared ingredient props into all-SUM `values`; the engine runs ordinary SQL; and `getPresentationObjectItemsFromRun` then applies each row's own indicator expression from the run catalog, emitting one `value` and dropping the ingredients. It runs over MAIN and ROLL-UP rows alike, which is what makes a national total a real rate rather than a mean of rates. The engine itself is untouched: no SQL emission, no PAE machinery change. Three guards protect the contract server-side (`readRunItems`): a client-sent `postAggregationExpression` is rejected (fetch-config validation accepts one unconditionally, so this is a real bypass without the guard), as is any `values[].func` other than SUM or any prop outside the declared set.
 
-AUTHORING INVARIANT (twin of the required-groupBy one): every metric over a
-catalog-evaluated results object must declare the SAME ingredient props, and
-must require `indicator_common_id`. The required-dims guard is the INTERSECTION
-across all metrics sharing a results object, so one metric omitting it dissolves
-the guard for all of them. The guard is what makes cross-indicator pooling
-impossible, since every aggregated row the evaluator sees is then keyed by
-exactly one indicator.
+AUTHORING INVARIANT (twin of the required-groupBy one): every metric over a catalog-evaluated results object must declare the SAME ingredient props, and must require `indicator_common_id`. The required-dims guard is the INTERSECTION across all metrics sharing a results object, so one metric omitting it dissolves the guard for all of them. The guard is what makes cross-indicator pooling impossible, since every aggregated row the evaluator sees is then keyed by exactly one indicator.
 
-**Blank values.** A row whose disaggregation cell is NULL or whitespace-only is
-a real group (`GROUP BY` emits it), so it must also be a nameable filter option.
-`BLANK_SENTINEL` (`"__BLANK"`, lib/validate_fetch_config.ts) is that id. Four
-sites emit or match it and must agree exactly, or an option is offered that no
-filter can select: the possible-values query, the SELECT list, the GROUP BY, and
-the WHERE predicate. Two shared emitters enforce that: `blankFoldedRef` (the
-`CASE`) and `blankPredicate` (the WHERE test), behind one gate,
-`shouldFoldBlank`.
+**Blank values.** A row whose disaggregation cell is NULL or whitespace-only is a real group (`GROUP BY` emits it), so it must also be a nameable filter option. `BLANK_SENTINEL` (`"__BLANK"`, lib/validate_fetch_config.ts) is that id. Four sites emit or match it and must agree exactly, or an option is offered that no filter can select: the possible-values query, the SELECT list, the GROUP BY, and the WHERE predicate. Two shared emitters enforce that: `blankFoldedRef` (the `CASE`) and `blankPredicate` (the WHERE test), behind one gate, `shouldFoldBlank`.
 
 Four rules that are each load-bearing:
 
-- **The gate is semantic AND type-based.** `usesBlankSentinel` excludes integer
-  columns, period-derived text (`month`), and multi-membership. On top of that,
-  the column must actually be TEXT (`QueryContext.textColumns`, built by
-  `buildQueryContextFromManifest` from the manifest's column-type stamps).
-  Results-column types are authored per module, so the same option is not the
-  same type everywhere: `time_point` is `integer` in one instance here and
-  `text` in another. The fold emits two-arg `trim()` and returns a text sentinel
-  from the `CASE`; Postgres rejects both on a numeric column, so a name-only
-  gate turns working visualizations into a hard SQL error.
-- **The fold detects blankness but returns the value UNTRIMMED.** Folding to
-  `trim(col, …)` would rewrite non-blank values too, collapsing `' x'` and `'x'`
-  into one group that `UPPER(col) IN (…)`, comparing the raw column, could only
-  half-match. That is the original defect in a new form.
-- **`blankPredicate` is self-parenthesising.** It contains an `OR` and callers
-  `AND` it with other statements; unparenthesised,
-  `a = 1 AND col IS NULL OR trim(col, …) = ''` parses as
-  `(a = 1 AND col IS NULL) OR trim(col, …) = ''` and the blank test swallows the
-  rest of the WHERE clause.
-- **`trim`'s charset is spelled out** (`E' \t\r\n'`), two-arg `trim()` rather
-  than `btrim()` because DuckDB has no `btrim`. The default is ASCII space only,
-  so a tab-only cell would stay unfolded here while JS `.trim()` still stripped
-  it from the options list.
+- **The gate is semantic AND type-based.** `usesBlankSentinel` excludes integer columns, period-derived text (`month`), and multi-membership. On top of that, the column must actually be TEXT (`QueryContext.textColumns`, built by `buildQueryContextFromManifest` from the manifest's column-type stamps). Results-column types are authored per module, so the same option is not the same type everywhere: `time_point` is `integer` in one instance here and `text` in another. The fold emits two-arg `trim()` and returns a text sentinel from the `CASE`; Postgres rejects both on a numeric column, so a name-only gate turns working visualizations into a hard SQL error.
+- **The fold detects blankness but returns the value UNTRIMMED.** Folding to `trim(col, …)` would rewrite non-blank values too, collapsing `' x'` and `'x'` into one group that `UPPER(col) IN (…)`, comparing the raw column, could only half-match. That is the original defect in a new form.
+- **`blankPredicate` is self-parenthesising.** It contains an `OR` and callers `AND` it with other statements; unparenthesised, `a = 1 AND col IS NULL OR trim(col, …) = ''` parses as `(a = 1 AND col IS NULL) OR trim(col, …) = ''` and the blank test swallows the rest of the WHERE clause.
+- **`trim`'s charset is spelled out** (`E' \t\r\n'`), two-arg `trim()` rather than `btrim()` because DuckDB has no `btrim`. The default is ASCII space only, so a tab-only cell would stay unfolded here while JS `.trim()` still stripped it from the options list.
 
-Multi-membership columns are exempt on both sides: `string_to_array('', '|')` is
-`{}`, so a blank cell yields no row for `unnest` to fold and the filter is an
-array overlap rather than an `IN` list. Their "one option ≠ constant dimension"
-problem is handled instead in `getSingleValueDimsFromPossibleValues`, which
-skips them: one distinct member says nothing about row homogeneity, and treating
-it as constant hid the service-category filter entirely once a single indicator
-was tagged.
+Multi-membership columns are exempt on both sides: `string_to_array('', '|')` is `{}`, so a blank cell yields no row for `unnest` to fold and the filter is an array overlap rather than an `IN` list. Their "one option ≠ constant dimension" problem is handled instead in `getSingleValueDimsFromPossibleValues`, which skips them: one distinct member says nothing about row homogeneity, and treating it as constant hid the service-category filter entirely once a single indicator was tagged.
 
-Display is client-side (the payload is Valkey-cached, so a translated label must
-not be frozen into it): `BLANK_SENTINEL_LABEL` → "(Blank)", resolved in
-`formatReplicantLabelForDisplay` for every replicant surface and in
-`getDisplayDisaggregationValueLabel` for filter chips. "Blank", not "missing":
-"Missing" already means HFA non-response counts. The sentinel is moved to the
-END of the option list in TS (SQL cannot: under `SELECT DISTINCT`, `ORDER BY`
-may only use expressions in the select list); left where collation put it, it
-sorted ahead of every lowercase value and became the default replicant.
+Display is client-side (the payload is Valkey-cached, so a translated label must not be frozen into it): `BLANK_SENTINEL_LABEL` → "(Blank)", resolved in `formatReplicantLabelForDisplay` for every replicant surface and in `getDisplayDisaggregationValueLabel` for filter chips. "Blank", not "missing": "Missing" already means HFA non-response counts. The sentinel is moved to the END of the option list in TS (SQL cannot: under `SELECT DISTINCT`, `ORDER BY` may only use expressions in the select list); left where collation put it, it sorted ahead of every lowercase value and became the default replicant.
 
-**Replicant resolution.** `getReplicateByProp` (lib,
-[get_disaggregator_display_prop.ts](lib/get_disaggregator_display_prop.ts)) is
-the single source of truth for "is there an active replicant": the dimension
-displayed as `"replicant"` and _not_ filtered to one value (a one-value
-replicant is degenerate and renders as a plain filter). It is context-free
-(reads only `disaggregateBy` + `filterBy`), so raw and effective configs agree
-at every call site. `resolveDefaultReplicant`
-([t2_figure_data.ts](client/src/state/products/t2_figure_data.ts)) fetches the
-valid values (pin-excluded config) and keeps a still-valid
-`selectedReplicantValue`, else defaults to the first valid one, returning a
-fresh config copy, never mutating the input (the editor passes its unwrapped
-live store). The AI figure path (`assert_replicant_valid.ts`) instead throws on
-unset/invalid: the AI must be explicit. Single-replicant-per-viz is UI-enforced
-only (nothing in the schema forbids two `"replicant"` entries).
+**Replicant resolution.** `getReplicateByProp` (lib, [get_disaggregator_display_prop.ts](lib/get_disaggregator_display_prop.ts)) is the single source of truth for "is there an active replicant": the dimension displayed as `"replicant"` and _not_ filtered to one value (a one-value replicant is degenerate and renders as a plain filter). It is context-free (reads only `disaggregateBy` + `filterBy`), so raw and effective configs agree at every call site. `resolveDefaultReplicant` ([t2_figure_data.ts](client/src/state/products/t2_figure_data.ts)) fetches the valid values (pin-excluded config) and keeps a still-valid `selectedReplicantValue`, else defaults to the first valid one, returning a fresh config copy, never mutating the input (the editor passes its unwrapped live store). The AI figure path (`assert_replicant_valid.ts`) instead throws on unset/invalid: the AI must be explicit. Single-replicant-per-viz is UI-enforced only (nothing in the schema forbids two `"replicant"` entries).
 
 ## Roll-up (admin areas & facility columns)
 
-The synthetic "National" / "All areas" / "All facilities" row, produced by a
-second query `UNION ALL`'d onto the main one. The collapsible dimensions are a
-WHITELIST (`ROLLUP_DIMENSIONS` in [rollup.ts](lib/rollup.ts) = the three admin
-levels + the seven `facility_*` columns), and the boundary is semantic: a
-roll-up re-aggregates rows across the collapsed dimension's values, which is
-only meaningful for dimensions that PARTITION facilities: indicator dimensions
-would sum different indicators, `time_point` would pool survey rounds,
-`hfa_service_category` is multi-membership. Two independent gates, combined by
-`getEffectiveRollupDimension`
-([get_fetch_config_from_po.ts](lib/get_fetch_config_from_po.ts)), the single
-gate used by the editor checkbox, the fetch builder, the save-time strip, and
-the AI editor tool:
+The synthetic "National" / "All areas" / "All facilities" row, produced by a second query `UNION ALL`'d onto the main one. The collapsible dimensions are a WHITELIST (`ROLLUP_DIMENSIONS` in [rollup.ts](lib/rollup.ts) = the three admin levels + the seven `facility_*` columns), and the boundary is semantic: a roll-up re-aggregates rows across the collapsed dimension's values, which is only meaningful for dimensions that PARTITION facilities: indicator dimensions would sum different indicators, `time_point` would pool survey rounds, `hfa_service_category` is multi-membership. Two independent gates, combined by `getEffectiveRollupDimension` ([get_fetch_config_from_po.ts](lib/get_fetch_config_from_po.ts)), the single gate used by the editor checkbox, the fetch builder, the save-time strip, and the AI editor tool:
 
-- **Config gate** (`getRollupDimension`): the flag lives ON the `disaggregateBy`
-  entry (`rollup: true` + `rollupPosition`); EXACTLY ONE flagged entry must pass
-  `isRollupCandidateDimension` (whitelisted, grouped, not displayed as
-  replicant/mapArea, not filtered to a single value; maps and pies excluded
-  entirely: a "National" total slice inside its own parts would double a pie's
-  whole). More than one flagged candidate ⇒ gate closed. The one-roll-up-per-viz
-  rule is phase-1 policy living ONLY in this derivation and the editor UI; the
-  schema allows multiple flags so a future simultaneous-roll-up (cross-product)
-  needs no storage migration. The authoritative doc comment lives on the
-  function.
-- **Metric gate** (`isRollupEligibleResultsValue`, [rollup.ts](lib/rollup.ts)):
-  re-aggregation must be meaningful: SUM/COUNT (additive), identity-with-PAE
-  (ingredients re-aggregated, ratio recomputed after the union), or AVG over
-  facility-level rows (`hasFacilityLevelRows`: re-averaging raw observations is
-  the correctly weighted statistic; AVG over pre-aggregated area rows would be a
-  population-blind mean). Bare identity and MIN/MAX are never eligible.
-  Enforcement is split: `validateFetchConfig` rejects never-eligible funcs
-  (table-blind); the AVG↔`facility_id` half needs table access and is checked in
-  `getPresentationObjectItemsCore`.
+- **Config gate** (`getRollupDimension`): the flag lives ON the `disaggregateBy` entry (`rollup: true` + `rollupPosition`); EXACTLY ONE flagged entry must pass `isRollupCandidateDimension` (whitelisted, grouped, not displayed as replicant/mapArea, not filtered to a single value; maps and pies excluded entirely: a "National" total slice inside its own parts would double a pie's whole). More than one flagged candidate ⇒ gate closed. The one-roll-up-per-viz rule is phase-1 policy living ONLY in this derivation and the editor UI; the schema allows multiple flags so a future simultaneous-roll-up (cross-product) needs no storage migration. The authoritative doc comment lives on the function.
+- **Metric gate** (`isRollupEligibleResultsValue`, [rollup.ts](lib/rollup.ts)): re-aggregation must be meaningful: SUM/COUNT (additive), identity-with-PAE (ingredients re-aggregated, ratio recomputed after the union), or AVG over facility-level rows (`hasFacilityLevelRows`: re-averaging raw observations is the correctly weighted statistic; AVG over pre-aggregated area rows would be a population-blind mean). Bare identity and MIN/MAX are never eligible. Enforcement is split: `validateFetchConfig` rejects never-eligible funcs (table-blind); the AVG↔`facility_id` half needs table access and is checked in `getPresentationObjectItemsCore`.
 
-**The client chooses the collapsed dimension; the server obeys.** `rollupDim` is
-baked into the fetch config; the server must never recompute it from raw
-groupBys (those include replicant levels, the wrong collapse target). The
-server's checks (`isRollupDimension`, `groupBys.includes`) are SQL-safety, not
-policy. When either fails `buildRollupQuery` returns `null` and the roll-up row
-is **silently omitted** rather than raising: a dimension that isn't grouped has
-no column to replace with the sentinel, so the query cannot be built at all.
-Well-formed clients never reach it (`getEffectiveRollupDimension` guarantees the
-dimension is grouped, and `normalizePOConfigForStorage` strips stray flags at
-save time); stale and hand-crafted configs do, and they degrade to a figure
-without a total row (an instance of the stale-config silent-failure trap below).
-`buildRollupQuery` replaces the collapsed column with its sentinel:
-`'__NATIONAL'` (`ROLLUP_SENTINEL`) for admin levels, `'__ALL_FACILITIES'`
-(`ALL_FACILITIES_SENTINEL`) for facility columns, per
-`rollupSentinelForDimension`; `LEGACY_ROLLUP_SENTINEL` `zzNATIONAL` survives
-only in old stored figure grids, render-compat. `buildRollupQuery` drops the
-dimension from GROUP BY, re-aggregates via the `"rollup"` column mode, same
-WHERE. A collapsed facility column works identically even though it lives on the
-facility CTE: the sentinel replaces the column reference before the `f.` prefix
-is applied, and the `__n_*` count over the collapsed scope is exactly the "all
-facilities" sample size.
+**The client chooses the collapsed dimension; the server obeys.** `rollupDim` is baked into the fetch config; the server must never recompute it from raw groupBys (those include replicant levels, the wrong collapse target). The server's checks (`isRollupDimension`, `groupBys.includes`) are SQL-safety, not policy. When either fails `buildRollupQuery` returns `null` and the roll-up row is **silently omitted** rather than raising: a dimension that isn't grouped has no column to replace with the sentinel, so the query cannot be built at all. Well-formed clients never reach it (`getEffectiveRollupDimension` guarantees the dimension is grouped, and `normalizePOConfigForStorage` strips stray flags at save time); stale and hand-crafted configs do, and they degrade to a figure without a total row (an instance of the stale-config silent-failure trap below). `buildRollupQuery` replaces the collapsed column with its sentinel: `'__NATIONAL'` (`ROLLUP_SENTINEL`) for admin levels, `'__ALL_FACILITIES'` (`ALL_FACILITIES_SENTINEL`) for facility columns, per `rollupSentinelForDimension`; `LEGACY_ROLLUP_SENTINEL` `zzNATIONAL` survives only in old stored figure grids, render-compat. `buildRollupQuery` drops the dimension from GROUP BY, re-aggregates via the `"rollup"` column mode, same WHERE. A collapsed facility column works identically even though it lives on the facility CTE: the sentinel replaces the column reference before the `f.` prefix is applied, and the `__n_*` count over the collapsed scope is exactly the "all facilities" sample size.
 
-**Labels are scope words, never operation words** ("Total" would imply SUM),
-**and filters never change the label** (ruled): a filter is the AUTHOR's
-context, not the READER's: the reader of a report filtered to some areas or
-facility types reads the total row as the total of what the figure shows.
-`getRollupLabelContextForDimension` resolves admin: **pinned** ("{Area} — All
-areas": the finest coarser level pinned by replicant or single-value filter; the
-marker distinguishes the row from a same-named child area) → **national**.
-Facility dimensions are always **all_facilities** ("All facilities": one scope
-word for all seven columns, so no per-column or per-instance naming is needed;
-fr/pt use the app's established "établissement" / "estabelecimento"). The same
-context drives the editor checkbox text, so row and checkbox can't tell
-different stories. One display-side override (S10's `getRollupRowLabel`): under
-a scope that holds the figure's family to an area the filter is the server's
-view predicate and never in the config, so the context still reads national
-while the SQL totals one area: a bundle whose stored scope carries an
-`adminArea2` (the area of the figure's own family section, null for ICEH), read
-with a national context, renders the pinned form ("{Area} — All areas") instead.
-Display-only; the scope is never pushed into the config (that would reach the
-fetch config and the cache hash).
+**Labels are scope words, never operation words** ("Total" would imply SUM), **and filters never change the label** (ruled): a filter is the AUTHOR's context, not the READER's: the reader of a report filtered to some areas or facility types reads the total row as the total of what the figure shows. `getRollupLabelContextForDimension` resolves admin: **pinned** ("{Area} — All areas": the finest coarser level pinned by replicant or single-value filter; the marker distinguishes the row from a same-named child area) → **national**. Facility dimensions are always **all_facilities** ("All facilities": one scope word for all seven columns, so no per-column or per-instance naming is needed; fr/pt use the app's established "établissement" / "estabelecimento"). The same context drives the editor checkbox text, so row and checkbox can't tell different stories. One display-side override (S10's `getRollupRowLabel`): under a scope that holds the figure's family to an area the filter is the server's view predicate and never in the config, so the context still reads national while the SQL totals one area: a bundle whose stored scope carries an `adminArea2` (the area of the figure's own family section, null for ICEH), read with a national context, renders the pinned form ("{Area} — All areas") instead. Display-only; the scope is never pushed into the config (that would reach the fetch config and the cache hash).
 
-**Position is display-only.** The entry's `rollupPosition` ("top"/"bottom", read
-via `getRollupPosition`) drives client-side sort pinning (`ROLLUP_PIN_IDS`) and
-is never in the fetch config, the SQL, or the cache hash: toggling re-renders
-without refetching. Display mechanics (pin-aware sorts, conditional-formatting
-exclusion, fixed sentinel series color) live in S10's
-`get_data_config_from_po.ts` / `get_style_from_po`. Editor lifecycle: no eager
-clearing on transient gate closures.
-`normalizePOConfigForStorage
-(config, resultsValue)` strips flags at save time;
-canonical off-state is both entry fields absent. AI data payloads deliberately
-exclude the roll-up row (double-counting hazard).
+**Position is display-only.** The entry's `rollupPosition` ("top"/"bottom", read via `getRollupPosition`) drives client-side sort pinning (`ROLLUP_PIN_IDS`) and is never in the fetch config, the SQL, or the cache hash: toggling re-renders without refetching. Display mechanics (pin-aware sorts, conditional-formatting exclusion, fixed sentinel series color) live in S10's `get_data_config_from_po.ts` / `get_style_from_po`. Editor lifecycle: no eager clearing on transient gate closures. `normalizePOConfigForStorage
+(config, resultsValue)` strips flags at save time; canonical off-state is both entry fields absent. AI data payloads deliberately exclude the roll-up row (double-counting hazard).
 
 ## The scoped view
 
-The scope is the caller's: it arrives over the wire beside the run id on the
-run-keyed reads as `scopeId`, the id of a `scopes` row (a uuid, or the reserved
-`all-data`; never null). `getReadyRunReadContext` shape-checks the run id, loads
-the scope's definition (an unknown id is `SCOPE_NOT_FOUND`, answered 404),
-refuses a restricted caller every scope they do not hold (`SCOPE_NOT_GRANTED`,
-answered 403; S8 "Scope access") and puts the `ScopeDefinition` on the context
-as `scope`, with its hash as `scopeToken`. No read context exists without a
-scope. The definition is applied **in the DuckDB view every query runs
-against**, in one place, so the shared Cores and the query builders are
-untouched and a read path cannot forget it. `viewsFor` (run_read.ts) builds the
-views for one read, and gives the results object's view the predicate
-`scopePredicateFor(definition, ro, manifest)` returns. `executeSqlOverParquet`
-appends it:
-`CREATE VIEW x AS SELECT * FROM read_parquet(...) WHERE <predicate>`.
-`scopePredicateFor` is pure and decides per results object from the manifest:
-the family the object's module declares, and the object's column stamps, never a
-baked list, because a new module output can change the split.
+The scope is the caller's: it arrives over the wire beside the run id on the run-keyed reads as `scopeId`, the id of a `scopes` row (a uuid, or the reserved `all-data`; never null). `getReadyRunReadContext` shape-checks the run id, loads the scope's definition (an unknown id is `SCOPE_NOT_FOUND`, answered 404), refuses a restricted caller every scope they do not hold (`SCOPE_NOT_GRANTED`, answered 403; S8 "Scope access") and puts the `ScopeDefinition` on the context as `scope`, with its hash as `scopeToken`. No read context exists without a scope. The definition is applied **in the DuckDB view every query runs against**, in one place, so the shared Cores and the query builders are untouched and a read path cannot forget it. `viewsFor` (run_read.ts) builds the views for one read, and gives the results object's view the predicate `scopePredicateFor(definition, ro, manifest)` returns. `executeSqlOverParquet` appends it: `CREATE VIEW x AS SELECT * FROM read_parquet(...) WHERE <predicate>`. `scopePredicateFor` is pure and decides per results object from the manifest: the family the object's module declares, and the object's column stamps, never a baked list, because a new module output can change the split.
 
-**The family picks the section.** A definition has one section per dataset
-family (`hmis`, `hfa`, `iceh`), and a results object is read under the section
-of its module's family (`family` is required in the module definition; a results
-object whose module the manifest does not hold is `FALSE`). An excluded section
-(`include: false`) is `FALSE`, and so is a module outside the section's
-`modules` list. Those are the only two ways a whole table is removed.
+**The family picks the section.** A definition has one section per dataset family (`hmis`, `hfa`, `iceh`), and a results object is read under the section of its module's family (`family` is required in the module definition; a results object whose module the manifest does not hold is `FALSE`). An excluded section (`include: false`) is `FALSE`, and so is a module outside the section's `modules` list. Those are the only two ways a whole table is removed.
 
-**The default principle, within the section.** A dimension filters a results
-object only when the object has a column for it. Where it has none, that
-dimension contributes no predicate and the object is served whole. The predicate
-is the AND of the parts below, and `FALSE` if any part is `FALSE`. A part is
-absent when its dimension is not limited (null), when the section has no such
-dimension, or when it does not apply. Every value is escaped with
-`escapeSqlLiteral`.
+**The default principle, within the section.** A dimension filters a results object only when the object has a column for it. Where it has none, that dimension contributes no predicate and the object is served whole. The predicate is the AND of the parts below, and `FALSE` if any part is `FALSE`. A part is absent when its dimension is not limited (null), when the section has no such dimension, or when it does not apply. Every value is escaped with `escapeSqlLiteral`.
 
 | Dimension          | Sections   | Results object has                                    | Part                                                                                |
 | ------------------ | ---------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -693,91 +210,28 @@ dimension, or when it does not apply. Every value is escaped with
 | Service categories | HFA        | `hfa_service_category`                                | `string_to_array(UPPER(hfa_service_category), '\|') && ARRAY[<upper-cased ids>]`    |
 |                    |            | no `hfa_service_category`                             | none                                                                                |
 
-`hfa_service_category` is a set column: its cell is a delimiter-joined set of
-ids (`MULTI_MEMBERSHIP_DELIMITER`), so its part is the engine's own filter form
-for such a column, set overlap with both sides upper-cased. A row passes when
-its set shares at least one id with the list, and is served as it is, with its
-other memberships. A blank cell fails the part, as it fails any list part. The
-category, service-category and indicator lists are ANDed like every other part.
+`hfa_service_category` is a set column: its cell is a delimiter-joined set of ids (`MULTI_MEMBERSHIP_DELIMITER`), so its part is the engine's own filter form for such a column, set overlap with both sides upper-cased. A row passes when its set shares at least one id with the list, and is served as it is, with its other memberships. A blank cell fails the part, as it fails any list part. The category, service-category and indicator lists are ANDed like every other part.
 
-The indicator column is the family's own (`SCOPE_INDICATOR_COLUMN`,
-`lib/types/scope.ts`): `indicator_common_id` for HMIS, `hfa_indicator` for HFA,
-`iceh_indicator` for ICEH. `<aa2>` is the section's own `adminArea2`, so the
-HMIS and HFA sections of one scope can spell an area differently. HMIS and ICEH
-each carry their own year range. The HFA section has no years, so an HFA results
-object takes no year range even when it has a physical time column, and the ICEH
-section has no geography. The schema refuses an empty list, so a list part
-always has at least one value. The cast lets one predicate serve a text column
-and an integer one (a module may declare `time_point` as either). The year of a
-`period_id` or `quarter_id` is the column's own leading digits, on every
-calendar.
+The indicator column is the family's own (`SCOPE_INDICATOR_COLUMN`, `lib/types/scope.ts`): `indicator_common_id` for HMIS, `hfa_indicator` for HFA, `iceh_indicator` for ICEH. `<aa2>` is the section's own `adminArea2`, so the HMIS and HFA sections of one scope can spell an area differently. HMIS and ICEH each carry their own year range. The HFA section has no years, so an HFA results object takes no year range even when it has a physical time column, and the ICEH section has no geography. The schema refuses an empty list, so a list part always has at least one value. The cast lets one predicate serve a text column and an integer one (a module may declare `time_point` as either). The year of a `period_id` or `quarter_id` is the column's own leading digits, on every calendar.
 
-Each facilities view takes the area of its own family's section:
-`facilities_hmis` the HMIS area and `facilities_hfa` the HFA area, as
-`UPPER(admin_area_2) = UPPER('<aa2>')`; with no area the view is whole. So a
-results object with `facility_id` and no admin column is served whole while the
-facility columns of a facility outside the area read as blank. An excluded
-section puts no predicate on its facilities view: only that family's results
-objects read it, and their own views are already empty.
+Each facilities view takes the area of its own family's section: `facilities_hmis` the HMIS area and `facilities_hfa` the HFA area, as `UPPER(admin_area_2) = UPPER('<aa2>')`; with no area the view is whole. So a results object with `facility_id` and no admin column is served whole while the facility columns of a facility outside the area read as blank. An excluded section puts no predicate on its facilities view: only that family's results objects read it, and their own views are already empty.
 
-`./validate_queries` pins every row of the table on every read kind (items,
-option list, metric info, replicant options, raw preview) with scope as a case
-axis (a `ScopeDefinition` as `scope` on a case; the runner also asserts the
-echoed fetchConfig is the request and the holder's (run, scope) identity on
-every items case), and pins that one family's section never touches another
-family's results objects. The one branch the rig cannot build a package for, a
-results object whose module the manifest lacks, is pinned by
-`server/tests/scope_predicate_test.ts`. The geography rows in detail:
+`./validate_queries` pins every row of the table on every read kind (items, option list, metric info, replicant options, raw preview) with scope as a case axis (a `ScopeDefinition` as `scope` on a case; the runner also asserts the echoed fetchConfig is the request and the holder's (run, scope) identity on every items case), and pins that one family's section never touches another family's results objects. The one branch the rig cannot build a package for, a results object whose module the manifest lacks, is pinned by `server/tests/scope_predicate_test.ts`. The geography rows in detail:
 
-- RO has `admin_area_2` → `UPPER(admin_area_2) = UPPER('<aa2>')`, the area
-  escaped with `escapeSqlLiteral`. A PO whose own filterBy names a different AA2
-  ANDs to empty, which is correct.
-- Only `admin_area_3` (or `admin_area_4`) →
-  `UPPER(<child>) IN (SELECT
+- RO has `admin_area_2` → `UPPER(admin_area_2) = UPPER('<aa2>')`, the area escaped with `escapeSqlLiteral`. A PO whose own filterBy names a different AA2 ANDs to empty, which is correct.
+- Only `admin_area_3` (or `admin_area_4`) → `UPPER(<child>) IN (SELECT
   UPPER(<child>) FROM <facilities view> WHERE UPPER(admin_area_2) =
-  UPPER('<aa2>'))`.
-  The subquery's columns are qualified by the facilities view, so a facilities
-  view without the child column is a binder error and never a match on the
-  results object's own column. The facilities views are created before the
-  results object's view so the subquery can read one. The facilities view is the
-  module's own family's (`facilities_hmis` or `facilities_hfa`), already held to
-  that section's area, and its parquet must be in `manifest.inputFiles`.
-  Matching is by district NAME (the collision caveat, SYSTEM_08). An area with
-  no children matches nothing. As of the last prod sweep this reaches 7 RO names
-  (M4/M5/M6 coverage/denominators/combined-results under historical numberings);
-  24 scope directly; 19 have no admin columns and are served whole.
-- A child column but no facilities parquet for the family → `FALSE`. This is the
-  one case where a missing piece empties the view; serving it whole would show
-  every district under a single-area scope.
+  UPPER('<aa2>'))`. The subquery's columns are qualified by the facilities view, so a facilities view without the child column is a binder error and never a match on the results object's own column. The facilities views are created before the results object's view so the subquery can read one. The facilities view is the module's own family's (`facilities_hmis` or `facilities_hfa`), already held to that section's area, and its parquet must be in `manifest.inputFiles`. Matching is by district NAME (the collision caveat, SYSTEM_08). An area with no children matches nothing. As of the last prod sweep this reaches 7 RO names (M4/M5/M6 coverage/denominators/combined-results under historical numberings); 24 scope directly; 19 have no admin columns and are served whole.
+- A child column but no facilities parquet for the family → `FALSE`. This is the one case where a missing piece empties the view; serving it whole would show every district under a single-area scope.
 - No admin column → no predicate, the view is the whole parquet.
 
-Every read goes through `executorFor`, so the items read, the option lists
-(`getPossibleValuesFromRun`, and through it `getResultsValueInfoFromRun` and the
-replicant-options route) and the raw-rows preview
-(`getResultsObjectItemsFromRun`) are all scoped by the view. The preview's
-`totalCount` is the manifest's package-wide `rowCount` only when the view has no
-predicate, and a `COUNT(*)` over the view otherwise.
+Every read goes through `executorFor`, so the items read, the option lists (`getPossibleValuesFromRun`, and through it `getResultsValueInfoFromRun` and the replicant-options route) and the raw-rows preview (`getResultsObjectItemsFromRun`) are all scoped by the view. The preview's `totalCount` is the manifest's package-wide `rowCount` only when the view has no predicate, and a `COUNT(*)` over the view otherwise.
 
-**Period bounds anchor differently on the two paths, ruled fine for geography**:
-`getPeriodBoundsCore` queries the scoped view, so the items path anchors to the
-scoped subset (axis min moves), while the value-info read and the
-replicant-options route take the manifest stamp (`getRawPeriodBoundsFromRun`).
-Measured across 83 real RO/run pairs: zero areas lag the package period max, and
-every relative filter type anchors on max. Do not "fix" the stamp readers for
-geography on this basis. A year range breaks the stamp by construction, so both
-stamp readers clamp it to the years of the results object's own family section
-(`scopedPeriodBounds`, run_read.ts; the HMIS years for an HMIS object, the ICEH
-years for an ICEH one, none for HFA): the stamp's min and max are pulled inside
-the range, converted to the results object's physical time column, and a range
-that does not overlap the package leaves no bounds. The clamp is the range's
-edge, not the MIN/MAX of the rows inside it.
+**Period bounds anchor differently on the two paths, ruled fine for geography**: `getPeriodBoundsCore` queries the scoped view, so the items path anchors to the scoped subset (axis min moves), while the value-info read and the replicant-options route take the manifest stamp (`getRawPeriodBoundsFromRun`). Measured across 83 real RO/run pairs: zero areas lag the package period max, and every relative filter type anchors on max. Do not "fix" the stamp readers for geography on this basis. A year range breaks the stamp by construction, so both stamp readers clamp it to the years of the results object's own family section (`scopedPeriodBounds`, run_read.ts; the HMIS years for an HMIS object, the ICEH years for an ICEH one, none for HFA): the stamp's min and max are pulled inside the range, converted to the results object's physical time column, and a range that does not overlap the package leaves no bounds. The clamp is the range's edge, not the MIN/MAX of the rows inside it.
 
 ## Caching
 
-**Server (Valkey, S3's `TimCacheC`).** Four instances in
-[routes/caches/visualizations.ts](server/routes/caches/visualizations.ts),
-consumed by the shared read handlers (`run_query/run_data_reads.ts`) and the run
-delete (`runs/delete_run.ts`):
+**Server (Valkey, S3's `TimCacheC`).** Four instances in [routes/caches/visualizations.ts](server/routes/caches/visualizations.ts), consumed by the shared read handlers (`run_query/run_data_reads.ts`) and the run delete (`runs/delete_run.ts`):
 
 | Cache            | Uniqueness                                                           | Version hash       |
 | ---------------- | -------------------------------------------------------------------- | ------------------ |
@@ -786,276 +240,59 @@ delete (`runs/delete_run.ts`):
 | `metric_info`    | runId + metric + scopeToken                                          | `PO_CACHE_VERSION` |
 | `replicant_opts` | runId + resultsObject + replicateBy + `hashFetchConfig` + scopeToken | `PO_CACHE_VERSION` |
 
-The four caches key on the immutable run, not on any caller (two callers on one
-run share entries), plus the **scopeToken**: the hash of the scope's definition
-(`scopeDefinitionHash`, `lib/types/scope.ts`; a SHA-256 of the canonical form,
-which keeps each section's `include` and only its limited parts, with keys
-sorted, lists sorted and de-duplicated, and each area and the HFA service
-categories upper-cased, as the predicate compares them). Payloads are computed
-under that definition, so sharing requires BOTH run and definition hash to
-match, whatever the scope's id or label: two scopes with equivalent definitions
-share entries (a scope defined as "All data" shares the token of `all-data`,
-`ALL_DATA_DEFINITION_HASH`), and an edited definition reads under new keys. The
-run id leads and the token trails on every key. scopeToken is **required** on
-the uniqueness-param types (an optional would compile and silently mis-key) and
-rides as the **trailing** segment so the `${runId}|`/`${runId}::` prefix scans
-in `delete_run.ts` keep working. Both are REQUIRED on every data payload
-(`RunVersionInfo`). The run id is also the figure's provenance.
+The four caches key on the immutable run, not on any caller (two callers on one run share entries), plus the **scopeToken**: the hash of the scope's definition (`scopeDefinitionHash`, `lib/types/scope.ts`; a SHA-256 of the canonical form, which keeps each section's `include` and only its limited parts, with keys sorted, lists sorted and de-duplicated, and each area and the HFA service categories upper-cased, as the predicate compares them). Payloads are computed under that definition, so sharing requires BOTH run and definition hash to match, whatever the scope's id or label: two scopes with equivalent definitions share entries (a scope defined as "All data" shares the token of `all-data`, `ALL_DATA_DEFINITION_HASH`), and an edited definition reads under new keys. The run id leads and the token trails on every key. scopeToken is **required** on the uniqueness-param types (an optional would compile and silently mis-key) and rides as the **trailing** segment so the `${runId}|`/`${runId}::` prefix scans in `delete_run.ts` keep working. Both are REQUIRED on every data payload (`RunVersionInfo`). The run id is also the figure's provenance.
 
-Payloads carry the key ingredients (`runId`, `scopeToken`) so `parseData` can
-reproduce the uniqueness hash byte-identically to `uniquenessHashFromParams`;
-the version hash on both sides is the constant. That pairing is the `TimCacheC`
-contract; a mismatch silently no-ops the cache. Error envelopes are never stored
-(`shouldStore: false`).
+Payloads carry the key ingredients (`runId`, `scopeToken`) so `parseData` can reproduce the uniqueness hash byte-identically to `uniquenessHashFromParams`; the version hash on both sides is the constant. That pairing is the `TimCacheC` contract; a mismatch silently no-ops the cache. Error envelopes are never stored (`shouldStore: false`).
 
-Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently "27")
-is folded into the version hash: bump it when a code change alters the _meaning_
-of a cached payload without any data change, and once per manifest transform
-block (full history in the comment block above the constant; "19" is the payload
-shape without the write-only freshness pair: `runId` + `scopeToken` are the
-whole identity; "20" to "25" track the indicator restructure's payload and
-manifest-schema changes; "26" is the `scopeToken` as the definition hash; "27"
-is the time, module and indicator parts filtering; the per-family definition
-needed no bump, since every definition hashes to a new token and no payload
-changed shape). A payload _shape_ change is also a meaning change for these
-keys, so it takes the same bump (the version hash carries no data dimension that
-would otherwise orphan old-shape entries).
+Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently "27") is folded into the version hash: bump it when a code change alters the _meaning_ of a cached payload without any data change, and once per manifest transform block (full history in the comment block above the constant; "19" is the payload shape without the write-only freshness pair: `runId` + `scopeToken` are the whole identity; "20" to "25" track the indicator restructure's payload and manifest-schema changes; "26" is the `scopeToken` as the definition hash; "27" is the time, module and indicator parts filtering; the per-family definition needed no bump, since every definition hashes to a new token and no payload changed shape). A payload _shape_ change is also a meaning change for these keys, so it takes the same bump (the version hash carries no data dimension that would otherwise orphan old-shape entries).
 
-The instance **facility-columns config** is not a cache dimension and needs
-none: the manifest freezes the per-family structure schema
-(`structureSchemaHmis` / `structureSchemaHfa`) at generation, every read derives
-its enabled facility columns from that stamp, and every key carries the run id:
-a config toggle changes nothing about an existing package (the next generation
-captures it). This closed N1.
+The instance **facility-columns config** is not a cache dimension and needs none: the manifest freezes the per-family structure schema (`structureSchemaHmis` / `structureSchemaHfa`) at generation, every read derives its enabled facility columns from that stamp, and every key carries the run id: a config toggle changes nothing about an existing package (the next generation captures it). This closed N1.
 
-Concurrency: `RequestQueue`s (items 10, info/replicant 15) bound concurrent DB
-work against the 20-connection pool; the cache check happens _before_ queueing;
-`setPromise` registers the in-flight promise so concurrent identical requests
-coalesce. The items, value-info and replicant-options handler bodies (cache
-check → queue → `…FromRun` → `setPromise`) and their queues live ONCE in
-`server/run_query/run_data_reads.ts` and are mounted on the run-keyed instance
-routes (`getRunPresentationObjectItems` / `getRunResultsValueInfo` /
-`getRunReplicantOptions`, plus `getRunResultsObjectItems`, all under
-`routes/instance/run_generation.ts`, the caller supplying `(run_id, scopeId)`,
-`runs.status = 'ready'`, an existing scope and, for a restricted caller, a held
-one required, guarded `requireApprovedUser()`; the manifest-only
-`getRunAuthoringContext` sits beside them under the same guard and grant check,
-takes the same `scopeId` in its body and has no ready gate). The replicant read
-is keyed by results object (the cache identity); the route narrows its
-`metricId` first; its compute below the cache is `computeRunReplicantOptions`,
-which the query rig calls directly. The authoring context is cut by the scope's
-sections and module lists and nothing else: a module whose family section is
-excluded, or which is outside its section's module list, is absent, with its
-metrics and presets, and the indicator vocabularies and datasets stay whole,
-because they are package metadata (`buildRunAuthoringContext`,
-run_query/authoring_context.ts). Its payload carries the `scopeToken` it was
-built under. The client caches it in
-[t2_run_authoring_context.ts](client/src/state/instance/t2_run_authoring_context.ts),
-keyed by `(runId, definitionHash)` with a constant version key (the `t2_runs.ts`
-idiom: a ready run dir never changes, so nothing invalidates an entry) and the
-same `answersKeyedScope` store guard as the figure-data caches. The deck and
-report editors and the copilot read it by their container's live pair, resolved
-with `resolveScope` inside the effect so an edit to the scope's definition
-re-reads; the package page reads it under "All data", whatever scope its select
-shows, since the page describes the package. A stale figure's update action
-takes its metric from it.
+Concurrency: `RequestQueue`s (items 10, info/replicant 15) bound concurrent DB work against the 20-connection pool; the cache check happens _before_ queueing; `setPromise` registers the in-flight promise so concurrent identical requests coalesce. The items, value-info and replicant-options handler bodies (cache check → queue → `…FromRun` → `setPromise`) and their queues live ONCE in `server/run_query/run_data_reads.ts` and are mounted on the run-keyed instance routes (`getRunPresentationObjectItems` / `getRunResultsValueInfo` / `getRunReplicantOptions`, plus `getRunResultsObjectItems`, all under `routes/instance/run_generation.ts`, the caller supplying `(run_id, scopeId)`, `runs.status = 'ready'`, an existing scope and, for a restricted caller, a held one required, guarded `requireApprovedUser()`; the manifest-only `getRunAuthoringContext` sits beside them under the same guard and grant check, takes the same `scopeId` in its body and has no ready gate). The replicant read is keyed by results object (the cache identity); the route narrows its `metricId` first; its compute below the cache is `computeRunReplicantOptions`, which the query rig calls directly. The authoring context is cut by the scope's sections and module lists and nothing else: a module whose family section is excluded, or which is outside its section's module list, is absent, with its metrics and presets, and the indicator vocabularies and datasets stay whole, because they are package metadata (`buildRunAuthoringContext`, run_query/authoring_context.ts). Its payload carries the `scopeToken` it was built under. The client caches it in [t2_run_authoring_context.ts](client/src/state/instance/t2_run_authoring_context.ts), keyed by `(runId, definitionHash)` with a constant version key (the `t2_runs.ts` idiom: a ready run dir never changes, so nothing invalidates an entry) and the same `answersKeyedScope` store guard as the figure-data caches. The deck and report editors and the copilot read it by their container's live pair, resolved with `resolveScope` inside the effect so an edit to the scope's definition re-reads; the package page reads it under "All data", whatever scope its select shows, since the page describes the package. A stale figure's update action takes its metric from it.
 
-Beside it, [t2_run_geojson.ts](client/src/state/instance/t2_run_geojson.ts)
-holds a package's boundaries, keyed by `runId` alone (geometry carries no data
-values) and immutable for the same reason: each run's geojson stamp
-(`getRunGeoJsonStamp`) and each captured file it lists, in memory and in IDB
-under its own `run_geojson:` prefix. It fetches a stamp itself the first time
-any read names a run it does not hold, so no answer depends on which page asked.
-Its tracked read answers in four states, `ready`, `loading`, `not_in_package`
-and `run_unknown` (no capture, or the run is gone), with a version signal that
-re-runs a tracked read when a stamp or a file lands; `ensureRunGeoJson` is the
-awaitable read for a caller that builds after an await, and on `run_unknown` it
-also loads the instance's file for the level. A failed request is neither held
-nor cached, so a transient failure never settles a run as unknown. Eviction
-drops the runs no longer ready (SYSTEM_03).
+Beside it, [t2_run_geojson.ts](client/src/state/instance/t2_run_geojson.ts) holds a package's boundaries, keyed by `runId` alone (geometry carries no data values) and immutable for the same reason: each run's geojson stamp (`getRunGeoJsonStamp`) and each captured file it lists, in memory and in IDB under its own `run_geojson:` prefix. It fetches a stamp itself the first time any read names a run it does not hold, so no answer depends on which page asked. Its tracked read answers in four states, `ready`, `loading`, `not_in_package` and `run_unknown` (no capture, or the run is gone), with a version signal that re-runs a tracked read when a stamp or a file lands; `ensureRunGeoJson` is the awaitable read for a caller that builds after an await, and on `run_unknown` it also loads the instance's file for the level. A failed request is neither held nor cached, so a transient failure never settles a run as unknown. Eviction drops the runs no longer ready (SYSTEM_03).
 
-**HFA dataset display cache**
-([routes/caches/dataset.ts](server/routes/caches/dataset.ts)): `ds_hfa` is a
-singleton versioned on the server-computed HFA `cacheHash` (the in-memory
-`VersionParams.hash` vs payload `cacheHash` naming divergence is F8c: the
-payload field is persisted, do not rename it). There is no HMIS counterpart:
-with vizItems in the import ledger the read takes a few ms, so
-`getDatasetHmisDisplayInfo` computes live and only the client T2 IndexedDB cache
-exists (see [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)).
+**HFA dataset display cache** ([routes/caches/dataset.ts](server/routes/caches/dataset.ts)): `ds_hfa` is a singleton versioned on the server-computed HFA `cacheHash` (the in-memory `VersionParams.hash` vs payload `cacheHash` naming divergence is F8c: the payload field is persisted, do not rename it). There is no HMIS counterpart: with vizItems in the import ledger the read takes a few ms, so `getDatasetHmisDisplayInfo` computes live and only the client T2 IndexedDB cache exists (see [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)).
 
-**Client (IndexedDB, `createReactiveCache`).**
-[t2_figure_data.ts](client/src/state/products/t2_figure_data.ts)
-(`run_metric_info_v3`, `run_po_items_v3`) and
-[t2_replicant_options.ts](client/src/state/products/t2_replicant_options.ts)
-(`run_replicant_options_v3`) are the three reads against the run-keyed mount
-(`getRunResultsValueInfo`, `getRunPresentationObjectItems`,
-`getRunReplicantOptions`): the caller passes a `PackageScope`
-(`{ runId, scopeId }`) and the pair leads the UNIQUENESS key as
-`runId | definitionHash | ...` while the version key is the constant
-`"immutable"` (the `t2_runs.ts` idiom). The hash is
-`resolveScope(scope).definitionHash`, looked up in the T1 scopes list
-(`client/src/state/instance/t1_store.ts`): an id the list does not hold resolves
-to a `missing:<id>` token that no payload carries. The wire carries the scope id
-and the key carries the hash, so an edit to a scope's definition, arriving on
-`scopes_updated`, moves every read under that scope to new keys. Two-tier (LRU
-memory, default 100, + IndexedDB); a package never changes, so nothing
-invalidates an entry, old entries are left to the deploy flush (LoggedInWrapper
-clears site caches on version change: dev has no deploy, hence the
-stale-IndexedDB trap), and a response cannot land under a key belonging to
-another package because the key already names it. The scope half is guarded on
-the response: the hash is resolved once when the read starts, and a response
-whose `scopeToken` differs from it (T1 is behind or ahead of the `scopes` row
-the server read) is served but not stored (`answersKeyedScope`, S3). The same
-`resolveDefaultReplicant` policy (first valid value, fresh config copy, never
-mutate) and the same aliasing contract on the yielded config apply. Consumers:
-the embedded figure editor and the slide and report editors' post-insert reads
-(S11, S12), and the insert-figure wizard's preset previews (S11).
+**Client (IndexedDB, `createReactiveCache`).** [t2_figure_data.ts](client/src/state/products/t2_figure_data.ts) (`run_metric_info_v3`, `run_po_items_v3`) and [t2_replicant_options.ts](client/src/state/products/t2_replicant_options.ts) (`run_replicant_options_v3`) are the three reads against the run-keyed mount (`getRunResultsValueInfo`, `getRunPresentationObjectItems`, `getRunReplicantOptions`): the caller passes a `PackageScope` (`{ runId, scopeId }`) and the pair leads the UNIQUENESS key as `runId | definitionHash | ...` while the version key is the constant `"immutable"` (the `t2_runs.ts` idiom). The hash is `resolveScope(scope).definitionHash`, looked up in the T1 scopes list (`client/src/state/instance/t1_store.ts`): an id the list does not hold resolves to a `missing:<id>` token that no payload carries. The wire carries the scope id and the key carries the hash, so an edit to a scope's definition, arriving on `scopes_updated`, moves every read under that scope to new keys. Two-tier (LRU memory, default 100, + IndexedDB); a package never changes, so nothing invalidates an entry, old entries are left to the deploy flush (LoggedInWrapper clears site caches on version change: dev has no deploy, hence the stale-IndexedDB trap), and a response cannot land under a key belonging to another package because the key already names it. The scope half is guarded on the response: the hash is resolved once when the read starts, and a response whose `scopeToken` differs from it (T1 is behind or ahead of the `scopes` row the server read) is served but not stored (`answersKeyedScope`, S3). The same `resolveDefaultReplicant` policy (first valid value, fresh config copy, never mutate) and the same aliasing contract on the yielded config apply. Consumers: the embedded figure editor and the slide and report editors' post-insert reads (S11, S12), and the insert-figure wizard's preset previews (S11).
 
 ## Client query flow
 
-The async generator in `t2_figure_data.ts`
-(`getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(scope, metric,
-config)`)
-yields `loading → ready | error` states: it resolves the metric's
-`resultsValueInfo` under the pair, builds the fetch config, runs
-`resolveDefaultReplicant`, then consults `_PO_ITEMS_CACHE`. The auto-selected
-replicant lives on a **copy** yielded to the caller, never a mutation of the
-passed-in config (the editor's unwrapped live store; a raw write would bypass
-subscribers and turn the user's next identical click into a silent no-op).
-Promise-shaped wrappers (`getApiResponseFromGenerator`) serve non-streaming
-callers.
+The async generator in `t2_figure_data.ts` (`getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(scope, metric,
+config)`) yields `loading → ready | error` states: it resolves the metric's `resultsValueInfo` under the pair, builds the fetch config, runs `resolveDefaultReplicant`, then consults `_PO_ITEMS_CACHE`. The auto-selected replicant lives on a **copy** yielded to the caller, never a mutation of the passed-in config (the editor's unwrapped live store; a raw write would bypass subscribers and turn the user's next identical click into a silent no-op). Promise-shaped wrappers (`getApiResponseFromGenerator`) serve non-streaming callers.
 
-**The grid read.** The Explore Data table reads through `getRunGridItems`
-(`readRunGridItems`), not the items read: the same body, the same checks
-(`checkRowsRequest`), the same SQL through `getPresentationObjectItemsFromRun`
-and the same queue, but capped at `GRID_MAX_CELLS` (500,000 rows, one value
-each) instead of `MAX_ITEMS`, and answered as a `GridItemsHolder`
-(`lib/grid_items.ts`): each groupBy's distinct values once, rows as indices into
-them, and one value per returned non-groupBy column (the metric's value and any
-`__n_*` column; the fetch config's `values` are ingredients, not these), plus
-the items read's indicator metadata. Over the cap it answers `too_many_cells`.
-`decodeGridItems` reproduces the items read's rows exactly, so the canvas
-table's pivot consumes them unchanged; `server/tests/grid_items_test.ts` proves
-the round trip. It is cached in `_GRID_ITEMS_CACHE` (`grid_items`), keyed as
-`po_items`, and purged with the run. On the client, `t2_grid_items.ts`
-(`getGridRowsFromCacheOrFetch`) is the `t2_figure_data` idiom for it:
-`createReactiveCache` (`run_grid_items_v3`) keyed
-`runId | definitionHash | resultsObjectId | hashFetchConfig` with version
-`"immutable"`, on the items queue, storing the encoded payload and handing
-callers the decoded rows.
+**The grid read.** The Explore Data table reads through `getRunGridItems` (`readRunGridItems`), not the items read: the same body, the same checks (`checkRowsRequest`), the same SQL through `getPresentationObjectItemsFromRun` and the same queue, but capped at `GRID_MAX_CELLS` (500,000 rows, one value each) instead of `MAX_ITEMS`, and answered as a `GridItemsHolder` (`lib/grid_items.ts`): each groupBy's distinct values once, rows as indices into them, and one value per returned non-groupBy column (the metric's value and any `__n_*` column; the fetch config's `values` are ingredients, not these), plus the items read's indicator metadata. Over the cap it answers `too_many_cells`. `decodeGridItems` reproduces the items read's rows exactly, so the canvas table's pivot consumes them unchanged; `server/tests/grid_items_test.ts` proves the round trip. It is cached in `_GRID_ITEMS_CACHE` (`grid_items`), keyed as `po_items`, and purged with the run. On the client, `t2_grid_items.ts` (`getGridRowsFromCacheOrFetch`) is the `t2_figure_data` idiom for it: `createReactiveCache` (`run_grid_items_v3`) keyed `runId | definitionHash | resultsObjectId | hashFetchConfig` with version `"immutable"`, on the items queue, storing the encoded payload and handing callers the decoded rows.
 
 ## FigureBundle: the capture side
 
-S9's slice of the FigureBundle architecture; the bundle shape,
-`buildFigureInputs`, invariants, and localization live in
-[SYSTEM_10](SYSTEM_10_figure_render_export.md). S9 owns the _upstream_ the
-bundle freezes:
+S9's slice of the FigureBundle architecture; the bundle shape, `buildFigureInputs`, invariants, and localization live in [SYSTEM_10](SYSTEM_10_figure_render_export.md). S9 owns the _upstream_ the bundle freezes:
 
-- **A FigureBundle is exactly "a Visualization render, frozen"** = `config` +
-  the live-queried items (post replicant-resolution) + the metric projection.
-  The live path builds a transient bundle each tick
-  (`getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator` →
-  `makeFigureBundleFromFetchedData` → `buildFigureInputs`), so live and stored
-  figures run identical code.
-- **The `resultsValue` projection is an S9 type**: the bundle stores
-  `ResultsValueForVisualization`
-  (`{formatAs, valueProps,
-  valueLabelReplacements?}`) verbatim; the build is
-  type-proven to read no fourth metric field (gate in S10).
-- **The pair is free**: the fetch already names its `PackageScope`, so the
-  bundle stamps it at zero cost (`provenance: { runId }` and
-  `scope: { definitionHash, adminArea2 }`, both required; `figureScopeStamp` in
-  `t1_store.ts` takes the hash from the payload's `scopeToken`, the definition
-  the server computed the rows under, and the area from the T1 scopes list), the
-  basis for the stale badge that compares it to the container product's package
-  and its scope's current definition hash without per-figure re-query (S10).
+- **A FigureBundle is exactly "a Visualization render, frozen"** = `config` + the live-queried items (post replicant-resolution) + the metric projection. The live path builds a transient bundle each tick (`getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator` → `makeFigureBundleFromFetchedData` → `buildFigureInputs`), so live and stored figures run identical code.
+- **The `resultsValue` projection is an S9 type**: the bundle stores `ResultsValueForVisualization` (`{formatAs, valueProps,
+  valueLabelReplacements?}`) verbatim; the build is type-proven to read no fourth metric field (gate in S10).
+- **The pair is free**: the fetch already names its `PackageScope`, so the bundle stamps it at zero cost (`provenance: { runId }` and `scope: { definitionHash, adminArea2 }`, both required; `figureScopeStamp` in `t1_store.ts` takes the hash from the payload's `scopeToken`, the definition the server computed the rows under, and the area from the T1 scopes list), the basis for the stale badge that compares it to the container product's package and its scope's current definition hash without per-figure re-query (S10).
 
 ## Traps
 
-- **Never trust "it comes from the module definition."** The PAE and value props
-  arrive in the client request body regardless of their nominal origin; safety
-  rests on the validators, not the source.
-- **CTE/post-aggregation/WITH/LIMIT ordering is load-bearing**: the PAE wrap
-  happens before the `WITH` prepend so CTEs stay top-level; reordering breaks
-  the SQL.
-- **A groupBy that is also a value prop needs disambiguation** (the m8 scorecard
-  shape, ethiopia v2b): the inner query emits the grouped column AND a
-  same-named aggregate alias, so the PAE wrapper's bare references are
-  ambiguous: Postgres errors, DuckDB silently binds the RAW grouped value
-  (served `SUM(num)/raw_den` until fixed; the correction shipped with PO cache
-  version 14). `paeCollidingGroupBys` (query_helpers.ts) is the authoritative
-  contract: colliding columns ride `__dis_<col>` through the inner query and
-  re-alias in the wrapper. Non-PAE fetches have no wrapper layer to re-alias in:
-  `validateFetchConfig` rejects the shape (the driver's row object would
-  silently clobber the group key with the aggregate).
-- **`getPossibleValuesCore` still hand-writes its `WITH` strings** (shared
-  derivation expressions and correct family gating, but its own string assembly,
-  the last CTE-shape duplicate). New CTE construction goes through `CTEManager`
-  or the shared `period_helpers` builders (which `getPeriodBoundsCore` uses).
-- **Derived `month` is text** (`LPAD`, `"03"`): it filters through the escaped
-  `UPPER` text path, never numeric coercion. That routing is what the PERIOD
-  exclusion in `buildWhereClause`'s numeric branch protects: `month` is not a
-  physical column, so it is absent from `textColumns`, and the type gate alone
-  would misroute it.
-- **Numeric dimension columns cannot take the `UPPER()` filter path** (both
-  engines hard-error on `upper(numeric)`): filters on columns outside
-  `textColumns` (m8's `denominator`, reachable via replicate-by or a checked
-  filter value) go down a coerced-numeric branch in `buildWhereClause`.
-  Non-finite values (the `UNSELECTED` replicant sentinel, a stale `__BLANK`) are
-  dropped and `FALSE` emitted when nothing remains, mirroring the text path's
-  zero-match outcome. `parsePAE` (query_helpers.ts) is the single activation
-  predicate for every PAE-conditional behavior (wrapper, collision aliasing,
-  sample-n mode), so a malformed expression deactivates them together instead of
-  leaking `__dis_`/`__n_all` names.
-- **The sentinels are not real data values**: `__NATIONAL` / `__ALL_FACILITIES`
-  must be label-replaced and pin-sorted client-side; label replacements for them
-  are added only when the roll-up is active so stored figures never carry dead
-  entries.
-- **The blank label map claims `""`, and that changes STORED figures.** Figures
-  saved before the blank fold keep the raw empty string as their group key, so
-  `""` is mapped alongside `BLANK_SENTINEL` to keep them rendering. In tables
-  that is a visible layout change, not just a caption: panther gates the
-  group-header row on `if (rowGroup.label)`, so a blank row-group that
-  previously rendered with no heading now gets one. Deliberate (an unlabelled
-  group is the confusion the fold exists to remove), but it is an appearance
-  change to already-saved documents. `"null"` is deliberately NOT claimed: it is
-  a value real data can carry, and panther's `resolveId` discards null ids
-  before any replacement is consulted, so claiming it would mislabel real groups
-  to rescue a case it cannot reach.
-- **A one-value replicant is not a replicant**: `getReplicateByProp` returns
-  `undefined` and the pin is not appended; code that reads
-  `disDisplayOpt === "replicant"` directly will disagree with the rest of the
-  app.
-- **Options query vs items query use different fetch configs** (pin excluded vs
-  kept). Collapsing them merges all panes into one figure.
-- **Hash byte-identity**: `uniquenessHashFromParams` and `parseData` must
-  produce identical strings from params and from the payload, which is why
-  holders carry `runId` + `scopeToken`.
-- **Stale configs fail silent**: a stored config referencing a
-  no-longer-available disOpt (e.g. facility column turned off) renders with it
-  silently omitted; no error surface exists.
+- **Never trust "it comes from the module definition."** The PAE and value props arrive in the client request body regardless of their nominal origin; safety rests on the validators, not the source.
+- **CTE/post-aggregation/WITH/LIMIT ordering is load-bearing**: the PAE wrap happens before the `WITH` prepend so CTEs stay top-level; reordering breaks the SQL.
+- **A groupBy that is also a value prop needs disambiguation** (the m8 scorecard shape, ethiopia v2b): the inner query emits the grouped column AND a same-named aggregate alias, so the PAE wrapper's bare references are ambiguous: Postgres errors, DuckDB silently binds the RAW grouped value (served `SUM(num)/raw_den` until fixed; the correction shipped with PO cache version 14). `paeCollidingGroupBys` (query_helpers.ts) is the authoritative contract: colliding columns ride `__dis_<col>` through the inner query and re-alias in the wrapper. Non-PAE fetches have no wrapper layer to re-alias in: `validateFetchConfig` rejects the shape (the driver's row object would silently clobber the group key with the aggregate).
+- **`getPossibleValuesCore` still hand-writes its `WITH` strings** (shared derivation expressions and correct family gating, but its own string assembly, the last CTE-shape duplicate). New CTE construction goes through `CTEManager` or the shared `period_helpers` builders (which `getPeriodBoundsCore` uses).
+- **Derived `month` is text** (`LPAD`, `"03"`): it filters through the escaped `UPPER` text path, never numeric coercion. That routing is what the PERIOD exclusion in `buildWhereClause`'s numeric branch protects: `month` is not a physical column, so it is absent from `textColumns`, and the type gate alone would misroute it.
+- **Numeric dimension columns cannot take the `UPPER()` filter path** (both engines hard-error on `upper(numeric)`): filters on columns outside `textColumns` (m8's `denominator`, reachable via replicate-by or a checked filter value) go down a coerced-numeric branch in `buildWhereClause`. Non-finite values (the `UNSELECTED` replicant sentinel, a stale `__BLANK`) are dropped and `FALSE` emitted when nothing remains, mirroring the text path's zero-match outcome. `parsePAE` (query_helpers.ts) is the single activation predicate for every PAE-conditional behavior (wrapper, collision aliasing, sample-n mode), so a malformed expression deactivates them together instead of leaking `__dis_`/`__n_all` names.
+- **The sentinels are not real data values**: `__NATIONAL` / `__ALL_FACILITIES` must be label-replaced and pin-sorted client-side; label replacements for them are added only when the roll-up is active so stored figures never carry dead entries.
+- **The blank label map claims `""`, and that changes STORED figures.** Figures saved before the blank fold keep the raw empty string as their group key, so `""` is mapped alongside `BLANK_SENTINEL` to keep them rendering. In tables that is a visible layout change, not just a caption: panther gates the group-header row on `if (rowGroup.label)`, so a blank row-group that previously rendered with no heading now gets one. Deliberate (an unlabelled group is the confusion the fold exists to remove), but it is an appearance change to already-saved documents. `"null"` is deliberately NOT claimed: it is a value real data can carry, and panther's `resolveId` discards null ids before any replacement is consulted, so claiming it would mislabel real groups to rescue a case it cannot reach.
+- **A one-value replicant is not a replicant**: `getReplicateByProp` returns `undefined` and the pin is not appended; code that reads `disDisplayOpt === "replicant"` directly will disagree with the rest of the app.
+- **Options query vs items query use different fetch configs** (pin excluded vs kept). Collapsing them merges all panes into one figure.
+- **Hash byte-identity**: `uniquenessHashFromParams` and `parseData` must produce identical strings from params and from the payload, which is why holders carry `runId` + `scopeToken`.
+- **Stale configs fail silent**: a stored config referencing a no-longer-available disOpt (e.g. facility column turned off) renders with it silently omitted; no error surface exists.
 
 ## Open items
 
-Parked findings from the adversarial review, numbered as that review did (its
-refuted and dropped findings are stated as facts in the prose above):
+Parked findings from the adversarial review, numbered as that review did (its refuted and dropped findings are stated as facts in the prose above):
 
-- **F8a [LOW, parked]**: Ethiopian last-full-quarter ternary has identical
-  branches
-  ([get_fetch_config_from_po.ts:299](lib/get_fetch_config_from_po.ts#L299));
-  harness-verified fix is `maxMonth === 1 ? maxYear - 1 : maxYear`, but a domain
-  owner must confirm the Ethiopian fiscal-quarter definition (and
-  Pagume/month-13) before patching.
-- **F8c [LOW, deferred]**: `ds_hfa` in-memory `VersionParams.hash` vs persisted
-  payload `cacheHash` naming divergence; payload rename is the STOP line (three
-  persistence layers). Standing decoupling items (from the systems review):
+- **F8a [LOW, parked]**: Ethiopian last-full-quarter ternary has identical branches ([get_fetch_config_from_po.ts:299](lib/get_fetch_config_from_po.ts#L299)); harness-verified fix is `maxMonth === 1 ? maxYear - 1 : maxYear`, but a domain owner must confirm the Ethiopian fiscal-quarter definition (and Pagume/month-13) before patching.
+- **F8c [LOW, deferred]**: `ds_hfa` in-memory `VersionParams.hash` vs persisted payload `cacheHash` naming divergence; payload rename is the STOP line (three persistence layers). Standing decoupling items (from the systems review):
 
-- **Relocate the cache instances out of `routes/caches/`**: they are not routes,
-  and neither are their importers (`run_query/run_data_reads.ts`,
-  `runs/delete_run.ts`); `server/caches/` would make the dependency direction
-  honest.
-- **Separate display-language from data-calendar.** `getCalendar()` is data
-  semantics, since it changes generated SQL (`getQuarterIdExpression`) and
-  filter bounds, yet it lives in the i18n module (`lib/translate/t-func.ts`,
-  S14-owned). A `lib/calendar.ts` would name the truth (at minimum, audit
-  §4.3.5).
+- **Relocate the cache instances out of `routes/caches/`**: they are not routes, and neither are their importers (`run_query/run_data_reads.ts`, `runs/delete_run.ts`); `server/caches/` would make the dependency direction honest.
+- **Separate display-language from data-calendar.** `getCalendar()` is data semantics, since it changes generated SQL (`getQuarterIdExpression`) and filter bounds, yet it lives in the i18n module (`lib/translate/t-func.ts`, S14-owned). A `lib/calendar.ts` would name the truth (at minimum, audit §4.3.5).

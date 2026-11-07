@@ -37,592 +37,96 @@ docs_absorbed:
 
 # S8: Results Packages & Module Execution
 
-**This system produces the immutable artifact the rest of the app reads from.**
-Versioned R modules end-to-end: GitHub fetch → validate → wizard-configured
-whole-DAG generation into an immutable **results package** (a run directory) →
-Docker/R execution → finalize (parquet + manifest) → publish. Products then
-point at a ready package. There is no second write plane: results live only in
-package directories, never in Postgres.
+**This system produces the immutable artifact the rest of the app reads from.** Versioned R modules end-to-end: GitHub fetch → validate → wizard-configured whole-DAG generation into an immutable **results package** (a run directory) → Docker/R execution → finalize (parquet + manifest) → publish. Products then point at a ready package. There is no second write plane: results live only in package directories, never in Postgres.
 
-Modules are an INPUT to this system rather than its subject. What it owns is the
-package: its format, its one writer, its catalogue, and which product serves
-from which one. The **run-directory format and manifest contract** are specified
-below ("The results package format") and that section is authoritative: S9 reads
-the manifest but does not define it.
+Modules are an INPUT to this system rather than its subject. What it owns is the package: its format, its one writer, its catalogue, and which product serves from which one. The **run-directory format and manifest contract** are specified below ("The results package format") and that section is authoritative: S9 reads the manifest but does not define it.
 
-Boundaries: the write-a-worker **recipe** (folder pairing, READY handshake,
-preamble, spawn-site listeners, teardown rules, report-back mechanisms) is
-[PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md). This system
-owns the run-generation half of that machinery (`generate_run/` and its
-`RUN_GENERATION_ENDED_CHANNEL` end-of-run plumbing); what the dataset workers
-_do_ is **S6** (SYSTEM_06_ingestion.md). **S3** owns why that channel is exempt
-from the notify catalog (it feeds no SSE endpoint). Cache invalidation is S3's
-triangle: under runs it keys on the product's `runId` (S9). Worker DB
-connections and `sql.unsafe` safety are S2's (`SYSTEM_02_persistence.md`);
-period helper-column semantics are S9 (SYSTEM_09_viz_query_cache.md); the
-authored-definition schema change process is PROTOCOL_APP_MIGRATIONS.md. Module
-definitions themselves are **authored in the wb-fastr-modules repo** (edit
-`_metrics/*.ts` etc., `deno task build` regenerates `definition.json`). A schema
-change there and here move in lockstep (CLAUDE.md "three repos move together");
-that repo is not documented here.
+Boundaries: the write-a-worker **recipe** (folder pairing, READY handshake, preamble, spawn-site listeners, teardown rules, report-back mechanisms) is [PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md). This system owns the run-generation half of that machinery (`generate_run/` and its `RUN_GENERATION_ENDED_CHANNEL` end-of-run plumbing); what the dataset workers _do_ is **S6** (SYSTEM_06_ingestion.md). **S3** owns why that channel is exempt from the notify catalog (it feeds no SSE endpoint). Cache invalidation is S3's triangle: under runs it keys on the product's `runId` (S9). Worker DB connections and `sql.unsafe` safety are S2's (`SYSTEM_02_persistence.md`); period helper-column semantics are S9 (SYSTEM_09_viz_query_cache.md); the authored-definition schema change process is PROTOCOL_APP_MIGRATIONS.md. Module definitions themselves are **authored in the wb-fastr-modules repo** (edit `_metrics/*.ts` etc., `deno task build` regenerates `definition.json`). A schema change there and here move in lockstep (CLAUDE.md "three repos move together"); that repo is not documented here.
 
 ## Scope
 
-The `globs:` frontmatter above is the lint-enforced manifest
-(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
-`server/module_loader/**`; `server/github/**`; `server/runs/*.ts` (the
-results-package pipeline, including `module_config.ts`: the installed-definition
-blob helper the manifest builder shares and the config-selections parser) +
-`worker_routines/generate_run/**` + `instantiate_worker_generic.ts`
-(`server/runs/capture_inputs/**` is S6's, SYSTEMS.md §4.1);
-`server_only_funcs/**` (R-script templating);
-`routes/instance/run_generation.ts` (the wizard, the catalogue listing,
-pin/unpin, the guarded hard delete, and the ONE mount for package reads:
-detail/script/logs/files, run-keyed under the instance data bits); lib module +
-run types + `module_registry.ts`; client: `results_packages/**` (the catalogue
-list and the package page), the launch wizard `results_packages/wizard/**` (an
-ephemeral modal, the Upload-CSV pattern), and the T2 run-detail cache
-`state/instance/t2_runs.ts`. `results_packages/package_view/**` is what a
-package CONTAINS, as the package page renders it (`family_pane.tsx`,
-`module_pane.tsx`, `presets.tsx`, `status.tsx`, `view_{script,logs,files}.tsx`).
-External: wb-fastr-modules repo, Docker images.
+The `globs:` frontmatter above is the lint-enforced manifest (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1. `server/module_loader/**`; `server/github/**`; `server/runs/*.ts` (the results-package pipeline, including `module_config.ts`: the installed-definition blob helper the manifest builder shares and the config-selections parser) + `worker_routines/generate_run/**` + `instantiate_worker_generic.ts` (`server/runs/capture_inputs/**` is S6's, SYSTEMS.md §4.1); `server_only_funcs/**` (R-script templating); `routes/instance/run_generation.ts` (the wizard, the catalogue listing, pin/unpin, the guarded hard delete, and the ONE mount for package reads: detail/script/logs/files, run-keyed under the instance data bits); lib module + run types + `module_registry.ts`; client: `results_packages/**` (the catalogue list and the package page), the launch wizard `results_packages/wizard/**` (an ephemeral modal, the Upload-CSV pattern), and the T2 run-detail cache `state/instance/t2_runs.ts`. `results_packages/package_view/**` is what a package CONTAINS, as the package page renders it (`family_pane.tsx`, `module_pane.tsx`, `presets.tsx`, `status.tsx`, `view_{script,logs,files}.tsx`). External: wb-fastr-modules repo, Docker images.
 
 ## Contract
 
-**Architecture.** The app is three planes with one-way data flow: the **instance
-plane** (data in: ingestion, structure master, config; S4–S7, live and mutable),
-the **results plane** (compute: the wizard generates a **results package**, one
-immutable, file-based directory keyed by a run id holding everything the modules
-consumed AND everything they produced), and the **product plane** (meaning: a
-slide deck or report holds one pointer and one scope, `products.run_id` and
-`products.scope_id`, and is a pure authoring space; S9–S13). Results are never
-ingested into Postgres: the viz layer runs its SQL through DuckDB over the
-package's parquet, so repointing a product is a pointer write and every cache
-keys on the run id with no data-version dimension left to go stale.
+**Architecture.** The app is three planes with one-way data flow: the **instance plane** (data in: ingestion, structure master, config; S4–S7, live and mutable), the **results plane** (compute: the wizard generates a **results package**, one immutable, file-based directory keyed by a run id holding everything the modules consumed AND everything they produced), and the **product plane** (meaning: a slide deck or report holds one pointer and one scope, `products.run_id` and `products.scope_id`, and is a pure authoring space; S9–S13). Results are never ingested into Postgres: the viz layer runs its SQL through DuckDB over the package's parquet, so repointing a product is a pointer write and every cache keys on the run id with no data-version dimension left to go stale.
 
-Definitions zod-validated at every fetch; compute/presentation git-ref split;
-whole-DAG generation into an immutable run dir, entered ONLY from the instance
-shell, with memoized reuse resolved by a catalog-wide inputKey search. The run
-dir is the only write plane. Module status is the run manifest's availability
-stamps. Rollback is a hosting-level volume restore, not a second data plane.
+Definitions zod-validated at every fetch; compute/presentation git-ref split; whole-DAG generation into an immutable run dir, entered ONLY from the instance shell, with memoized reuse resolved by a catalog-wide inputKey search. The run dir is the only write plane. Module status is the run manifest's availability stamps. Rollback is a hosting-level volume restore, not a second data plane.
 
-Standing rules (all ruled, do not re-litigate; the package-format invariants
-below are their file-level twins):
+Standing rules (all ruled, do not re-litigate; the package-format invariants below are their file-level twins):
 
-- **Layer rule.** A product reads only the run it points at; a run reads nothing
-  live at read time; no instance FKs or product ids inside run files. Calendar /
-  countryIso3 / structure schema are run INPUTS: the adapter reads the manifest,
-  never the env global.
-- **The package rule** (ruled). If the answer lives inside the run package
-  directory it is a function of the runId alone: package contents never depend
-  on who is asking, only the chrome does. So reads are mounted ONCE (run-keyed,
-  `routes/instance/run_generation.ts`) under the INSTANCE data bits
-  (`can_view_data`), and one surface, the package page
-  (`results_packages/package_page.tsx`, its panes under `package_view/`),
-  renders a package's contents: its modules' presets, settings, scripts, logs
-  and files, its viewers gated by `canViewPackageContents()`
-  (`package_view/status.tsx`, over `can()`, S18); the Explore tab (S11) reads a
-  ready package's metrics at a scope. AI tools take a run RESOLVER, never a
-  runId from the model: the package page sets the chat's `package` view (S13)
-  with the page's package at the page scope, and its state names the status,
-  stage, error, progress and open module, so a generating or failed package's
-  script and log reads work while its package reads refuse; the Results page
-  sets `results_packages`.
-- **Retention.** No automatic or time-based GC, ever. Reclamation is ONLY the
-  catalogue's guarded hard delete (row + dir), refused while referenced or
-  generating.
+- **Layer rule.** A product reads only the run it points at; a run reads nothing live at read time; no instance FKs or product ids inside run files. Calendar / countryIso3 / structure schema are run INPUTS: the adapter reads the manifest, never the env global.
+- **The package rule** (ruled). If the answer lives inside the run package directory it is a function of the runId alone: package contents never depend on who is asking, only the chrome does. So reads are mounted ONCE (run-keyed, `routes/instance/run_generation.ts`) under the INSTANCE data bits (`can_view_data`), and one surface, the package page (`results_packages/package_page.tsx`, its panes under `package_view/`), renders a package's contents: its modules' presets, settings, scripts, logs and files, its viewers gated by `canViewPackageContents()` (`package_view/status.tsx`, over `can()`, S18); the Explore tab (S11) reads a ready package's metrics at a scope. AI tools take a run RESOLVER, never a runId from the model: the package page sets the chat's `package` view (S13) with the page's package at the page scope, and its state names the status, stage, error, progress and open module, so a generating or failed package's script and log reads work while its package reads refuse; the Results page sets `results_packages`.
+- **Retention.** No automatic or time-based GC, ever. Reclamation is ONLY the catalogue's guarded hard delete (row + dir), refused while referenced or generating.
 - **Vocabulary.** UI label "Results package"; "run" stays the internal name.
-- **Labels are unique per instance** (`runs_label_unique`, on
-  `lower(trim(label))`, migration 091). The wizard refuses a taken label against
-  the loaded catalogue and derives a free default (today's date); the insert
-  translates the index violation into the same message for the race.
-- **Labels are short.** The launch route caps a new label at
-  `RUN_LABEL_MAX_LENGTH` (20) characters and the wizard refuses a longer one
-  inline. Only launch enforces it, so a stored label can be longer.
+- **Labels are unique per instance** (`runs_label_unique`, on `lower(trim(label))`, migration 091). The wizard refuses a taken label against the loaded catalogue and derives a free default (today's date); the insert translates the index violation into the same message for the race.
+- **Labels are short.** The launch route caps a new label at `RUN_LABEL_MAX_LENGTH` (20) characters and the wizard refuses a longer one inline. Only launch enforces it, so a stored label can be longer.
 
 ## Loading (`server/module_loader/load_module.ts`)
 
-Loading is read-only and side-effect-free: fetch, validate, translate. No DB, no
-run directory. `MODULE_REGISTRY` (`lib/types/module_registry.ts`) is static;
-each entry is `{ id, label, prerequisites, github: { owner, repo, path } }`.
-Every entry must resolve under the strict GitHub schema, since the wizard read
-resolves them all or fails; `server/tests/run_generation_module_options_test.ts`
-pins that against the local checkout. The registry lists m001, m002, m005, m006,
-m009, m010, m011 and m012; m003 and m004 are retired and their directories
-deleted from the modules repo, and a package generated with them is still
-readable. A figure stored with an m003 or m004 metric lives on through
-`lib/retired_metrics.ts`: a frozen table of the thirteen m003 and three m004
-metrics as they last shipped (ids, labels and preset texts), each with the
-metric that answers the same question in a current package and the config
-rewrite that carries a figure across. m3-01-01, the service volume on one of
-four adjustment bases, becomes m12-01-01 when the figure filtered to one basis
-(the filter goes: the package's own basis is the value) and m2-02-01 when it
-compared bases (the four props are the same); m3-02-01 to m3-05-01, the
-disruptions chart at the national level and at admin areas 2 to 4, becomes the
-band chart of the same level, m11-01-01 to m11-01-04, with
-`specialDisruptionsChart` swapped for `specialDisruptionsChartV2` and
-`content: "lines"`, and no value filter while the mode is on, since the band
-needs all four props; m3-0x-02, the percentage difference per level, becomes
-m11-02-01 at any level, the level staying a disaggregation; m3-0x-03, the actual
-and expected pair, becomes m11-02-02 with `count_sum` and `count_expect_sum`
-renamed to `observed` and `expected`. A value filter is renamed prop by prop and
-loses props the successor lacks. m4-01-01, the national coverage estimate on
-three estimation bases, becomes m6-01-01, whose footnote has one more sentence;
-m4-02-01 and m4-03-01, the HMIS coverage at admin areas 2 and 3, become m6-02-02
-and m6-03-02, which ship no presets, so a carried figure keeps its texts.
-m8-01-01, the retired scorecard, has no successor: its figures stay as stored
-and cannot update. A caption, subcaption or footnote that still reads as the
-retired preset wrote it, in any language, is replaced by the successor preset's
-text in the figure's own language, or cleared where the successor has none; a
-translation the successor lacks and a user's own words are kept.
-`resolveFigureMetric(metrics, figure)` is the one lookup every update, edit and
-copilot path runs (S10 "The captured pair and staleness"): the figure's own
-metric when the package carries it, else the successor with the carried config,
-else `absent`, naming the retired metric and its successor's module so the badge
-can say what is missing. `server/tests/retired_metrics_test.ts` pins the table
-against `server/tests/fixtures/m003_definition.json` and `m004_definition.json`
-(each module at the commit before its deletion) and, under
-`FASTR_MODULES_LOCAL_DIR`, against the successor definitions: every retired
-preset carries to a config the successor serves (metric present, its required
-dimensions grouped, its results object offering every requested dimension, a
-fetch config that builds, the band chart's four props in order) and reads as the
-successor's own preset would (its style, its texts, and its layout where the two
-agree). `sweep_retired_figures.ts` (repo root) is the table's check against
-stored data: a read-only pass over every instance's stored figures that carries
-each retired one and runs the same checks, reporting per instance and across the
-fleet. The registry's label is the only name a generating or failed run has,
-since neither holds a manifest; every other fact about a module travels with the
-definition.
+Loading is read-only and side-effect-free: fetch, validate, translate. No DB, no run directory. `MODULE_REGISTRY` (`lib/types/module_registry.ts`) is static; each entry is `{ id, label, prerequisites, github: { owner, repo, path } }`. Every entry must resolve under the strict GitHub schema, since the wizard read resolves them all or fails; `server/tests/run_generation_module_options_test.ts` pins that against the local checkout. The registry lists m001, m002, m005, m006, m009, m010, m011 and m012; m003 and m004 are retired and their directories deleted from the modules repo, and a package generated with them is still readable. A figure stored with an m003 or m004 metric lives on through `lib/retired_metrics.ts`: a frozen table of the thirteen m003 and three m004 metrics as they last shipped (ids, labels and preset texts), each with the metric that answers the same question in a current package and the config rewrite that carries a figure across. m3-01-01, the service volume on one of four adjustment bases, becomes m12-01-01 when the figure filtered to one basis (the filter goes: the package's own basis is the value) and m2-02-01 when it compared bases (the four props are the same); m3-02-01 to m3-05-01, the disruptions chart at the national level and at admin areas 2 to 4, becomes the band chart of the same level, m11-01-01 to m11-01-04, with `specialDisruptionsChart` swapped for `specialDisruptionsChartV2` and `content: "lines"`, and no value filter while the mode is on, since the band needs all four props; m3-0x-02, the percentage difference per level, becomes m11-02-01 at any level, the level staying a disaggregation; m3-0x-03, the actual and expected pair, becomes m11-02-02 with `count_sum` and `count_expect_sum` renamed to `observed` and `expected`. A value filter is renamed prop by prop and loses props the successor lacks. m4-01-01, the national coverage estimate on three estimation bases, becomes m6-01-01, whose footnote has one more sentence; m4-02-01 and m4-03-01, the HMIS coverage at admin areas 2 and 3, become m6-02-02 and m6-03-02, which ship no presets, so a carried figure keeps its texts. m8-01-01, the retired scorecard, has no successor: its figures stay as stored and cannot update. A caption, subcaption or footnote that still reads as the retired preset wrote it, in any language, is replaced by the successor preset's text in the figure's own language, or cleared where the successor has none; a translation the successor lacks and a user's own words are kept. `resolveFigureMetric(metrics, figure)` is the one lookup every update, edit and copilot path runs (S10 "The captured pair and staleness"): the figure's own metric when the package carries it, else the successor with the carried config, else `absent`, naming the retired metric and its successor's module so the badge can say what is missing. `server/tests/retired_metrics_test.ts` pins the table against `server/tests/fixtures/m003_definition.json` and `m004_definition.json` (each module at the commit before its deletion) and, under `FASTR_MODULES_LOCAL_DIR`, against the successor definitions: every retired preset carries to a config the successor serves (metric present, its required dimensions grouped, its results object offering every requested dimension, a fetch config that builds, the band chart's four props in order) and reads as the successor's own preset would (its style, its texts, and its layout where the two agree). `sweep_retired_figures.ts` (repo root) is the table's check against stored data: a read-only pass over every instance's stored figures that carries each retired one and runs the same checks, reporting per instance and across the fleet. The registry's label is the only name a generating or failed run has, since neither holds a manifest; every other fact about a module travels with the definition.
 
-**Three presentation facts are declared by every module and never inferred**:
-`family` (`hmis`, `hfa` or `iceh`, the dataset family whose results the module
-carries), `tier` (`primary` or `secondary`: each family has exactly one primary
-module, m012 for HMIS, m010 for HFA, m009 for ICEH; the UI word for secondary is
-"Supporting analyses") and `sortOrder` (a positive integer, the module's
-position within its tier). The GitHub schema requires them, the installed blob
-stores them verbatim, and from there they reach `RunGenerationModuleOption` (the
-wizard), `InstalledModuleSummary` (the authoring context) and every listing.
-**One comparator orders modules everywhere**: `compareModules`
-(`lib/group_metrics.ts`) sorts by family (HMIS, HFA, ICEH), then tier (primary
-first), then `sortOrder`, then id; nothing sorts modules by id or label. Labels
-carry no number prefix. A metric's `datasetFamily` is its module's declared
-family, stamped at finalize and read by the query layer through
-`getDatasetFamilyFromRun` (which parses the family alone out of the manifest's
-module blob). Packages written before the declaration existed are stamped by
-manifest transform block 11 from `LEGACY_MODULE_PRESENTATION`
-(`server/runs/manifest_transform.ts`), a frozen map of every module id that ever
-shipped (m001 to m012); an id outside it throws, because the map is complete by
-construction. `indicator_catalog.ts` deliberately does not read `family`: it
-runs in transform block 1, before block 11 stamps legacy blobs, so it dispatches
-on `scriptGenerationType` and `dataSources`, both declared facts.
-`MODULE_SOURCE = _IS_PRODUCTION ? "github" : "local"`:
+**Three presentation facts are declared by every module and never inferred**: `family` (`hmis`, `hfa` or `iceh`, the dataset family whose results the module carries), `tier` (`primary` or `secondary`: each family has exactly one primary module, m012 for HMIS, m010 for HFA, m009 for ICEH; the UI word for secondary is "Supporting analyses") and `sortOrder` (a positive integer, the module's position within its tier). The GitHub schema requires them, the installed blob stores them verbatim, and from there they reach `RunGenerationModuleOption` (the wizard), `InstalledModuleSummary` (the authoring context) and every listing. **One comparator orders modules everywhere**: `compareModules` (`lib/group_metrics.ts`) sorts by family (HMIS, HFA, ICEH), then tier (primary first), then `sortOrder`, then id; nothing sorts modules by id or label. Labels carry no number prefix. A metric's `datasetFamily` is its module's declared family, stamped at finalize and read by the query layer through `getDatasetFamilyFromRun` (which parses the family alone out of the manifest's module blob). Packages written before the declaration existed are stamped by manifest transform block 11 from `LEGACY_MODULE_PRESENTATION` (`server/runs/manifest_transform.ts`), a frozen map of every module id that ever shipped (m001 to m012); an id outside it throws, because the map is complete by construction. `indicator_catalog.ts` deliberately does not read `family`: it runs in transform block 1, before block 11 stamps legacy blobs, so it dispatches on `scriptGenerationType` and `dataSources`, both declared facts. `MODULE_SOURCE = _IS_PRODUCTION ? "github" : "local"`:
 
-- **github (prod):** `GET /repos/<owner>/<repo>/commits?path=<path>&per_page=1`
-  → `gitRef = commits[0].sha`, then fetch
-  `raw.githubusercontent.com/<owner>/<repo>/<ref>/<path>/{definition.json,script.R}`
-  at that SHA. Pinning by SHA (not `main`) defeats GitHub's ~5-minute raw CDN
-  cache, so a just-pushed module is seen immediately.
-- **local (dev):** read from `_MODULES_LOCAL_DIR/<path>`;
-  `gitRef = "loc-" + 8 random hex`, so dev always reports an available update.
-  Intentional, not a bug.
+- **github (prod):** `GET /repos/<owner>/<repo>/commits?path=<path>&per_page=1` → `gitRef = commits[0].sha`, then fetch `raw.githubusercontent.com/<owner>/<repo>/<ref>/<path>/{definition.json,script.R}` at that SHA. Pinning by SHA (not `main`) defeats GitHub's ~5-minute raw CDN cache, so a just-pushed module is seen immediately.
+- **local (dev):** read from `_MODULES_LOCAL_DIR/<path>`; `gitRef = "loc-" + 8 random hex`, so dev always reports an available update. Intentional, not a bug.
 
-Both branches run `moduleDefinitionGithubSchema.safeParse` (throws listing
-`path: message` issues: invalid `definition.json` fails at fetch time, no silent
-normalization; value props in the reserved `SAMPLE_N_PREFIX` namespace are also
-rejected here) and `stripFrontmatter` on the script: everything above the first
-line starting with `#---` is dropped, so a script's header holds
-local-development defaults for the token names only and the body uses the tokens
-inline (the modules repo's DOC_MODULES.md "script.R" states the rule; m012 once
-shipped its real assignments above the marker and failed at execution).
-`fetchModuleFiles(id, pinnedGitRef)` fetches at an exact commit when the run
-pipeline re-resolves the wizard's pinned refs (undefined = HEAD), and caches
-definition-declared pinned repo assets content-addressed (`repo_assets.ts`).
-Pinned repo assets are `{name, repoPath, sha256}` and are fetched at the SAME
-gitRef the definition was resolved at. Definition and data are read from one
-commit and cannot disagree; there is no per-asset commit field (legacy
-definitions carrying one parse fine, the field is ignored). sha256 is the
-integrity check and the cache key.
-`getModuleDefinitionDetail(id, language, pinnedGitRef)` translates
-label/metrics/`configRequirements` via `resolveTS` and returns
-`ModuleDefinitionDetail & { gitRef }`. Both callers pass `_INSTANCE_LANGUAGE`,
-which is why the installed shapes hold plain strings: a metric's `label`,
-`variantLabel`, `importantNotes` and every entry of its `valueLabelReplacements`
-(the legend and header text for a value prop or a value) are authored as
-`TranslatableString` in the repo and resolved here, so a package carries the
-instance's language and nothing downstream re-resolves them. (Presets are not
-derived or stored here: they are projections of the manifest presets of the run
-a product points at, `lib/derive_presets.ts`.)
+Both branches run `moduleDefinitionGithubSchema.safeParse` (throws listing `path: message` issues: invalid `definition.json` fails at fetch time, no silent normalization; value props in the reserved `SAMPLE_N_PREFIX` namespace are also rejected here) and `stripFrontmatter` on the script: everything above the first line starting with `#---` is dropped, so a script's header holds local-development defaults for the token names only and the body uses the tokens inline (the modules repo's DOC_MODULES.md "script.R" states the rule; m012 once shipped its real assignments above the marker and failed at execution). `fetchModuleFiles(id, pinnedGitRef)` fetches at an exact commit when the run pipeline re-resolves the wizard's pinned refs (undefined = HEAD), and caches definition-declared pinned repo assets content-addressed (`repo_assets.ts`). Pinned repo assets are `{name, repoPath, sha256}` and are fetched at the SAME gitRef the definition was resolved at. Definition and data are read from one commit and cannot disagree; there is no per-asset commit field (legacy definitions carrying one parse fine, the field is ignored). sha256 is the integrity check and the cache key. `getModuleDefinitionDetail(id, language, pinnedGitRef)` translates label/metrics/`configRequirements` via `resolveTS` and returns `ModuleDefinitionDetail & { gitRef }`. Both callers pass `_INSTANCE_LANGUAGE`, which is why the installed shapes hold plain strings: a metric's `label`, `variantLabel`, `importantNotes` and every entry of its `valueLabelReplacements` (the legend and header text for a value prop or a value) are authored as `TranslatableString` in the repo and resolved here, so a package carries the instance's language and nothing downstream re-resolves them. (Presets are not derived or stored here: they are projections of the manifest presets of the run a product points at, `lib/derive_presets.ts`.)
 
 ## Module settings and the run-keyed mounts
 
-Nothing about a module is stored outside a package. There is no install, update
-or per-module rerun surface, and no Postgres catalog of modules, results objects
-or metrics. What `server/runs/module_config.ts` holds is not a catalog write
-path: `prepareModuleDefinitionForStorage` (the installed monolingual blob, built
-straight into the manifest by `generate_run/pipeline.ts`) and
-`parseModuleConfigSelections`. A product serves entirely from its run's manifest
-and parquet.
+Nothing about a module is stored outside a package. There is no install, update or per-module rerun surface, and no Postgres catalog of modules, results objects or metrics. What `server/runs/module_config.ts` holds is not a catalog write path: `prepareModuleDefinitionForStorage` (the installed monolingual blob, built straight into the manifest by `generate_run/pipeline.ts`) and `parseModuleConfigSelections`. A product serves entirely from its run's manifest and parquet.
 
-Every module and package route is instance-level, in
-`routes/instance/run_generation.ts`: the wizard's
-defaults/module-options/launch, plus the catalogue listing (instance-T1's fetch
-half, pulled by entitled clients on the `runs_catalog_updated` nonce signal),
-pin/unpin and the guarded hard delete (all `can_configure_data`), and the ONE
-mount for package reads: the `(run_id, module_id)` run-dir reads
-(`getRunModuleScript`/`getRunModuleLogs`/`listRunModuleFiles`),
-`getRunModuleWithConfigSelections` (one module's settings from the manifest) and
-`getRunDetail` (per-module settings resolved server-side from the manifest's
-`configSelections` + the outputs-dir file listing + the population stamp, via
-`readRunDetail` in `server/runs/package_internals.ts`; manifest-gated, so ready
-runs only), gated on the INSTANCE data bit, `can_view_data` (ruled: package
-contents are instance-level data, not an admin-only debug class and not a
-per-product entitlement). The raw-file download surface they link to carries the
-same `can_view_data`: the `_RUNS_DIR_PATH` static mount in
-`middleware/static.ts`, narrowed to `/:run_id/outputs/*`.
+Every module and package route is instance-level, in `routes/instance/run_generation.ts`: the wizard's defaults/module-options/launch, plus the catalogue listing (instance-T1's fetch half, pulled by entitled clients on the `runs_catalog_updated` nonce signal), pin/unpin and the guarded hard delete (all `can_configure_data`), and the ONE mount for package reads: the `(run_id, module_id)` run-dir reads (`getRunModuleScript`/`getRunModuleLogs`/`listRunModuleFiles`), `getRunModuleWithConfigSelections` (one module's settings from the manifest) and `getRunDetail` (per-module settings resolved server-side from the manifest's `configSelections` + the outputs-dir file listing + the population stamp, via `readRunDetail` in `server/runs/package_internals.ts`; manifest-gated, so ready runs only), gated on the INSTANCE data bit, `can_view_data` (ruled: package contents are instance-level data, not an admin-only debug class and not a per-product entitlement). The raw-file download surface they link to carries the same `can_view_data`: the `_RUNS_DIR_PATH` static mount in `middleware/static.ts`, narrowed to `/:run_id/outputs/*`.
 
-**A product's relationship with packages** is one pointer write,
-`setProductPackage` (product `edit` access, S12) → `setProductRun`: the ready
-gate is IN the UPDATE, and the `products.run_id` FK (no cascade) closes the race
-with a concurrent delete. The options come from `listReadyPackages` (approved
-users: bare id, label and creation time, none of the catalogue's generation
-telemetry). A repoint never blocks and has no compatibility pre-flight: an
-incompatible package is still attachable, and each figure whose captured package
-or scope differs from the product's shows its own stale badge (S11). Pressing
-Update re-resolves the figure, under the metric `resolveFigureMetric` finds for
-it (its own, or a retired metric's successor, "Loading" above), and when it
-cannot, `lib/figure_package_issue.ts` says why: metric absent, metric stamped
-unavailable, or a requested disaggregation the results object does not offer,
-reported in that order, with no data queries. `figurePackageIssueForMetrics`
-answers it from the authoring context the client holds. Presets are excluded by
-construction: they are projections of whichever package the product points at.
+**A product's relationship with packages** is one pointer write, `setProductPackage` (product `edit` access, S12) → `setProductRun`: the ready gate is IN the UPDATE, and the `products.run_id` FK (no cascade) closes the race with a concurrent delete. The options come from `listReadyPackages` (approved users: bare id, label and creation time, none of the catalogue's generation telemetry). A repoint never blocks and has no compatibility pre-flight: an incompatible package is still attachable, and each figure whose captured package or scope differs from the product's shows its own stale badge (S11). Pressing Update re-resolves the figure, under the metric `resolveFigureMetric` finds for it (its own, or a retired metric's successor, "Loading" above), and when it cannot, `lib/figure_package_issue.ts` says why: metric absent, metric stamped unavailable, or a requested disaggregation the results object does not offer, reported in that order, with no data queries. `figurePackageIssueForMetrics` answers it from the authoring context the client holds. Presets are excluded by construction: they are projections of whichever package the product points at.
 
-**Exploring a package is ONE capability, mounted ONCE** (ruled). Every read of
-what a package contains (`getRunDetail` with per-module settings and files,
-`getRunModuleScript`, `getRunModuleLogs`, `listRunModuleFiles`, and the
-`/{runId}/outputs/…` download mount) is RUN-keyed on the instance mount and
-gated on the instance data bit, `can_view_data`, logs included (global admins
-bypass). The Results tab, the catalogue fill (`listRunCatalog`, the starting
-payload's `runsCatalog`) and the run telemetry messages follow `can_view_data`
-too; Generate, Module defaults, Pin and Delete render for `can_configure_data`,
-the guard their routes take (S18). The rule that decides what belongs on the
-page: **if the answer to the question lives inside the run directory, it is the
-same view for everyone who can see that package.** The package page
-(`results_packages/package_page.tsx`, the package's one host) is one shape for
-every status: a heading bar (the label, the pinned and status badges, Pin or
-Unpin and the guarded Delete, with the provenance line as its subheading:
-created, by whom, `synthetic-backfill` when so, disk size), a **status bar**
-under it (`package_view/status_bar.tsx`), and the body. The status bar is the
-package's facts for every status. While generating it opens with a full-width
-panther `ProgressBar small busy`: the width is `runProgressSteps` over
-`p.progress` with a 10% floor (the stripe rides the fill, so an honest 0% during
-prepare would show nothing moving), the message is `runStageLabel` ("The stage"
-below), both read in one memo before any branch and rendered under a `Show` on
-the generating status. Then the labelled rows: one `ModuleProgressChip` per
-module of `run.progress.moduleOrder` with its `moduleStatus` (the final progress
-is stored at publish, so a ready package has chips too: done and reused),
-pulsing on the chip whose module is `currentModuleId` whatever its status, so a
-reused module's copy shows activity, and only while generating; the "Running"
-row with the live R line, shown only in a `module` stage; "in use by"; and the
-population stamp when active ("population.csv", read from the authoring
-context). A ready package's chips are grouped under family labels from
-`RunAuthoringContext.modules` in module order; a generating or failed run has no
-manifest and the registry declares no family, so its chips stay flat in
-execution order and are named from the registry. The body is by status: a READY
-package's is a tab bar (`TabsNavigation`) of **one tab per family the package
-ran**, in family order (from `RunAuthoringContext.modules` through
-`compareModules`, so a package with modules of one family has one tab); a FAILED
-package's is `package_view/failed_detail.tsx`, the stage sentence the run died
-in above the error detail (omitted for a stored `ended`, the transform's stamp
-on a run that recorded no stage) and each started module's Script, Logs and
-Files viewers (the last via `ViewFiles`, since a failed run has no manifest); a
-GENERATING package's is a line saying results appear once generation completes.
-A family tab (`package_view/family_pane.tsx`) is a `SelectList` of the family's
-modules, the primary first and the secondaries under a "Supporting analyses"
-header, beside the selected module's pane (`package_view/module_pane.tsx`),
-which shows one module whole: the page scope select (the shared `ScopeSelect`;
-the page starts on "All data", the choice is shared by every tab and module and
-is never stored, and a chosen scope that is deleted falls back to "All data"),
-the module's presets (`package_view/presets.tsx`: the entries of
-`RunAuthoringContext.presets` whose metric the module produced, in preset order,
-each rendered through S11's shared `_shared/figure_preview.ts` helper under the
-page scope; a preset whose metric is stamped unavailable shows the stamped
-reason in place of a figure and is not clickable; clicking a card opens S11's
-`VisualizationEditor` as a viewer (`viewOnly`, naming the chat's
-`viewing_package_figure` view with the default's id in `aiView`, S13; its
-Download's results file viewer sets `results_file`) through the page's own
-editor wrapper, with the default's metric and config, the page scope and the
-package's authoring context, so the user can disaggregate it differently to look
-at, and closing returns nothing: no draft, no storage, no route, no cache key,
-no write of any kind), then its settings, Script and Logs viewers (gated
-client-side by `canViewPackageContents()` in `status.tsx`) and output files with
-download, from `RunDetail.modules[]`, which `readRunDetail` fills from the
-manifest's own definition blob (label and the three presentation facts). The
-active family (starts at the first), the selected module per family (starts at
-the primary) and the page scope are page signals that die with the page. Modules
-are named from the package's manifest on every ready surface; the registry label
-(`moduleLabel` in `status.tsx`) names modules only where there is no manifest:
-the status bar's chips of a generating or failed package, the failed body, and
-the wizard's confirm step. Both ready reads run once the row is ready (a run
-that becomes ready under the open page fetches then); a manifest the server
-cannot read fails them, and the page shows that error as the body. The detail is
-**T2, immutable-by-identity** (`state/instance/t2_runs.ts`,
-`createReactiveCache` keyed `[runId]`, `versionKey: () => "immutable"`, the
-`t2_images` shape: nothing ever invalidates it because a ready run dir never
-changes; bump the cache name when `RunDetail` changes shape). Script/log bytes
-stay T3.
+**Exploring a package is ONE capability, mounted ONCE** (ruled). Every read of what a package contains (`getRunDetail` with per-module settings and files, `getRunModuleScript`, `getRunModuleLogs`, `listRunModuleFiles`, and the `/{runId}/outputs/…` download mount) is RUN-keyed on the instance mount and gated on the instance data bit, `can_view_data`, logs included (global admins bypass). The Results tab, the catalogue fill (`listRunCatalog`, the starting payload's `runsCatalog`) and the run telemetry messages follow `can_view_data` too; Generate, Module defaults, Pin and Delete render for `can_configure_data`, the guard their routes take (S18). The rule that decides what belongs on the page: **if the answer to the question lives inside the run directory, it is the same view for everyone who can see that package.** The package page (`results_packages/package_page.tsx`, the package's one host) is one shape for every status: a heading bar (the label, the pinned and status badges, Pin or Unpin and the guarded Delete, with the provenance line as its subheading: created, by whom, `synthetic-backfill` when so, disk size), a **status bar** under it (`package_view/status_bar.tsx`), and the body. The status bar is the package's facts for every status. While generating it opens with a full-width panther `ProgressBar small busy`: the width is `runProgressSteps` over `p.progress` with a 10% floor (the stripe rides the fill, so an honest 0% during prepare would show nothing moving), the message is `runStageLabel` ("The stage" below), both read in one memo before any branch and rendered under a `Show` on the generating status. Then the labelled rows: one `ModuleProgressChip` per module of `run.progress.moduleOrder` with its `moduleStatus` (the final progress is stored at publish, so a ready package has chips too: done and reused), pulsing on the chip whose module is `currentModuleId` whatever its status, so a reused module's copy shows activity, and only while generating; the "Running" row with the live R line, shown only in a `module` stage; "in use by"; and the population stamp when active ("population.csv", read from the authoring context). A ready package's chips are grouped under family labels from `RunAuthoringContext.modules` in module order; a generating or failed run has no manifest and the registry declares no family, so its chips stay flat in execution order and are named from the registry. The body is by status: a READY package's is a tab bar (`TabsNavigation`) of **one tab per family the package ran**, in family order (from `RunAuthoringContext.modules` through `compareModules`, so a package with modules of one family has one tab); a FAILED package's is `package_view/failed_detail.tsx`, the stage sentence the run died in above the error detail (omitted for a stored `ended`, the transform's stamp on a run that recorded no stage) and each started module's Script, Logs and Files viewers (the last via `ViewFiles`, since a failed run has no manifest); a GENERATING package's is a line saying results appear once generation completes. A family tab (`package_view/family_pane.tsx`) is a `SelectList` of the family's modules, the primary first and the secondaries under a "Supporting analyses" header, beside the selected module's pane (`package_view/module_pane.tsx`), which shows one module whole: the page scope select (the shared `ScopeSelect`; the page starts on "All data", the choice is shared by every tab and module and is never stored, and a chosen scope that is deleted falls back to "All data"), the module's presets (`package_view/presets.tsx`: the entries of `RunAuthoringContext.presets` whose metric the module produced, in preset order, each rendered through S11's shared `_shared/figure_preview.ts` helper under the page scope; a preset whose metric is stamped unavailable shows the stamped reason in place of a figure and is not clickable; clicking a card opens S11's `VisualizationEditor` as a viewer (`viewOnly`, naming the chat's `viewing_package_figure` view with the default's id in `aiView`, S13; its Download's results file viewer sets `results_file`) through the page's own editor wrapper, with the default's metric and config, the page scope and the package's authoring context, so the user can disaggregate it differently to look at, and closing returns nothing: no draft, no storage, no route, no cache key, no write of any kind), then its settings, Script and Logs viewers (gated client-side by `canViewPackageContents()` in `status.tsx`) and output files with download, from `RunDetail.modules[]`, which `readRunDetail` fills from the manifest's own definition blob (label and the three presentation facts). The active family (starts at the first), the selected module per family (starts at the primary) and the page scope are page signals that die with the page. Modules are named from the package's manifest on every ready surface; the registry label (`moduleLabel` in `status.tsx`) names modules only where there is no manifest: the status bar's chips of a generating or failed package, the failed body, and the wizard's confirm step. Both ready reads run once the row is ready (a run that becomes ready under the open page fetches then); a manifest the server cannot read fails them, and the page shows that error as the body. The detail is **T2, immutable-by-identity** (`state/instance/t2_runs.ts`, `createReactiveCache` keyed `[runId]`, `versionKey: () => "immutable"`, the `t2_images` shape: nothing ever invalidates it because a ready run dir never changes; bump the cache name when `RunDetail` changes shape). Script/log bytes stay T3.
 
-The same rule governs the AI tools: the shared tools' `AIToolEnv`
-(`lib/ai_tools/env.ts`) is bound to ONE package at construction: a runId never
-comes from the model. Both surfaces build an inner tool set per pair and bind
-the registered tool to it per call: the SPA to the pair of the view the call
-runs in (`client/src/components/instance/copilot/bind_package_tools.ts`), `/mcp`
-to the pin resolved for that call. The SPA-only module tools
-(script/logs/settings:
-`client/src/components/instance/copilot/tools/modules.ts`, getters on
-`ModuleInternalsEnv`) read the run-keyed mount too, bound by the view's run id
-alone so a generating or failed package answers
-(`getRunModuleScript`/`getRunModuleLogs`/`getRunModuleWithConfigSelections`,
-`can_view_data` on the settings read, so for a user without the instance bit the
-copilot's `get_module_settings` fails at the route guard). The headless
-allowlist admits exactly the run-keyed metric reads the `/mcp` tools need
-(`getRunPresentationObjectItems`, `getRunResultsValueInfo`; `/mcp` is for seeing
-results, so the module reads are deliberately absent): a leaked PAT reaches only
-what its user's approval and scope grants already reach in the UI, and less.
+The same rule governs the AI tools: the shared tools' `AIToolEnv` (`lib/ai_tools/env.ts`) is bound to ONE package at construction: a runId never comes from the model. Both surfaces build an inner tool set per pair and bind the registered tool to it per call: the SPA to the pair of the view the call runs in (`client/src/components/instance/copilot/bind_package_tools.ts`), `/mcp` to the pin resolved for that call. The SPA-only module tools (script/logs/settings: `client/src/components/instance/copilot/tools/modules.ts`, getters on `ModuleInternalsEnv`) read the run-keyed mount too, bound by the view's run id alone so a generating or failed package answers (`getRunModuleScript`/`getRunModuleLogs`/`getRunModuleWithConfigSelections`, `can_view_data` on the settings read, so for a user without the instance bit the copilot's `get_module_settings` fails at the route guard). The headless allowlist admits exactly the run-keyed metric reads the `/mcp` tools need (`getRunPresentationObjectItems`, `getRunResultsValueInfo`; `/mcp` is for seeing results, so the module reads are deliberately absent): a leaked PAT reaches only what its user's approval and scope grants already reach in the UI, and less.
 
-**Metric DATA is package contents too: one read core, one run-keyed mount.** A
-`RunReadContext` is (run, scope), and the caller supplies both halves: the DATA
-lens (`getReadyRunReadContext(mainDb, runId, scopeId)`) shape-checks the run id
-(`isRunIdShape`, run_paths.ts, since a caller-supplied id becomes a path),
-requires `runs.status = 'ready'` against the catalog (a failed run can have a
-published partial dir), and takes `scopeId` from the body (`scopeIdSchema` at
-the registry: a uuid or the reserved `all-data`, never null, typed `ScopeId` in
-lib, server and client). The id is loaded from `scopes` (`getScope`), and an
-unknown one is `SCOPE_NOT_FOUND`, which the routes answer with 404. No read
-context exists without a scope. The context carries the resolved
-`ScopeDefinition` as `scope` and its hash as `scopeToken`. The manifest lens
-(`getRunReadContextForRun(mainDb, runId, scopeId, access)`) is the same with no
-ready check and serves `getRunAuthoringContext`, under `requireApprovedUser()`.
-`getRunModuleWithConfigSelections` serves no data and takes no scope: it reads
-the manifest alone (`getRunManifestForRun`) under `can_view_data`, the same
-exposure as `getRunDetail`. Everything below the context is shared: the items /
-value-info / replicant handler bodies live once in `run_query/run_data_reads.ts`
-(cache-before-queue, shared queues) and are mounted on
-`getRunPresentationObjectItems` / `getRunResultsValueInfo` /
-`getRunReplicantOptions` (instance, `requireApprovedUser()`, then the caller's
-grants in the read context: "Scope access" below). `getRunResultsObjectItems`
-(the raw preview) is scoped the same way. Caches are keyed `runId + scopeToken`
-with the run id leading; the token is the definition hash.
+**Metric DATA is package contents too: one read core, one run-keyed mount.** A `RunReadContext` is (run, scope), and the caller supplies both halves: the DATA lens (`getReadyRunReadContext(mainDb, runId, scopeId)`) shape-checks the run id (`isRunIdShape`, run_paths.ts, since a caller-supplied id becomes a path), requires `runs.status = 'ready'` against the catalog (a failed run can have a published partial dir), and takes `scopeId` from the body (`scopeIdSchema` at the registry: a uuid or the reserved `all-data`, never null, typed `ScopeId` in lib, server and client). The id is loaded from `scopes` (`getScope`), and an unknown one is `SCOPE_NOT_FOUND`, which the routes answer with 404. No read context exists without a scope. The context carries the resolved `ScopeDefinition` as `scope` and its hash as `scopeToken`. The manifest lens (`getRunReadContextForRun(mainDb, runId, scopeId, access)`) is the same with no ready check and serves `getRunAuthoringContext`, under `requireApprovedUser()`. `getRunModuleWithConfigSelections` serves no data and takes no scope: it reads the manifest alone (`getRunManifestForRun`) under `can_view_data`, the same exposure as `getRunDetail`. Everything below the context is shared: the items / value-info / replicant handler bodies live once in `run_query/run_data_reads.ts` (cache-before-queue, shared queues) and are mounted on `getRunPresentationObjectItems` / `getRunResultsValueInfo` / `getRunReplicantOptions` (instance, `requireApprovedUser()`, then the caller's grants in the read context: "Scope access" below). `getRunResultsObjectItems` (the raw preview) is scoped the same way. Caches are keyed `runId + scopeToken` with the run id leading; the token is the definition hash.
 
-**No product-side package tab.** A product's package and scope are one
-`product_settings.tsx` surface (S12) over the ready-package list in instance T1
-(`readyPackages`), with no compatibility pre-flight (reattach never blocks,
-staleness is per figure).
+**No product-side package tab.** A product's package and scope are one `product_settings.tsx` surface (S12) over the ready-package list in instance T1 (`readyPackages`), with no compatibility pre-flight (reattach never blocks, staleness is per figure).
 
-**The instance catalogue is a list and a page**: the Results packages tab is a
-panther `Table` (`results_packages.tsx`; newest first by default, with the table
-toolbar's search, filters on Created by, Status and Usage, and row checkboxes
-for the bulk delete), and a row click opens that package's own page
-(`results_packages/package_page.tsx` = `ResultsPackagePage`) through the shell
-wrapper (`openShellEditor`) with the run id. The page reads its row live from
-`instanceState.runsCatalog`, waits for a freshly launched run's row to land (the
-wizard opens the page before the catalogue refetch), and closes itself once a
-row it has shown is removed. It owns its own editor wrapper, one level below the
-shell's, for the script, logs, files and preset viewers. The LISTING is
-instance-T1 as a nonce pull: `runs_catalog_updated` broadcasts a data-free
-nonce, and each entitled client refetches `listRunCatalog` into
-`InstanceState.runsCatalog` (per-request guard; SYSTEM_03 †). The nonce is
-signalled by the in-process catalogue mutations: launch (success and the
-row-created-then-failed path), guarded delete, pin/unpin, the generate-run
-worker's finalize-or-fail notify site plus the host's worker-crash handler, and
-three product routes that change a package's products (`setProductPackage`,
-`deleteProducts`, `duplicateProduct`). `createProduct`, `copyReportVersion` and
-`copySlideDeckVersion` also add a product to a package and send no nonce, so an
-open catalogue's "in use by" list lags until its next refetch. The delete guard
-reads the database, so it stays correct. The list names every product attached
-to a package, by label, whatever the reader's level on it (S12 "Contract"):
-product levels do not reach the catalogue, which only a user with
-`can_configure_data` reads. A visitor arriving mid-generation sees the stored
-progress (the stage and chips as of the last push) until the next stage push:
-the `run_progress` listeners are page-local and `updateRunProgress` deliberately
-does not signal the catalogue: per-push signal spam is worse than a
-bounded-stale chip row (ruled). The listeners live in `results_packages.tsx`,
-which stays mounted under the open page, and the page reads them through
-accessor props. The package page is the ONLY surface that renders a non-ready
-run, and the only surface that renders a package's contents (a product points
-only at a ready run and never explores it; the Explore tab reads a ready
-package's metrics, S11): every status is the same heading and status bar over a
-body by status. The catalogue onboarding tour (`onboarding/tours.ts`,
-`instance-results-packages-catalogue`) walks from the list into a package: its
-first step spotlights the table (`data-tour="instance-results-packages-table"`,
-set only while rows exist) and advances on the row click that opens the page,
-its second waits for the status bar's usage row (`-usage`) and its third names
-pin and delete on the heading bar's housekeeping group (`-actions`); it
-auto-starts only while a row is rendered, not merely in the DOM, since an open
-page hides the list under the shell wrapper. The intro tour's last step is
-Module defaults (`-defaults`); scopes moved to their own rail tab (S15).
+**The instance catalogue is a list and a page**: the Results packages tab is a panther `Table` (`results_packages.tsx`; newest first by default, with the table toolbar's search, filters on Created by, Status and Usage, and row checkboxes for the bulk delete), and a row click opens that package's own page (`results_packages/package_page.tsx` = `ResultsPackagePage`) through the shell wrapper (`openShellEditor`) with the run id. The page reads its row live from `instanceState.runsCatalog`, waits for a freshly launched run's row to land (the wizard opens the page before the catalogue refetch), and closes itself once a row it has shown is removed. It owns its own editor wrapper, one level below the shell's, for the script, logs, files and preset viewers. The LISTING is instance-T1 as a nonce pull: `runs_catalog_updated` broadcasts a data-free nonce, and each entitled client refetches `listRunCatalog` into `InstanceState.runsCatalog` (per-request guard; SYSTEM_03 †). The nonce is signalled by the in-process catalogue mutations: launch (success and the row-created-then-failed path), guarded delete, pin/unpin, the generate-run worker's finalize-or-fail notify site plus the host's worker-crash handler, and three product routes that change a package's products (`setProductPackage`, `deleteProducts`, `duplicateProduct`). `createProduct`, `copyReportVersion` and `copySlideDeckVersion` also add a product to a package and send no nonce, so an open catalogue's "in use by" list lags until its next refetch. The delete guard reads the database, so it stays correct. The list names every product attached to a package, by label, whatever the reader's level on it (S12 "Contract"): product levels do not reach the catalogue, which only a user with `can_configure_data` reads. A visitor arriving mid-generation sees the stored progress (the stage and chips as of the last push) until the next stage push: the `run_progress` listeners are page-local and `updateRunProgress` deliberately does not signal the catalogue: per-push signal spam is worse than a bounded-stale chip row (ruled). The listeners live in `results_packages.tsx`, which stays mounted under the open page, and the page reads them through accessor props. The package page is the ONLY surface that renders a non-ready run, and the only surface that renders a package's contents (a product points only at a ready run and never explores it; the Explore tab reads a ready package's metrics, S11): every status is the same heading and status bar over a body by status. The catalogue onboarding tour (`onboarding/tours.ts`, `instance-results-packages-catalogue`) walks from the list into a package: its first step spotlights the table (`data-tour="instance-results-packages-table"`, set only while rows exist) and advances on the row click that opens the page, its second waits for the status bar's usage row (`-usage`) and its third names pin and delete on the heading bar's housekeeping group (`-actions`); it auto-starts only while a row is rendered, not merely in the DOM, since an open page hides the list under the shell wrapper. The intro tour's last step is Module defaults (`-defaults`); scopes moved to their own rail tab (S15).
 
-**Bulk delete** (`results_packages/results_packages.tsx`, the listing's row
-checkboxes and their one bulk action) is the bulk form of the guarded delete:
-the user ticks packages in the catalogue, the confirm lists them by label, then
-the SAME single `deleteRun` route is called for each in turn by
-`deleteEachInTurn` (`components/_shared/delete_each_in_turn.ts`, owned here and
-shared with the scopes table, S15). No batch route: the guard is already
-per-package and atomic, each delete pushes the catalogue nonce so the list
-shrinks live, and a guard refusal (pinned, in use, still generating) is reported
-by label in the confirm form's error while the rest still go. There is no
-rule-based prune and no "delete all": the pin is removed only by the explicit
-unpin on the package page.
+**Bulk delete** (`results_packages/results_packages.tsx`, the listing's row checkboxes and their one bulk action) is the bulk form of the guarded delete: the user ticks packages in the catalogue, the confirm lists them by label, then the SAME single `deleteRun` route is called for each in turn by `deleteEachInTurn` (`components/_shared/delete_each_in_turn.ts`, owned here and shared with the scopes table, S15). No batch route: the guard is already per-package and atomic, each delete pushes the catalogue nonce so the list shrinks live, and a guard refusal (pinned, in use, still generating) is reported by label in the confirm form's error while the rest still go. There is no rule-based prune and no "delete all": the pin is removed only by the explicit unpin on the package page.
 
 ## The pinned package
 
-The instance blesses at most ONE package: `runs.pinned` (migration 077, partial
-unique index `runs_one_pinned` enforces the cardinality; NOT "exactly one",
-since a fresh instance has zero runs and unpin/delete must leave a typed no-pin
-state). At-most-one presumes one full national package serves every product; an
-instance holding subset packages (HFA-only beside HMIS) has no single "blessed"
-package and should not pin. Rulings, all deliberate:
+The instance blesses at most ONE package: `runs.pinned` (migration 077, partial unique index `runs_one_pinned` enforces the cardinality; NOT "exactly one", since a fresh instance has zero runs and unpin/delete must leave a typed no-pin state). At-most-one presumes one full national package serves every product; an instance holding subset packages (HFA-only beside HMIS) has no single "blessed" package and should not pin. Rulings, all deliberate:
 
-- **Latest is derived, pinned is stored.** "Latest" = the newest ready run, a
-  client-side badge on the catalogue and nothing more, never a stored or
-  consumer-facing pointer. The pin is the only stored concept, and it reaches
-  every client as ONE instance T1 fact, `pinnedRunId` (S3): the catalogue list
-  and package page derive their badges from that field; `pinned` is not a
-  listing column.
-- **Pinning is always an explicit act** (`pinResultsPackage`,
-  `can_configure_data`, `server/runs/pin_run.ts`). Nothing auto-advances on a
-  newly ready run. A pin-move or unpin touches no product row. Future scheduled
-  generation gets an explicit `autoPinOnSuccess` flag, not recency.
-- **Every pin write takes a transaction-scoped advisory lock**
-  (`PINNED_RUN_ADVISORY_LOCK_KEY`), so concurrent pin-moves and unpins serialize
-  (last write wins), verified by execution: without it, under READ COMMITTED the
-  loser of two concurrent first-ever pins tripped the partial unique index and
-  an unpin racing a pin-move was silently lost.
-- **Pin-move is a two-statement transaction, not one UPDATE** (verified by
-  execution): Postgres checks the partial unique index per row as an UPDATE
-  proceeds, so a single `SET pinned = (id = $1)` trips it whenever the new row
-  is visited before the old. `setPinnedRun` unpins all, then pins the target
-  with the ready gate IN the UPDATE, and throws to roll back on zero rows: a
-  not-ready or missing target leaves the current pin untouched.
-- **Unpin is run-keyed** (`DELETE …/run/:run_id/pin`): it clears the pin only if
-  that run IS the pin, so a catalogue that has not yet learned another admin
-  moved the pin cannot clear a pin it never saw.
-- **The pin never enters the package.** `pinned` is catalog state like `status`;
-  no manifest field, no schema bump, no Valkey prefix, no cache-key change.
-- **Delete protection is a code guard** in `deleteRunCatalogRow` (the boolean
-  carries no FK protection the way `products.run_id` does), and the package page
-  states "cannot delete while pinned" like its other blocked reasons.
-- **The pin is the default package of a new product.** The create dialog
-  (`products/create_product_modal.tsx`, S12) starts its package select on the
-  pin when the pin is a ready package, and the user may pick any other ready
-  package. `createProduct` takes the run id the dialog sends and checks it is
-  ready inside the insert, so there is no read-then-write window. The bare
-  `pinnedRunId` is instance T1, broadcast unfiltered (S3), which is what lets
-  the dialog default to the pin for users without `can_configure_data`.
-- **MCP reads the pin**. The `/mcp` surface is instance-level: its two metric
-  tools, `get_available_metrics` and `get_metric_data`, read the pinned package
-  under "All data" (`scopeId: "all-data"`) through the run-keyed instance
-  routes, gated on an approved user, and its reference tools
-  (`get_reference_docs`, `get_reference_doc`) read reference docs, not the
-  package (S13); no package id appears in any tool schema. It reads
-  `getPinnedRunId` from the DB on EVERY call (never the 30 s cached
-  `InstanceState` copy), so a pin-move is visible on the next call; its context
-  cache is keyed `(token, runId)`. No pin is a typed state: `get_overview` still
-  answers (naming the fix: an admin with `can_configure_data` pins one), the
-  package tools fail with the same sentence. Deploying to an instance with MCP
-  users and no pin therefore takes their data tools dark until someone pins.
-  Prose in S13 principle 2.
+- **Latest is derived, pinned is stored.** "Latest" = the newest ready run, a client-side badge on the catalogue and nothing more, never a stored or consumer-facing pointer. The pin is the only stored concept, and it reaches every client as ONE instance T1 fact, `pinnedRunId` (S3): the catalogue list and package page derive their badges from that field; `pinned` is not a listing column.
+- **Pinning is always an explicit act** (`pinResultsPackage`, `can_configure_data`, `server/runs/pin_run.ts`). Nothing auto-advances on a newly ready run. A pin-move or unpin touches no product row. Future scheduled generation gets an explicit `autoPinOnSuccess` flag, not recency.
+- **Every pin write takes a transaction-scoped advisory lock** (`PINNED_RUN_ADVISORY_LOCK_KEY`), so concurrent pin-moves and unpins serialize (last write wins), verified by execution: without it, under READ COMMITTED the loser of two concurrent first-ever pins tripped the partial unique index and an unpin racing a pin-move was silently lost.
+- **Pin-move is a two-statement transaction, not one UPDATE** (verified by execution): Postgres checks the partial unique index per row as an UPDATE proceeds, so a single `SET pinned = (id = $1)` trips it whenever the new row is visited before the old. `setPinnedRun` unpins all, then pins the target with the ready gate IN the UPDATE, and throws to roll back on zero rows: a not-ready or missing target leaves the current pin untouched.
+- **Unpin is run-keyed** (`DELETE …/run/:run_id/pin`): it clears the pin only if that run IS the pin, so a catalogue that has not yet learned another admin moved the pin cannot clear a pin it never saw.
+- **The pin never enters the package.** `pinned` is catalog state like `status`; no manifest field, no schema bump, no Valkey prefix, no cache-key change.
+- **Delete protection is a code guard** in `deleteRunCatalogRow` (the boolean carries no FK protection the way `products.run_id` does), and the package page states "cannot delete while pinned" like its other blocked reasons.
+- **The pin is the default package of a new product.** The create dialog (`products/create_product_modal.tsx`, S12) starts its package select on the pin when the pin is a ready package, and the user may pick any other ready package. `createProduct` takes the run id the dialog sends and checks it is ready inside the insert, so there is no read-then-write window. The bare `pinnedRunId` is instance T1, broadcast unfiltered (S3), which is what lets the dialog default to the pin for users without `can_configure_data`.
+- **MCP reads the pin**. The `/mcp` surface is instance-level: its two metric tools, `get_available_metrics` and `get_metric_data`, read the pinned package under "All data" (`scopeId: "all-data"`) through the run-keyed instance routes, gated on an approved user, and its reference tools (`get_reference_docs`, `get_reference_doc`) read reference docs, not the package (S13); no package id appears in any tool schema. It reads `getPinnedRunId` from the DB on EVERY call (never the 30 s cached `InstanceState` copy), so a pin-move is visible on the next call; its context cache is keyed `(token, runId)`. No pin is a typed state: `get_overview` still answers (naming the fix: an admin with `can_configure_data` pins one), the package tools fail with the same sentence. Deploying to an instance with MCP users and no pin therefore takes their data tools dark until someone pins. Prose in S13 principle 2.
 
 ## Scope
 
-A scope is a named row in `scopes`: a label and a `ScopeDefinition`
-(`lib/types/scope.ts`) with one section per dataset family (`hmis`, `hfa`,
-`iceh`). A section is excluded (`include: false`) or included with that family's
-own limits: a module list and an indicator list for each, one admin area 2 for
-HMIS and for HFA, a year range for HMIS and for ICEH, and for HFA a list of time
-points, a list of HFA categories and a list of HFA service categories. Inside an
-included section null means no limit on that dimension. One scope is reserved:
-"All data", id `all-data`, with every section included and nothing limited; it
-is seeded by migration 204 (migration 206 adds the two HFA category lists to it
-as null) and can be neither edited nor deleted. Its label is reserved in every
-language: it is shown as the translated `TC.allData`, so `createScope` and
-`updateScope` refuse a label equal to any language of it, compared with case and
-accents folded (`SCOPE_LABEL_RESERVED`). A product carries exactly one scope,
-`products.scope_id`, named when the product is created and changed in product
-settings through `setProductScope` (product `edit` access). The entity, its
-routes and the screens that pick one are S12's ("Scopes"). Packages stay
-scope-blind: instance-level, immutable, no product FKs; one full package serving
-many products renders as each product's own view. A scope is independent of
-packages. The definition is applied at the run read layer as a predicate on the
-DuckDB view each query runs against (SYSTEM_09 "The scoped view").
+A scope is a named row in `scopes`: a label and a `ScopeDefinition` (`lib/types/scope.ts`) with one section per dataset family (`hmis`, `hfa`, `iceh`). A section is excluded (`include: false`) or included with that family's own limits: a module list and an indicator list for each, one admin area 2 for HMIS and for HFA, a year range for HMIS and for ICEH, and for HFA a list of time points, a list of HFA categories and a list of HFA service categories. Inside an included section null means no limit on that dimension. One scope is reserved: "All data", id `all-data`, with every section included and nothing limited; it is seeded by migration 204 (migration 206 adds the two HFA category lists to it as null) and can be neither edited nor deleted. Its label is reserved in every language: it is shown as the translated `TC.allData`, so `createScope` and `updateScope` refuse a label equal to any language of it, compared with case and accents folded (`SCOPE_LABEL_RESERVED`). A product carries exactly one scope, `products.scope_id`, named when the product is created and changed in product settings through `setProductScope` (product `edit` access). The entity, its routes and the screens that pick one are S12's ("Scopes"). Packages stay scope-blind: instance-level, immutable, no product FKs; one full package serving many products renders as each product's own view. A scope is independent of packages. The definition is applied at the run read layer as a predicate on the DuckDB view each query runs against (SYSTEM_09 "The scoped view").
 
-**The family picks the section, and every part of it filters where it applies.**
-A results object is read under the section of the family its module declares. An
-excluded section, or a module outside the section's module list, empties the
-object: those are the only two ways a whole table is removed. Within an included
-section, a dimension filters a results object only when the object has a column
-for it (the default principle, SYSTEM_09 "The scoped view"): geography needs an
-admin column, the year range a physical time column, the time points
-`time_point`, the indicator list the family's indicator column, the HFA
-categories `hfa_category`, and the HFA service categories
-`hfa_service_category`. A results object with no such column is served whole.
-The authoring context a product reads drops each module whose section is
-excluded or which is outside its section's module list, and nothing else (S9).
+**The family picks the section, and every part of it filters where it applies.** A results object is read under the section of the family its module declares. An excluded section, or a module outside the section's module list, empties the object: those are the only two ways a whole table is removed. Within an included section, a dimension filters a results object only when the object has a column for it (the default principle, SYSTEM_09 "The scoped view"): geography needs an admin column, the year range a physical time column, the time points `time_point`, the indicator list the family's indicator column, the HFA categories `hfa_category`, and the HFA service categories `hfa_service_category`. A results object with no such column is served whole. The authoring context a product reads drops each module whose section is excluded or which is outside its section's module list, and nothing else (S9).
 
-**Scope access.** The scope is a security boundary for data values. An
-unrestricted user reads any ready package under any scope, "All data" included.
-A restricted user (S18 "Scope access") reads only through a scope they hold:
-`getReadyRunReadContext` and the authoring context's manifest lens take the
-caller's `ScopeAccess`, answer an unknown scope id with `SCOPE_NOT_FOUND` (404)
-first, and then refuse every scope not held with `SCOPE_NOT_GRANTED` (403). A
-restricted user cannot hold "All data" (a grant is a `ScopeUuid`, S18), so they
-are always refused it. There is no null scope, so a lost scope id is a
-validation failure and never a wider read. Package metadata (which periods,
-modules and indicators exist) is not restricted. Package internals (scripts,
-logs, raw downloads) stay reachable under the instance data bits and show the
-package as-is; a restricted user never holds those bits.
+**Scope access.** The scope is a security boundary for data values. An unrestricted user reads any ready package under any scope, "All data" included. A restricted user (S18 "Scope access") reads only through a scope they hold: `getReadyRunReadContext` and the authoring context's manifest lens take the caller's `ScopeAccess`, answer an unknown scope id with `SCOPE_NOT_FOUND` (404) first, and then refuse every scope not held with `SCOPE_NOT_GRANTED` (403). A restricted user cannot hold "All data" (a grant is a `ScopeUuid`, S18), so they are always refused it. There is no null scope, so a lost scope id is a validation failure and never a wider read. Package metadata (which periods, modules and indicators exist) is not restricted. Package internals (scripts, logs, raw downloads) stay reachable under the instance data bits and show the package as-is; a restricted user never holds those bits.
 
 Rulings:
 
-- **Scope where the column exists.** RO carries `admin_area_2` → filtered
-  directly; only `admin_area_3`/`admin_area_4` → filtered by child values
-  matched by NAME through the family facilities parquet; no admin columns
-  (national ROs, ICEH) → shown unfiltered, so a product scoped to one state
-  still sees national metrics, inevitable and coherent under the branding. The
-  degrade-to-empty guarantee holds for direct-filter ROs, NOT the derived ones:
-  an instance with duplicate district names across regions would fold the twin's
-  numbers in (measured nil in prod today; latent). If it ever goes live, the fix
-  is stopping the m005 and m006 R scripts dropping `admin_area_2`, a modules
-  lockstep this design otherwise avoids.
-- **Mismatch is allowed, never auto-fixed.** A package without the scope's area
-  attaches fine; area metrics degrade to empty. A product's scope is never
-  silently cleared: `products.scope_id` is `NOT NULL` with a no-cascade foreign
-  key, and `deleteScope` refuses while a product carries the scope.
-- **Write-time validation is schema-only.** `scopeDefinitionSchema` is strict
-  about shape (a non-empty area name, `start` not after `end`, non-empty list
-  entries) and makes no membership check against any package or the structure
-  registry; the definition must survive package churn. The product routes check
-  only that the named scope row exists.
-- **A scope is editable while products carry it.** Caches and figure staleness
-  key on the definition hash, so an edited definition reads under new cache keys
-  and every figure resolved under the old one shows as stale (S10). Renaming a
-  scope changes neither.
-- **Stored FigureBundles and package internals are documented exceptions**:
-  bundles are deliberately frozen and pick up the scope on re-resolution at
-  authoring time, exactly as they behave across a repoint.
-- **Legacy subsetted packages** (backfill-synthesized windowed packages, and
-  early windowed wizard packages): the subset became the package. Nothing
-  auto-derives a scope from legacy windowing stamps (multi-area windows and
-  renamed areas make guessing wrong too often). Convergence is manual: an editor
-  picks a single-area scope in product settings (harmless on the old package,
-  since the filter matches everything in it), and a later repoint to a full
-  package keeps the scope.
+- **Scope where the column exists.** RO carries `admin_area_2` → filtered directly; only `admin_area_3`/`admin_area_4` → filtered by child values matched by NAME through the family facilities parquet; no admin columns (national ROs, ICEH) → shown unfiltered, so a product scoped to one state still sees national metrics, inevitable and coherent under the branding. The degrade-to-empty guarantee holds for direct-filter ROs, NOT the derived ones: an instance with duplicate district names across regions would fold the twin's numbers in (measured nil in prod today; latent). If it ever goes live, the fix is stopping the m005 and m006 R scripts dropping `admin_area_2`, a modules lockstep this design otherwise avoids.
+- **Mismatch is allowed, never auto-fixed.** A package without the scope's area attaches fine; area metrics degrade to empty. A product's scope is never silently cleared: `products.scope_id` is `NOT NULL` with a no-cascade foreign key, and `deleteScope` refuses while a product carries the scope.
+- **Write-time validation is schema-only.** `scopeDefinitionSchema` is strict about shape (a non-empty area name, `start` not after `end`, non-empty list entries) and makes no membership check against any package or the structure registry; the definition must survive package churn. The product routes check only that the named scope row exists.
+- **A scope is editable while products carry it.** Caches and figure staleness key on the definition hash, so an edited definition reads under new cache keys and every figure resolved under the old one shows as stale (S10). Renaming a scope changes neither.
+- **Stored FigureBundles and package internals are documented exceptions**: bundles are deliberately frozen and pick up the scope on re-resolution at authoring time, exactly as they behave across a repoint.
+- **Legacy subsetted packages** (backfill-synthesized windowed packages, and early windowed wizard packages): the subset became the package. Nothing auto-derives a scope from legacy windowing stamps (multi-area windows and renamed areas make guessing wrong too often). Convergence is manual: an editor picks a single-area scope in product settings (harmless on the old package, since the filter matches everything in it), and a later repoint to a full package keeps the scope.
 
 ## The results package format (authoritative)
 
-**This section defines the artifact. Every other system reads it and none of
-them may redefine it.** S9 queries the parquet and consults the manifest, but
-the format, the invariants and the schema version live here. Types:
-`lib/types/run_manifest.ts`; paths: `server/runs/run_paths.ts`.
+**This section defines the artifact. Every other system reads it and none of them may redefine it.** S9 queries the parquet and consults the manifest, but the format, the invariants and the schema version live here. Types: `lib/types/run_manifest.ts`; paths: `server/runs/run_paths.ts`.
 
 ```text
 <instance>/runs/<runId>/            ← runId is a UUID; the dir name IS the id
@@ -650,289 +154,47 @@ the format, the invariants and the schema version live here. Types:
 
 Four invariants, in the order they matter:
 
-1. **Immutable.** A generation builds in `runs/.tmp-<runId>/` and atomically
-   renames at finalize, so a crashed generation leaves no readable package and
-   no published file is ever rewritten. Immutability covers outputs: scripts,
-   logs, raw CSVs, parquet and assets. The manifest and the input mirrors are
-   descriptors and are transformed forward (below). A handled FAILURE also
-   renames the partial workspace into `runs/<runId>`, deliberately without a
-   `manifest.json`, so it is never a readable package (ruled): the catalog row
-   (`failed` + `errorDetail`) is the error record, the ready-only gates (the
-   ready-package list, `setProductRun`'s UPDATE, the reuse search) never see it,
-   and the module script/log/file viewers work on it unchanged so failures stay
-   diagnosable. Reclaimed only by the guarded hard delete (no GC, by ruling);
-   only a server-process death still leaves bare `.tmp-` debris, swept at boot.
-   Every cache in the app depends on this: the manifest cache parses once per
-   runId with no invalidation path, the virtual-defaults cache keys on runId
-   alone, and the Valkey entries fold runId into their hashes. A published
-   package is only ever read, renamed onto (never over, since the target id is
-   freshly minted), or deleted whole.
-2. **Unlinked copies only: no links, ever** (ruled). A package is 100%
-   standalone and transportable by copying its directory: no symlink, no
-   hardlink, no shared blob store, no dependency on another package or on the
-   instance that made it. Duplicate bytes across packages are an accepted cost;
-   parquet-native R, dropping the raw CSVs, is the ruled way to reduce them.
-   Never introduce `Deno.link` or `Deno.symlink` under the runs volume.
-3. **No instance FKs inside the files.** `manifest.json` carries `runId` but no
-   product id and no other instance id, which is what lets one package serve
-   many products, and what makes attachment a pointer (`products.run_id`) rather
-   than ownership. The DB catalog row's `summary` (`RunSummary`) holds only
-   facts about the package itself; the `runs_summary` data transform strips the
-   two project keys older summaries carry (`backfillSourceProjectId`,
-   `attachTargetProjectIds`).
-4. **Precomputed, never probed.** The manifest is written once at finalize and
-   answers every metadata question at read time; no request probes a package's
-   columns. Stamped: per results object the post-normalization columns + DuckDB
-   types, `hasFacilityId`, physical time column, available disaggregation
-   options, row count and period bounds; per metric an availability stamp
-   (`available | unavailable` + reason) that readers must not re-derive; and per
-   module the resolved **indicator catalog** (`indicators[]`: id, label, format,
-   thresholds, sort order), composed at finalize by
-   [indicator_catalog.ts](server/runs/indicator_catalog.ts) from the input
-   mirrors its dataset family uses. `getIndicatorMetadataFromRun` is a lookup
-   over that array, not a derivation: the read path opens no mirror to answer
-   "what indicators does this module have?", and the tolerance for a mirror
-   absent from an older package lives at transform time, where a migration
-   belongs, not in a per-request read.
+1. **Immutable.** A generation builds in `runs/.tmp-<runId>/` and atomically renames at finalize, so a crashed generation leaves no readable package and no published file is ever rewritten. Immutability covers outputs: scripts, logs, raw CSVs, parquet and assets. The manifest and the input mirrors are descriptors and are transformed forward (below). A handled FAILURE also renames the partial workspace into `runs/<runId>`, deliberately without a `manifest.json`, so it is never a readable package (ruled): the catalog row (`failed` + `errorDetail`) is the error record, the ready-only gates (the ready-package list, `setProductRun`'s UPDATE, the reuse search) never see it, and the module script/log/file viewers work on it unchanged so failures stay diagnosable. Reclaimed only by the guarded hard delete (no GC, by ruling); only a server-process death still leaves bare `.tmp-` debris, swept at boot. Every cache in the app depends on this: the manifest cache parses once per runId with no invalidation path, the virtual-defaults cache keys on runId alone, and the Valkey entries fold runId into their hashes. A published package is only ever read, renamed onto (never over, since the target id is freshly minted), or deleted whole.
+2. **Unlinked copies only: no links, ever** (ruled). A package is 100% standalone and transportable by copying its directory: no symlink, no hardlink, no shared blob store, no dependency on another package or on the instance that made it. Duplicate bytes across packages are an accepted cost; parquet-native R, dropping the raw CSVs, is the ruled way to reduce them. Never introduce `Deno.link` or `Deno.symlink` under the runs volume.
+3. **No instance FKs inside the files.** `manifest.json` carries `runId` but no product id and no other instance id, which is what lets one package serve many products, and what makes attachment a pointer (`products.run_id`) rather than ownership. The DB catalog row's `summary` (`RunSummary`) holds only facts about the package itself; the `runs_summary` data transform strips the two project keys older summaries carry (`backfillSourceProjectId`, `attachTargetProjectIds`).
+4. **Precomputed, never probed.** The manifest is written once at finalize and answers every metadata question at read time; no request probes a package's columns. Stamped: per results object the post-normalization columns + DuckDB types, `hasFacilityId`, physical time column, available disaggregation options, row count and period bounds; per metric an availability stamp (`available | unavailable` + reason) that readers must not re-derive; and per module the resolved **indicator catalog** (`indicators[]`: id, label, format, thresholds, sort order), composed at finalize by [indicator_catalog.ts](server/runs/indicator_catalog.ts) from the input mirrors its dataset family uses. `getIndicatorMetadataFromRun` is a lookup over that array, not a derivation: the read path opens no mirror to answer "what indicators does this module have?", and the tolerance for a mirror absent from an older package lives at transform time, where a migration belongs, not in a per-request read.
 
-Beyond the query read path, the manifest's module catalog also serves
-`getRunDetail` (the package page): each entry's `configSelections` resolves to
-the displayed settings server-side: the same `getRunManifestCached` load, the
-same version gate.
+Beyond the query read path, the manifest's module catalog also serves `getRunDetail` (the package page): each entry's `configSelections` resolves to the displayed settings server-side: the same `getRunManifestCached` load, the same version gate.
 
-`manifest.json` also carries, and is the only record of: identity and provenance
-(`createdAt`, `label`, `provenance` = `wizard | synthetic-backfill`,
-`appVersion`, `rImageTag`); the **captured data semantics** the query layer must
-read from here rather than from the environment: `calendar`, `countryIso3`, and
-the per-family `structureSchemaHmis` / `structureSchemaHfa` slots (each null
-when that family's facilities are not in the package; flags + labels only, never
-`adminDepth`, which nothing on the read path consumes); the dataset version
-stamps the generation consumed; the module and metric catalogs as the installed
-definitions verbatim (so existing parsers apply unchanged); pinned asset names +
-hashes; and the memoization fields (`inputKey` per module, content hashes per
-output file).
+`manifest.json` also carries, and is the only record of: identity and provenance (`createdAt`, `label`, `provenance` = `wizard | synthetic-backfill`, `appVersion`, `rImageTag`); the **captured data semantics** the query layer must read from here rather than from the environment: `calendar`, `countryIso3`, and the per-family `structureSchemaHmis` / `structureSchemaHfa` slots (each null when that family's facilities are not in the package; flags + labels only, never `adminDepth`, which nothing on the read path consumes); the dataset version stamps the generation consumed; the module and metric catalogs as the installed definitions verbatim (so existing parsers apply unchanged); pinned asset names + hashes; and the memoization fields (`inputKey` per module, content hashes per output file).
 
-**`manifestSchemaVersion` gates every read**, currently `15`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v15 = `geojsonMaps` stamps the boundary files a
-generation copied into `inputs/geojson/` (family, level, feature count, the
-instance row's `uploadedAt`), `null` in every package written before the
-capture, transform block 13; v14 = every `indicators[]` entry's `sort_order` is
-its rank within its own dimension, composed with the parent's rank for HFA
-sub-categories and variant items, recomputed by block 1 and stamped by block 12,
-with `PO_CACHE_VERSION` "28" since po_items carries the list; v13 = every
-`modules[].moduleDefinition` blob declares `family`, `tier` and `sortOrder`
-(stamped for legacy blobs from `LEGACY_MODULE_PRESENTATION`) and
-`metrics[].datasetFamily` is the module's declared family, non-null, transform
-block 11; v12 = the `hfa_indicators_snapshot.json` mirror's rows carry
-`indicator_id` instead of `var_name`, input block 2; the manifest's own shape is
-unchanged and transform block 10 only stamps; v11 = `datasets[].info` holds
-exactly the keys `lib/types/run_datasets.ts` types for its family: the pre-1.72
-HMIS stamp pair renamed `indicatorsVersion` / `countIndicatorsVersion`, and the
-keys nothing reads (`windowing`, `facilityColumnsConfig`, `maxAdminArea`,
-`calculatedIndicatorsVersion`, the HFA `_legacy` and `facilityColumnsHash`
-markers) dropped, transform block 9; v10 = the indicators mirror's `derived`
-rows read `calculated`, input block 1; the manifest's own shape is unchanged and
-transform block 8 only stamps; v9 = `hmisIndicators` entries carry the
-indicator's format, direction, target, thresholds and, for a calculated
-indicator, its flattened expression, in dictionary order, for the AI copilot's
-grounding; block 4's recompute writes the shape and transform block 7 only
-stamps; v8 = the `commonIndicators` list renamed `hmisIndicators`, a key rename,
-transform block 6; v7 = the `population` stamp gained `active` (recomputed from
-its own type list) and the per-type `coverage` m012's intersection rule records,
-carried forward as null, transform block 5; v6 = the indicator restructure:
-`indicators[]` catalog entries gained `sort_order` (backfilled for legacy
-packages, and the read path's axis order now comes from it) plus the
-`type`/`expression`/`slot_map` evaluation fields, a new top-level
-`hmisIndicators` list replaced the read path's per-request read of the
-indicators mirror, `metrics[].catalog_expression_evaluation` is carried forward
-as null, and the `population` stamp (the person-years file a wizard generation
-wrote: admin level, population types, month range) is carried forward as null
-for packages without one, transform block 4; v5 = `facilityColumnsConfig` split
-into the per-family `structureSchemaHmis`/`structureSchemaHfa` slots, pure copy
-in transform block 3; v4 = `metrics[].format_as` became the three-way declared
-format and the 8 pre-declaration metric rows were rewritten to `"indicator"`).
+**`manifestSchemaVersion` gates every read**, currently `15` (`RUN_MANIFEST_SCHEMA_VERSION`; v15 = `geojsonMaps` stamps the boundary files a generation copied into `inputs/geojson/` (family, level, feature count, the instance row's `uploadedAt`), `null` in every package written before the capture, transform block 13; v14 = every `indicators[]` entry's `sort_order` is its rank within its own dimension, composed with the parent's rank for HFA sub-categories and variant items, recomputed by block 1 and stamped by block 12, with `PO_CACHE_VERSION` "28" since po_items carries the list; v13 = every `modules[].moduleDefinition` blob declares `family`, `tier` and `sortOrder` (stamped for legacy blobs from `LEGACY_MODULE_PRESENTATION`) and `metrics[].datasetFamily` is the module's declared family, non-null, transform block 11; v12 = the `hfa_indicators_snapshot.json` mirror's rows carry `indicator_id` instead of `var_name`, input block 2; the manifest's own shape is unchanged and transform block 10 only stamps; v11 = `datasets[].info` holds exactly the keys `lib/types/run_datasets.ts` types for its family: the pre-1.72 HMIS stamp pair renamed `indicatorsVersion` / `countIndicatorsVersion`, and the keys nothing reads (`windowing`, `facilityColumnsConfig`, `maxAdminArea`, `calculatedIndicatorsVersion`, the HFA `_legacy` and `facilityColumnsHash` markers) dropped, transform block 9; v10 = the indicators mirror's `derived` rows read `calculated`, input block 1; the manifest's own shape is unchanged and transform block 8 only stamps; v9 = `hmisIndicators` entries carry the indicator's format, direction, target, thresholds and, for a calculated indicator, its flattened expression, in dictionary order, for the AI copilot's grounding; block 4's recompute writes the shape and transform block 7 only stamps; v8 = the `commonIndicators` list renamed `hmisIndicators`, a key rename, transform block 6; v7 = the `population` stamp gained `active` (recomputed from its own type list) and the per-type `coverage` m012's intersection rule records, carried forward as null, transform block 5; v6 = the indicator restructure: `indicators[]` catalog entries gained `sort_order` (backfilled for legacy packages, and the read path's axis order now comes from it) plus the `type`/`expression`/`slot_map` evaluation fields, a new top-level `hmisIndicators` list replaced the read path's per-request read of the indicators mirror, `metrics[].catalog_expression_evaluation` is carried forward as null, and the `population` stamp (the person-years file a wizard generation wrote: admin level, population types, month range) is carried forward as null for packages without one, transform block 4; v5 = `facilityColumnsConfig` split into the per-family `structureSchemaHmis`/`structureSchemaHfa` slots, pure copy in transform block 3; v4 = `metrics[].format_as` became the three-way declared format and the 8 pre-declaration metric rows were rewritten to `"indicator"`).
 
-**The read path knows exactly one format: the current one** (ruled; every
-old-package question is answered by one of these four clauses, never
-case-by-case):
+**The read path knows exactly one format: the current one** (ruled; every old-package question is answered by one of these four clauses, never case-by-case):
 
-1. **Transform-forward, never tolerate.** A schema change bumps
-   `RUN_MANIFEST_SCHEMA_VERSION` and one transform block upgrades every existing
-   package's manifest in place at boot. No read-path code branches on package
-   vintage, holds a fallback, or parses a union of old∪new shapes.
-2. **Stored vocabulary never shrinks; live authoring vocabulary does.** An enum
-   member kept for immutable stored blobs, a metric id kept in a client lookup
-   list for frozen figures: inert data, never code paths.
-3. **The module registry is generation-plane only.** The read plane (server AND
-   client) reads module identity from the manifest as plain strings; `ModuleId`
-   is a generation-plane type. A package generated by a module absent from the
-   registry is still browsable.
-4. **All dispatch is on declared types** (`scriptGenerationType`, a metric's
-   declared `catalogExpressionEvaluation`). Nothing is inferred from request
-   shape, data shape, or vintage: the prior design's request-shape inference
-   over-matched 11 shipped metrics.
+1. **Transform-forward, never tolerate.** A schema change bumps `RUN_MANIFEST_SCHEMA_VERSION` and one transform block upgrades every existing package's manifest in place at boot. No read-path code branches on package vintage, holds a fallback, or parses a union of old∪new shapes.
+2. **Stored vocabulary never shrinks; live authoring vocabulary does.** An enum member kept for immutable stored blobs, a metric id kept in a client lookup list for frozen figures: inert data, never code paths.
+3. **The module registry is generation-plane only.** The read plane (server AND client) reads module identity from the manifest as plain strings; `ModuleId` is a generation-plane type. A package generated by a module absent from the registry is still browsable.
+4. **All dispatch is on declared types** (`scriptGenerationType`, a metric's declared `catalogExpressionEvaluation`). Nothing is inferred from request shape, data shape, or vintage: the prior design's request-shape inference over-matched 11 shipped metrics.
 
-**The indicators mirror has two writer formats and one reader contract.** v1
-(pre-restructure packages) carries id + label only, with a separate
-`calculated_indicators_snapshot.json` beside it; v2 carries the analysed
-indicator set (every analysed count and every calculated with its checkbox on),
-resolved: type, flattened expression, slot map, presentation and sort. The row's
-`type` is the stored type under its code name (`uploaded`, `dhis2_element`,
-`sum`, `calculated`); a package generated before the count types existed carries
-`base` for every count, which `indicatorRowV2` and the manifest's
-`runIndicatorMetadataSchema` both accept (`PACKAGE_INDICATOR_TYPES`) and nothing
-maps or reads (the display projection strips `type`), and no package file is
-rewritten for it. `server/runs/indicator_catalog.ts` is the only reader of
-either, at finalize and transform time only, and discriminates on the `type`
-field that only v2 rows have (the v1 schema REJECTS a row carrying `type`, so a
-drifted v2 row fail-stops instead of silently dropping its expressions). The
-read path never opens the indicators mirror. The ICEH and HFA snapshot readers
-still open theirs per request (see the mirror-tolerance open item below).
-Invariant 1's immutability covers package **outputs**. The manifest is a derived
-descriptor and **is transformed forward in place**
-(`server/runs/manifest_transform.ts`), and an input mirror's **vocabulary** is
-transformed forward by the input stage that runs before the manifest blocks
-(`server/runs/input_transform.ts`): a stored enum value or key name is a fact of
-the code that wrote it, so it follows the code; a row's facts are never invented
-or dropped. Both exist because a schema change would otherwise orphan every
-existing package and regenerating mints a new `runId`. Manifest blocks may only
-recompute from files already in the package and may never invent provenance;
-input blocks rename, or recompute from files already in the package, and never
-invent either. The authoring rules, the failure policy and the add-a-block
-checklists are in [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) §
-"Run Manifest Transforms" and § "Run Input Transforms". Consequences for this
-format: whatever a block reads can never be dropped from the package, a
-transformed package additionally carries its pre-transform `manifest.v{n}.json`,
-a transformed mirror additionally carries its pre-transform
-`inputs/<name>.v{n}.json`, and a package written by a _newer_ server is refused
-as unavailable rather than served with its additions silently stripped. Input
-mirrors sit in that same failure table (two rows of their own, owned by
-PROTOCOL_APP_MIGRATIONS): unavailable BYTES are operational and degrade the
-package, a row-schema mismatch is drift and fail-stops.
+**The indicators mirror has two writer formats and one reader contract.** v1 (pre-restructure packages) carries id + label only, with a separate `calculated_indicators_snapshot.json` beside it; v2 carries the analysed indicator set (every analysed count and every calculated with its checkbox on), resolved: type, flattened expression, slot map, presentation and sort. The row's `type` is the stored type under its code name (`uploaded`, `dhis2_element`, `sum`, `calculated`); a package generated before the count types existed carries `base` for every count, which `indicatorRowV2` and the manifest's `runIndicatorMetadataSchema` both accept (`PACKAGE_INDICATOR_TYPES`) and nothing maps or reads (the display projection strips `type`), and no package file is rewritten for it. `server/runs/indicator_catalog.ts` is the only reader of either, at finalize and transform time only, and discriminates on the `type` field that only v2 rows have (the v1 schema REJECTS a row carrying `type`, so a drifted v2 row fail-stops instead of silently dropping its expressions). The read path never opens the indicators mirror. The ICEH and HFA snapshot readers still open theirs per request (see the mirror-tolerance open item below). Invariant 1's immutability covers package **outputs**. The manifest is a derived descriptor and **is transformed forward in place** (`server/runs/manifest_transform.ts`), and an input mirror's **vocabulary** is transformed forward by the input stage that runs before the manifest blocks (`server/runs/input_transform.ts`): a stored enum value or key name is a fact of the code that wrote it, so it follows the code; a row's facts are never invented or dropped. Both exist because a schema change would otherwise orphan every existing package and regenerating mints a new `runId`. Manifest blocks may only recompute from files already in the package and may never invent provenance; input blocks rename, or recompute from files already in the package, and never invent either. The authoring rules, the failure policy and the add-a-block checklists are in [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) § "Run Manifest Transforms" and § "Run Input Transforms". Consequences for this format: whatever a block reads can never be dropped from the package, a transformed package additionally carries its pre-transform `manifest.v{n}.json`, a transformed mirror additionally carries its pre-transform `inputs/<name>.v{n}.json`, and a package written by a _newer_ server is refused as unavailable rather than served with its additions silently stripped. Input mirrors sit in that same failure table (two rows of their own, owned by PROTOCOL_APP_MIGRATIONS): unavailable BYTES are operational and degrade the package, a row-schema mismatch is drift and fail-stops.
 
 The transform is also what lets the read path shrink. Target state:
 
-> **The read path parses the manifest only. Input mirrors are provenance, never
-> a read-path input.**
+> **The read path parses the manifest only. Input mirrors are provenance, never a read-path input.**
 
-Every catalog moved into the manifest removes a file from the read path's compat
-surface, which is the argument `run_manifest.ts`'s header already makes, subject
-to the permanence rule above, since whatever a block reads can never be dropped.
+Every catalog moved into the manifest removes a file from the read path's compat surface, which is the argument `run_manifest.ts`'s header already makes, subject to the permanence rule above, since whatever a block reads can never be dropped.
 
-**Two shapes of package exist, and the difference is visible.** A `wizard`
-package was generated by a real run: it has `inputs/datasets/`, scripts, logs
-and raw CSVs. A `synthetic-backfill` package was synthesized from pre-cutover
-Postgres state by cutover tooling that is not in the tree: it carries the query
-parquet, the facilities parquet and the snapshot JSONs, but **no script, no log
-and no raw CSVs**, so the viewers answer "no script in this results package for
-this module", which is a typed state and not an error. Backfill packages also
-carry no `inputKey` and are never reuse sources.
+**Two shapes of package exist, and the difference is visible.** A `wizard` package was generated by a real run: it has `inputs/datasets/`, scripts, logs and raw CSVs. A `synthetic-backfill` package was synthesized from pre-cutover Postgres state by cutover tooling that is not in the tree: it carries the query parquet, the facilities parquet and the snapshot JSONs, but **no script, no log and no raw CSVs**, so the viewers answer "no script in this results package for this module", which is a typed state and not an error. Backfill packages also carry no `inputKey` and are never reuse sources.
 
 ## Instance module defaults (`instance_config.run_generation_defaults`)
 
-The wizard turns on everything it can: step 1 starts with every family that has
-data and is not blocked, and step 2 starts with every module ticked, so the
-launch set opens as everything that data supports (the offerability mask drops
-the rest). The user can still untick. The per-module parameter values live in
-one `instance_config` row, merged as instance defaults > definition defaults
-(`results_packages/wizard/wizard.tsx` via `getMergedModuleConfigSelections`).
-The row still carries `step1` and `moduleIds` from when they seeded the wizard;
-nothing reads them now and the editor saves them back unchanged. Its **sole
-writer** is the module-defaults editor (`results_packages/module_defaults.tsx`,
-opened from the Results packages surface; scopes have their own rail tab, S15);
-the wizard only reads it and has no "save as instance defaults" action (ruled):
-a save built from only the modules selected for one generation would silently
-drop curated defaults for every other module. The editor lives on the Results
-surface rather than instance Settings: the defaults are generation
-configuration, read beside the packages they shape.
+The wizard turns on everything it can: step 1 starts with every family that has data and is not blocked, and step 2 starts with every module ticked, so the launch set opens as everything that data supports (the offerability mask drops the rest). The user can still untick. The per-module parameter values live in one `instance_config` row, merged as instance defaults > definition defaults (`results_packages/wizard/wizard.tsx` via `getMergedModuleConfigSelections`). The row still carries `step1` and `moduleIds` from when they seeded the wizard; nothing reads them now and the editor saves them back unchanged. Its **sole writer** is the module-defaults editor (`results_packages/module_defaults.tsx`, opened from the Results packages surface; scopes have their own rail tab, S15); the wizard only reads it and has no "save as instance defaults" action (ruled): a save built from only the modules selected for one generation would silently drop curated defaults for every other module. The editor lives on the Results surface rather than instance Settings: the defaults are generation configuration, read beside the packages they shape.
 
-**Definitions are never stored.** The editor resolves them live on open via
-`getRunGenerationModuleOptions`, the same read the wizard uses, so drift is
-absorbed by `getMergedModuleConfigSelections` (values for removed params are
-ignored, new params fall back to definition defaults) and the store needs no
-definition snapshot. Save semantics, authoritative comment in
-`module_defaults.tsx`: already-stored values plus the ones ADJUSTED this session
-(dirty-tracked per field), so a param nobody touched is never stored and keeps
-following future definition defaults, while a stored value stays pinned;
-per-module "Reset to definition defaults" is the unpin act, dropping that
-module's stored entry. Entries for modules not offerable here (country-filtered
-or removed) and stored keys a definition no longer declares pass through
-verbatim: the store tolerates unknowns by design. The wizard's modules step
-renders one section per family in family order, the primary module first and the
-secondary modules under a "Supporting analyses" subheading, from the
-module-ordered options the read returns; the launched module set is the
-closure-completed, offerability-masked derivation of what is ticked, so a module
-whose family is absent simply never launches. The wizard does not edit parameter
-values (ruled): the editor is the only place they are set, and launch sends the
-stored defaults merged with definition defaults. One shared check,
-`getModuleParameterInvalidMsg`, gates the editor's save, drives its inputs'
-inline invalid messages, and blocks the wizard's modules step with a note naming
-the modules whose stored default is invalid.
+**Definitions are never stored.** The editor resolves them live on open via `getRunGenerationModuleOptions`, the same read the wizard uses, so drift is absorbed by `getMergedModuleConfigSelections` (values for removed params are ignored, new params fall back to definition defaults) and the store needs no definition snapshot. Save semantics, authoritative comment in `module_defaults.tsx`: already-stored values plus the ones ADJUSTED this session (dirty-tracked per field), so a param nobody touched is never stored and keeps following future definition defaults, while a stored value stays pinned; per-module "Reset to definition defaults" is the unpin act, dropping that module's stored entry. Entries for modules not offerable here (country-filtered or removed) and stored keys a definition no longer declares pass through verbatim: the store tolerates unknowns by design. The wizard's modules step renders one section per family in family order, the primary module first and the secondary modules under a "Supporting analyses" subheading, from the module-ordered options the read returns; the launched module set is the closure-completed, offerability-masked derivation of what is ticked, so a module whose family is absent simply never launches. The wizard does not edit parameter values (ruled): the editor is the only place they are set, and launch sends the stored defaults merged with definition defaults. One shared check, `getModuleParameterInvalidMsg`, gates the editor's save, drives its inputs' inline invalid messages, and blocks the wizard's modules step with a note naming the modules whose stored default is invalid.
 
-**Definition defaults as the shared default.** Each param's `defaultValue` in
-its module's `definition.json` is the one default every country shares. The
-editor marks a param whose value differs from it, and offers a per-param reset
-plus "Reset all to definition defaults" next to the per-module reset. Each reset
-unpins, so the param follows the definition again. The stored families and
-module set are never compared. The status site's fleet matrix reads every
-country's values from `GET /module_defaults_snapshot`
-(`server/runs/module_defaults_snapshot.ts`, gated by `status-api-key` like the
-other status routes) and compares each with its definition default. Semantics,
-authoritative comment in `module_defaults.tsx`.
+**Definition defaults as the shared default.** Each param's `defaultValue` in its module's `definition.json` is the one default every country shares. The editor marks a param whose value differs from it, and offers a per-param reset plus "Reset all to definition defaults" next to the per-module reset. Each reset unpins, so the param follows the definition again. The stored families and module set are never compared. The status site's fleet matrix reads every country's values from `GET /module_defaults_snapshot` (`server/runs/module_defaults_snapshot.ts`, gated by `status-api-key` like the other status routes) and compares each with its definition default. Semantics, authoritative comment in `module_defaults.tsx`.
 
 ## Generation (`server/worker_routines/generate_run/`)
 
-Whole-DAG generation into `runs/.tmp-{runId}` → one finalize → atomic rename →
-publish (`publishReadyRun`, one UPDATE of status, summary and progress). A
-generation repoints nothing: products point at the package afterwards. Launch
-takes the wizard's whole configuration in its body (the wizard is an ephemeral
-modal, so nothing persists server-side before launch, ruled), validates it,
-inserts a `runs` row `generating`, and spawns the worker; progress and the live
-R line stream on the INSTANCE channel only (`notifyInstanceRunProgress` /
-`notifyInstanceRScript`, the catalogue; `can_configure_data`-filtered live in
-the endpoint). A product points only at a ready run, so it never has a live view
-of a generation. Completion goes through the worker's one notify site (the
-catalogue nonce, after the row is published or failed) and
-`RUN_GENERATION_ENDED_CHANNEL`, on which the host terminates the worker. Stages:
-prepare (dataset extracts COPY'd by Postgres directly into the run tmp dir via
-`RUNS_DIR_PATH_POSTGRES_INTERNAL`, and nothing is mirrored anywhere else;
-capture is always the FULL dataset per family: entire period range, all
-indicators/admin areas/facility types/ownerships, every HFA service category
-(ruled: the R scripts need the full dataset to compute correctly, and narrowing
-to one area is a read-time filter on the product's scope, never a generation
-input; transform block 9 strips the `windowing` key from any manifest's datasets
-info); resolve (definitions re-fetched at the wizard's pinned gitRefs, DAG
-validated and Kahn-ordered); execute per module (Docker container
-`fastr-genrun-{runId}-{moduleId}`, memoized reuse via content-addressed
-inputKeys searched catalog-wide across every ready run, newest first, with no
-base run at all: reused modules copy raw CSVs and skip R); finalize
-(`server/runs/build_run_package.ts`'s `buildRunPackageIntoTmp`, parquet +
-manifest rebuilt fresh every generation).
+Whole-DAG generation into `runs/.tmp-{runId}` → one finalize → atomic rename → publish (`publishReadyRun`, one UPDATE of status, summary and progress). A generation repoints nothing: products point at the package afterwards. Launch takes the wizard's whole configuration in its body (the wizard is an ephemeral modal, so nothing persists server-side before launch, ruled), validates it, inserts a `runs` row `generating`, and spawns the worker; progress and the live R line stream on the INSTANCE channel only (`notifyInstanceRunProgress` / `notifyInstanceRScript`, the catalogue; `can_configure_data`-filtered live in the endpoint). A product points only at a ready run, so it never has a live view of a generation. Completion goes through the worker's one notify site (the catalogue nonce, after the row is published or failed) and `RUN_GENERATION_ENDED_CHANNEL`, on which the host terminates the worker. Stages: prepare (dataset extracts COPY'd by Postgres directly into the run tmp dir via `RUNS_DIR_PATH_POSTGRES_INTERNAL`, and nothing is mirrored anywhere else; capture is always the FULL dataset per family: entire period range, all indicators/admin areas/facility types/ownerships, every HFA service category (ruled: the R scripts need the full dataset to compute correctly, and narrowing to one area is a read-time filter on the product's scope, never a generation input; transform block 9 strips the `windowing` key from any manifest's datasets info); resolve (definitions re-fetched at the wizard's pinned gitRefs, DAG validated and Kahn-ordered); execute per module (Docker container `fastr-genrun-{runId}-{moduleId}`, memoized reuse via content-addressed inputKeys searched catalog-wide across every ready run, newest first, with no base run at all: reused modules copy raw CSVs and skip R); finalize (`server/runs/build_run_package.ts`'s `buildRunPackageIntoTmp`, parquet + manifest rebuilt fresh every generation).
 
-**The stage.** `runs.progress` (`RunProgress`, `lib/types/run_generation.ts`)
-carries a required `stage`, a discriminated union with no free text: `queued`,
-`exporting {family}`, `converting {family}`, `resolving`, `planning`,
-`module {moduleId}`, `finalizing {moduleId | null}`, `publishing`, `ended`. The
-pipeline sets it at every stage boundary and pushes it through the one
-`pushProgress` (one `updateRunProgress` and one `notifyInstanceRunProgress`):
-launch mints the row `queued`; `prepareRunInputs` reports `exporting` before
-each family capture and `converting` before each parquet write through its
-`onStage` parameter; the pipeline pushes `resolving` before `resolveRunModules`,
-`planning` before `createReuseSearch`, `module` at the top of each module
-iteration (before the input hashing and the reuse lookup, so a reused module's
-copy shows activity too), `finalizing null` with `currentModuleId` cleared after
-the loop, and `publishing` before the rename; `buildRunPackageIntoTmp` reports
-`finalizing {moduleId}` through its `onStage` before each module's results
-objects (only a module that declares some); `publishReadyRun` stores `ended`. A
-push happens per boundary, never per R line and never per results object: about
-sixty row updates for a twelve-module run, since each module iteration also
-pushes its status changes. `markRunGenerationFailed` leaves the stage as it
-finds it, so a failed run names the stage it died in; its fallback for an
-unparsable blob is `ended`. The pipeline is the only caller of both `onStage`
-parameters, and the three capture functions take no progress callback of their
-own. Everything derived from the stage lives in `lib/run_progress.ts`:
-`runProgressSteps` gives the fraction as equal-weighted steps (prepare, resolve
-plus plan, each module, finalize: `moduleOrder.length
+**The stage.** `runs.progress` (`RunProgress`, `lib/types/run_generation.ts`) carries a required `stage`, a discriminated union with no free text: `queued`, `exporting {family}`, `converting {family}`, `resolving`, `planning`, `module {moduleId}`, `finalizing {moduleId | null}`, `publishing`, `ended`. The pipeline sets it at every stage boundary and pushes it through the one `pushProgress` (one `updateRunProgress` and one `notifyInstanceRunProgress`): launch mints the row `queued`; `prepareRunInputs` reports `exporting` before each family capture and `converting` before each parquet write through its `onStage` parameter; the pipeline pushes `resolving` before `resolveRunModules`, `planning` before `createReuseSearch`, `module` at the top of each module iteration (before the input hashing and the reuse lookup, so a reused module's copy shows activity too), `finalizing null` with `currentModuleId` cleared after the loop, and `publishing` before the rename; `buildRunPackageIntoTmp` reports `finalizing {moduleId}` through its `onStage` before each module's results objects (only a module that declares some); `publishReadyRun` stores `ended`. A push happens per boundary, never per R line and never per results object: about sixty row updates for a twelve-module run, since each module iteration also pushes its status changes. `markRunGenerationFailed` leaves the stage as it finds it, so a failed run names the stage it died in; its fallback for an unparsable blob is `ended`. The pipeline is the only caller of both `onStage` parameters, and the three capture functions take no progress callback of their own. Everything derived from the stage lives in `lib/run_progress.ts`: `runProgressSteps` gives the fraction as equal-weighted steps (prepare, resolve plus plan, each module, finalize: `moduleOrder.length
 
 - 3`in total) from the stage alone, so it is monotonic whatever the reuse
 plan pre-marks (pinned by`server/tests/run_progress_test.ts`), and`runStageLabel`gives the translated sentence from the kind and payload
@@ -940,368 +202,75 @@ plan pre-marks (pinned by`server/tests/run_progress_test.ts`), and`runStageLabel
 Rows written before the stage existed are brought forward at boot by the`runs_progress`data transform (S2), which stamps`ended`.
 Boot recovery:`markInterruptedGeneratingRuns`+`.tmp-`sweep.
 Generations run concurrently: a generation writes only its own run dir and
-catalog row, so no two launches can conflict. The host's`GENERATING_BY_RUN`
-  map holds each generating run's module ids and worker for teardown only: the
-  end-of-run message terminates the worker, and the crash handler removes the
-  run's containers by deterministic name.
+catalog row, so no two launches can conflict. The host's`GENERATING_BY_RUN` map holds each generating run's module ids and worker for teardown only: the end-of-run message terminates the worker, and the crash handler removes the run's containers by deterministic name.
 
-**Parameterization**
-(`server/server_only_funcs/get_script_with_parameters*.ts`). Dispatch on
-`scriptGenerationType`: `hfa` (a fully generated script) or default inline
-substitution; every generator takes a required per-caller `datasetsDirPath` (the
-run pipeline passes `"../../inputs/datasets"`). Markers replaced via
-`str.replaceAll`: `COUNTRY_ISO3`, `INDICATOR_INGREDIENTS` (m012's ingredient
-table as a tribble literal, see m012 below), `POPULATION_ACTIVE` (an R
-`TRUE`/`FALSE`, see "population.csv"), dataSource `replacementString`s (dataset,
-results-object, and `population` → the quoted path of `inputs/population.csv`,
-`populationFilePathLiteral`), and config params by type. **Every substituted
-value is single-line**, and must stay so: `replaceAll` rewrites the token
-wherever it appears INCLUDING inside a comment, and a multi-line value would put
-its later lines outside that comment and break the parse. The 4-input-type block
-is **duplicated** across the generators, and both wrap `text` and string-valued
-`select` values in single quotes **without escaping**: these strings execute as
-real R; hardening + factoring is an Open item below.
+**Parameterization** (`server/server_only_funcs/get_script_with_parameters*.ts`). Dispatch on `scriptGenerationType`: `hfa` (a fully generated script) or default inline substitution; every generator takes a required per-caller `datasetsDirPath` (the run pipeline passes `"../../inputs/datasets"`). Markers replaced via `str.replaceAll`: `COUNTRY_ISO3`, `INDICATOR_INGREDIENTS` (m012's ingredient table as a tribble literal, see m012 below), `POPULATION_ACTIVE` (an R `TRUE`/`FALSE`, see "population.csv"), dataSource `replacementString`s (dataset, results-object, and `population` → the quoted path of `inputs/population.csv`, `populationFilePathLiteral`), and config params by type. **Every substituted value is single-line**, and must stay so: `replaceAll` rewrites the token wherever it appears INCLUDING inside a comment, and a multi-line value would put its later lines outside that comment and break the parse. The 4-input-type block is **duplicated** across the generators, and both wrap `text` and string-valued `select` values in single quotes **without escaping**: these strings execute as real R; hardening + factoring is an Open item below.
 
-**HFA variant emission** (authoring plane in S5). Indicators assigned a variant
-group emit one extra wide column per (indicator, item), routed to a SEPARATE
-results object `M10_hfa_results_variants.csv` (+ its `_carried` twin) whose
-`hfa_indicator` carries the PARENT id and whose `hfa_variant_item` carries the
-item. That pairing is what makes the indicator × item cross possible while
-keeping item ids out of every viz-land indicator picker. Three rulings hold this
-together. **The definition gate**, emit only when the resolved definition
-declares the new RO (the `resultsObjects.some` pattern `supportsResponseStatus`
-established), must cover item mutates, item columns AND metadata entries
-_atomically_: a partial gate emits composed column names as fake indicators into
-the MAIN table, which ingests cleanly and corrupts silently. This is also what
-keeps generation at older pinned gitRefs byte-identical (verify as script
-**text**; inputKeys are unaffected either way, since `computeModuleInputs` folds
-only assets + extracts + upstream outputs, so memoized reuse is undisturbed).
-**In R it is a separate pipeline**, with its own metadata frame, own
-select/pivot/write, never a write-time split of the shared long frame: that
-keeps the existing lines textually untouched and structurally prevents two
-silent failure modes, interleaved pivot columns reordering main rows, and the
-carried loop absorbing parent-remapped variant rows (aggregate inflation no
-ingest check can catch, since no new column appears). The variants carried twin
-runs the same donor rule per (indicator, item) pair. **The zero-variant case is
-first-class**: on day one nearly every instance has no variant groups while the
-definition declares the RO, and `execute_module.ts` hard-errors on a missing
-declared-RO file, so the pipeline writes a header-only CSV and the metadata
-splice must not produce mixed-length vectors. Item snippets are computed after
-every indicator column, so an item may reference its own parent
-(`vacc == 1 & q12 == 2`, a natural authoring pattern) without a self-edge
-entering the dependency graph; under `STOP_IF_INDICATOR_FAILS=FALSE` a bad
-snippet skips THAT ITEM only, and its warning must not be extracted by the
-parent's `^Indicator "` skip regex.
+**HFA variant emission** (authoring plane in S5). Indicators assigned a variant group emit one extra wide column per (indicator, item), routed to a SEPARATE results object `M10_hfa_results_variants.csv` (+ its `_carried` twin) whose `hfa_indicator` carries the PARENT id and whose `hfa_variant_item` carries the item. That pairing is what makes the indicator × item cross possible while keeping item ids out of every viz-land indicator picker. Three rulings hold this together. **The definition gate**, emit only when the resolved definition declares the new RO (the `resultsObjects.some` pattern `supportsResponseStatus` established), must cover item mutates, item columns AND metadata entries _atomically_: a partial gate emits composed column names as fake indicators into the MAIN table, which ingests cleanly and corrupts silently. This is also what keeps generation at older pinned gitRefs byte-identical (verify as script **text**; inputKeys are unaffected either way, since `computeModuleInputs` folds only assets + extracts + upstream outputs, so memoized reuse is undisturbed). **In R it is a separate pipeline**, with its own metadata frame, own select/pivot/write, never a write-time split of the shared long frame: that keeps the existing lines textually untouched and structurally prevents two silent failure modes, interleaved pivot columns reordering main rows, and the carried loop absorbing parent-remapped variant rows (aggregate inflation no ingest check can catch, since no new column appears). The variants carried twin runs the same donor rule per (indicator, item) pair. **The zero-variant case is first-class**: on day one nearly every instance has no variant groups while the definition declares the RO, and `execute_module.ts` hard-errors on a missing declared-RO file, so the pipeline writes a header-only CSV and the metadata splice must not produce mixed-length vectors. Item snippets are computed after every indicator column, so an item may reference its own parent (`vacc == 1 & q12 == 2`, a natural authoring pattern) without a self-edge entering the dependency graph; under `STOP_IF_INDICATOR_FAILS=FALSE` a bad snippet skips THAT ITEM only, and its warning must not be extracted by the parent's `^Indicator "` skip regex.
 
-**Results ingestion** (`run_query/write_results_object_parquet.ts`, called from
-finalize). ONE ingest: the raw R CSV becomes the run's `{roId}.parquet` under
-four semantic normalizations: `'NA'` → NULL (unquoted only), schema = CSV
-headers ∩ declared columns **with the DECLARED types and a hard error on any
-undeclared header** (R output cannot smuggle columns; don't relax this),
-redundant period + enabled facility helper columns dropped, and physical
-`quarter_id` normalized 6-digit → 5-digit. The parquet is the only serving
-plane.
+**Results ingestion** (`run_query/write_results_object_parquet.ts`, called from finalize). ONE ingest: the raw R CSV becomes the run's `{roId}.parquet` under four semantic normalizations: `'NA'` → NULL (unquoted only), schema = CSV headers ∩ declared columns **with the DECLARED types and a hard error on any undeclared header** (R output cannot smuggle columns; don't relax this), redundant period + enabled facility helper columns dropped, and physical `quarter_id` normalized 6-digit → 5-digit. The parquet is the only serving plane.
 
-**Module outputs must derive their admin columns from the input CSV, never
-hardcode them**: the input carries admin columns only up to the family's
-configured depth, and that per-family depth is the single lever for admin-area
-disaggregation availability. Convention-only today: `m010`'s empty-result branch
-hardcodes headers and `m001`'s GEOLEVEL param assumes AA3 (a depth-2 family
-would need it depth-aware); both are fixed in the next modules-repo cycle.
+**Module outputs must derive their admin columns from the input CSV, never hardcode them**: the input carries admin columns only up to the family's configured depth, and that per-family depth is the single lever for admin-area disaggregation availability. Convention-only today: `m010`'s empty-result branch hardcodes headers and `m001`'s GEOLEVEL param assumes AA3 (a depth-2 family would need it depth-aware); both are fixed in the next modules-repo cycle.
 
-**Path namespaces.** R runs in a container (prod) and Postgres `COPY`
-reads/writes from its own container's filesystem, so the runs dir has three
-views: `RUNS_DIR_PATH` / `RUNS_DIR_PATH_EXTERNAL` /
-`RUNS_DIR_PATH_POSTGRES_INTERNAL` (`server/exposed_env_vars.ts`; container path
-`/app/runs`; boot fail-stops on a missing var). Getting these crossed silently
-breaks either R execution or the `COPY`.
+**Path namespaces.** R runs in a container (prod) and Postgres `COPY` reads/writes from its own container's filesystem, so the runs dir has three views: `RUNS_DIR_PATH` / `RUNS_DIR_PATH_EXTERNAL` / `RUNS_DIR_PATH_POSTGRES_INTERNAL` (`server/exposed_env_vars.ts`; container path `/app/runs`; boot fail-stops on a missing var). Getting these crossed silently breaks either R execution or the `COPY`.
 
-**The runs directory holds packages**: flat `{runId}` dirs. The host directory
-must be mounted at `/app/runs` in BOTH the app container and the Postgres
-container (the `COPY TO` path is resolved inside Postgres); an env rename
-without both mounts boots green and then loses every package or fails every
-generation at the first `COPY`. Beside the packages live only `.tmp-{runId}`
-(in-flight generation; `sweepAbandonedTmpRunDirs`'s only filter),
-`.duckdb-spill`, and loose scratch files (ICEH xlsx). Nothing enumerates the
-directory as a homogeneous set: every consumer addresses a named entry.
+**The runs directory holds packages**: flat `{runId}` dirs. The host directory must be mounted at `/app/runs` in BOTH the app container and the Postgres container (the `COPY TO` path is resolved inside Postgres); an env rename without both mounts boots green and then loses every package or fails every generation at the first `COPY`. Beside the packages live only `.tmp-{runId}` (in-flight generation; `sweepAbandonedTmpRunDirs`'s only filter), `.duckdb-spill`, and loose scratch files (ICEH xlsx). Nothing enumerates the directory as a homogeneous set: every consumer addresses a named entry.
 
 ## m012: service utilization
 
-`m012` is an ordinary `template` R module (ruled): a static, reviewable
-`script.R` in wb-fastr-modules, executed by `runRScript` like every other
-module. There is no `indicator_values` generation type, no generated script text
-and no second executor: the dictionary reaches the module as DATA, not as code.
+`m012` is an ordinary `template` R module (ruled): a static, reviewable `script.R` in wb-fastr-modules, executed by `runRScript` like every other module. There is no `indicator_values` generation type, no generated script text and no second executor: the dictionary reaches the module as DATA, not as code.
 
-It declares `prerequisites: ["m002"]` and TWO dataSources: m002's
-`M2_adjusted_data.csv` and the `population` source, the run's person-years file
-(below), whose content hash enters the module's inputKey exactly like a dataset
-extract, so a population edit re-runs m012 and an unchanged store does not. Its
-other two inputs are tables, not dataSources and not files: the app substitutes
-them into `script.R` as R `tribble` literals in place of the
-`INDICATOR_INGREDIENTS` and `INDICATOR_EXPRESSIONS` tokens
-(`buildIndicatorIngredientsRLiteral` and `buildIndicatorExpressionsRLiteral` in
-`lib/hmis_indicator_catalog.ts`), the same channel as `COUNTRY_ISO3` and every
-module parameter. The ingredient table says which count (or population type's
-person-years row) fills which slot of which indicator. The expression table
-carries each indicator's flattened expression rewritten over the slot names
-`ing1..ing8`: the expression language's syntax is a subset of R's, so the text
-is R source as written. The R sums the selected count column across facilities
-to admin area × month × indicator at the person-years file's level (the
-population level when a formula names a population, the HMIS depth otherwise,
-see "population.csv"), binds the person-years rows in under the population type
-id (the same id the ingredient table names wherever an expression's population
-term was assigned a slot; the script never tells a population ingredient from a
-count one), joins the ingredient table, and pivots each indicator's ingredients
-into `ing1..ing8` of `M12_indicator_values.csv`.
+It declares `prerequisites: ["m002"]` and TWO dataSources: m002's `M2_adjusted_data.csv` and the `population` source, the run's person-years file (below), whose content hash enters the module's inputKey exactly like a dataset extract, so a population edit re-runs m012 and an unchanged store does not. Its other two inputs are tables, not dataSources and not files: the app substitutes them into `script.R` as R `tribble` literals in place of the `INDICATOR_INGREDIENTS` and `INDICATOR_EXPRESSIONS` tokens (`buildIndicatorIngredientsRLiteral` and `buildIndicatorExpressionsRLiteral` in `lib/hmis_indicator_catalog.ts`), the same channel as `COUNTRY_ISO3` and every module parameter. The ingredient table says which count (or population type's person-years row) fills which slot of which indicator. The expression table carries each indicator's flattened expression rewritten over the slot names `ing1..ing8`: the expression language's syntax is a subset of R's, so the text is R source as written. The R sums the selected count column across facilities to admin area × month × indicator at the person-years file's level (the population level when a formula names a population, the HMIS depth otherwise, see "population.csv"), binds the person-years rows in under the population type id (the same id the ingredient table names wherever an expression's population term was assigned a slot; the script never tells a population ingredient from a count one), joins the ingredient table, and pivots each indicator's ingredients into `ing1..ing8` of `M12_indicator_values.csv`.
 
-**Which rows exist is m012's decision, by one rule** (ruled): a row (indicator ×
-area × month) is in the output only if the indicator's expression over that
-row's slots produces a number. The script evaluates the expression text per row
-in an environment that binds `/`, `coalesce` and `nullif` to the evaluator's
-semantics (NA propagates, division by zero is NA, coalesce is the first non-NA,
-nullif is NA where equal) and keeps the rows where the result is finite. The
-value is not written: the read path still re-sums the slots and evaluates once
-at whatever grouping a figure asks for (S9). The authoritative statement of the
-rule and the R bindings is the script's header;
-`server/tests/m012_expression_parity_test.ts` runs the real script against the
-TypeScript evaluator over one fixture and asserts the same row set.
+**Which rows exist is m012's decision, by one rule** (ruled): a row (indicator × area × month) is in the output only if the indicator's expression over that row's slots produces a number. The script evaluates the expression text per row in an environment that binds `/`, `coalesce` and `nullif` to the evaluator's semantics (NA propagates, division by zero is NA, coalesce is the first non-NA, nullif is NA where equal) and keeps the rows where the result is finite. The value is not written: the read path still re-sums the slots and evaluates once at whatever grouping a figure asks for (S9). The authoritative statement of the rule and the R bindings is the script's header; `server/tests/m012_expression_parity_test.ts` runs the real script against the TypeScript evaluator over one fixture and asserts the same row set.
 
-What this means for a user: what the package cannot compute, nobody sees. An
-ingredient no facility in an area ever reports, a zero denominator, a `nullif`
-that fires, and a month or area the population store does not cover all leave no
-row, and an indicator with no surviving row is absent from every figure and
-every filter and disaggregation list, exactly as a count with no rows is.
-Keeping such rows would let a coarser grouping sum a numerator over cells its
-denominator never covers. A `coalesce` in the expression is honoured, because
-the expression decides, not the mere presence of a slot.
+What this means for a user: what the package cannot compute, nobody sees. An ingredient no facility in an area ever reports, a zero denominator, a `nullif` that fires, and a month or area the population store does not cover all leave no row, and an indicator with no surviving row is absent from every figure and every filter and disaggregation list, exactly as a count with no rows is. Keeping such rows would let a coarser grouping sum a numerator over cells its denominator never covers. A `coalesce` in the expression is honoured, because the expression decides, not the mere presence of a slot.
 
-**An ingredient with no data is not an error.** A count with no rows gets no
-slot map and no expression at capture and is in neither table, so it contributes
-no row. One whose rows are simply absent from this dataset leaves `NA` after the
-pivot, and the rule above drops the rows that cannot be evaluated without it.
-Failing instead would abort generation on every instance that does not collect
-one of the 14 seeded default indicators. Capture refuses only a calculated whose
-flattened expression includes a count with no rows. That rule is
-`judgeCalculatedIndicator` (S5), and the indicator manager shows the same
-judgement before a run is generated; it judges definitions, not data, so a
-"computable" indicator can still be absent from a package whose data never lets
-it evaluate.
+**An ingredient with no data is not an error.** A count with no rows gets no slot map and no expression at capture and is in neither table, so it contributes no row. One whose rows are simply absent from this dataset leaves `NA` after the pivot, and the rule above drops the rows that cannot be evaluated without it. Failing instead would abort generation on every instance that does not collect one of the 14 seeded default indicators. Capture refuses only a calculated whose flattened expression includes a count with no rows. That rule is `judgeCalculatedIndicator` (S5), and the indicator manager shows the same judgement before a run is generated; it judges definitions, not data, so a "computable" indicator can still be absent from a package whose data never lets it evaluate.
 
-**Memoization needs no declared input class for the tables.** The literals land
-in `scriptText`, which `computeModuleKey` already hashes, so an expression edit
-re-runs m012 by construction. Both tables are sorted by indicator id (the
-ingredient table by `(indicator_common_id, slot)`) precisely so that a
-display-only reorder of the dictionary does NOT change the script and does not
-force a re-run.
+**Memoization needs no declared input class for the tables.** The literals land in `scriptText`, which `computeModuleKey` already hashes, so an expression edit re-runs m012 by construction. Both tables are sorted by indicator id (the ingredient table by `(indicator_common_id, slot)`) precisely so that a display-only reorder of the dictionary does NOT change the script and does not force a re-run.
 
-The wide `ing1..ing8` layout is m008's shipped `numerator`/`denominator` shape
-generalised from two columns to eight. It is what makes expression-over-sums
-exact at every grouping: `m12-01-01` requires `indicator_common_id` as a GROUP
-BY, so a row only ever carries ONE indicator and a long-format row could never
-hold the ingredients its own formula needs. m012 is the HMIS family's primary
-module; m003, whose raw-versus-adjusted facility view it does not replace, is
-retired.
+The wide `ing1..ing8` layout is m008's shipped `numerator`/`denominator` shape generalised from two columns to eight. It is what makes expression-over-sums exact at every grouping: `m12-01-01` requires `indicator_common_id` as a GROUP BY, so a row only ever carries ONE indicator and a long-format row could never hold the ingredients its own formula needs. m012 is the HMIS family's primary module; m003, whose raw-versus-adjusted facility view it does not replace, is retired.
 
 ## inputs/geojson: the boundaries a package was generated with
 
-`prepareRunInputs` copies every `geojson_maps` row, verbatim and gzipped, to
-`inputs/geojson/{family}_level_{N}.geojson.gz` and lists each in `inputFiles`;
-the manifest's `geojsonMaps` stamps what was copied, with the feature count
-parsed during the copy and the row's `uploadedAt`. A copy is a record of what
-the instance held, defects included: nothing is re-keyed, normalized or
-simplified. Measured on the dev instance, four files of 20.5 MB plain add about
-2 MB gzipped to every package. No module declares geometry as a source, so the
-copies are in neither `inputHashes` nor `scriptInputs` and reach no reuse key
-(`server/tests/geojson_capture_test.ts`). The stamp is a generation-time fact,
-so block 13 gives every earlier package `null`, forever; such a package's map
-figures read the instance's boundaries.
+`prepareRunInputs` copies every `geojson_maps` row, verbatim and gzipped, to `inputs/geojson/{family}_level_{N}.geojson.gz` and lists each in `inputFiles`; the manifest's `geojsonMaps` stamps what was copied, with the feature count parsed during the copy and the row's `uploadedAt`. A copy is a record of what the instance held, defects included: nothing is re-keyed, normalized or simplified. Measured on the dev instance, four files of 20.5 MB plain add about 2 MB gzipped to every package. No module declares geometry as a source, so the copies are in neither `inputHashes` nor `scriptInputs` and reach no reuse key (`server/tests/geojson_capture_test.ts`). The stamp is a generation-time fact, so block 13 gives every earlier package `null`, forever; such a package's map figures read the instance's boundaries.
 
-Two run-keyed routes serve them, both `requireApprovedUser()` and scope-less
-(geometry carries no data values). `getRunGeoJsonStamp`
-(`GET /run_generation/run/:run_id/geojson`) returns
-`{ found: true, geojsonMaps }`, `null` included, or `{ found: false }` when the
-manifest cannot be read, which is the run's own disk state and no retry changes.
-`GET /run_generation/run/:run_id/geojson/:family/:level` is off the registry: it
-streams the captured file as stored, `Content-Encoding: gzip`,
-`Cache-Control: private, max-age=31536000, immutable`, and 404s for a run or a
-level the package lacks. It is unlogged, like every per-page-load fetch, and its
-path-safe read is `openRunGeoJsonFile` in `package_internals.ts`.
+Two run-keyed routes serve them, both `requireApprovedUser()` and scope-less (geometry carries no data values). `getRunGeoJsonStamp` (`GET /run_generation/run/:run_id/geojson`) returns `{ found: true, geojsonMaps }`, `null` included, or `{ found: false }` when the manifest cannot be read, which is the run's own disk state and no retry changes. `GET /run_generation/run/:run_id/geojson/:family/:level` is off the registry: it streams the captured file as stored, `Content-Encoding: gzip`, `Cache-Control: private, max-age=31536000, immutable`, and 404s for a run or a level the package lacks. It is unlogged, like every per-page-load fetch, and its path-safe read is `openRunGeoJsonFile` in `package_internals.ts`.
 
 ## population.csv: the person-years file
 
-The run's `inputs/population.csv` is the population store (S5 "Population
-store") expanded stock→flow at capture. Written by `prepare_inputs.ts`
-(`writePopulationPersonYears`) on **every** HMIS capture: columns
-`admin_area_2..N`, `period_id`, `population_type`, `person_years`, for exactly
-the population type ids the resolved catalog's slot maps reference
-(`populationTypesReferencedByCatalog`: there is no column and no declaration,
-the expression IS the declaration). The header alone sets m012's grain (below).
-This is what lets m012 declare the file unconditionally: it is the `population`
-dataSource kind (github + installed schemas, `sourceType: "population"`),
-substituted as the quoted path and hashed into the module inputKey
-(`computeModuleInputs`), so a population edit re-runs m012 and an unchanged
-store does not. The format is permanent once written.
+The run's `inputs/population.csv` is the population store (S5 "Population store") expanded stock→flow at capture. Written by `prepare_inputs.ts` (`writePopulationPersonYears`) on **every** HMIS capture: columns `admin_area_2..N`, `period_id`, `population_type`, `person_years`, for exactly the population type ids the resolved catalog's slot maps reference (`populationTypesReferencedByCatalog`: there is no column and no declaration, the expression IS the declaration). The header alone sets m012's grain (below). This is what lets m012 declare the file unconditionally: it is the `population` dataSource kind (github + installed schemas, `sourceType: "population"`), substituted as the quoted path and hashed into the module inputKey (`computeModuleInputs`), so a population edit re-runs m012 and an unchanged store does not. The format is permanent once written.
 
-**Population is active when a formula names it** (ruled). One boolean, derived
-from the dictionary and never a setting: a toggle could disagree with the
-formulas, and the formulas are what decide whether population is needed. It
-reaches m012 as the substituted `POPULATION_ACTIVE` literal
-(`getScriptWithParameters`, beside `INDICATOR_INGREDIENTS`) and the manifest as
-`population.active`. **Not active**: the file is header-only at the HMIS
-`adminDepth`, m012's grain is the data's own level, every area and month is
-kept, and the population level setting has no effect on the run. **Active**: N
-is the population level (S5), m012 sums finer HMIS rows up to it, and the file
-holds person-years for exactly the cells the store covers, per type and per
-area: an area's months are those inside `populationCoveredYears` (its earliest
-anchor minus one year to its latest plus one, gaps interpolated),
-`populationCellCoverage` in `lib/population_person_years.ts`. There is no global
-window: one area with a stray year cannot shrink the others.
+**Population is active when a formula names it** (ruled). One boolean, derived from the dictionary and never a setting: a toggle could disagree with the formulas, and the formulas are what decide whether population is needed. It reaches m012 as the substituted `POPULATION_ACTIVE` literal (`getScriptWithParameters`, beside `INDICATOR_INGREDIENTS`) and the manifest as `population.active`. **Not active**: the file is header-only at the HMIS `adminDepth`, m012's grain is the data's own level, every area and month is kept, and the population level setting has no effect on the run. **Active**: N is the population level (S5), m012 sums finer HMIS rows up to it, and the file holds person-years for exactly the cells the store covers, per type and per area: an area's months are those inside `populationCoveredYears` (its earliest anchor minus one year to its latest plus one, gaps interpolated), `populationCellCoverage` in `lib/population_person_years.ts`. There is no global window: one area with a stray year cannot shrink the others.
 
-**m012 works on the intersection, and only m012** (ruled). A cell the store does
-not cover has `NA` in its population slot after the pivot, so the row rule
-("m012: service utilization") drops it for every indicator whose expression
-needs that slot: kept, it would sum numerator and population over different
-cells at every grouping. Indicators whose expression never reaches a population
-slot keep every row. m001 and m002 read the extract, which has no population
-filter, and are untouched.
+**m012 works on the intersection, and only m012** (ruled). A cell the store does not cover has `NA` in its population slot after the pivot, so the row rule ("m012: service utilization") drops it for every indicator whose expression needs that slot: kept, it would sum numerator and population over different cells at every grouping. Indicators whose expression never reaches a population slot keep every row. m001 and m002 read the extract, which has no population filter, and are untouched.
 
-**Only three failures** (ruled). Two are what the indicator manager already
-shows as "Population data missing" (S5): population active and the level unset,
-and a referenced type with no rows for any structure area at that level. The
-third is a population level deeper than the HMIS `adminDepth` (the depth was
-lowered after the import, which empties the deeper structure table), refused at
-capture naming the Population page. Anything short of that generates, including
-an indicator that ends up with zero usable cells: a country with recent
-population data only must still generate.
+**Only three failures** (ruled). Two are what the indicator manager already shows as "Population data missing" (S5): population active and the level unset, and a referenced type with no rows for any structure area at that level. The third is a population level deeper than the HMIS `adminDepth` (the depth was lowered after the import, which empties the deeper structure table), refused at capture naming the Population page. Anything short of that generates, including an indicator that ends up with zero usable cells: a country with recent population data only must still generate.
 
-**Everything left out is recorded.** The manifest's `population` stamp
-(`runPopulationSchema`) carries `active`, the file's level (m012's grain), the
-types, the extract's months, and per type the areas covered out of the structure
-total and the first and last covered period id (null when no cell is covered);
-`coverage` is null in packages written before it existed (transform block 5).
-m012 logs one line per type. The Population page's completeness rule is a
-display aid and does not gate generation.
+**Everything left out is recorded.** The manifest's `population` stamp (`runPopulationSchema`) carries `active`, the file's level (m012's grain), the types, the extract's months, and per type the areas covered out of the structure total and the first and last covered period id (null when no cell is covered); `coverage` is null in packages written before it existed (transform block 5). m012 logs one line per type. The Population page's completeness rule is a display aid and does not gate generation.
 
-**m012's grain** is the file's admin columns: m012 reads them first, sums M2's
-facility rows to those columns and binds the person-years rows in. An active
-level-2 instance therefore gets a level-2 `M12_indicator_values.csv` for every
-indicator, including ones whose formula never names a population, and m12-01-01
-offers no `admin_area_3`/`admin_area_4` disaggregation or filter there
-(`deriveAvailableDisaggregationOptions` reads the columns present). A figure
-that groups or filters m012 by a level the package lacks cannot be updated to
-it: pressing the figure's Update reports `dimensions_not_in_package`
-(`lib/figure_package_issue.ts`) with `populationLevel` set, and the badge says
-the package's population data is at that level. The stamp is also on
-`RunDetail.population` and `RunAuthoringContext.population`, and the package
-view shows an active stamp as a Population card: level, and per type the areas
-covered and the first and last covered month. Neither surface mentions
-population when the stamp is inactive. The script's "deeper than the data" stop
-stays as a defensive check behind the capture refusal.
+**m012's grain** is the file's admin columns: m012 reads them first, sums M2's facility rows to those columns and binds the person-years rows in. An active level-2 instance therefore gets a level-2 `M12_indicator_values.csv` for every indicator, including ones whose formula never names a population, and m12-01-01 offers no `admin_area_3`/`admin_area_4` disaggregation or filter there (`deriveAvailableDisaggregationOptions` reads the columns present). A figure that groups or filters m012 by a level the package lacks cannot be updated to it: pressing the figure's Update reports `dimensions_not_in_package` (`lib/figure_package_issue.ts`) with `populationLevel` set, and the badge says the package's population data is at that level. The stamp is also on `RunDetail.population` and `RunAuthoringContext.population`, and the package view shows an active stamp as a Population card: level, and per type the areas covered and the first and last covered month. Neither surface mentions population when the stamp is inactive. The script's "deeper than the data" stop stays as a defensive check behind the capture refusal.
 
-**The math** (`lib/population_person_years.ts`, pure): an annual population
-count is a STOCK anchored at mid-year; a month's population is read at its own
-mid-point: linear between anchors, geometric growth-rate extrapolation outside
-them (flat for a single anchor or a zero count), never more than ±1 calendar
-year beyond the anchored years; person-years = population/12. Twelve months of
-person-years sum to the annual stock, which is why the rows are additive and a
-rate over them is **annualised** (a monthly numerator over a month's
-person-years reads as a per-year rate, as stated in the editor caption and
-`m12-01-01`'s AI text). Mid-year anchoring is a deliberate change from m008's
-January-1 anchoring.
+**The math** (`lib/population_person_years.ts`, pure): an annual population count is a STOCK anchored at mid-year; a month's population is read at its own mid-point: linear between anchors, geometric growth-rate extrapolation outside them (flat for a single anchor or a zero count), never more than ±1 calendar year beyond the anchored years; person-years = population/12. Twelve months of person-years sum to the annual stock, which is why the rows are additive and a rate over them is **annualised** (a monthly numerator over a month's person-years reads as a per-year rate, as stated in the editor caption and `m12-01-01`'s AI text). Mid-year anchoring is a deliberate change from m008's January-1 anchoring.
 
-No `population.csv` **asset** feeds generation: population data enters an
-instance only through the validated page (ruled).
+No `population.csv` **asset** feeds generation: population data enters an instance only through the validated page (ruled).
 
 ## Database restores and packages
 
-A database dump never carries run directories (ruled). A package is a derived
-artefact that regeneration reproduces, so a backup channel carrying tens of GB
-per package was rejected. A restore brings catalogue rows and `products.run_id`
-back without their directories: a product on a missing package shows the typed
-"Results run unavailable" state (`getReadyRunReadContext` /
-`getRunReadContextForRun` in `server/run_query/run_read.ts`), and boot's
-manifest transform skips the missing manifest without failing (`db_startup.ts`),
-until an editor points the product at a package that exists. There is no GC of
-any kind, so nothing can delete a run a dump refers to; the catalogue's guarded
-hard delete already refuses any run a product points at.
+A database dump never carries run directories (ruled). A package is a derived artefact that regeneration reproduces, so a backup channel carrying tens of GB per package was rejected. A restore brings catalogue rows and `products.run_id` back without their directories: a product on a missing package shows the typed "Results run unavailable" state (`getReadyRunReadContext` / `getRunReadContextForRun` in `server/run_query/run_read.ts`), and boot's manifest transform skips the missing manifest without failing (`db_startup.ts`), until an editor points the product at a package that exists. There is no GC of any kind, so nothing can delete a run a dump refers to; the catalogue's guarded hard delete already refuses any run a product points at.
 
 ## Open items
 
-- **Harden the R-source interpolation.** The default and HFA script generators
-  wrap config `text` and string-valued `select` values in single quotes with no
-  escaping and substitute `number` values bare. Nothing validates or escapes
-  these values anywhere (m012's ingredient literal escapes its ids, but the
-  parameter channel does not), and the 4-input-type substitution block is
-  duplicated. Validate-by-type or escape every value, and factor the block so
-  quoting can't drift
-  (`server/server_only_funcs/get_script_with_parameters*.ts`).
+- **Harden the R-source interpolation.** The default and HFA script generators wrap config `text` and string-valued `select` values in single quotes with no escaping and substitute `number` values bare. Nothing validates or escapes these values anywhere (m012's ingredient literal escapes its ids, but the parameter channel does not), and the 4-input-type substitution block is duplicated. Validate-by-type or escape every value, and factor the block so quoting can't drift (`server/server_only_funcs/get_script_with_parameters*.ts`).
 - **Naming drift:** the worker preambles differ in their `console.error` prefix.
-- **Two copies of the registry label lookup**: `moduleLabel` in
-  `client/src/components/results_packages/package_view/status.tsx` is lib's
-  `moduleRegistryLabel` (`lib/types/module_registry.ts`) again. Have its three
-  importers (`status_bar.tsx`, `failed_detail.tsx`, and the wizard's
-  `step_3_confirm.tsx` through `package_view/mod.ts`) import the lib one and
-  delete it.
-- **Read-path mirror tolerance, two files**: `readInputRows` (`run_read.ts`)
-  yields `[]` for any mirror absent from `manifest.inputFiles`, which for the
-  two HFA variant snapshots (`hfa_indicator_variant_groups_snapshot.json`,
-  `hfa_indicator_variant_items_snapshot.json` in
-  `getHfaTaxonomyFromManifestInputs`) is a live compat shim for pre-variant
-  packages, not just defensive coding. Per the target state above, that
-  tolerance belongs at transform time; until a transform stamps the taxonomy
-  into the manifest, these two absences stay silently tolerated per request.
+- **Two copies of the registry label lookup**: `moduleLabel` in `client/src/components/results_packages/package_view/status.tsx` is lib's `moduleRegistryLabel` (`lib/types/module_registry.ts`) again. Have its three importers (`status_bar.tsx`, `failed_detail.tsx`, and the wizard's `step_3_confirm.tsx` through `package_view/mod.ts`) import the lib one and delete it.
+- **Read-path mirror tolerance, two files**: `readInputRows` (`run_read.ts`) yields `[]` for any mirror absent from `manifest.inputFiles`, which for the two HFA variant snapshots (`hfa_indicator_variant_groups_snapshot.json`, `hfa_indicator_variant_items_snapshot.json` in `getHfaTaxonomyFromManifestInputs`) is a live compat shim for pre-variant packages, not just defensive coding. Per the target state above, that tolerance belongs at transform time; until a transform stamps the taxonomy into the manifest, these two absences stay silently tolerated per request.
 - **HFA variants rollback hazard**: `availableDisaggregation
-  Options` is a
-  strict `z.enum` in the manifest schema and manifests parse strictly, so once a
-  package stamped with `hfa_variant_item` exists, rolling the app back to a
-  build without the enum value makes that whole manifest unparseable and the run
-  reads of every product on it fail loudly. Rolling back past the feature means
-  repointing those products and deleting the packages generated with it. Same
-  shape for any future dimension: the deploy-order rule (app BEFORE the modules
-  repo push, since `requiredDisaggregationOptions` is validated at definition
-  fetch and an unknown value makes m010 fail to load entirely) is its
-  forward-direction twin.
-- **No links in a run dir, ever** (ruled). Every file in a results package is an
-  unlinked copy, so a package is 100% immutable, 100% standalone, and
-  transportable by copying its directory alone. A reused module's raw CSVs are
-  COPIED from the source run (`generate_run/execute_module.ts`), and N packages
-  sharing a module hold N copies on purpose: 73.2% of dev run bytes are
-  duplicate content, accepted. This is not an open item and not a to-do: **do
-  not introduce `Deno.link` or `Deno.symlink` under the runs volume.** The ruled
-  remedy for the duplication is parquet-native R: once R reads and writes
-  parquet natively, the raw CSVs leave run dirs and parquet is ~23× smaller.
-- **Dead code (zero importers):** `fetchRawScript` in
-  `server/github/fetch_module.ts`; `figurePackageIssueFor` and
-  `figurePackageIssueForDimensions` in `lib/figure_package_issue.ts` (only the
-  client's `figurePackageIssueForMetrics` is called).
-- **Deferred (additive; none is a precondition of anything):** a queryable
-  run-inputs UI; scheduled generation with an explicit `autoPinOnSuccess`; the
-  UI luxuries (Regenerate shortcut, newer-run badge, per-run rename);
-  parquet-native R scripts in the modules repo and then dropping raw CSVs from
-  runs.
-- **Under a limiting page scope, excluded modules show as red "No data
-  available".** The page reads its authoring context at All data whatever the
-  page scope (`results_packages/package_page.tsx:214-216`), takes its tabs and
-  module lists from it (359-366), and renders each module's default cards under
-  the page scope (`results_packages/package_view/module_pane.tsx:61-66`). For a
-  family or module the scope excludes, the server's predicate is `FALSE`
-  (`server/run_query/run_read.ts:830-837`), so every card reads "No data
-  available" in red (`_shared/figure_preview.ts:33-47`;
-  `results_packages/package_view/presets.tsx:158-162`), while Explore at the
-  same pair hides those modules. Also read the context under the page scope in
-  `FamilyTabs` (`package_page.tsx:353-389`), keep the tabs and module lists from
-  the All-data one, and in `ModulePane` show "Outside this scope" (fr "Hors de
-  cette portée", pt "Fora deste âmbito") in place of `ModulePresets` when the
-  scoped context lacks the module.
-- **The Delete comment omits pinned and describes a button the page replaces.**
-  `results_packages/package_page.tsx:121-126` says the server refuses while a
-  product points at the package or it is still generating, and that the page
-  states the reason "rather than hiding the button"; the server also refuses a
-  pinned package (`server/db/instance/run_generation.ts:143-146`), and the page
-  shows the reason in place of the button (270-286). Replace that sentence with
-  "The server refuses while the package is pinned, in use or still generating;
-  the page shows the reason where the Delete button would be."
-- **The catalogue's header comment describes a View button.**
-  `results_packages/results_packages.tsx:46-47` says a row's View button opens
-  the package page; a row click does (251). Change "a row's View button opens"
-  to "a row click opens".
+  Options` is a strict `z.enum` in the manifest schema and manifests parse strictly, so once a package stamped with `hfa_variant_item` exists, rolling the app back to a build without the enum value makes that whole manifest unparseable and the run reads of every product on it fail loudly. Rolling back past the feature means repointing those products and deleting the packages generated with it. Same shape for any future dimension: the deploy-order rule (app BEFORE the modules repo push, since `requiredDisaggregationOptions` is validated at definition fetch and an unknown value makes m010 fail to load entirely) is its forward-direction twin.
+- **No links in a run dir, ever** (ruled). Every file in a results package is an unlinked copy, so a package is 100% immutable, 100% standalone, and transportable by copying its directory alone. A reused module's raw CSVs are COPIED from the source run (`generate_run/execute_module.ts`), and N packages sharing a module hold N copies on purpose: 73.2% of dev run bytes are duplicate content, accepted. This is not an open item and not a to-do: **do not introduce `Deno.link` or `Deno.symlink` under the runs volume.** The ruled remedy for the duplication is parquet-native R: once R reads and writes parquet natively, the raw CSVs leave run dirs and parquet is ~23× smaller.
+- **Dead code (zero importers):** `fetchRawScript` in `server/github/fetch_module.ts`; `figurePackageIssueFor` and `figurePackageIssueForDimensions` in `lib/figure_package_issue.ts` (only the client's `figurePackageIssueForMetrics` is called).
+- **Deferred (additive; none is a precondition of anything):** a queryable run-inputs UI; scheduled generation with an explicit `autoPinOnSuccess`; the UI luxuries (Regenerate shortcut, newer-run badge, per-run rename); parquet-native R scripts in the modules repo and then dropping raw CSVs from runs.
+- **Under a limiting page scope, excluded modules show as red "No data available".** The page reads its authoring context at All data whatever the page scope (`results_packages/package_page.tsx:214-216`), takes its tabs and module lists from it (359-366), and renders each module's default cards under the page scope (`results_packages/package_view/module_pane.tsx:61-66`). For a family or module the scope excludes, the server's predicate is `FALSE` (`server/run_query/run_read.ts:830-837`), so every card reads "No data available" in red (`_shared/figure_preview.ts:33-47`; `results_packages/package_view/presets.tsx:158-162`), while Explore at the same pair hides those modules. Also read the context under the page scope in `FamilyTabs` (`package_page.tsx:353-389`), keep the tabs and module lists from the All-data one, and in `ModulePane` show "Outside this scope" (fr "Hors de cette portée", pt "Fora deste âmbito") in place of `ModulePresets` when the scoped context lacks the module.
+- **The Delete comment omits pinned and describes a button the page replaces.** `results_packages/package_page.tsx:121-126` says the server refuses while a product points at the package or it is still generating, and that the page states the reason "rather than hiding the button"; the server also refuses a pinned package (`server/db/instance/run_generation.ts:143-146`), and the page shows the reason in place of the button (270-286). Replace that sentence with "The server refuses while the package is pinned, in use or still generating; the page shows the reason where the Delete button would be."
+- **The catalogue's header comment describes a View button.** `results_packages/results_packages.tsx:46-47` says a row's View button opens the package page; a row click does (251). Change "a row's View button opens" to "a row click opens".

@@ -1,13 +1,8 @@
 # FASTR MCP: user guide (connect Claude to FASTR)
 
-Connect any Claude client (Claude Code CLI, Claude Desktop, claude.ai
-web/mobile) to a FASTR instance so you can ask questions about the instance's
-national results package (its metrics and their data) and read the FASTR
-methodology and reference docs from a Claude chat, with the same permissions you
-have in the browser.
+Connect any Claude client (Claude Code CLI, Claude Desktop, claude.ai web/mobile) to a FASTR instance so you can ask questions about the instance's national results package (its metrics and their data) and read the FASTR methodology and reference docs from a Claude chat, with the same permissions you have in the browser.
 
-There are **two ways to connect**, and both end up in exactly the same place:
-the assistant acts as **you**, with your user and your permissions:
+There are **two ways to connect**, and both end up in exactly the same place: the assistant acts as **you**, with your user and your permissions:
 
 |                           | Sign in with FASTR (OAuth)                                | Personal Access Token                      |
 | ------------------------- | --------------------------------------------------------- | ------------------------------------------ |
@@ -17,31 +12,17 @@ the assistant acts as **you**, with your user and your permissions:
 | Needs a browser to set up | yes, once                                                 | no                                         |
 | Expires                   | yes, refreshes silently in the background                 | never, until you revoke it                 |
 
-**Prefer OAuth wherever you can**: there is no secret to copy, paste or leak,
-and access ends when you revoke the connection. Every current Claude client
-supports it, Claude Code included.
+**Prefer OAuth wherever you can**: there is no secret to copy, paste or leak, and access ends when you revoke the connection. Every current Claude client supports it, Claude Code included.
 
-**Use a PAT when no browser is available**: `claude -p`, the Agent SDK, CI jobs,
-or any scripted run. Those cannot complete an OAuth sign-in on their own (there
-is no interactive prompt to approve it), so a header is the only option. This is
-why PATs are not going away.
+**Use a PAT when no browser is available**: `claude -p`, the Agent SDK, CI jobs, or any scripted run. Those cannot complete an OAuth sign-in on their own (there is no interactive prompt to approve it), so a header is the only option. This is why PATs are not going away.
 
-No repo checkout, no local process, nothing to configure per product. **One
-connection reads the instance's pinned results package** (the package an
-instance admin has blessed as the national one) at national scope. There is
-nothing to pick per question.
+No repo checkout, no local process, nothing to configure per product. **One connection reads the instance's pinned results package** (the package an instance admin has blessed as the national one) at national scope. There is nothing to pick per question.
 
 ---
 
 ## What you get
 
-The `/mcp` endpoint is for **seeing results**: it exposes the FASTR AI
-Assistant's **shared** metric tools (the same tool definitions the in-app chat
-uses to query data) over the pinned package: **5 read-only tools, no writes**.
-Module internals (R scripts, logs, settings), product content (slide decks,
-reports and their figures) and the browser-only editor tools are **not**
-exposed. They are the in-app assistant's, belong to a product, or need a live
-browser tab.
+The `/mcp` endpoint is for **seeing results**: it exposes the FASTR AI Assistant's **shared** metric tools (the same tool definitions the in-app chat uses to query data) over the pinned package: **5 read-only tools, no writes**. Module internals (R scripts, logs, settings), product content (slide decks, reports and their figures) and the browser-only editor tools are **not** exposed. They are the in-app assistant's, belong to a product, or need a live browser tab.
 
 | Area      | Tools                                                   |
 | --------- | ------------------------------------------------------- |
@@ -49,22 +30,9 @@ browser tab.
 | Metrics   | `get_available_metrics`, `get_metric_data` (CSV output) |
 | Reference | `get_reference_docs`, `get_reference_doc`               |
 
-No tool takes a product or package id. The two metric tools,
-`get_available_metrics` and `get_metric_data`, read whatever package is pinned
-**right now** (an admin re-pinning moves the connector on the next call); the
-reference tools read the FASTR methodology and reference docs, not the package:
-`get_reference_docs` lists the app's own documents and the chapters of the FASTR
-methodology hub, and `get_reference_doc` reads one by the id the list gives.
-Reading the package needs an **approved** FASTR account with access to **all
-data**; global admins always have both. Otherwise the metric tools answer with
-one of two messages: "Your account is awaiting approval, which the
-results-package reads require. Ask an instance admin to approve it." or "Your
-account is limited to some scopes, and this connection reads all data in the
-results package. Ask an instance admin if you need it."
+No tool takes a product or package id. The two metric tools, `get_available_metrics` and `get_metric_data`, read whatever package is pinned **right now** (an admin re-pinning moves the connector on the next call); the reference tools read the FASTR methodology and reference docs, not the package: `get_reference_docs` lists the app's own documents and the chapters of the FASTR methodology hub, and `get_reference_doc` reads one by the id the list gives. Reading the package needs an **approved** FASTR account with access to **all data**; global admins always have both. Otherwise the metric tools answer with one of two messages: "Your account is awaiting approval, which the results-package reads require. Ask an instance admin to approve it." or "Your account is limited to some scopes, and this connection reads all data in the results package. Ask an instance admin if you need it."
 
-If **nothing is pinned**, `get_overview` still answers and says so; the package
-tools return the same message until an admin with `can_configure_data` pins a
-package under Results packages.
+If **nothing is pinned**, `get_overview` still answers and says so; the package tools return the same message until an admin with `can_configure_data` pins a package under Results packages.
 
 ---
 
@@ -72,48 +40,30 @@ package under Results packages.
 
 ### Option 1: Sign in with FASTR (OAuth), URL only
 
-Nothing to mint, nothing to paste. In **Claude Desktop** or **claude.ai**, add a
-custom connector with **only** the URL:
+Nothing to mint, nothing to paste. In **Claude Desktop** or **claude.ai**, add a custom connector with **only** the URL:
 
 - **URL**: `https://your-instance.org/mcp`
 - Leave the OAuth client ID / secret and the request-headers fields **blank**.
 
-Click **Connect**. Claude discovers that the endpoint is protected, sends you to
-your instance's normal login, and shows a **consent screen** naming what it is
-about to be granted. Approve it and the connector is live.
+Click **Connect**. Claude discovers that the endpoint is protected, sends you to your instance's normal login, and shows a **consent screen** naming what it is about to be granted. Approve it and the connector is live.
 
-The connection is tied to the FASTR user you logged in as, matched on your
-**primary email address**: the same account and the same permissions you have in
-the browser. If you have no FASTR user for that email, the connector will
-connect but see nothing, exactly as a first-time browser login would.
+The connection is tied to the FASTR user you logged in as, matched on your **primary email address**: the same account and the same permissions you have in the browser. If you have no FASTR user for that email, the connector will connect but see nothing, exactly as a first-time browser login would.
 
-Access tokens are short-lived and refresh silently, so you should not have to
-re-approve anything day to day.
+Access tokens are short-lived and refresh silently, so you should not have to re-approve anything day to day.
 
-> Requires the instance's Clerk instance to have **dynamic client registration**
-> enabled. If Connect spins and fails, see Troubleshooting.
+> Requires the instance's Clerk instance to have **dynamic client registration** enabled. If Connect spins and fails, see Troubleshooting.
 
 ### Option 2: Mint a Personal Access Token
 
-Use this wherever no browser sign-in is possible (`claude -p`, the Agent SDK, CI
-jobs), or if you simply prefer a static header. A PAT is a `fastr_pat_…` string
-that resolves to **your** user identity server-side, so everything the assistant
-does is scoped to your permissions.
+Use this wherever no browser sign-in is possible (`claude -p`, the Agent SDK, CI jobs), or if you simply prefer a static header. A PAT is a `fastr_pat_…` string that resolves to **your** user identity server-side, so everything the assistant does is scoped to your permissions.
 
 #### Minting it: the token panel (works everywhere)
 
-Log in to the instance in your browser and go to **`/access-tokens`** (e.g.
-`https://your-instance.org/access-tokens`). The page is unlisted (no menu links
-to it), but it is behind the normal login and only ever shows YOUR tokens. Enter
-a label, click **Create token**, and copy the `fastr_pat_…` value: it is shown
-only once (only its SHA-256 hash is stored). If you lose it, revoke it and mint
-a new one. The panel also shows each token's last-used time and has a **Revoke**
-button.
+Log in to the instance in your browser and go to **`/access-tokens`** (e.g. `https://your-instance.org/access-tokens`). The page is unlisted (no menu links to it), but it is behind the normal login and only ever shows YOUR tokens. Enter a label, click **Create token**, and copy the `fastr_pat_…` value: it is shown only once (only its SHA-256 hash is stored). If you lose it, revoke it and mint a new one. The panel also shows each token's last-used time and has a **Revoke** button.
 
 #### Minting it: the mint task (local dev)
 
-From a checkout of this repo, with your app `.env` present (it carries the DB
-credentials):
+From a checkout of this repo, with your app `.env` present (it carries the DB credentials):
 
 ```bash
 deno task mint-pat you@example.com claude
@@ -121,20 +71,13 @@ deno task mint-pat you@example.com claude
 
 Use YOUR account email (the one you log into FASTR with) and any label you like.
 
-> The email must already exist as a FASTR user. If you normally log in with
-> Clerk, use that same email. The PAT then carries your exact permissions.
+> The email must already exist as a FASTR user. If you normally log in with Clerk, use that same email. The PAT then carries your exact permissions.
 
 ### Revoking
 
-**A PAT** does **not expire**: it is valid until revoked. Revoke it from the
-`/access-tokens` panel (or delete its row in `personal_access_tokens`).
-Revocation is instant: the next call fails.
+**A PAT** does **not expire**: it is valid until revoked. Revoke it from the `/access-tokens` panel (or delete its row in `personal_access_tokens`). Revocation is instant: the next call fails.
 
-**An OAuth connection** is revoked on the Clerk side (your identity provider),
-not in FASTR. Removing the connector in Claude stops _that_ client using it, and
-revoking the grant in Clerk ends it everywhere. Revocation is **not instant**:
-expect access to stop within about 30 seconds rather than on the next call,
-because verified tokens are briefly cached (see Security notes).
+**An OAuth connection** is revoked on the Clerk side (your identity provider), not in FASTR. Removing the connector in Claude stops _that_ client using it, and revoking the grant in Clerk ends it everywhere. Revocation is **not instant**: expect access to stop within about 30 seconds rather than on the next call, because verified tokens are briefly cached (see Security notes).
 
 ---
 
@@ -149,141 +92,77 @@ The connector URL is your instance origin plus `/mcp`:
 
 ### Claude Code CLI
 
-**With OAuth (recommended)**: add the server with no credential at all, then
-sign in once:
+**With OAuth (recommended)**: add the server with no credential at all, then sign in once:
 
 ```bash
 claude mcp add --transport http fastr https://your-instance.org/mcp
 claude mcp login fastr
 ```
 
-`claude mcp login` opens your browser for the FASTR login and consent screen
-(inside a session, `/mcp` → the `fastr` entry does the same). Claude Code stores
-the token and refreshes it automatically; `/mcp` → **Clear authentication**
-signs out. This works because the endpoint advertises its authorization server
-in the `WWW-Authenticate` header, which Claude Code discovers on its own.
+`claude mcp login` opens your browser for the FASTR login and consent screen (inside a session, `/mcp` → the `fastr` entry does the same). Claude Code stores the token and refreshes it automatically; `/mcp` → **Clear authentication** signs out. This works because the endpoint advertises its authorization server in the `WWW-Authenticate` header, which Claude Code discovers on its own.
 
-**With a PAT**, required for non-interactive use (`claude -p`, the Agent SDK,
-CI), which cannot run a browser sign-in:
+**With a PAT**, required for non-interactive use (`claude -p`, the Agent SDK, CI), which cannot run a browser sign-in:
 
 ```bash
 claude mcp add --transport http fastr https://your-instance.org/mcp \
   --header "Authorization: Bearer fastr_pat_XXXXXXXX"
 ```
 
-Then in a `claude` session, `/mcp` shows the `fastr` server and its tools.
-(Remove it later with `claude mcp remove fastr`.)
+Then in a `claude` session, `/mcp` shows the `fastr` server and its tools. (Remove it later with `claude mcp remove fastr`.)
 
-> Pick one mode per server entry: if an `Authorization` header is set and the
-> server rejects it, Claude Code reports a failed connection rather than falling
-> back to OAuth.
+> Pick one mode per server entry: if an `Authorization` header is set and the server rejects it, Claude Code reports a failed connection rather than falling back to OAuth.
 
 ### Claude Desktop / claude.ai (web, mobile)
 
-Add a **custom connector** in your Claude settings with **only the URL**
-(`https://your-instance.org/mcp`), leave every other field blank, and click
-**Connect**. That is the OAuth path from step 1, option 1.
+Add a **custom connector** in your Claude settings with **only the URL** (`https://your-instance.org/mcp`), leave every other field blank, and click **Connect**. That is the OAuth path from step 1, option 1.
 
-If you would rather use a PAT here, fill in **Request headers** instead:
-`Authorization` = `Bearer fastr_pat_XXXXXXXX`. Custom connectors with request
-headers are a beta feature; if your account does not offer the headers field,
-use OAuth or the Claude Code CLI form above.
+If you would rather use a PAT here, fill in **Request headers** instead: `Authorization` = `Bearer fastr_pat_XXXXXXXX`. Custom connectors with request headers are a beta feature; if your account does not offer the headers field, use OAuth or the Claude Code CLI form above.
 
 ---
 
 ## Step 3: Use it
 
-Start a Claude session with the FASTR connector enabled. A good first move is to
-let the assistant orient itself:
+Start a Claude session with the FASTR connector enabled. A good first move is to let the assistant orient itself:
 
-- **"Use the FASTR tools. Call get_overview and tell me which results package is
-  pinned and what metrics it holds."**
+- **"Use the FASTR tools. Call get_overview and tell me which results package is pinned and what metrics it holds."**
 
-`get_overview` carries the live grounding (the pinned package's name, its
-datasets, indicators and period coverage) and how to query metric data. Then ask
-naturally:
+`get_overview` carries the live grounding (the pinned package's name, its datasets, indicators and period coverage) and how to query metric data. Then ask naturally:
 
-- **Explore data**: "What's the trend in <metric> over the last two years? Break
-  it down by region." The assistant calls `get_available_metrics` to find ids,
-  then `get_metric_data` (returns CSV) and reasons over it.
-- **Reference docs**: "Load the ICEH methodology and explain the equity
-  measures." The assistant calls `get_reference_docs` for the ids, then
-  `get_reference_doc` for the document.
+- **Explore data**: "What's the trend in <metric> over the last two years? Break it down by region." The assistant calls `get_available_metrics` to find ids, then `get_metric_data` (returns CSV) and reasons over it.
+- **Reference docs**: "Load the ICEH methodology and explain the equity measures." The assistant calls `get_reference_docs` for the ids, then `get_reference_doc` for the document.
 
 ### Good habits
 
-- The assistant discovers ids with `get_available_metrics`; it should never
-  invent an id. If it does, correct it and point it at the discovery tool.
+- The assistant discovers ids with `get_available_metrics`; it should never invent an id. If it does, correct it and point it at the discovery tool.
 - Every tool is read-only: nothing you ask can change anything in FASTR.
-- The data is the **national** package: there is no admin-area scope here. For a
-  product's own figures, decks and reports, use the in-app assistant.
+- The data is the **national** package: there is no admin-area scope here. For a product's own figures, decks and reports, use the in-app assistant.
 
 ---
 
 ## Troubleshooting
 
-- **Every call fails with 401 / "unauthorized".** The credential is missing,
-  wrong, or revoked. On a PAT, check the header is exactly
-  `Authorization: Bearer fastr_pat_…` and re-mint if needed (step 1). On OAuth,
-  disconnect and reconnect the connector to re-run the login.
-- **503 / "authentication unavailable".** The instance could not reach the
-  service that verifies your credential: its database for a PAT, Clerk for an
-  OAuth token. It is a server-side problem, **not** your credential: it is
-  deliberately a 503 rather than a 401 so your client retries instead of
-  throwing away a perfectly good login. Retry shortly.
-- **"Connect" spins and then fails, before you ever see a login screen.** The
-  OAuth discovery step failed. Check from a terminal that both of these return
-  JSON without a login:
+- **Every call fails with 401 / "unauthorized".** The credential is missing, wrong, or revoked. On a PAT, check the header is exactly `Authorization: Bearer fastr_pat_…` and re-mint if needed (step 1). On OAuth, disconnect and reconnect the connector to re-run the login.
+- **503 / "authentication unavailable".** The instance could not reach the service that verifies your credential: its database for a PAT, Clerk for an OAuth token. It is a server-side problem, **not** your credential: it is deliberately a 503 rather than a 401 so your client retries instead of throwing away a perfectly good login. Retry shortly.
+- **"Connect" spins and then fails, before you ever see a login screen.** The OAuth discovery step failed. Check from a terminal that both of these return JSON without a login:
 
   ```bash
   curl -s https://your-instance.org/.well-known/oauth-protected-resource/mcp
   curl -s https://your-instance.org/.well-known/oauth-authorization-server
   ```
 
-  If the second is empty or errors, the instance's Clerk instance most likely
-  does not have **dynamic client registration** enabled (Clerk Dashboard →
-  Configure → OAuth applications). Without it Claude cannot register itself and
-  the flow cannot start.
-- **You log in and consent, but the metric tools then say your account is
-  awaiting approval, or is limited to some scopes.** Either the OAuth login
-  matched a Clerk account whose **primary email** is not a FASTR user (or a
-  different address from the one your FASTR account uses, so check which email
-  you signed in with), or your FASTR account really is unapproved or limited to
-  some scopes. Ask an instance admin.
-- **"No results package is pinned on this instance".** Nothing is wrong with
-  your connection: no package is pinned yet. An admin with `can_configure_data`
-  pins one under Results packages; the tools work from the next call.
-- **Your client lists a tool the table above does not, and calling it fails with
-  "Unknown tool".** A release renamed or removed it, and a connected client
-  keeps the tool list it fetched when it connected until it refreshes it: in
-  Claude Code, `/mcp` and reconnect the `fastr` server (or start a new session);
-  in Claude Desktop or claude.ai, disable and re-enable the connector. A saved
-  conversation that calls an old name fails once, and the assistant re-lists.
-- **Local dev: everything 401s even with a fresh token.** A dev boot with
-  `BYPASS_AUTH` set does not exercise real PAT auth. Boot with
-  `BYPASS_AUTH= deno task dev` when testing tokens.
+  If the second is empty or errors, the instance's Clerk instance most likely does not have **dynamic client registration** enabled (Clerk Dashboard → Configure → OAuth applications). Without it Claude cannot register itself and the flow cannot start.
+- **You log in and consent, but the metric tools then say your account is awaiting approval, or is limited to some scopes.** Either the OAuth login matched a Clerk account whose **primary email** is not a FASTR user (or a different address from the one your FASTR account uses, so check which email you signed in with), or your FASTR account really is unapproved or limited to some scopes. Ask an instance admin.
+- **"No results package is pinned on this instance".** Nothing is wrong with your connection: no package is pinned yet. An admin with `can_configure_data` pins one under Results packages; the tools work from the next call.
+- **Your client lists a tool the table above does not, and calling it fails with "Unknown tool".** A release renamed or removed it, and a connected client keeps the tool list it fetched when it connected until it refreshes it: in Claude Code, `/mcp` and reconnect the `fastr` server (or start a new session); in Claude Desktop or claude.ai, disable and re-enable the connector. A saved conversation that calls an old name fails once, and the assistant re-lists.
+- **Local dev: everything 401s even with a fresh token.** A dev boot with `BYPASS_AUTH` set does not exercise real PAT auth. Boot with `BYPASS_AUTH= deno task dev` when testing tokens.
 
 ---
 
 ## Security notes
 
-- Both credential types act as **you**, and both are checked on **every single
-  call**, not once at connection time.
-- The PAT is a real credential that acts as **you**. Treat it like a password:
-  it lives in your Claude client's config in plaintext. Don't commit it or share
-  the config. OAuth avoids this: there is no long-lived secret on your machine.
-- **Revocation is instant for a PAT, but not for OAuth.** A PAT is re-checked
-  against the database on every call. A verified OAuth token is cached briefly
-  (~30 seconds) so that a single request does not hammer the identity provider,
-  so a revoked OAuth grant can keep working for up to that long. Plan for
-  "within a minute", not "immediately".
-- Every package read runs the same server-side checks as the browser app: token
-  verification, a **deny-by-default** route allowlist (a PAT can only reach the
-  read-only package routes the assistant needs: it can never mint or revoke
-  tokens, reach admin/user routes, or write anything), and on every read the
-  checks that the account is approved and holds access to all data.
-- The surface is **read-only by construction**: it exposes no write tool at all.
-  A leaked credential can read what an approved account with access to all data
-  reads in the app, the pinned package, and the FASTR reference docs. It can
-  change nothing.
+- Both credential types act as **you**, and both are checked on **every single call**, not once at connection time.
+- The PAT is a real credential that acts as **you**. Treat it like a password: it lives in your Claude client's config in plaintext. Don't commit it or share the config. OAuth avoids this: there is no long-lived secret on your machine.
+- **Revocation is instant for a PAT, but not for OAuth.** A PAT is re-checked against the database on every call. A verified OAuth token is cached briefly (~30 seconds) so that a single request does not hammer the identity provider, so a revoked OAuth grant can keep working for up to that long. Plan for "within a minute", not "immediately".
+- Every package read runs the same server-side checks as the browser app: token verification, a **deny-by-default** route allowlist (a PAT can only reach the read-only package routes the assistant needs: it can never mint or revoke tokens, reach admin/user routes, or write anything), and on every read the checks that the account is approved and holds access to all data.
+- The surface is **read-only by construction**: it exposes no write tool at all. A leaked credential can read what an approved account with access to all data reads in the app, the pinned package, and the FASTR reference docs. It can change nothing.
 - PATs **do not expire**, so revoke them when you're done (step 1, "Revoking").

@@ -3,13 +3,12 @@
   "nodeModulesDir": "auto",
   "links": ["./vendor/postgres"],
   "fmt": {
-    "proseWrap": "preserve",
+    "proseWrap": "never",
     "exclude": [
       "client/public/",
       "client/package-lock.json",
       "vendor/",
-      "report-forge/",
-      "URGENT_BUG_CATALOGUE_EMAILS.md"
+      "report-forge/"
     ]
   },
   "lint": {

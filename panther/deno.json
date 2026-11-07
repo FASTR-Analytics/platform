@@ -2,7 +2,7 @@
   "name": "@timroberton/panther",
   "exports": "./mod.deno.ts",
   "fmt": {
-    "proseWrap": "preserve",
+    "proseWrap": "never",
     "exclude": ["**/*.css", "_001_font/generated/"]
   },
   "compilerOptions": {
