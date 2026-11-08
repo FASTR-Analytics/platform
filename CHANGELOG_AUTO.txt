@@ -1,3 +1,9 @@
+[TBD] [user] [added] - Footnote now notes how many rows with missing period or area are excluded from the figure
+[TBD] [user] [fixed] - Cells containing only special whitespace characters (like non-breaking spaces) are now correctly treated as blank
+[TBD] [admin] [added] - Figures now note when rows are hidden due to missing period or area data
+[TBD] [admin] [fixed] - Cells containing only special whitespace characters (e.g., non-breaking spaces) are now correctly treated as blank
+[TBD] [admin] [changed] - Visualization cache version updated; cached figures will regenerate automatically
+[TBD] [admin] [fixed] - Chart and table data errors now surface clearer messages instead of silent failures
 [TBD] [user] [fixed] - Fixed chart highlighting errors when data series info is missing
 [TBD] [user] [fixed] - Fixed pie chart labels showing "default" instead of proper names
 [TBD] [user] [fixed] - Fixed incorrect color assignments on charts without grouped data
