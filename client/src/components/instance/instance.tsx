@@ -239,9 +239,9 @@ export default function Instance(p: Props) {
     const email = instanceState.currentUserEmail;
     return [
       {
-        type: "header",
+        type: "heading",
         label: name || email,
-        sublabel: name ? email : undefined,
+        detail: name ? email : undefined,
       },
       { type: "divider" },
       {
