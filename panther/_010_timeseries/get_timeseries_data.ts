@@ -13,14 +13,15 @@ import {
   getHeaderIndex,
   getValidNumberOrUndefined,
   type HeaderSortConfig,
+  isBlankValue,
   isRowBasedUncertainty,
   type JsonArray,
+  type JsonArrayItem,
   type PeriodType,
-  readDimensionId,
   type SlotAxes,
   slotHeaders,
   validateDataInput,
-  validateDistinctDimensions,
+  validateSlotDimensions,
   validateUncertaintyConfig,
 } from "./deps.ts";
 import {
@@ -139,30 +140,38 @@ export function getTimeseriesDataJsonTransformed(
     ]);
   }
 
-  const sourceRows = uncertainty && isRowBasedUncertainty(uncertainty)
-    ? jsonArray.filter((obj) =>
-      String(obj[uncertainty.uncertaintyProp]) === uncertainty.peValue
-    )
-    : jsonArray;
-
-  validateDataInput(sourceRows, valueProps);
-
-  const headersSource = uncertainty && isRowBasedUncertainty(uncertainty)
-    ? jsonArray
-    : sourceRows;
-
-  validateDistinctDimensions({
+  const slotProps = {
     period: periodProp,
     series: seriesProp,
     lane: laneProp,
     tier: tierProp,
     pane: paneProp,
-  });
-  if (periodProp !== "--v") {
-    headersSource.forEach((row, i_row) =>
-      readDimensionId(row, periodProp, i_row)
-    );
+  };
+  validateSlotDimensions(jsonArray, slotProps);
+
+  // A row with a blank period has no position on the time axis.
+  const hasBlankPeriod = (obj: JsonArrayItem) =>
+    periodProp !== "--v" && isBlankValue(obj[periodProp]);
+  const placedRows = jsonArray.filter((obj) => !hasBlankPeriod(obj));
+  if (placedRows.length === 0 && jsonArray.length > 0) {
+    throw new Error(`No row has a period for "${periodProp}"`);
   }
+
+  const isPointEstimate = (obj: JsonArrayItem) =>
+    !uncertainty || !isRowBasedUncertainty(uncertainty) ||
+    String(obj[uncertainty.uncertaintyProp]) === uncertainty.peValue;
+  const nBlankRows =
+    jsonArray.filter((obj) => hasBlankPeriod(obj) && isPointEstimate(obj))
+      .length;
+
+  const sourceRows = placedRows.filter(isPointEstimate);
+
+  validateDataInput(sourceRows, valueProps);
+
+  const headersSource = uncertainty && isRowBasedUncertainty(uncertainty)
+    ? placedRows
+    : sourceRows;
+
   const axis = (prop: string | undefined, sortConfig?: HeaderSortConfig) =>
     buildDataAxis(
       headersSource,
@@ -246,10 +255,10 @@ export function getTimeseriesDataJsonTransformed(
     );
 
     if (isRowBasedUncertainty(uncertainty)) {
-      const ubRows = jsonArray.filter((obj) =>
+      const ubRows = placedRows.filter((obj) =>
         String(obj[uncertainty.uncertaintyProp]) === uncertainty.ubValue
       );
-      const lbRows = jsonArray.filter((obj) =>
+      const lbRows = placedRows.filter((obj) =>
         String(obj[uncertainty.uncertaintyProp]) === uncertainty.lbValue
       );
       fillTimeseriesValues(
@@ -273,7 +282,7 @@ export function getTimeseriesDataJsonTransformed(
     } else {
       fillTimeseriesValues(
         ubValues,
-        jsonArray,
+        placedRows,
         uncertainty.ubValueProps,
         periodProp,
         periodType,
@@ -282,7 +291,7 @@ export function getTimeseriesDataJsonTransformed(
       );
       fillTimeseriesValues(
         lbValues,
-        jsonArray,
+        placedRows,
         uncertainty.lbValueProps,
         periodProp,
         periodType,
@@ -355,6 +364,7 @@ export function getTimeseriesDataJsonTransformed(
       periodType,
       timeMin,
       nTimePoints: nTimes,
+      nBlankRows,
     },
     series,
     lane,

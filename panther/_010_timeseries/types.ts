@@ -74,6 +74,7 @@ export type TimeseriesDataTransformed = {
     periodType: PeriodType;
     timeMin: number;
     nTimePoints: number;
+    nBlankRows: number; // rows left off the plot because their period is blank
   };
   // One axis per split slot; an unsplit slot has none and is one member long
   // in values.

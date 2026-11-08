@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export * from "./assert.ts";
+export * from "./blank.ts";
 export * from "./translate.ts";
 export { debugLog, PANTHER_DEBUG } from "./debug.ts";
 export * from "./boolean_reducers.ts";

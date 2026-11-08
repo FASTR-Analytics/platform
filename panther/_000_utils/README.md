@@ -25,6 +25,16 @@ assertTwoArraysAreSameAndInSameOrder<T>(a: T[], b: T[], msg?: string): void
 assertUnique(arr: number[] | string[], msg?: string): void
 ```
 
+### Blank values (`blank.ts`)
+
+```typescript
+BLANK_SENTINEL: "__BLANK"         // the id of the group every blank cell belongs to
+BLANK_CHARACTERS: string          // every character trim() strips
+isBlankText(s: string): boolean   // true when s holds only BLANK_CHARACTERS
+isBlankValue(v: unknown): boolean // undefined, null or blank text
+BLANK_LABEL: TranslatableString   // "(Blank)" and its translations
+```
+
 ### Array Creation (`create_array.ts`)
 
 ```typescript

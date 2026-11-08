@@ -12,15 +12,15 @@ export {
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export {
   buildItem,
-  resolveSortFunc,
+  createHeaderItem,
   slotCoordinate,
+  sortHeaderItems,
   toHeaderItem,
   Z_INDEX,
 } from "../_001_render_system/mod.ts";
 export type {
   HeaderItem,
   HeaderSortConfig,
-  HeaderSortFunc,
   HeightConstraints,
   Measured,
   MeasuredText,
@@ -48,13 +48,13 @@ export {
   estimateMinSurroundsWidth,
   findFitScaleWithFloor,
   generateSurroundsPrimitives,
+  getDimensionId,
   measureSurrounds,
   memoizeByScale,
-  readDimensionId,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveFigureAutofitOptions,
-  validateDistinctDimensions,
+  validateSlotDimensions,
 } from "../_007_figure_core/mod.ts";
 export type {
   FigureInputsBase,

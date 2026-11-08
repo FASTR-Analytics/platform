@@ -4,12 +4,13 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  BLANK_SENTINEL,
   buildDataAxis,
+  getDimensionId,
   getHeaderIndex,
   type HeaderSortConfig,
-  readDimensionId,
   slotHeaders,
-  validateDistinctDimensions,
+  validateSlotDimensions,
 } from "./deps.ts";
 import type { GeoJSONFeature } from "./_internal/geojson_types.ts";
 import { decodeTopojson } from "./_internal/topojson_decode.ts";
@@ -23,14 +24,19 @@ export function getMapDataTransformed(mapData: MapData): MapDataTransformed {
 function transformMapData(data: MapDataJson): MapDataTransformed {
   const geoFeatures = resolveGeoFeatures(data);
   const config = data.jsonDataConfig;
-  const jsonArray = data.jsonArray;
 
-  validateDistinctDimensions({
+  const slotProps = {
     area: config.areaProp,
     pane: config.paneProp,
     tier: config.tierProp,
     lane: config.laneProp,
-  });
+  };
+  validateSlotDimensions(data.jsonArray, slotProps);
+
+  // A row whose area is the blank member has no region to colour.
+  const jsonArray = data.jsonArray.filter((row) =>
+    getDimensionId(row, config.areaProp) !== BLANK_SENTINEL
+  );
   const axis = (prop: string | undefined, sort?: HeaderSortConfig) =>
     buildDataAxis(jsonArray, prop, [], config.labelReplacements, sort);
   const pane = axis(config.paneProp, config.sort?.pane);
@@ -54,8 +60,8 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
     }
   }
 
-  for (const [i_row, row] of jsonArray.entries()) {
-    const areaId = readDimensionId(row, config.areaProp, i_row);
+  for (const row of jsonArray) {
+    const areaId = getDimensionId(row, config.areaProp);
     const rawValue = row[config.valueProp];
     const value = typeof rawValue === "number" ? rawValue : undefined;
 
@@ -76,7 +82,11 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
   return {
     isTransformed: true,
     geoFeatures,
-    area: { dimension: config.areaProp, matchProp: config.areaMatchProp },
+    area: {
+      dimension: config.areaProp,
+      matchProp: config.areaMatchProp,
+      nBlankRows: data.jsonArray.length - jsonArray.length,
+    },
     pane,
     tier,
     lane,

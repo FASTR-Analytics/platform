@@ -5,11 +5,8 @@
 
 export {
   ALL_LONG_TABLE_AGGREGATES,
-  BLANK_CHARACTERS,
-  BLANK_SENTINEL,
   DEFAULT_ROLLUP_SENTINEL,
   DEFAULT_SET_DELIMITER,
-  isBlankText,
   LongTableValidationError,
   SAMPLE_N_PREFIX,
 } from "./types.ts";

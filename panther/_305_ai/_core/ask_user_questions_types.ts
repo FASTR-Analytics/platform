@@ -30,4 +30,7 @@ export type AskUserQuestionsInput = z.infer<
   typeof askUserQuestionsInputSchema
 >;
 
-export type AskUserQuestionsAnswer = string | string[];
+export type AskUserQuestionsAnswer = {
+  selected: string[];
+  ownAnswer?: string;
+};

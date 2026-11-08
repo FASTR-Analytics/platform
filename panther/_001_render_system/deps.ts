@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+export { BLANK_LABEL, BLANK_SENTINEL, t3 } from "../_000_utils/mod.ts";
 export type {
   ColorAdjustmentStrategy,
   ColorKeyOrString,

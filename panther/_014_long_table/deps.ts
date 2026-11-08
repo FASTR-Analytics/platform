@@ -4,10 +4,12 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export {
+  BLANK_SENTINEL,
   foldString,
   getLastFullUnitBounds,
   getLastUnitsBounds,
   getPeriodTypeFromValue,
+  isBlankText,
   stableStringify,
 } from "../_000_utils/mod.ts";
 export type {

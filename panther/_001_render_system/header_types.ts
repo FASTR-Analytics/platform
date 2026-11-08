@@ -3,6 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { BLANK_LABEL, BLANK_SENTINEL, t3 } from "./deps.ts";
+
 export type HeaderItem = {
   id: string;
   label: string;
@@ -45,12 +47,20 @@ export type HeaderSortConfig =
   | { byLabelOrder: string[] }
   | { base?: "by-label" | "by-id"; first?: string[]; last?: string[] };
 
+export function isBlankHeader(h: HeaderItem): boolean {
+  return h.id === BLANK_SENTINEL;
+}
+
+export function compareBlankLast(a: HeaderItem, b: HeaderItem): number {
+  return Number(isBlankHeader(a)) - Number(isBlankHeader(b));
+}
+
 export function sortByLabel(a: HeaderItem, b: HeaderItem): number {
-  return a.label.localeCompare(b.label);
+  return compareBlankLast(a, b) || a.label.localeCompare(b.label);
 }
 
 export function sortById(a: HeaderItem, b: HeaderItem): number {
-  return a.id.localeCompare(b.id);
+  return compareBlankLast(a, b) || a.id.localeCompare(b.id);
 }
 
 export function sortByIdOrder(order: string[]): HeaderSortFunc {
@@ -61,7 +71,7 @@ export function sortByIdOrder(order: string[]): HeaderSortFunc {
     if (ai !== bi) {
       return ai - bi;
     }
-    return a.label.localeCompare(b.label);
+    return compareBlankLast(a, b) || a.label.localeCompare(b.label);
   };
 }
 
@@ -73,7 +83,7 @@ export function sortByLabelOrder(order: string[]): HeaderSortFunc {
     if (ai !== bi) {
       return ai - bi;
     }
-    return a.label.localeCompare(b.label);
+    return compareBlankLast(a, b) || a.label.localeCompare(b.label);
   };
 }
 
@@ -92,7 +102,13 @@ export function sortByPinned(
   const firstRank = new Map(first.map((id, i) => [id, i]));
   const lastRank = new Map(last.map((id, i) => [id, i]));
   const bucket = (id: string): number =>
-    firstRank.has(id) ? 0 : lastRank.has(id) ? 2 : 1;
+    firstRank.has(id)
+      ? 0
+      : lastRank.has(id)
+      ? 3
+      : id === BLANK_SENTINEL
+      ? 2
+      : 1;
   return (a, b) => {
     const ab = bucket(a.id);
     const bb = bucket(b.id);
@@ -102,18 +118,18 @@ export function sortByPinned(
     if (ab === 0) {
       return firstRank.get(a.id)! - firstRank.get(b.id)!;
     }
-    if (ab === 2) {
+    if (ab === 3) {
       return lastRank.get(a.id)! - lastRank.get(b.id)!;
     }
     return baseFunc(a, b);
   };
 }
 
-export function resolveSortFunc(
+function resolveSortFunc(
   config: HeaderSortConfig | undefined,
-): HeaderSortFunc | undefined {
+): HeaderSortFunc {
   if (config === undefined) {
-    return undefined;
+    return compareBlankLast;
   }
   if (typeof config === "function") {
     return config;
@@ -143,23 +159,27 @@ export function toHeaderItem(
   return id === undefined ? undefined : { id, label: label ?? id };
 }
 
+export function createHeaderItem(
+  id: string,
+  labelReplacements: Record<string, string> | undefined,
+): HeaderItem {
+  return {
+    id,
+    label: labelReplacements?.[id] ??
+      (id === BLANK_SENTINEL ? t3(BLANK_LABEL) : id),
+  };
+}
+
 export function createHeaderItems(
   ids: string[],
   labelReplacements: Record<string, string> | undefined,
 ): HeaderItem[] {
-  return ids.map((id) => ({
-    id,
-    label: labelReplacements?.[id] ?? id,
-  }));
+  return ids.map((id) => createHeaderItem(id, labelReplacements));
 }
 
 export function sortHeaderItems(
   items: HeaderItem[],
   sortConfig: HeaderSortConfig | undefined,
 ): HeaderItem[] {
-  const fn = resolveSortFunc(sortConfig);
-  if (!fn) {
-    return items;
-  }
-  return [...items].sort(fn);
+  return [...items].sort(resolveSortFunc(sortConfig));
 }

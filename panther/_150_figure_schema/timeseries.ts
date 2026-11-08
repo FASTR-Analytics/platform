@@ -65,6 +65,7 @@ const zTimeseriesDataTransformedObject = z.object({
     periodType: zPeriodType,
     timeMin: z.number(),
     nTimePoints: z.number(),
+    nBlankRows: z.number(),
   }),
   series: zDataAxis.optional(),
   lane: zDataAxis.optional(),

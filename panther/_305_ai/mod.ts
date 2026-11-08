@@ -82,7 +82,6 @@ export type { ConversationMetadata } from "./_core/conversations_persistence.ts"
 export type { ConversationsContextValue } from "./_components/use_conversations.ts";
 
 export type {
-  AskUserQuestionsAnswer,
   AskUserQuestionsInput,
   AskUserQuestionsOption,
 } from "./_core/ask_user_questions_types.ts";

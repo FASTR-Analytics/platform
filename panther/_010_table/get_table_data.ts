@@ -14,14 +14,14 @@ import {
   assert,
   assertNotUndefined,
   createArray,
+  createHeaderItem,
+  getDimensionId,
   type HeaderItem,
   type HeaderSortConfig,
-  type HeaderSortFunc,
   type JsonArray,
   type JsonArrayItem,
-  readDimensionId,
-  resolveSortFunc,
-  validateDistinctDimensions,
+  sortHeaderItems,
+  validateSlotDimensions,
 } from "./deps.ts";
 
 export function getTableDataTransformed(d: TableData): TableDataTransformed {
@@ -51,12 +51,13 @@ function getTableDataJsonTransformed(
   if (valueProps.length === 0) {
     throw new Error("Need at least one valueProp");
   }
-  validateDistinctDimensions({
+  const slotProps = {
     col: colProp,
     row: rowProp,
     colGroup: colGroupProp,
     rowGroup: rowGroupProp,
-  });
+  };
+  validateSlotDimensions(jsonArray, slotProps);
 
   const col = promoteGroupPropIfNoItemProp(
     colGroupProp,
@@ -90,13 +91,13 @@ function getTableDataJsonTransformed(
   // Sort each axis independently
   const sortedColAxis = sortStructuredAxis(
     colAxis,
-    resolveSortFunc(col.groupSort),
-    resolveSortFunc(col.itemSort),
+    col.groupSort,
+    col.itemSort,
   );
   const sortedRowAxis = sortStructuredAxis(
     rowAxis,
-    resolveSortFunc(row.groupSort),
-    resolveSortFunc(row.itemSort),
+    row.groupSort,
+    row.itemSort,
   );
 
   // Flatten to groups and build index mappings
@@ -229,9 +230,9 @@ function buildStructuredAxis(
   const groupToItems = new Map<string | undefined, Set<string | undefined>>();
 
   for (const vp of valueProps) {
-    for (const [i_row, obj] of jsonArray.entries()) {
-      const groupId = resolveId(groupProp, vp, obj, i_row);
-      const itemId = resolveId(itemProp, vp, obj, i_row);
+    for (const obj of jsonArray) {
+      const groupId = resolveId(groupProp, vp, obj);
+      const itemId = resolveId(itemProp, vp, obj);
 
       let itemSet = groupToItems.get(groupId);
       if (!itemSet) {
@@ -245,10 +246,10 @@ function buildStructuredAxis(
   // An undefined id is the lone member of a slot with no prop.
   const axis: StructuredAxis = [];
   for (const [groupId, itemIds] of groupToItems) {
-    const groupHeader = toHeaderItem(groupId, labelReplacements);
+    const groupHeader = toOptionalHeaderItem(groupId, labelReplacements);
     const items: (HeaderItem | undefined)[] = [];
     for (const itemId of itemIds) {
-      items.push(toHeaderItem(itemId, labelReplacements));
+      items.push(toOptionalHeaderItem(itemId, labelReplacements));
     }
     axis.push({ header: groupHeader, items });
   }
@@ -256,56 +257,52 @@ function buildStructuredAxis(
   return axis;
 }
 
-function toHeaderItem(
+function toOptionalHeaderItem(
   id: string | undefined,
   labelReplacements: Record<string, string> | undefined,
 ): HeaderItem | undefined {
-  if (id === undefined) return undefined;
-  return { id, label: labelReplacements?.[id] ?? id };
+  return id === undefined ? undefined : createHeaderItem(id, labelReplacements);
 }
 
 function resolveId(
   prop: string | undefined,
   valueProp: string,
   obj: JsonArrayItem,
-  i_row: number,
 ): string | undefined {
   if (prop === "--v") return valueProp;
   if (prop === undefined) return undefined;
-  return readDimensionId(obj, prop, i_row);
+  return getDimensionId(obj, prop);
 }
 
 function sortStructuredAxis(
   axis: StructuredAxis,
-  groupSortFunc: HeaderSortFunc | undefined,
-  itemSortFunc: HeaderSortFunc | undefined,
+  groupSort: HeaderSortConfig | undefined,
+  itemSort: HeaderSortConfig | undefined,
 ): StructuredAxis {
-  // An undefined header is the lone member of a slot with no prop, so it
-  // never meets a defined one in a comparison.
-  const withSortedItems = axis.map((group) => ({
+  const groups = axis.map((group) => ({
     header: group.header,
-    items: itemSortFunc
-      ? [...group.items].sort(compareDefined(itemSortFunc))
-      : group.items,
+    items: sortOptionalHeaders(group.items, itemSort),
   }));
-
-  if (groupSortFunc) {
-    withSortedItems.sort((a, b) => {
-      const cmp = compareDefined(groupSortFunc);
-      return cmp(a.header, b.header);
-    });
-  }
-
-  return withSortedItems;
+  const groupByHeaderId = new Map(groups.map((g) => [g.header?.id, g]));
+  return sortOptionalHeaders(groups.map((g) => g.header), groupSort).map(
+    (header) => {
+      const group = groupByHeaderId.get(header?.id);
+      assertNotUndefined(group);
+      return group;
+    },
+  );
 }
 
-function compareDefined(
-  fn: HeaderSortFunc,
-): (a: HeaderItem | undefined, b: HeaderItem | undefined) => number {
-  return (a, b) => {
-    if (a === undefined || b === undefined) return 0;
-    return fn(a, b);
-  };
+// An undefined header is the lone member of a slot with no prop, so it never
+// sits beside a defined one.
+function sortOptionalHeaders(
+  headers: (HeaderItem | undefined)[],
+  sort: HeaderSortConfig | undefined,
+): (HeaderItem | undefined)[] {
+  const defined = headers.filter((h): h is HeaderItem => h !== undefined);
+  return defined.length === headers.length
+    ? sortHeaderItems(defined, sort)
+    : headers;
 }
 
 type FlatAxisGroup = {
@@ -367,15 +364,15 @@ function fillDataArray(
   rowComboToIndex: Map<string, number>,
 ): void {
   for (const vp of valueProps) {
-    for (const [i_row, obj] of jsonArray.entries()) {
+    for (const obj of jsonArray) {
       if (obj[vp] === null || obj[vp] === undefined) {
         continue;
       }
 
-      const colGroupId = resolveId(colGroupProp, vp, obj, i_row);
-      const colItemId = resolveId(colProp, vp, obj, i_row);
-      const rowGroupId = resolveId(rowGroupProp, vp, obj, i_row);
-      const rowItemId = resolveId(rowProp, vp, obj, i_row);
+      const colGroupId = resolveId(colGroupProp, vp, obj);
+      const colItemId = resolveId(colProp, vp, obj);
+      const rowGroupId = resolveId(rowGroupProp, vp, obj);
+      const rowItemId = resolveId(rowProp, vp, obj);
 
       const colCombo = makeComboKey(colGroupId, colItemId);
       const rowCombo = makeComboKey(rowGroupId, rowItemId);

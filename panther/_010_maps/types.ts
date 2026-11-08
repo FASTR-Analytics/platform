@@ -52,8 +52,9 @@ export type MapJsonDataConfig = {
 export type MapDataTransformed = {
   isTransformed: true;
   geoFeatures: GeoJSONFeature[];
-  // The area dimension, and the feature property its members match.
-  area: { dimension: string; matchProp: string };
+  // The area dimension, the feature property its members match, and the rows
+  // left off the map because their area is the blank member.
+  area: { dimension: string; matchProp: string; nBlankRows: number };
   pane?: DataAxis;
   tier?: DataAxis;
   lane?: DataAxis;

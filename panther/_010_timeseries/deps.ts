@@ -8,6 +8,7 @@ export {
   createArray,
   getTimeFromPeriodId,
   getValidNumberOrUndefined,
+  isBlankValue,
 } from "../_000_utils/mod.ts";
 export type { PeriodType } from "../_000_utils/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
@@ -37,14 +38,13 @@ export {
   measureChart,
   measureChartWithAutofit,
   PANE_HEADER_SAMPLE_MAX_W,
-  readDimensionId,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveDefaultLegend,
   resolveScaleAxisPlotHeight,
   SIZING_SAMPLE,
   validateDataInput,
-  validateDistinctDimensions,
+  validateSlotDimensions,
   validateUncertaintyConfig,
 } from "../_007_figure_core/mod.ts";
 export type {
@@ -52,6 +52,7 @@ export type {
   ChartScaleAxisLimits,
   FigureInputsBase,
   JsonArray,
+  JsonArrayItem,
   LegendInput,
   MeasuredSurrounds,
   PaneGrid,

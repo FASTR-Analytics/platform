@@ -58,12 +58,13 @@ export type PieJsonDataConfig = {
   // series axis: global order keeps one legend and a stable color identity;
   // per-cell orders would break both.
   sortSeriesValues?: "ascending" | "descending" | "none";
-  // Collapses every series whose share of the GLOBAL sum across every cell is
-  // below `threshold` into one synthetic slice (id "--other", display label
-  // `label` ?? "Other"), summing their values per cell. The criterion is
+  // Collapses every named series whose share of the GLOBAL sum across every
+  // cell is below `threshold` into one synthetic slice (id "--other", display
+  // label `label` ?? "Other"), summing their values per cell. The criterion is
   // global, never per-cell: the series axis is global (one legend, one
   // seriesColorFunc identity), so a series is grouped everywhere or nowhere.
-  // The grouped slice sorts last regardless of sort/sortSeriesValues.
+  // The grouped slice follows every kept named slice, and the blank slice,
+  // never grouped, follows it, regardless of sort/sortSeriesValues.
   groupSmallSlices?: { threshold: number; label?: string };
 };
 

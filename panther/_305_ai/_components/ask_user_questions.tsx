@@ -23,7 +23,7 @@ export function createAskUserQuestionsTool(): AIToolWithMetadata<
   const tool = createAITool({
     name: "ask_user_questions",
     description:
-      "Present a multiple-choice question to the user inline in the chat. Use this when you need the user to make a decision, clarify preferences, or choose between approaches. Input: { question: string, options: [{ label: string, description?: string }] (2-6 options), allowMultiple?: boolean }. Single-select by default; set allowMultiple to true for multi-select. Only add description to an option if the label alone is ambiguous — omit it when the label is self-explanatory. Only call this tool once per response — do not combine it with other tool calls in the same response. Ask one question at a time. The user's selection will be returned as the tool result.",
+      "Present a multiple-choice question to the user inline in the chat. Use this when you need the user to make a decision, clarify preferences, or choose between approaches. Input: { question: string, options: [{ label: string, description?: string }] (2-6 options), allowMultiple?: boolean }. Single-select by default; set allowMultiple to true for multi-select. Only add description to an option if the label alone is ambiguous — omit it when the label is self-explanatory. Only call this tool once per response — do not combine it with other tool calls in the same response. Ask one question at a time. The card always ends with a row where the user can write their own answer instead of choosing (or, with allowMultiple, as well as choosing), so never add an option such as 'Other', 'Something else' or 'Let me explain'. The tool result is '<question>: <the chosen labels>', with 'none of your options' when the user chose none, followed by a line 'The user's own answer: <text>' when they wrote one.",
     inputSchema: askUserQuestionsInputSchema,
     kind: "read",
     handler: async (input, ctx): Promise<string> => {
@@ -85,13 +85,18 @@ type PendingQuestion = {
 };
 
 const STOPPED = "Question cancelled: generation was stopped";
+const NONE_CHOSEN = "none of your options";
+const OWN_ANSWER_LABEL = "The user's own answer: ";
 
 function formatAnswerForAI(
   input: AskUserQuestionsInput,
   answer: AskUserQuestionsAnswer,
 ): string {
-  if (Array.isArray(answer)) {
-    return `${input.question}: ${answer.join(", ")}`;
-  }
-  return `${input.question}: ${answer}`;
+  const chosen = answer.selected.length > 0
+    ? answer.selected.join(", ")
+    : NONE_CHOSEN;
+  const line = `${input.question}: ${chosen}`;
+  return answer.ownAnswer === undefined
+    ? line
+    : `${line}\n${OWN_ANSWER_LABEL}${answer.ownAnswer}`;
 }

@@ -6,11 +6,15 @@
 // Transforms raw JSON data into multi-dimensional value arrays for chart rendering
 import {
   assert,
+  BLANK_SENTINEL,
+  compareBlankLast,
   createArray,
   createHeaderItems,
   type DataAxis,
   getValidNumberOrUndefined,
+  type HeaderItem,
   type HeaderSortConfig,
+  isBlankValue,
   sortHeaderItems,
   sum,
 } from "./deps.ts";
@@ -69,25 +73,39 @@ export function buildDataAxis(
   };
 }
 
-export function readDimensionId(
-  row: JsonArrayItem,
-  prop: string,
-  i_row: number,
-): string {
+export function getDimensionId(row: JsonArrayItem, prop: string): string {
   const value = row[prop];
-  if (value === undefined || value === null) {
-    throw new Error(`Row ${i_row} has no value for dimension "${prop}"`);
+  return isBlankValue(value) ? BLANK_SENTINEL : String(value);
+}
+
+export function validateSlotDimensions(
+  jsonArray: JsonArray,
+  slotProps: Record<string, string | undefined>,
+): void {
+  validateDistinctDimensions(slotProps);
+  Object.values(slotProps).forEach((prop) =>
+    validateDimensionPresent(jsonArray, prop)
+  );
+}
+
+// A prop that no row carries is a misspelling, never a column of blanks.
+function validateDimensionPresent(
+  jsonArray: JsonArray,
+  prop: string | undefined,
+): void {
+  if (prop === undefined || prop === "--v" || jsonArray.length === 0) {
+    return;
   }
-  return String(value);
+  if (!jsonArray.some((row) => Object.hasOwn(row, prop))) {
+    throw new Error(`No row has dimension "${prop}"`);
+  }
 }
 
 function collectDimensionIds(jsonArray: JsonArray, prop: string): string[] {
-  const ids = new Set<string>();
-  jsonArray.forEach((row, i_row) => ids.add(readDimensionId(row, prop, i_row)));
-  return [...ids];
+  return [...new Set(jsonArray.map((row) => getDimensionId(row, prop)))];
 }
 
-export function validateDistinctDimensions(
+function validateDistinctDimensions(
   props: Record<string, string | undefined>,
 ): void {
   const slotByDimension = new Map<string, string>();
@@ -111,7 +129,9 @@ export function getHeaderIndex(
   obj: JsonArrayItem,
 ): number {
   if (!axis) return 0;
-  const id = axis.dimension === "--v" ? valueProp : String(obj[axis.dimension]);
+  const id = axis.dimension === "--v"
+    ? valueProp
+    : getDimensionId(obj, axis.dimension);
   return axis.headers.findIndex((h) => h.id === id);
 }
 
@@ -415,14 +435,18 @@ export function deriveVisibleIndicatorsByPaneBand(
 
 export type ValueSortDirection = "ascending" | "descending";
 
-// Stable, so ties keep the order the mask arrived in (storage order).
+// Stable, so ties keep the order the mask arrived in (storage order). The
+// blank indicator follows every named one whatever its value.
 function orderByKey(
   visible: number[],
+  indicators: HeaderItem[],
   key: (i: number) => number,
   direction: ValueSortDirection,
 ): number[] {
   const sign = direction === "descending" ? -1 : 1;
-  return [...visible].sort((a, b) => sign * (key(a) - key(b)));
+  return [...visible].sort((a, b) =>
+    compareBlankLast(indicators[a], indicators[b]) || sign * (key(a) - key(b))
+  );
 }
 
 function sumDefined(cells: (number | undefined)[][], i: number): number {
@@ -437,6 +461,7 @@ function sumDefined(cells: (number | undefined)[][], i: number): number {
 export function orderVisibleByPane(
   visibleByPane: number[][],
   values: (number | undefined)[][][][][],
+  indicators: HeaderItem[],
   bandAxis: "tier" | "lane",
   direction: ValueSortDirection | undefined,
 ): number[][] {
@@ -450,6 +475,7 @@ export function orderVisibleByPane(
       : paneTensor.map((tier) => tier[0]);
     return orderByKey(
       visible,
+      indicators,
       (i) => bandCells.reduce((acc, cells) => acc + sumDefined(cells, i), 0),
       direction,
     );
@@ -459,6 +485,7 @@ export function orderVisibleByPane(
 export function orderVisibleByPaneBand(
   visibleByPaneBand: number[][][],
   values: (number | undefined)[][][][][],
+  indicators: HeaderItem[],
   bandAxis: "tier" | "lane",
   direction: ValueSortDirection | undefined,
 ): number[][][] {
@@ -470,7 +497,12 @@ export function orderVisibleByPaneBand(
       const cells = bandAxis === "lane"
         ? values[i_pane][0][i_band]
         : values[i_pane][i_band][0];
-      return orderByKey(visible, (i) => sumDefined(cells, i), direction);
+      return orderByKey(
+        visible,
+        indicators,
+        (i) => sumDefined(cells, i),
+        direction,
+      );
     })
   );
 }

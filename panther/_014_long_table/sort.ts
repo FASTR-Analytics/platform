@@ -3,8 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { foldString } from "./deps.ts";
-import { BLANK_SENTINEL } from "./types.ts";
+import { BLANK_SENTINEL, foldString } from "./deps.ts";
 
 // Natural order for option lists, independent of the runtime's collation:
 // digit runs compare numerically, case and diacritics are folded, and equal

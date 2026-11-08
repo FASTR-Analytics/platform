@@ -7,7 +7,9 @@ export { buildAutoFormatter, createArray } from "../_000_utils/mod.ts";
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export {
   buildItem,
+  compareBlankLast,
   computeBoundsForPath,
+  isBlankHeader,
   pathSegmentPoints,
   slotCoordinate,
   slotHeaders,
@@ -70,7 +72,7 @@ export {
   solveContentScale,
   subChartItemCoordinates,
   validateDataInput,
-  validateDistinctDimensions,
+  validateSlotDimensions,
   withFigureLabelBounds,
 } from "../_007_figure_core/mod.ts";
 export type {

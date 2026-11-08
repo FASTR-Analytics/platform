@@ -3,7 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { getPeriodTypeFromValue, stableStringify } from "./deps.ts";
+import {
+  BLANK_SENTINEL,
+  getPeriodTypeFromValue,
+  isBlankText,
+  stableStringify,
+} from "./deps.ts";
 import type { PeriodType } from "./deps.ts";
 import {
   caseHint,
@@ -20,8 +25,6 @@ import {
 import type { ExpressionNode } from "./_expression/parse.ts";
 import {
   ALL_LONG_TABLE_AGGREGATES,
-  BLANK_SENTINEL,
-  isBlankText,
   LongTableValidationError,
   SAMPLE_N_PREFIX,
 } from "./types.ts";

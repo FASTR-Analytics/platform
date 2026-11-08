@@ -6,15 +6,17 @@
 import {
   buildDataAxis,
   checkValuePropsAssignment,
+  compareBlankLast,
   createArray,
   type DataAxis,
   fillValuesWithDuplicateCheck,
   getHeaderIndex,
   type HeaderSortConfig,
+  isBlankHeader,
   type SlotAxes,
   slotHeaders,
   validateDataInput,
-  validateDistinctDimensions,
+  validateSlotDimensions,
 } from "./deps.ts";
 import {
   isPieDataTransformed,
@@ -54,13 +56,14 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
     paneProp,
   });
 
-  validateDistinctDimensions({
+  const slotProps = {
     series: seriesProp,
     indicator: indicatorProp,
     pane: paneProp,
     tier: tierProp,
     lane: laneProp,
-  });
+  };
+  validateSlotDimensions(jsonArray, slotProps);
   const axis = (prop: string | undefined, sortConfig?: HeaderSortConfig) =>
     buildDataAxis(jsonArray, prop, valueProps, labelReplacements, sortConfig);
   const sortsByValue = sortSeriesValues !== undefined &&
@@ -99,7 +102,8 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
     : { values, series };
 
   // Grouping runs AFTER the series sort, so the kept order is preserved and
-  // the synthetic slice lands last regardless of sort/sortSeriesValues.
+  // the synthetic slice lands after every kept named slice regardless of
+  // sort/sortSeriesValues.
   const grouped = sorted.series && jsonDataConfig.groupSmallSlices
     ? applyGroupSmallSlices(
       sorted.values,
@@ -124,29 +128,19 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
 // grouped slice. Mirrors "--remainder"/"--center".
 const OTHER_SERIES_ID = "--other";
 
-// Collapses every series whose share of the GLOBAL sum (across every cell) is
-// below threshold into one summed series, appended last. Global, never
-// per-cell: the series axis is global, so a series is grouped everywhere or
-// nowhere — a cell may still show a locally small slice whose global share
-// clears the threshold, and that is the correct trade.
+// Collapses every named series whose share of the GLOBAL sum (across every
+// cell) is below threshold into one summed series, placed after the kept named
+// series and before the blank one, which is never grouped: an unknown category
+// is not a small known one. Global, never per-cell: the series axis is global,
+// so a series is grouped everywhere or nowhere — a cell may still show a
+// locally small slice whose global share clears the threshold, and that is the
+// correct trade.
 function applyGroupSmallSlices(
   values: (number | undefined)[][][][][],
   series: DataAxis,
   config: { threshold: number; label?: string },
 ): { values: (number | undefined)[][][][][]; series: DataAxis } {
-  const sums = series.headers.map((_, i_series) => {
-    let total = 0;
-    for (const pane of values) {
-      for (const tier of pane) {
-        for (const lane of tier) {
-          for (const v of lane[i_series]) {
-            if (v !== undefined) total += v;
-          }
-        }
-      }
-    }
-    return total;
-  });
+  const sums = sumSeriesGlobally(values, series.headers.length);
   const globalSum = sums.reduce((a, b) => a + b, 0);
   if (globalSum <= 0) {
     return { values, series };
@@ -154,8 +148,14 @@ function applyGroupSmallSlices(
 
   const keptIdx: number[] = [];
   const groupedIdx: number[] = [];
-  series.headers.forEach((_, i) => {
-    (sums[i] / globalSum < config.threshold ? groupedIdx : keptIdx).push(i);
+  const blankIdx: number[] = [];
+  series.headers.forEach((h, i) => {
+    const target = isBlankHeader(h)
+      ? blankIdx
+      : sums[i] / globalSum < config.threshold
+      ? groupedIdx
+      : keptIdx;
+    target.push(i);
   });
   if (groupedIdx.length === 0) {
     return { values, series };
@@ -164,6 +164,7 @@ function applyGroupSmallSlices(
   const newHeaders = [
     ...keptIdx.map((i) => series.headers[i]),
     { id: OTHER_SERIES_ID, label: config.label ?? "Other" },
+    ...blankIdx.map((i) => series.headers[i]),
   ];
   const newValues = values.map((pane) =>
     pane.map((tier) =>
@@ -183,7 +184,11 @@ function applyGroupSmallSlices(
           }
           groupedRow.push(sum);
         }
-        return [...keptIdx.map((i) => lane[i]), groupedRow];
+        return [
+          ...keptIdx.map((i) => lane[i]),
+          groupedRow,
+          ...blankIdx.map((i) => lane[i]),
+        ];
       })
     )
   );
@@ -251,7 +256,31 @@ function reorderSeriesByGlobalSum(
   series: DataAxis,
   direction: "ascending" | "descending",
 ): { values: (number | undefined)[][][][][]; series: DataAxis } {
-  const sums = series.headers.map((_, i_series) => {
+  const sums = sumSeriesGlobally(values, series.headers.length);
+
+  const order = series.headers
+    .map((_, i) => i)
+    .sort((a, b) =>
+      compareBlankLast(series.headers[a], series.headers[b]) ||
+      (direction === "descending" ? sums[b] - sums[a] : sums[a] - sums[b])
+    );
+
+  return {
+    series: {
+      dimension: series.dimension,
+      headers: order.map((i) => series.headers[i]),
+    },
+    values: values.map((pane) =>
+      pane.map((tier) => tier.map((lane) => order.map((i) => lane[i])))
+    ),
+  };
+}
+
+function sumSeriesGlobally(
+  values: (number | undefined)[][][][][],
+  nSeries: number,
+): number[] {
+  return createArray(nSeries, (i_series) => {
     let total = 0;
     for (const pane of values) {
       for (const tier of pane) {
@@ -264,20 +293,4 @@ function reorderSeriesByGlobalSum(
     }
     return total;
   });
-
-  const order = series.headers
-    .map((_, i) => i)
-    .sort((a, b) =>
-      direction === "descending" ? sums[b] - sums[a] : sums[a] - sums[b]
-    );
-
-  return {
-    series: {
-      dimension: series.dimension,
-      headers: order.map((i) => series.headers[i]),
-    },
-    values: values.map((pane) =>
-      pane.map((tier) => tier.map((lane) => order.map((i) => lane[i])))
-    ),
-  };
 }

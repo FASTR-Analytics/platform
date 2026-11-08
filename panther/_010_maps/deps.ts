@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+export { BLANK_SENTINEL } from "../_000_utils/mod.ts";
 export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export {
@@ -43,6 +44,7 @@ export {
   estimateMinSurroundsWidth,
   fieldTrack,
   generateResolvedFigureLabelPrimitives,
+  getDimensionId,
   getHeaderIndex,
   getSubChartHeaders,
   isAutoScaleLegendConfig,
@@ -50,7 +52,6 @@ export {
   measureChartWithAutofit,
   placeNearestBoxes,
   placeOutsideBoxes,
-  readDimensionId,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveAutoScaleLegend,
@@ -61,7 +62,7 @@ export {
   scaledTrack,
   solveContentScale,
   subChartItemCoordinates,
-  validateDistinctDimensions,
+  validateSlotDimensions,
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartComponentSizes,

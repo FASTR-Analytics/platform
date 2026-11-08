@@ -6,6 +6,7 @@
 export { MIN_FONT_SIZE_DU } from "../_000_consts/mod.ts";
 export {
   assert,
+  BLANK_SENTINEL,
   buildAutoFormatter,
   createArray,
   decodePeriod,
@@ -14,6 +15,7 @@ export {
   getLanguage,
   getPeriodIdFromTime,
   getValidNumberOrUndefined,
+  isBlankValue,
   isUnique,
   sum,
   toAbbrevAuto,
@@ -38,6 +40,7 @@ export type { AlignH, PaddingOptions } from "../_001_geometry/mod.ts";
 export {
   buildItem,
   CAPTION_ITEM_KEY,
+  compareBlankLast,
   computeBoundsForPath,
   createHeaderItems,
   labelBoxRcd,

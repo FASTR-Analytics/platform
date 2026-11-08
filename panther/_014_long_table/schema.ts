@@ -3,13 +3,9 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { getPeriodTypeFromValue } from "./deps.ts";
+import { BLANK_SENTINEL, getPeriodTypeFromValue } from "./deps.ts";
 import type { PeriodType } from "./deps.ts";
-import {
-  BLANK_SENTINEL,
-  LongTableValidationError,
-  SAMPLE_N_PREFIX,
-} from "./types.ts";
+import { LongTableValidationError, SAMPLE_N_PREFIX } from "./types.ts";
 import type {
   DerivedDimension,
   DescribedColumn,

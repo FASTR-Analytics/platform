@@ -35,7 +35,7 @@ import {
   validateChartMembership,
   validateChartProportional,
   validateDataInput,
-  validateDistinctDimensions,
+  validateSlotDimensions,
 } from "./common_data_transform.ts";
 import {
   type ChartScaleAxisLimits,
@@ -176,13 +176,14 @@ export function transformOneWayChartJson(
     ? jsonArray
     : sourceRows;
 
-  validateDistinctDimensions({
+  const slotProps = {
     indicator: indicatorProp,
     series: seriesProp,
     lane: laneProp,
     tier: tierProp,
     pane: paneProp,
-  });
+  };
+  validateSlotDimensions(jsonArray, slotProps);
   const axis = (prop: string | undefined, sortConfig?: HeaderSortConfig) =>
     buildDataAxis(
       headersSource,
@@ -371,6 +372,7 @@ export function transformOneWayChartJson(
         ? deriveVisibleIndicatorsByPane(values, bounds, nIndicators)
         : createArray(nPanes, () => indicator.headers.map((_, i) => i)),
       values,
+      indicator.headers,
       spec.bandAxis,
       valueSort,
     )
@@ -391,6 +393,7 @@ export function transformOneWayChartJson(
         spec.bandAxis,
       ),
       values,
+      indicator.headers,
       spec.bandAxis,
       valueSort,
     )
