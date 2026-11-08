@@ -456,10 +456,10 @@ export const F2_HFA_SERVICE_CATS: Fixture = {
 // F3: F2 with ONE thing changed: time_point is declared `integer`.
 //
 // This pair is the whole point of the shouldFoldBlank type gate. The fold emits
-// btrim() and returns a text sentinel from its CASE; Postgres rejects both on a
-// numeric column, so a name-only gate turns working visualizations into a hard
-// SQL error. Results-column types are authored per module, so the same option
-// genuinely is text in one instance and integer in another.
+// two-arg trim() and returns a text sentinel from its CASE; DuckDB rejects both
+// on a numeric column, so a name-only gate turns working visualizations into a
+// hard SQL error. Results-column types are authored per module, so the same
+// option genuinely is text in one instance and integer in another.
 export const F3_HFA_TIMEPOINT_INTEGER: Fixture = {
   ...F2_HFA_SERVICE_CATS,
   name: "hfa_timepoint_integer",

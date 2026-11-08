@@ -116,7 +116,7 @@ notifyInstanceProductsUpserted(mainDb, [productId])` re-reads and broadcasts the
 **Two version layers on the run-keyed caches.** Each layer has a distinct job:
 
 1. **Identity**: the immutable `runId` (which run the data came from) leads the UNIQUENESS hash and the `scopeToken` trails it. The token is the hash of the scope's definition (`scopeDefinitionHash`, `lib/types/scope.ts`), not the scope's id or label. Data never changes under a run, and an edited definition hashes to new keys, so no write ever needs to out-version an entry.
-2. **`PO_CACHE_VERSION`** (`server/routes/caches/visualizations.ts`, currently `"27"`, bump history in the adjacent comment) is a manually-bumped semantic version used as the `versionHash` of all three; bump it when the _generated SQL, payload semantics or payload shape_ change so old entries miss without a prefix migration.
+2. **`PO_CACHE_VERSION`** (`server/routes/caches/visualizations.ts`, currently `"29"`, bump history in the adjacent comment) is a manually-bumped semantic version used as the `versionHash` of all three; bump it when the _generated SQL, payload semantics or payload shape_ change so old entries miss without a prefix migration.
 
 **The cache catalog**: five `_UPPER_SNAKE` module-level singletons (four in `server/routes/caches/visualizations.ts`, one in `server/routes/caches/dataset.ts`). The four data caches are run-scoped: two reads on the same run under definitions that hash the same share entries.
 

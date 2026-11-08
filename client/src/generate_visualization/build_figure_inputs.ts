@@ -65,7 +65,9 @@ export type FigureInputsResult =
 
 // Builds FigureInputs from a FigureBundle. All locale reads come from
 // bundle.localization: no ambient singletons. A state the user can act on is
-// returned as a reason; anything else is a bug and throws.
+// returned as a reason; anything else is a bug and throws. Every type's data is
+// transformed here, so a transform throw lands in the caller's catch, not in
+// panther's measure.
 export function buildFigureInputs(
   bundle: FigureBundle,
   deckStyle?: DeckStyleContext,
@@ -486,10 +488,7 @@ function buildInputs(
       effectiveFormat.axisFormat,
       items,
     );
-    // Transform eagerly (timeseries precedent) so transform-time throws
-    // (negative values, missing "--v" assignment) surface here inside the
-    // caller's catch rather than at measure time inside panther. The
-    // transform coerces string values itself: no numeric parse needed.
+    // The transform coerces string values itself: no numeric parse needed.
     const d = getPieDataTransformed({ jsonArray: items, jsonDataConfig: j });
     return {
       figureType: "pie",

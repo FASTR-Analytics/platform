@@ -195,7 +195,7 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
   {
-    name: "groupBy INTEGER time_point → no fold, no btrim, no SQL error",
+    name: "groupBy INTEGER time_point → no fold, no trim, no SQL error",
     fixture: "hfa_timepoint_integer",
     fetchConfig: { ...base(), groupBys: ["time_point"] },
     expect: {

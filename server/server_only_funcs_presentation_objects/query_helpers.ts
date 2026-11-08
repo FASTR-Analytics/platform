@@ -57,7 +57,7 @@ export function blankFoldedRef(columnRef: string): string {
  * period-derived columns have no blank state, and a multi-membership column's
  * blank cell yields no row to fold. The type check is the mechanical one: the
  * fold emits trim() and returns a text sentinel from the CASE, neither of
- * which Postgres will accept on an integer or numeric column, and disaggregation
+ * which DuckDB will accept on an integer or numeric column, and disaggregation
  * columns are only text by convention (module authors declare the type).
  */
 export function shouldFoldBlank(
