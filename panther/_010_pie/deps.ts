@@ -6,21 +6,29 @@
 export { buildAutoFormatter, createArray } from "../_000_utils/mod.ts";
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export {
+  buildItem,
   computeBoundsForPath,
-  createHeaderItems,
-  sortHeaderItems,
+  pathSegmentPoints,
+  slotCoordinate,
+  slotHeaders,
+  textBoxInAnchor,
   Z_INDEX,
 } from "../_001_render_system/mod.ts";
 export type {
+  DataAxis,
+  Decoration,
   FigureLabelPrimitive,
   HeaderItem,
   HeaderSortConfig,
   HeightConstraints,
+  Hittable,
+  ItemCoordinate,
   MeasuredText,
   PathSegment,
   PieSliceInfo,
   PieSlicePrimitive,
   Primitive,
+  PrimitiveItem,
   RenderContext,
   Renderer,
 } from "../_001_render_system/mod.ts";
@@ -32,6 +40,7 @@ export type {
   PieSliceStyle,
 } from "../_003_figure_style/mod.ts";
 export {
+  buildDataAxis,
   buildDataLabelTextStyle,
   calculateChartIdealHeight,
   calculateChartMinWidth,
@@ -39,12 +48,12 @@ export {
   calculatePaneGrid,
   checkValuePropsAssignment,
   circleTrack,
-  collectHeaders,
   computeFloorScale,
   estimateMinSurroundsWidth,
   fillValuesWithDuplicateCheck,
   generateResolvedFigureLabelPrimitives,
   getHeaderIndex,
+  getSubChartHeaders,
   measureChart,
   measureChartWithAutofit,
   PANE_HEADER_SAMPLE_MAX_W,
@@ -59,7 +68,10 @@ export {
   resolvePaneGrid,
   SIZING_SAMPLE,
   solveContentScale,
+  subChartItemCoordinates,
   validateDataInput,
+  validateDistinctDimensions,
+  withFigureLabelBounds,
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartComponentSizes,
@@ -73,6 +85,7 @@ export type {
   LegendInput,
   MeasuredChartBase,
   PaneGrid,
-  ProcessedHeaders,
   SimplifiedChartConfig,
+  SlotAxes,
+  SubChartHeaders,
 } from "../_007_figure_core/mod.ts";

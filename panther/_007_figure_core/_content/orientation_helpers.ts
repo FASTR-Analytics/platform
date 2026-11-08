@@ -13,7 +13,9 @@ import type {
   ChartValueInfo,
   ColorKeyOrString,
   DataLabel,
+  LabelHalo,
   MeasuredText,
+  PrimitiveItem,
 } from "../deps.ts";
 import { Coordinates, RectCoordsDims } from "../deps.ts";
 
@@ -111,6 +113,7 @@ export function makeBarRect(
 // the discriminated union.
 export function makeErrorBarPrimitive(params: {
   key: string;
+  item: PrimitiveItem | undefined;
   meta: { value: ChartValueInfo };
   categoryCenter: number;
   valUb: number;
@@ -123,9 +126,26 @@ export function makeErrorBarPrimitive(params: {
 }): ChartErrorBarPrimitive {
   const valMin = Math.min(params.valUb, params.valLb);
   const valSpan = Math.abs(params.valUb - params.valLb);
+  const bounds = params.orientation === "horizontal"
+    ? new RectCoordsDims({
+      x: valMin,
+      y: params.categoryCenter - params.capExtent / 2,
+      w: valSpan,
+      h: params.capExtent,
+    })
+    : new RectCoordsDims({
+      x: params.categoryCenter - params.capExtent / 2,
+      y: valMin,
+      w: params.capExtent,
+      h: valSpan,
+    });
   const common = {
     type: "chart-error-bar" as const,
     key: params.key,
+    item: params.item,
+    part: "marker" as const,
+    bounds,
+    hitBounds: bounds,
     zIndex: params.zIndex,
     meta: params.meta,
     strokeColor: params.strokeColor,
@@ -135,12 +155,6 @@ export function makeErrorBarPrimitive(params: {
   if (params.orientation === "horizontal") {
     return {
       ...common,
-      bounds: new RectCoordsDims({
-        x: valMin,
-        y: params.categoryCenter - params.capExtent / 2,
-        w: valSpan,
-        h: params.capExtent,
-      }),
       orientation: "horizontal",
       centerY: params.categoryCenter,
       ubX: params.valUb,
@@ -149,12 +163,6 @@ export function makeErrorBarPrimitive(params: {
   }
   return {
     ...common,
-    bounds: new RectCoordsDims({
-      x: params.categoryCenter - params.capExtent / 2,
-      y: valMin,
-      w: params.capExtent,
-      h: valSpan,
-    }),
     orientation: "vertical",
     centerX: params.categoryCenter,
     ubY: params.valUb,
@@ -171,7 +179,7 @@ export function makeBarDataLabel(params: {
   barRcd: RectCoordsDims;
   mText: MeasuredText;
   offset: number;
-  style: DataLabel["style"];
+  halo: LabelHalo | undefined;
   orientation: Orientation;
 }): DataLabel {
   if (params.orientation === "horizontal") {
@@ -183,7 +191,7 @@ export function makeBarDataLabel(params: {
       ]),
       alignH: "left",
       alignV: "middle",
-      style: params.style,
+      halo: params.halo,
     };
   }
   return {
@@ -194,6 +202,6 @@ export function makeBarDataLabel(params: {
     ]),
     alignH: "center",
     alignV: "bottom",
-    style: params.style,
+    halo: params.halo,
   };
 }

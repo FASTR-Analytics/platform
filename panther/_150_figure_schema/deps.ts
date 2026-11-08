@@ -5,8 +5,10 @@
 
 export type { PeriodType } from "../_000_utils/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
+export { slotHeaders } from "../_001_render_system/mod.ts";
 export type {
   AxisMembership,
+  DataAxis,
   HeaderItem,
   HeaderSortConfig,
   HeaderSortFunc,
@@ -61,11 +63,13 @@ export type {
   ColGroupCol,
   RowGroup,
   RowGroupRow,
+  TableColAxis,
   TableData,
   TableDataJson,
   TableDataTransformed,
   TableInputs,
   TableJsonDataConfig,
+  TableRowAxis,
 } from "../_010_table/mod.ts";
 export type {
   TimeseriesData,

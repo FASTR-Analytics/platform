@@ -3,7 +3,11 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { TableDataTransformed } from "../../deps.ts";
+import {
+  tableColGroups,
+  type TableDataTransformed,
+  tableRowGroups,
+} from "../../deps.ts";
 import type { GridColumn, GridColumnGroup, GridRow } from "../grid_types.ts";
 import type { DataGridCell, DataGridProps } from "./types.ts";
 
@@ -48,15 +52,17 @@ export function dataGridPropsFromTableData(
   data: TableDataTransformed,
   cell: DataGridCellFunction,
 ): Pick<DataGridProps, "columns" | "columnGroups" | "rows" | "cells"> {
-  const hasColGroups = data.colGroups.some((g) => g.id !== undefined);
-  const hasRowGroups = data.rowGroups.some((g) => g.id !== undefined);
+  const colGroups = tableColGroups(data);
+  const rowGroups = tableRowGroups(data);
+  const hasColGroups = data.cols?.groupDimension !== undefined;
+  const hasRowGroups = data.rows?.groupDimension !== undefined;
 
-  const columnGroups: GridColumnGroup[] = data.colGroups.map((g, i) => ({
+  const columnGroups: GridColumnGroup[] = colGroups.map((g, i) => ({
     id: headerId(g.id, g.label, i),
     label: g.label ?? "",
   }));
 
-  const columnEntries = data.colGroups.flatMap((g, gi) =>
+  const columnEntries = colGroups.flatMap((g, gi) =>
     g.cols.map((c) => {
       const groupId = hasColGroups ? columnGroups[gi].id : undefined;
       const column: GridColumn = {
@@ -68,7 +74,7 @@ export function dataGridPropsFromTableData(
     })
   );
 
-  const rowEntries = data.rowGroups.flatMap((g, gi) =>
+  const rowEntries = rowGroups.flatMap((g, gi) =>
     g.rows.map((r) => {
       const groupId = hasRowGroups ? headerId(g.id, g.label, gi) : undefined;
       const label = r.label ?? "";

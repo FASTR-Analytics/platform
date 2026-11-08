@@ -7,8 +7,8 @@ import type {
   AxisMembership,
   ChartScaleAxisLimits,
   CustomFigureStyle,
+  DataAxis,
   FigureInputsBase,
-  HeaderItem,
   HeaderSortConfig,
   JsonArray,
   LegendInput,
@@ -83,11 +83,13 @@ export type ChartOVJsonDataConfig = {
 
 export type ChartOVDataTransformed = {
   isTransformed: true;
-  indicatorHeaders: HeaderItem[];
-  seriesHeaders: HeaderItem[];
-  laneHeaders: HeaderItem[];
-  tierHeaders: HeaderItem[];
-  paneHeaders: HeaderItem[];
+  // One axis per split slot; an unsplit slot has none and is one member long
+  // in values.
+  indicator: DataAxis;
+  series?: DataAxis;
+  lane?: DataAxis;
+  tier?: DataAxis;
+  pane?: DataAxis;
   values: (number | undefined)[][][][][];
   bounds?: {
     ub: (number | undefined)[][][][][];

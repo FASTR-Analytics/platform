@@ -2,96 +2,35 @@
 
 **Scope:** UI
 
-How to build an AI chat surface on panther's `_305_ai` engine: views, tools,
-gating, interactions, approval, prompt composition. The full architecture and
-contract reference is `DOC_AI_CHAT.md` at the panther repo root (not synced);
-quickstart snippets are in `modules/_305_ai/README.md` (synced). This protocol
-is the rulebook a consumer app must follow.
+How to build an AI chat surface on panther's `_305_ai` engine: views, tools, gating, interactions, approval, prompt composition. The full architecture and contract reference is `DOC_AI_CHAT.md` at the panther repo root (not synced); quickstart snippets are in `modules/_305_ai/README.md` (synced). This protocol is the rulebook a consumer app must follow.
 
 ## Rules
 
-1. **Tools come from `createAITool`**: never hand-build `SDKTool` objects
-   (bypasses the schema guard and availability hints; unsupported path)
-2. **One view registry per surface, one module-level controller**: tools type
-   against the inert `defineAIViews` registry object; pairing is object
-   identity, so every tool and the chat's controller must share the SAME
-   registry object
-3. **The controller is imperative**: call `setView`/`clearView` from EVERY
-   navigation sync site (tab effects, editor mount/unmount/teardown); a missed
-   site leaves the gate admitting execution against a torn-down context
-4. **Gate with `availableIn`, a whitelist**: family guards ("not while editing
-   anything") stay one-line in-handler checks; situational redirects go in tool
-   DESCRIPTIONS, never in gate messages; a view whose tools act on one entity or
-   package declares `identity`, so a move inside it (another slide of the same
-   deck) refuses a call planned for the old one
-5. **`AIToolFailure` for every anticipated failure** (bad input, missing
-   referent, failed server call); plain `Error` is reserved for bugs, including
-   deliberate invariant throws. Handlers throw; they never return error-shaped
-   strings
-6. **Every write tool gets approval or an explicit exemption**: set
-   `approvalPolicy: { requireForKind: "write", requireKind: true }` and tag
-   every tool with `kind`
-7. **`propose` is read-only; the mutation lives in `commit`**: `markAIEdit`
-   calls belong in `commit` (or plain write handlers), never in `propose`
-8. **Mark AI edits for echo suppression**: every persist path whose change comes
-   back on a push channel calls `markAIEdit(key)` with a payload-bearing key
-   matching the interaction's `echoKey` (a constant key over-suppresses)
-9. **Clear the interaction log on consumer scope change**: the controller is a
-   singleton but its log is scope-local data; call `clearInteractionLog()` where
-   the new scope (project/workspace) mounts. Activation (mount, create, switch,
-   after a delete) moves a conversation to the log's end, so it hears only what
-   happens after
-10. **Keep the system prompt byte-stable across navigation**: per-view
-    `instructions` use `"ephemeral"` delivery. The system prompt stays
-    fixed for the whole conversation: per-view and per-package text goes in view
-    `instructions`, view `state` and consumer blocks, never in `system`
-11. **No hand-maintained tool lists in prompt text**: render tool
-    names/descriptions with `buildToolCatalog(tools)`; a hand list drifts from
-    the registry immediately
-12. **Validate the real config in dev**: call `validateAIChatConfig(config)` on
-    the fully-assembled config under `import.meta.env.DEV`, so tool mistakes
-    fail on page load, not in a live conversation
-13. **AI-driven navigation must keep the attribution window open**:
-    `onAiNavigation` awaits routing to genuine completion, or the code that
-    performs the late `setView` calls `viewController.markAINavigation()` itself
-14. **Declare `headless: true` on tools that operate on persisted data**: such
-    tools take explicit ids as input; view `context` is reserved for tools that
-    genuinely operate on live unsaved state (chat-only, correctly). Absent flag
-    = chat-only. Never combine `headless` with `availableIn`, `kind: "nav"`, or
-    view-typed approval (construction throws); plain-shape approval is allowed
-    and drives the MCP approval flow
-15. **The MCP surface is `createMCPServer` over the same tools array**: declare
-    the same `approvalPolicy` as the chat (an unapproved write in the exposed
-    subset fails boot, not the allowlist's problem); grounding is a ≤2KB
-    `instructions` pointer plus a `groundingResource` thunk (served as a
-    resource AND the `get_overview` tool); slow hydration goes behind `ready`,
-    never blocks serving. Run `validateMCPServerConfig(config)` in the
-    consumer's browser smoke test: it needs no Deno graph
-16. **Keep the headless subset's module graph browser-free at source**: the
-    typecheck will NOT catch browser APIs (app graphs carry the `dom` lib) and
-    only `window`/`document`/`indexedDB` crash at import; `localStorage` and
-    `navigator` run silently under Deno with wrong semantics. Guard those at
-    source (`typeof` checks or injection) and probe the built host by
-    constructing every factory under plain Deno
+1. **Tools come from `createAITool`**: never hand-build `SDKTool` objects (bypasses the schema guard and availability hints; unsupported path)
+2. **One view registry per surface, one module-level controller**: tools type against the inert `defineAIViews` registry object; pairing is object identity, so every tool and the chat's controller must share the SAME registry object
+3. **The controller is imperative**: call `setView`/`clearView` from EVERY navigation sync site (tab effects, editor mount/unmount/teardown); a missed site leaves the gate admitting execution against a torn-down context
+4. **Gate with `availableIn`, a whitelist**: family guards ("not while editing anything") stay one-line in-handler checks; situational redirects go in tool DESCRIPTIONS, never in gate messages; a view whose tools act on one entity or package declares `identity`, so a move inside it (another slide of the same deck) refuses a call planned for the old one
+5. **`AIToolFailure` for every anticipated failure** (bad input, missing referent, failed server call); plain `Error` is reserved for bugs, including deliberate invariant throws. Handlers throw; they never return error-shaped strings
+6. **Every write tool gets approval or an explicit exemption**: set `approvalPolicy: { requireForKind: "write", requireKind: true }` and tag every tool with `kind`
+7. **`propose` is read-only; the mutation lives in `commit`**: `markAIEdit` calls belong in `commit` (or plain write handlers), never in `propose`
+8. **Mark AI edits for echo suppression**: every persist path whose change comes back on a push channel calls `markAIEdit(key)` with a payload-bearing key matching the interaction's `echoKey` (a constant key over-suppresses)
+9. **Clear the interaction log on consumer scope change**: the controller is a singleton but its log is scope-local data; call `clearInteractionLog()` where the new scope (project/workspace) mounts. Activation (mount, create, switch, after a delete) moves a conversation to the log's end, so it hears only what happens after
+10. **Keep the system prompt byte-stable across navigation**: per-view `instructions` use `"ephemeral"` delivery. The system prompt stays fixed for the whole conversation: per-view and per-package text goes in view `instructions`, view `state` and consumer blocks, never in `system`
+11. **No hand-maintained tool lists in prompt text**: render tool names/descriptions with `buildToolCatalog(tools)`; a hand list drifts from the registry immediately
+12. **Validate the real config in dev**: call `validateAIChatConfig(config)` on the fully-assembled config under `import.meta.env.DEV`, so tool mistakes fail on page load, not in a live conversation
+13. **AI-driven navigation must keep the attribution window open**: `onAiNavigation` awaits routing to genuine completion, or the code that performs the late `setView` calls `viewController.markAINavigation()` itself
+14. **Declare `headless: true` on tools that operate on persisted data**: such tools take explicit ids as input; view `context` is reserved for tools that genuinely operate on live unsaved state (chat-only, correctly). Absent flag = chat-only. Never combine `headless` with `availableIn`, `kind: "nav"`, or view-typed approval (construction throws); plain-shape approval is allowed and drives the MCP approval flow
+15. **The MCP surface is `createMCPServer` over the same tools array**: declare the same `approvalPolicy` as the chat (an unapproved write in the exposed subset fails boot, not the allowlist's problem); grounding is a ≤2KB `instructions` pointer plus a `groundingResource` thunk (served as a resource AND the `get_overview` tool); slow hydration goes behind `ready`, never blocks serving. Run `validateMCPServerConfig(config)` in the consumer's browser smoke test: it needs no Deno graph
+16. **Keep the headless subset's module graph browser-free at source**: the typecheck will NOT catch browser APIs (app graphs carry the `dom` lib) and only `window`/`document`/`indexedDB` crash at import; `localStorage` and `navigator` run silently under Deno with wrong semantics. Guard those at source (`typeof` checks or injection) and probe the built host by constructing every factory under plain Deno
 
 ## Ops-projected surfaces
 
-A chat surface whose tools are a projection of an ops registry
-(`opsToAITools(ops, { run })` over panther `_114_ops`) satisfies this protocol
-differently, by construction:
+A chat surface whose tools are a projection of an ops registry (`opsToAITools(ops, { run })` over panther `_114_ops`) satisfies this protocol differently, by construction:
 
-- Rule 1 holds: `opsToAITools` builds every tool through `createAITool`
-  internally: nothing is hand-built.
-- Rule 6's mechanism moves: approval is declared per op in the registry
-  (`approval` / `approvalExempt`, boot-enforced by the kernel) and the
-  projection carries it, so the chat config declares NO `approvalPolicy`:
-  declaring one there would be a second, driftable copy of the registry's
-  policy.
-- Rules 2–4 and 13 (view registry, controller, `availableIn` gating) apply only
-  when the surface ALSO has view-gated tools; a pure ops projection has none and
-  omits the controller.
-- Rule 12 still applies verbatim: `validateAIChatConfig(config)` runs on the
-  real assembled config under `import.meta.env.DEV`.
+- Rule 1 holds: `opsToAITools` builds every tool through `createAITool` internally: nothing is hand-built.
+- Rule 6's mechanism moves: approval is declared per op in the registry (`approval` / `approvalExempt`, boot-enforced by the kernel) and the projection carries it, so the chat config declares NO `approvalPolicy`: declaring one there would be a second, driftable copy of the registry's policy.
+- Rules 2–4 and 13 (view registry, controller, `availableIn` gating) apply only when the surface ALSO has view-gated tools; a pure ops projection has none and omits the controller.
+- Rule 12 still applies verbatim: `validateAIChatConfig(config)` runs on the real assembled config under `import.meta.env.DEV`.
 
 ## Do / Don't
 
@@ -115,9 +54,7 @@ createAITool({
 });
 ```
 
-**Why:** the engine refuses out-of-view executions with a standardized
-self-correcting message before the handler runs, and the narrowed view type
-makes mode-guard boilerplate unwritable.
+**Why:** the engine refuses out-of-view executions with a standardized self-correcting message before the handler runs, and the narrowed view type makes mode-guard boilerplate unwritable.
 
 ### Failure channel
 
@@ -132,9 +69,7 @@ if (!row) throw new AIToolFailure(`No indicator with id ${input.id}.`);
 if (block.type === undefined) throw new Error("unreachable: unsized block"); // bug detector
 ```
 
-**Why:** the wire content to the model is identical; the classification controls
-timeline rendering (clean row vs stack trace), and a stack for an anticipated
-failure points at the throw site, not the cause.
+**Why:** the wire content to the model is identical; the classification controls timeline rendering (clean row vs stack trace), and a stack for an anticipated failure points at the throw site, not the cause.
 
 ### Session mode and presentation
 
@@ -157,8 +92,7 @@ const toolCatalog = buildToolCatalog(tools);
 const system = () => `${base}\n# Available Tools\n${toolCatalog}`;
 ```
 
-**Why:** the catalog is the registry, so it cannot drift from it, and its output
-is byte-stable, so the system cache breakpoint keeps hitting.
+**Why:** the catalog is the registry, so it cannot drift from it, and its output is byte-stable, so the system cache breakpoint keeps hitting.
 
 ### Echo suppression keys
 
@@ -171,9 +105,7 @@ appViewController.markAIEdit(`slide:${res.data.id}`);
 // interaction: echoKey: (p) => `slide:${p.slideId}`
 ```
 
-Mark the ids the server actually mutated (from the response: the ±TTL window is
-order-independent, so a push event arriving before the mark is still
-suppressed), not the ids that were requested.
+Mark the ids the server actually mutated (from the response: the ±TTL window is order-independent, so a push event arriving before the mark is still suppressed), not the ids that were requested.
 
 ## Patterns
 
@@ -208,11 +140,7 @@ const config: AIChatConfig = {
 if (import.meta.env.DEV) validateAIChatConfig(config);
 ```
 
-Every navigation sync site calls the controller: the tab effect
-(`setView(TAB_TO_VIEW[tab()])` from a typed `Record<TabOption, ViewId>` so a new
-tab fails typecheck), and each editor's mount/teardown. If the app has
-switchable scopes (projects/workspaces) in one SPA session, the scope root calls
-`appViewController.clearInteractionLog()` on mount.
+Every navigation sync site calls the controller: the tab effect (`setView(TAB_TO_VIEW[tab()])` from a typed `Record<TabOption, ViewId>` so a new tab fails typecheck), and each editor's mount/teardown. If the app has switchable scopes (projects/workspaces) in one SPA session, the scope root calls `appViewController.clearInteractionLog()` on mount.
 
 ### Approval tool
 
@@ -254,10 +182,7 @@ createAppAITool({
 });
 ```
 
-Detected no-ops return `{ skip }`; validation failures return `{ invalid }`
-(maps to `AIToolFailure`); a domain review UI (staged diff) replaces the
-card/modal via `customProposalUI(signal)`: clean up when the signal aborts, and
-still supply `preview` (it is the timeline's decision record).
+Detected no-ops return `{ skip }`; validation failures return `{ invalid }` (maps to `AIToolFailure`); a domain review UI (staged diff) replaces the card/modal via `customProposalUI(signal)`: clean up when the signal aborts, and still supply `preview` (it is the timeline's decision record).
 
 ### Interactions registry
 
@@ -273,11 +198,7 @@ export const appInteractions = defineAIInteractions({
 });
 ```
 
-User-action sources (editor notify wrappers, push-channel listeners) call
-`appViewController.notify("edited_slide", { slideId })`. AI edit paths do NOT
-route through the user notify wrappers: they use the raw setters and rely on
-`markAIEdit` for the push-channel echo. Navigation reporting (`__navigation`
-digest) comes free once interactions are configured.
+User-action sources (editor notify wrappers, push-channel listeners) call `appViewController.notify("edited_slide", { slideId })`. AI edit paths do NOT route through the user notify wrappers: they use the raw setters and rely on `markAIEdit` for the push-channel echo. Navigation reporting (`__navigation` digest) comes free once interactions are configured.
 
 ### Navigation tool
 
@@ -293,17 +214,11 @@ const navTool = createNavigationTool({
 });
 ```
 
-The tool never calls `setView`: the app's own sync sites do. Refusals throw
-`AIToolFailure` from `onAiNavigation`. A plain tool that navigates instead
-(soft-return refusal semantics) must call `viewController.markAINavigation()`
-immediately before triggering the view change, or the move misreports as a user
-action in the next digest.
+The tool never calls `setView`: the app's own sync sites do. Refusals throw `AIToolFailure` from `onAiNavigation`. A plain tool that navigates instead (soft-return refusal semantics) must call `viewController.markAINavigation()` immediately before triggering the view change, or the move misreports as a user action in the next digest.
 
 ### Sharing tools between the SPA chat and an MCP host
 
-Tool definitions that both surfaces consume live in the app's shared `lib/`
-(compiled into the Deno server and the Vite client) as factories over an
-injected environment (one definition AND one handler for both):
+Tool definitions that both surfaces consume live in the app's shared `lib/` (compiled into the Deno server and the Vite client) as factories over an injected environment (one definition AND one handler for both):
 
 ```ts
 // lib: the env seam + a factory
@@ -320,45 +235,22 @@ export function getSharedToolsForMetrics(env: AppAIToolEnv, projectId: string, �
 // Host: injects direct server-action fetches
 ```
 
-The host itself is a plain-Deno stdio entry with zero protocol code and zero
-client-src imports: register a token transport (`setServerActionTransport`),
-hydrate a plain snapshot (mutate captured arrays IN PLACE so boot-time factory
-captures stay live), build the shared factories, and call
-`createMCPServer({ instructions, groundingResource, tools, approvalMode:
-"elicit", approvalPolicy, ready }).serveStdio()`.
-UI-purpose and view-gated tools stay client-resident and off the MCP surface.
+The host itself is a plain-Deno stdio entry with zero protocol code and zero client-src imports: register a token transport (`setServerActionTransport`), hydrate a plain snapshot (mutate captured arrays IN PLACE so boot-time factory captures stay live), build the shared factories, and call `createMCPServer({ instructions, groundingResource, tools, approvalMode:
+"elicit", approvalPolicy, ready }).serveStdio()`. UI-purpose and view-gated tools stay client-resident and off the MCP surface.
 
 ## Checklist
 
-- [ ] No hand-built `SDKTool` objects; every tool is `createAITool` /
-      `aiToolFactory` / `createNavigationTool`
-- [ ] Exactly one `defineAIViews` registry object per surface; all tools and the
-      chat's `viewController` reference it
-- [ ] Every navigation source (tab switch, editor mount/unmount) has a
-      `setView`/`clearView` sync site
-- [ ] No in-handler mode guards that test only the view id (use `availableIn`);
-      remaining in-handler guards are family guards or deliberate, documented
-      omissions
-- [ ] Every view whose tools act on one entity or package declares `identity`
-      (the entity, and any package and scope around it)
-- [ ] No `throw new Error` in tool handlers except invariant/bug detectors;
-      anticipated failures are `AIToolFailure`
-- [ ] `approvalPolicy: { requireForKind: "write", requireKind: true }` set;
-      every tool declares `kind`; unapproved write tools are in `exempt`
-- [ ] No `markAIEdit` inside `propose`; persist-path writes mark payload-bearing
-      keys that match interaction `echoKey`s
-- [ ] `clearInteractionLog()` called at each scope root if scopes are switchable
-      within one SPA session; a conversation hears only actions after its
-      activation
-- [ ] Tool names and descriptions in prompt text come from `buildToolCatalog`,
-      never a hand-maintained list; nothing per-view or per-package in `system`
-      (it goes in `instructions`, `state` or consumer blocks)
-- [ ] `validateAIChatConfig(config)` runs on the real assembled config under
-      `import.meta.env.DEV` for every surface
+- [ ] No hand-built `SDKTool` objects; every tool is `createAITool` / `aiToolFactory` / `createNavigationTool`
+- [ ] Exactly one `defineAIViews` registry object per surface; all tools and the chat's `viewController` reference it
+- [ ] Every navigation source (tab switch, editor mount/unmount) has a `setView`/`clearView` sync site
+- [ ] No in-handler mode guards that test only the view id (use `availableIn`); remaining in-handler guards are family guards or deliberate, documented omissions
+- [ ] Every view whose tools act on one entity or package declares `identity` (the entity, and any package and scope around it)
+- [ ] No `throw new Error` in tool handlers except invariant/bug detectors; anticipated failures are `AIToolFailure`
+- [ ] `approvalPolicy: { requireForKind: "write", requireKind: true }` set; every tool declares `kind`; unapproved write tools are in `exempt`
+- [ ] No `markAIEdit` inside `propose`; persist-path writes mark payload-bearing keys that match interaction `echoKey`s
+- [ ] `clearInteractionLog()` called at each scope root if scopes are switchable within one SPA session; a conversation hears only actions after its activation
+- [ ] Tool names and descriptions in prompt text come from `buildToolCatalog`, never a hand-maintained list; nothing per-view or per-package in `system` (it goes in `instructions`, `state` or consumer blocks)
+- [ ] `validateAIChatConfig(config)` runs on the real assembled config under `import.meta.env.DEV` for every surface
 - [ ] No `mode: "session"` combined with `presentation: "modal"`
-- [ ] Tools on persisted data declare `headless: true` with explicit-id inputs;
-      no `headless` + `availableIn`/`nav`/view-typed approval
-- [ ] If an MCP surface exists: `createMCPServer` declares the chat's
-      `approvalPolicy`; `validateMCPServerConfig` runs in a browser smoke test;
-      the headless subset's graph has no unguarded
-      `localStorage`/`navigator`/`window`/`document`
+- [ ] Tools on persisted data declare `headless: true` with explicit-id inputs; no `headless` + `availableIn`/`nav`/view-typed approval
+- [ ] If an MCP surface exists: `createMCPServer` declares the chat's `approvalPolicy`; `validateMCPServerConfig` runs in a browser smoke test; the headless subset's graph has no unguarded `localStorage`/`navigator`/`window`/`document`

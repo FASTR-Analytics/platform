@@ -6,12 +6,9 @@
 
 1. **Never modify panther/**: External library, auto-synced
 2. **Barrel exports via mod.ts**: Not `index.ts`
-3. **Underscore prefix for internal**: `_internal/`, `_helpers.ts`. Not under
-   `components/`, where `_shared/` is the only underscore
-   (`PROTOCOL_UI_STRUCTURE.md` rule 5)
+3. **Underscore prefix for internal**: `_internal/`, `_helpers.ts`. Not under `components/`, where `_shared/` is the only underscore (`PROTOCOL_UI_STRUCTURE.md` rule 5)
 4. **Domain types centralized**: In `data/types.ts` or `lib/types/`
-5. **Static imports only**: Never dynamic imports, except for code that exists
-   only at runtime (`PROTOCOL_ALL_TYPESCRIPT.md` rule 11)
+5. **Static imports only**: Never dynamic imports, except for code that exists only at runtime (`PROTOCOL_ALL_TYPESCRIPT.md` rule 11)
 6. **Exports before helpers**: Main functions at top of file
 
 ## File Naming
@@ -42,9 +39,7 @@ src/
 └── utils/             # Business logic
 ```
 
-For the rules inside `components/` (the tree mirrors the nav, `mod.ts` entries,
-scoped `_shared/`, one-way layers, and the lint check that verifies each), see
-`PROTOCOL_UI_STRUCTURE.md`.
+For the rules inside `components/` (the tree mirrors the nav, `mod.ts` entries, scoped `_shared/`, one-way layers, and the lint check that verifies each), see `PROTOCOL_UI_STRUCTURE.md`.
 
 ### Full-Stack App (both mode)
 

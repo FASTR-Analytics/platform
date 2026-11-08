@@ -6,6 +6,7 @@
 import type {
   ChartAxisPrimitive,
   HeaderItem,
+  ItemCoordinate,
   LineStyle,
   MergedGridStyle,
   MergedXPeriodAxisStyle,
@@ -13,11 +14,22 @@ import type {
   MergedXTextAxisStyle,
   MergedYScaleAxisStyle,
   MergedYTextAxisStyle,
+  NestedIdentity,
   PeriodType,
   RectCoordsDims,
   RenderContext,
 } from "../deps.ts";
-import { Coordinates, getPeriodIdFromTime, Z_INDEX } from "../deps.ts";
+import {
+  buildItem,
+  computeBoundsForPath,
+  Coordinates,
+  getPeriodIdFromTime,
+  labelBoxRcd,
+  slotCoordinate,
+  unionRectCoordsDims,
+  Z_INDEX,
+} from "../deps.ts";
+import { type ChartItemAxes, periodCoordinate } from "../chart_items.ts";
 import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
 import type { XPeriodAxisMeasuredInfo } from "./x_period/types.ts";
 import type { XScaleAxisHeightInfo } from "./x_scale/types.ts";
@@ -73,6 +85,7 @@ function getScaleTickLabelAlignment(
 
 export function generateXTextAxisPrimitive(
   rc: RenderContext,
+  itemAxes: ChartItemAxes,
   i_pane: number,
   i_lane: number,
   subChartAreaX: number,
@@ -86,6 +99,7 @@ export function generateXTextAxisPrimitive(
 ): ChartAxisPrimitive {
   const sx = axisStyle;
   const sg = gridStyle;
+  const slots = xAxisSlots(itemAxes, i_pane, i_lane);
 
   const axisY = mx.xAxisRcd.y() + sg.axisStrokeWidth / 2;
   const centeredTicks = sx.tickPosition === "center";
@@ -127,18 +141,27 @@ export function generateXTextAxisPrimitive(
         tickY + sx.tickLabelGap,
       ]);
 
+    const label: TickLabel = {
+      mText,
+      position: labelPosition,
+      alignment: { h: "center", v: "top" },
+    };
     ticks.push({
       position: new Coordinates([tickX, tickY]),
       tickLine: {
         start: new Coordinates([tickX, tickY]),
         end: new Coordinates([tickX, tickY + sx.tickHeight]),
       },
-      label: {
-        mText,
-        position: labelPosition,
-        alignment: { h: "center", v: "top" },
-      },
+      label,
       value: indicatorHeaders[i_indicator],
+      ...tickIdentity(
+        slots.coordinates,
+        slotCoordinate(
+          itemAxes.indicator?.dimension,
+          indicatorHeaders[i_indicator],
+        ),
+        label,
+      ),
     });
 
     currentX += centeredTicks
@@ -174,15 +197,11 @@ export function generateXTextAxisPrimitive(
     },
   };
 
-  return {
+  return withPaintedBounds({
     type: "chart-axis",
     key: `x-text-axis-${i_pane}-${i_lane}`,
-    bounds: mx.xAxisRcd,
-    meta: {
-      axisType: "x-text",
-      paneIndex: i_pane,
-      laneIndex: i_lane,
-    },
+    item: buildItem(slots.coordinates),
+    meta: { axisType: "x-text", ...slots.meta },
     ticks,
     axisLine,
     tickStyle: {
@@ -191,7 +210,7 @@ export function generateXTextAxisPrimitive(
       lineDash: "solid",
     },
     zIndex: Z_INDEX.AXIS,
-  };
+  });
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -202,22 +221,41 @@ export function generateXTextAxisPrimitive(
 
 export function generateXPeriodAxisPrimitive(
   rc: RenderContext,
+  itemAxes: ChartItemAxes,
   i_pane: number,
   i_lane: number,
   subChartAreaX: number,
   mx: XPeriodAxisMeasuredInfo,
-  nTimePoints: number,
-  timeMin: number,
-  periodType: PeriodType,
+  period: {
+    dimension: string;
+    periodType: PeriodType;
+    timeMin: number;
+    nTimePoints: number;
+  },
   axisStyle: MergedXPeriodAxisStyle,
   gridStyle: MergedGridStyle,
 ): ChartAxisPrimitive {
   const sx = axisStyle;
   const sg = gridStyle;
+  const { periodType, timeMin, nTimePoints } = period;
+  const slots = xAxisSlots(itemAxes, i_pane, i_lane);
 
   const axisY = mx.xAxisRcd.y() + sg.axisStrokeWidth / 2;
   const ticks: ChartAxisPrimitive["ticks"] = [];
   const tickY = mx.xAxisRcd.y() + sg.axisStrokeWidth;
+  // Every time point that gets a label gets a tick in the same iteration, so
+  // the label goes to the most recent tick, the tick at its period.
+  const labelLastTick = (label: TickLabel, periodId: number) => {
+    ticks[ticks.length - 1] = {
+      ...ticks[ticks.length - 1],
+      label,
+      ...tickIdentity(
+        slots.coordinates,
+        periodCoordinate(period.dimension, periodId),
+        label,
+      ),
+    };
+  };
 
   // Full-height ticks bound the year-label cells. With boundaryTicksEveryYear
   // every year start gets one and cells are single bands (labelled every Nth);
@@ -227,17 +265,28 @@ export function generateXPeriodAxisPrimitive(
     : subChartAreaX + sg.gridStrokeWidth / 2;
   let prevLargeTickX: number | undefined = undefined;
   let prevLargeTickPeriodId: number | undefined = undefined;
-  const cells: { leftX: number; rightX: number; periodId: number }[] = [];
+  let prevLargeTickIVal = 0;
+  const cells: {
+    leftX: number;
+    rightX: number;
+    periodId: number;
+    nPoints: number;
+  }[] = [];
 
   // Loop through time points
   for (let i_val = 0; i_val < nTimePoints; i_val++) {
     const time = timeMin + i_val;
-    const period = getPeriodIdFromTime(time, periodType);
+    const periodId = getPeriodIdFromTime(time, periodType);
     const isYearStart = mx.periodAxisType !== "year-centered" &&
-      (i_val === 0 || isLargePeriod(period, periodType, sx.calendar));
+      (i_val === 0 || isLargePeriod(periodId, periodType, sx.calendar));
     const isLargeTick = isYearStart &&
       (i_val === 0 || mx.boundaryTicksEveryYear ||
-        shouldLabelYear(period, periodType, mx.yearSkipInterval, sx.calendar));
+        shouldLabelYear(
+          periodId,
+          periodType,
+          mx.yearSkipInterval,
+          sx.calendar,
+        ));
 
     if (isLargeTick) {
       // Large tick (year boundary) - full height
@@ -247,7 +296,7 @@ export function generateXPeriodAxisPrimitive(
           start: new Coordinates([currentX, tickY]),
           end: new Coordinates([currentX, mx.xAxisRcd.bottomY()]),
         },
-        value: period,
+        value: periodId,
       });
 
       if (prevLargeTickX !== undefined && prevLargeTickPeriodId !== undefined) {
@@ -255,10 +304,12 @@ export function generateXPeriodAxisPrimitive(
           leftX: prevLargeTickX,
           rightX: currentX,
           periodId: prevLargeTickPeriodId,
+          nPoints: i_val - prevLargeTickIVal,
         });
       }
-      prevLargeTickPeriodId = period;
+      prevLargeTickPeriodId = periodId;
       prevLargeTickX = currentX;
+      prevLargeTickIVal = i_val;
     } else {
       // Small tick (month/quarter)
       if (mx.periodAxisSmallTickH !== "none") {
@@ -269,7 +320,7 @@ export function generateXPeriodAxisPrimitive(
               start: new Coordinates([currentX, tickY]),
               end: new Coordinates([currentX, tickY + mx.periodAxisSmallTickH]),
             },
-            value: period,
+            value: periodId,
           });
         } else {
           // Year-centered: centered ticks
@@ -281,7 +332,7 @@ export function generateXPeriodAxisPrimitive(
                 start: new Coordinates([tickX, tickY]),
                 end: new Coordinates([tickX, tickY + mx.periodAxisSmallTickH]),
               },
-              value: period,
+              value: periodId,
             });
           }
         }
@@ -290,7 +341,7 @@ export function generateXPeriodAxisPrimitive(
 
     // Small period labels (months/quarters) - render for ALL periods
     const smallLabel = getSmallPeriodLabelIfAny(
-      period,
+      periodId,
       mx.periodAxisType,
       sx.calendar,
     );
@@ -305,14 +356,11 @@ export function generateXPeriodAxisPrimitive(
           currentX + (sg.gridStrokeWidth + mx.periodIncrementWidth) / 2,
           tickY + sx.periodLabelSmallTopPadding,
         ]);
-        // Add label to most recent tick
-        if (ticks.length > 0) {
-          ticks[ticks.length - 1].label = {
-            mText,
-            position: labelPos,
-            alignment: { h: "center", v: "top" },
-          };
-        }
+        labelLastTick({
+          mText,
+          position: labelPos,
+          alignment: { h: "center", v: "top" },
+        }, periodId);
       } else {
         // Year-centered: label every Nth
         if (i_val % mx.yearSkipInterval === 0) {
@@ -322,7 +370,7 @@ export function generateXPeriodAxisPrimitive(
             mx.labelGap,
             mx.largeLabelForms,
           );
-          const yearLabel = getLargePeriodLabel(period, form);
+          const yearLabel = getLargePeriodLabel(periodId, form);
           const mText = rc.mText(
             yearLabel,
             sx.text.xPeriodAxisTickLabels,
@@ -332,13 +380,11 @@ export function generateXPeriodAxisPrimitive(
             currentX + mx.periodIncrementWidth / 2,
             tickY + mx.periodAxisSmallTickH + sx.periodLabelSmallTopPadding,
           ]);
-          if (ticks.length > 0) {
-            ticks[ticks.length - 1].label = {
-              mText,
-              position: labelPos,
-              alignment: { h: "center", v: "top" },
-            };
-          }
+          labelLastTick({
+            mText,
+            position: labelPos,
+            alignment: { h: "center", v: "top" },
+          }, periodId);
         }
       }
     }
@@ -353,6 +399,7 @@ export function generateXPeriodAxisPrimitive(
       leftX: prevLargeTickX,
       rightX: currentX,
       periodId: prevLargeTickPeriodId,
+      nPoints: nTimePoints - prevLargeTickIVal,
     });
   }
 
@@ -402,15 +449,25 @@ export function generateXPeriodAxisPrimitive(
       cell.labelX,
       mx.xAxisRcd.bottomY() - mText.dims.h(),
     ]);
-    // Pseudo-tick carrying the label (no tick line)
+    const label: TickLabel = {
+      mText,
+      position: labelPos,
+      alignment: { h: "left", v: "top" },
+    };
+    // Pseudo-tick carrying the label (no tick line). A cell of one annual
+    // time point names that year; any other cell spans several time points
+    // and names none.
     ticks.push({
       position: labelPos,
-      label: {
-        mText,
-        position: labelPos,
-        alignment: { h: "left", v: "top" },
-      },
+      label,
       value: cell.periodId,
+      ...(periodType === "year" && cell.nPoints === 1
+        ? tickIdentity(
+          slots.coordinates,
+          periodCoordinate(period.dimension, cell.periodId),
+          label,
+        )
+        : {}),
     });
   }
 
@@ -427,15 +484,11 @@ export function generateXPeriodAxisPrimitive(
     },
   };
 
-  return {
+  return withPaintedBounds({
     type: "chart-axis",
     key: `x-period-axis-${i_pane}-${i_lane}`,
-    bounds: mx.xAxisRcd,
-    meta: {
-      axisType: "x-period",
-      paneIndex: i_pane,
-      laneIndex: i_lane,
-    },
+    item: buildItem(slots.coordinates),
+    meta: { axisType: "x-period", ...slots.meta },
     ticks,
     axisLine,
     tickStyle: {
@@ -444,7 +497,7 @@ export function generateXPeriodAxisPrimitive(
       lineDash: "solid",
     },
     zIndex: Z_INDEX.AXIS,
-  };
+  });
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -455,6 +508,7 @@ export function generateXPeriodAxisPrimitive(
 
 export function generateYScaleAxisPrimitive(
   rc: RenderContext,
+  itemAxes: ChartItemAxes,
   i_pane: number,
   i_tier: number,
   yScaleAxisWidthInfo: YScaleAxisWidthInfo,
@@ -467,6 +521,7 @@ export function generateYScaleAxisPrimitive(
   sg: MergedGridStyle,
 ): ChartAxisPrimitive {
   const my = yScaleAxisWidthInfo;
+  const slots = yAxisSlots(itemAxes, i_pane, i_tier);
   const axisX = yAxisRcd.rightX() - sg.axisStrokeWidth / 2;
   const ticks: ChartAxisPrimitive["ticks"] = [];
 
@@ -551,16 +606,11 @@ export function generateYScaleAxisPrimitive(
     };
   }
 
-  return {
+  return withPaintedBounds({
     type: "chart-axis",
     key: `y-scale-axis-${i_pane}-${i_tier}`,
-    bounds: yAxisRcd,
-    meta: {
-      axisType: "y-scale",
-      paneIndex: i_pane,
-      laneIndex: 0, // Y-axis spans all lanes
-      tierIndex: i_tier,
-    },
+    item: buildItem(slots.coordinates),
+    meta: { axisType: "y-scale", ...slots.meta },
     ticks,
     axisLine,
     tickStyle: {
@@ -570,7 +620,7 @@ export function generateYScaleAxisPrimitive(
     },
     axisLabel,
     zIndex: Z_INDEX.AXIS,
-  };
+  });
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -581,6 +631,7 @@ export function generateYScaleAxisPrimitive(
 
 export function generateXScaleAxisPrimitive(
   rc: RenderContext,
+  itemAxes: ChartItemAxes,
   i_pane: number,
   i_lane: number,
   xScaleHeightInfo: XScaleAxisHeightInfo,
@@ -592,6 +643,7 @@ export function generateXScaleAxisPrimitive(
   sx: MergedXScaleAxisStyle,
   sg: MergedGridStyle,
 ): ChartAxisPrimitive {
+  const slots = xAxisSlots(itemAxes, i_pane, i_lane);
   const axisY = xAxisRcd.y() + sg.axisStrokeWidth / 2;
   const ticks: ChartAxisPrimitive["ticks"] = [];
 
@@ -673,15 +725,11 @@ export function generateXScaleAxisPrimitive(
     };
   }
 
-  return {
+  return withPaintedBounds({
     type: "chart-axis",
     key: `x-scale-axis-${i_pane}-${i_lane}`,
-    bounds: xAxisRcd,
-    meta: {
-      axisType: "x-scale",
-      paneIndex: i_pane,
-      laneIndex: i_lane,
-    },
+    item: buildItem(slots.coordinates),
+    meta: { axisType: "x-scale", ...slots.meta },
     ticks,
     axisLine,
     tickStyle: {
@@ -691,7 +739,7 @@ export function generateXScaleAxisPrimitive(
     },
     axisLabel,
     zIndex: Z_INDEX.AXIS,
-  };
+  });
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -702,6 +750,7 @@ export function generateXScaleAxisPrimitive(
 
 export function generateYTextAxisPrimitive(
   rc: RenderContext,
+  itemAxes: ChartItemAxes,
   i_pane: number,
   i_tier: number,
   yAxisWidthInfo: YTextAxisWidthInfo,
@@ -712,6 +761,7 @@ export function generateYTextAxisPrimitive(
   sy: MergedYTextAxisStyle,
   sg: MergedGridStyle,
 ): ChartAxisPrimitive {
+  const slots = yAxisSlots(itemAxes, i_pane, i_tier);
   const axisX = yAxisRcd.rightX() - sg.axisStrokeWidth / 2;
   const centeredTicks = sy.tickPosition === "center";
   const ticks: ChartAxisPrimitive["ticks"] = [];
@@ -747,18 +797,27 @@ export function generateYTextAxisPrimitive(
         currentY + (sg.gridStrokeWidth + rowInner) / 2,
       ]);
 
+    const label: TickLabel = {
+      mText,
+      position: labelPosition,
+      alignment: { h: "right", v: "middle" },
+    };
     ticks.push({
       position: new Coordinates([axisX, tickY]),
       tickLine: {
         start: new Coordinates([tickX - sy.tickWidth, tickY]),
         end: new Coordinates([tickX, tickY]),
       },
-      label: {
-        mText,
-        position: labelPosition,
-        alignment: { h: "right", v: "middle" },
-      },
+      label,
       value: indicatorHeaders[i_indicator],
+      ...tickIdentity(
+        slots.coordinates,
+        slotCoordinate(
+          itemAxes.indicator?.dimension,
+          indicatorHeaders[i_indicator],
+        ),
+        label,
+      ),
     });
 
     currentY += centeredTicks ? rowInner : rowInner + sg.gridStrokeWidth;
@@ -793,16 +852,11 @@ export function generateYTextAxisPrimitive(
     },
   };
 
-  return {
+  return withPaintedBounds({
     type: "chart-axis",
     key: `y-text-axis-${i_pane}-${i_tier}`,
-    bounds: yAxisRcd,
-    meta: {
-      axisType: "y-text",
-      paneIndex: i_pane,
-      laneIndex: 0,
-      tierIndex: i_tier,
-    },
+    item: buildItem(slots.coordinates),
+    meta: { axisType: "y-text", ...slots.meta },
     ticks,
     axisLine,
     tickStyle: {
@@ -811,5 +865,83 @@ export function generateYTextAxisPrimitive(
       lineDash: "solid",
     },
     zIndex: Z_INDEX.AXIS,
+  });
+}
+
+type TickLabel = NonNullable<ChartAxisPrimitive["ticks"][number]["label"]>;
+
+// An x-axis serves one lane of its pane, and every tier.
+function xAxisSlots(itemAxes: ChartItemAxes, i_pane: number, i_lane: number) {
+  const paneHeader = itemAxes.pane?.headers[i_pane];
+  const laneHeader = itemAxes.lane?.headers[i_lane];
+  return {
+    meta: { paneIndex: i_pane, laneIndex: i_lane, paneHeader, laneHeader },
+    coordinates: [
+      slotCoordinate(itemAxes.pane?.dimension, paneHeader),
+      slotCoordinate(itemAxes.lane?.dimension, laneHeader),
+    ],
   };
+}
+
+// A y-axis serves one tier of its pane, and every lane.
+function yAxisSlots(itemAxes: ChartItemAxes, i_pane: number, i_tier: number) {
+  const paneHeader = itemAxes.pane?.headers[i_pane];
+  const tierHeader = itemAxes.tier?.headers[i_tier];
+  return {
+    meta: { paneIndex: i_pane, tierIndex: i_tier, paneHeader, tierHeader },
+    coordinates: [
+      slotCoordinate(itemAxes.pane?.dimension, paneHeader),
+      slotCoordinate(itemAxes.tier?.dimension, tierHeader),
+    ],
+  };
+}
+
+// A tick whose label names one member (an indicator, a period) stands for
+// that member within its axis, and is hit on its label.
+function tickIdentity(
+  axisCoordinates: ItemCoordinate[],
+  member: ItemCoordinate,
+  label: TickLabel,
+): NestedIdentity {
+  const item = member === undefined
+    ? undefined
+    : buildItem([...axisCoordinates, member]);
+  if (item === undefined) {
+    return {};
+  }
+  return {
+    item,
+    part: "header",
+    hitBounds: labelBoxRcd(
+      label.mText,
+      label.position,
+      label.alignment.h,
+      label.alignment.v,
+    ),
+  };
+}
+
+// An axis's bounds are what it paints: its line, tick lines, tick labels and
+// axis label.
+function withPaintedBounds(
+  axis: Omit<ChartAxisPrimitive, "bounds">,
+): ChartAxisPrimitive {
+  const lineRects = [
+    computeBoundsForPath(axis.axisLine.coords, axis.axisLine.style.strokeWidth),
+    ...axis.ticks.flatMap((tick) =>
+      tick.tickLine
+        ? [
+          computeBoundsForPath(
+            [tick.tickLine.start, tick.tickLine.end],
+            axis.tickStyle.strokeWidth,
+          ),
+        ]
+        : []
+    ),
+  ];
+  const textRects = [
+    ...axis.ticks.flatMap((tick) => tick.label ? [tick.label] : []),
+    ...(axis.axisLabel ? [axis.axisLabel] : []),
+  ].map((l) => labelBoxRcd(l.mText, l.position, l.alignment.h, l.alignment.v));
+  return { ...axis, bounds: unionRectCoordsDims([...lineRects, ...textRects]) };
 }

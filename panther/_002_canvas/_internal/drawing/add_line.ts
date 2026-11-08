@@ -41,6 +41,7 @@ export function addLine(
   }
   ctx.stroke();
 
-  // Safety measure
+  // Later strokes draw with the canvas defaults: a solid line, mitred joins.
   ctx.setLineDash([]);
+  ctx.lineJoin = "miter";
 }

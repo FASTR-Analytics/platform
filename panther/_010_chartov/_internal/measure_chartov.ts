@@ -49,11 +49,11 @@ export function measureChartOV(
     mergedStyle,
     transformedData,
     dataProps: {
-      paneHeaders: transformedData.paneHeaders,
-      tierHeaders: transformedData.tierHeaders,
-      laneHeaders: transformedData.laneHeaders,
-      seriesHeaders: transformedData.seriesHeaders,
-      indicatorHeaders: transformedData.indicatorHeaders,
+      pane: transformedData.pane,
+      tier: transformedData.tier,
+      lane: transformedData.lane,
+      series: transformedData.series,
+      indicator: transformedData.indicator,
       visibleIndicatorsByPane: transformedData.visibleIndicatorsByPane,
       visibleLanesByPane: transformedData.visibleLanesByPane,
       visibleIndicatorsByPaneBand: transformedData.visibleIndicatorsByPaneBand,
@@ -61,7 +61,7 @@ export function measureChartOV(
     },
     xAxisConfig: {
       type: "text",
-      indicatorHeaders: transformedData.indicatorHeaders,
+      indicatorHeaders: transformedData.indicator.headers,
       axisStyle: mergedStyle.xTextAxis,
     },
     yAxisConfig: {

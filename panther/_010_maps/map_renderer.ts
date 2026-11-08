@@ -11,6 +11,7 @@ import {
   computeFloorScale,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
+  getSubChartHeaders,
   type HeightConstraints,
   isAutoScaleLegendConfig,
   type LegendInput,
@@ -21,6 +22,7 @@ import {
   resolveAutoScaleLegend,
   resolveFigureAutofitOptions,
   resolvePaneGrid,
+  slotHeaders,
 } from "./deps.ts";
 import type { MapDataTransformed, MapInputs, MeasuredMap } from "./types.ts";
 import type { MergedMapStyle } from "./deps.ts";
@@ -37,10 +39,7 @@ import {
   type MapLabelFloorBudget,
 } from "./_internal/generate_map_label_primitives.ts";
 import { resolveShownRegions } from "./_internal/generate_map_region_primitives.ts";
-import {
-  getFeatureMatchKey,
-  getMapCellHeaders,
-} from "./_internal/label_shared.ts";
+import { getFeatureMatchKey } from "./_internal/label_shared.ts";
 
 export const MapRenderer: Renderer<MapInputs, MeasuredMap> = {
   isType(item: unknown): item is MapInputs {
@@ -118,9 +117,9 @@ export function getMapComponentSizes(
   return {
     customFigureStyle,
     mergedStyle,
-    nLanes: transformedData.laneHeaders.length,
-    nTiers: transformedData.tierHeaders.length,
-    paneHeaders: transformedData.paneHeaders,
+    nLanes: slotHeaders(transformedData.lane).length,
+    nTiers: slotHeaders(transformedData.tier).length,
+    nPanes: slotHeaders(transformedData.pane).length,
     minSubChartWidth: minLabelPlotExtent + labelBudget.horizontal,
     // The vertical demand COMBINES differently by placer: under
     // flank it is a stack the cell must be tall enough for; under nearest the
@@ -147,15 +146,14 @@ function calculateMapFloorBudget(
 ): MapLabelFloorBudget {
   const projectionFn = getProjectionFn(mergedStyle.map.projection);
   const cells: Parameters<typeof calculateMapLabelFloorBudget>[1] = [];
-  for (let paneIndex = 0; paneIndex < data.paneHeaders.length; paneIndex++) {
-    for (let tierIndex = 0; tierIndex < data.tierHeaders.length; tierIndex++) {
-      for (
-        let laneIndex = 0;
-        laneIndex < data.laneHeaders.length;
-        laneIndex++
-      ) {
+  const nPanes = slotHeaders(data.pane).length;
+  const nTiers = slotHeaders(data.tier).length;
+  const nLanes = slotHeaders(data.lane).length;
+  for (let paneIndex = 0; paneIndex < nPanes; paneIndex++) {
+    for (let tierIndex = 0; tierIndex < nTiers; tierIndex++) {
+      for (let laneIndex = 0; laneIndex < nLanes; laneIndex++) {
         const valueMap = data.valueMaps[paneIndex][tierIndex][laneIndex];
-        const headers = getMapCellHeaders(data, {
+        const headers = getSubChartHeaders(data, {
           paneIndex,
           tierIndex,
           laneIndex,
@@ -163,7 +161,7 @@ function calculateMapFloorBudget(
         const fitting = featuresForFit(
           data.geoFeatures,
           valueMap,
-          data.areaMatchProp,
+          data.area.matchProp,
           mergedStyle.map.fit,
         );
         cells.push({
@@ -171,7 +169,7 @@ function calculateMapFloorBudget(
             data.geoFeatures,
             valueMap,
             data.valueRange,
-            data.areaMatchProp,
+            data,
             mergedStyle.content.mapRegions.getStyle,
             paneIndex,
             tierIndex,
@@ -207,7 +205,7 @@ function getMapIdealHeight(
   // "only-regions-in-data" shapes the ideal height the way it shapes cells.
   const fittingUnion = mergedStyle.map.fit === "only-regions-in-data"
     ? transformedData.geoFeatures.filter((f) => {
-      const key = getFeatureMatchKey(f, transformedData.areaMatchProp);
+      const key = getFeatureMatchKey(f, transformedData.area.matchProp);
       return transformedData.valueMaps.some((pane) =>
         pane.some((tier) => tier.some((valueMap) => key in valueMap))
       );

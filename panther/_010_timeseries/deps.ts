@@ -11,12 +11,9 @@ export {
 } from "../_000_utils/mod.ts";
 export type { PeriodType } from "../_000_utils/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
-export {
-  createHeaderItems,
-  sortHeaderItems,
-} from "../_001_render_system/mod.ts";
+export { slotHeaders } from "../_001_render_system/mod.ts";
 export type {
-  HeaderItem,
+  DataAxis,
   HeaderSortConfig,
   HeightConstraints,
   Measured,
@@ -27,11 +24,11 @@ export type {
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedTimeseriesStyle } from "../_003_figure_style/mod.ts";
 export {
+  buildDataAxis,
   calculateChartScaleLimits,
   calculateMinSubChartHeight,
   calculateTimeseriesMinSubChartWidth,
   checkValuePropsAssignment,
-  collectHeaders,
   estimateMinSurroundsWidth,
   estimateMinYAxisWidth,
   getChartHeightConstraintsByMeasure,
@@ -40,12 +37,14 @@ export {
   measureChart,
   measureChartWithAutofit,
   PANE_HEADER_SAMPLE_MAX_W,
+  readDimensionId,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveDefaultLegend,
   resolveScaleAxisPlotHeight,
   SIZING_SAMPLE,
   validateDataInput,
+  validateDistinctDimensions,
   validateUncertaintyConfig,
 } from "../_007_figure_core/mod.ts";
 export type {
@@ -58,5 +57,6 @@ export type {
   PaneGrid,
   PaneLayout,
   SimplifiedChartConfig,
+  SlotAxes,
   UncertaintyConfig,
 } from "../_007_figure_core/mod.ts";

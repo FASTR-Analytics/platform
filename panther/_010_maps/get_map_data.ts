@@ -4,10 +4,12 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  collectHeaders,
-  createHeaderItems,
+  buildDataAxis,
   getHeaderIndex,
-  sortHeaderItems,
+  type HeaderSortConfig,
+  readDimensionId,
+  slotHeaders,
+  validateDistinctDimensions,
 } from "./deps.ts";
 import type { GeoJSONFeature } from "./_internal/geojson_types.ts";
 import { decodeTopojson } from "./_internal/topojson_decode.ts";
@@ -23,67 +25,43 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
   const config = data.jsonDataConfig;
   const jsonArray = data.jsonArray;
 
-  const paneHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(jsonArray, config.paneProp, []),
-      config.labelReplacements,
-    ),
-    config.sort?.pane,
-  );
-  const tierHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(jsonArray, config.tierProp, []),
-      config.labelReplacements,
-    ),
-    config.sort?.tier,
-  );
-  const laneHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(jsonArray, config.laneProp, []),
-      config.labelReplacements,
-    ),
-    config.sort?.lane,
-  );
+  validateDistinctDimensions({
+    area: config.areaProp,
+    pane: config.paneProp,
+    tier: config.tierProp,
+    lane: config.laneProp,
+  });
+  const axis = (prop: string | undefined, sort?: HeaderSortConfig) =>
+    buildDataAxis(jsonArray, prop, [], config.labelReplacements, sort);
+  const pane = axis(config.paneProp, config.sort?.pane);
+  const tier = axis(config.tierProp, config.sort?.tier);
+  const lane = axis(config.laneProp, config.sort?.lane);
+  const nPanes = slotHeaders(pane).length;
+  const nTiers = slotHeaders(tier).length;
+  const nLanes = slotHeaders(lane).length;
 
   const valueMaps: Record<string, number | undefined>[][][] = [];
   let globalMin = Infinity;
   let globalMax = -Infinity;
 
-  for (let ip = 0; ip < paneHeaders.length; ip++) {
+  for (let ip = 0; ip < nPanes; ip++) {
     valueMaps[ip] = [];
-    for (let it = 0; it < tierHeaders.length; it++) {
+    for (let it = 0; it < nTiers; it++) {
       valueMaps[ip][it] = [];
-      for (let il = 0; il < laneHeaders.length; il++) {
+      for (let il = 0; il < nLanes; il++) {
         valueMaps[ip][it][il] = {};
       }
     }
   }
 
-  for (const row of jsonArray) {
-    const areaId = String(row[config.areaProp] ?? "");
+  for (const [i_row, row] of jsonArray.entries()) {
+    const areaId = readDimensionId(row, config.areaProp, i_row);
     const rawValue = row[config.valueProp];
     const value = typeof rawValue === "number" ? rawValue : undefined;
 
-    const ip = getHeaderIndex(
-      config.paneProp,
-      config.valueProp,
-      row,
-      paneHeaders,
-    );
-    const it = getHeaderIndex(
-      config.tierProp,
-      config.valueProp,
-      row,
-      tierHeaders,
-    );
-    const il = getHeaderIndex(
-      config.laneProp,
-      config.valueProp,
-      row,
-      laneHeaders,
-    );
-
-    if (ip === -1 || it === -1 || il === -1) continue;
+    const ip = getHeaderIndex(pane, config.valueProp, row);
+    const it = getHeaderIndex(tier, config.valueProp, row);
+    const il = getHeaderIndex(lane, config.valueProp, row);
 
     valueMaps[ip][it][il][areaId] = value;
     if (value !== undefined) {
@@ -98,10 +76,10 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
   return {
     isTransformed: true,
     geoFeatures,
-    areaMatchProp: config.areaMatchProp,
-    paneHeaders,
-    tierHeaders,
-    laneHeaders,
+    area: { dimension: config.areaProp, matchProp: config.areaMatchProp },
+    pane,
+    tier,
+    lane,
     valueMaps,
     valueRange: { min: globalMin, max: globalMax },
   };

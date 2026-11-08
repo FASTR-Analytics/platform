@@ -25,7 +25,9 @@ import {
 import { generateContentPrimitives } from "./_content/generate_content_primitives.ts";
 import { measureDataLabelEndClearance } from "./_content/measure_data_label_clearance.ts";
 import type { Primitive, RenderContext } from "./deps.ts";
-import { RectCoordsDims, Z_INDEX } from "./deps.ts";
+import { buildItem, RectCoordsDims, slotHeaders, Z_INDEX } from "./deps.ts";
+import type { ChartItemAxes } from "./chart_items.ts";
+import { subChartItemCoordinates } from "./sub_chart_headers.ts";
 import type { MeasurePaneConfig, PaneBandLayout } from "./measure_types.ts";
 import type { OverhangClearance } from "./types.ts";
 import { clampOverhangClearance, NO_OVERHANG_CLEARANCE } from "./types.ts";
@@ -58,9 +60,25 @@ export function generatePaneContentPrimitives<TData>(
   const baseStyle = config.baseStyle;
   const xAxisConfig = config.xAxisConfig;
   const yAxisConfig = config.yAxisConfig;
-  const tierHeaders = config.dataProps.tierHeaders;
-  const laneHeaders = config.dataProps.laneHeaders;
+  const tierHeaders = slotHeaders(config.dataProps.tier);
+  const laneHeaders = slotHeaders(config.dataProps.lane);
+  const seriesHeaders = slotHeaders(config.dataProps.series);
+  const paneHeaders = slotHeaders(config.dataProps.pane);
   const orientation = config.orientation;
+  const itemAxes: ChartItemAxes = {
+    pane: config.dataProps.pane,
+    tier: config.dataProps.tier,
+    lane: config.dataProps.lane,
+    series: config.dataProps.series,
+    indicator: config.dataProps.indicator,
+    period: xAxisConfig.type === "period"
+      ? {
+        dimension: xAxisConfig.dimension,
+        periodType: xAxisConfig.periodType,
+        timeMin: xAxisConfig.timeMin,
+      }
+      : undefined,
+  };
 
   // Plot area loop (tier × lane)
   const generatedYAxes = new Set<string>();
@@ -74,11 +92,11 @@ export function generatePaneContentPrimitives<TData>(
   };
 
   const subChartInfoFor = (i_tier: number, i_lane: number) => ({
-    nSerieses: config.dataProps.seriesHeaders.length,
+    nSerieses: seriesHeaders.length,
     seriesValArrays: chartData.values[i_pane][i_tier][i_lane],
     i_pane,
-    nPanes: config.dataProps.paneHeaders.length,
-    paneHeader: config.dataProps.paneHeaders[i_pane],
+    nPanes: paneHeaders.length,
+    paneHeader: paneHeaders[i_pane],
     i_tier,
     nTiers: tierHeaders.length,
     tierHeader: tierHeaders[i_tier],
@@ -196,8 +214,7 @@ export function generatePaneContentPrimitives<TData>(
               nVals: yCfg.nVals,
               slotOrder: slotOrderFor(i_tier, i_lane, yCfg.nVals),
               subChartInfo: subChartInfoFor(i_tier, i_lane),
-              seriesHeaders: config.dataProps.seriesHeaders,
-              indicatorHeaders: config.dataProps.indicatorHeaders,
+              itemAxes,
             }),
           );
         }
@@ -249,8 +266,7 @@ export function generatePaneContentPrimitives<TData>(
               nVals: xCfg.nVals,
               slotOrder: slotOrderFor(i_tier, i_lane, xCfg.nVals),
               subChartInfo: subChartInfoFor(i_tier, i_lane),
-              seriesHeaders: config.dataProps.seriesHeaders,
-              indicatorHeaders: config.dataProps.indicatorHeaders,
+              itemAxes,
             }),
           );
         }
@@ -317,9 +333,23 @@ export function generatePaneContentPrimitives<TData>(
       allPrimitives.push({
         type: "chart-grid",
         key: `grid-${i_pane}-${i_tier}-${i_lane}`,
+        item: buildItem(
+          subChartItemCoordinates(itemAxes, {
+            paneHeader: paneHeaders[i_pane],
+            tierHeader: tierHeaders[i_tier],
+            laneHeader: laneHeaders[i_lane],
+          }),
+        ),
         bounds: rcd,
         zIndex: Z_INDEX.GRID,
-        meta: { paneIndex: i_pane, tierIndex: i_tier, laneIndex: i_lane },
+        meta: {
+          paneIndex: i_pane,
+          tierIndex: i_tier,
+          laneIndex: i_lane,
+          paneHeader: paneHeaders[i_pane],
+          tierHeader: tierHeaders[i_tier],
+          laneHeader: laneHeaders[i_lane],
+        },
         plotAreaRcd: rcd,
         horizontalLines: horizontalGridLines,
         verticalLines: verticalGridLines,
@@ -341,6 +371,7 @@ export function generatePaneContentPrimitives<TData>(
             allPrimitives.push(
               generateYScaleAxisPrimitive(
                 rc,
+                itemAxes,
                 i_pane,
                 i_tier,
                 measured.yAxisWidthInfo as YScaleAxisWidthInfo,
@@ -362,6 +393,7 @@ export function generatePaneContentPrimitives<TData>(
               allPrimitives.push(
                 generateYTextAxisPrimitive(
                   rc,
+                  itemAxes,
                   i_pane,
                   i_tier,
                   measured.yAxisWidthInfo as YTextAxisWidthInfo,
@@ -394,6 +426,7 @@ export function generatePaneContentPrimitives<TData>(
             allPrimitives.push(
               generateXTextAxisPrimitive(
                 rc,
+                itemAxes,
                 i_pane,
                 i_lane,
                 rcd.x(),
@@ -412,13 +445,17 @@ export function generatePaneContentPrimitives<TData>(
             allPrimitives.push(
               generateXPeriodAxisPrimitive(
                 rc,
+                itemAxes,
                 i_pane,
                 i_lane,
                 rcd.x(),
                 measured.xAxisMeasuredInfo as XPeriodAxisMeasuredInfo,
-                xAxisConfig.nTimePoints,
-                xAxisConfig.timeMin,
-                xAxisConfig.periodType,
+                {
+                  dimension: xAxisConfig.dimension,
+                  periodType: xAxisConfig.periodType,
+                  timeMin: xAxisConfig.timeMin,
+                  nTimePoints: xAxisConfig.nTimePoints,
+                },
                 xAxisConfig.axisStyle,
                 baseStyle.grid,
               ),
@@ -431,6 +468,7 @@ export function generatePaneContentPrimitives<TData>(
             allPrimitives.push(
               generateXScaleAxisPrimitive(
                 rc,
+                itemAxes,
                 i_pane,
                 i_lane,
                 mx.xScaleHeightInfo,
@@ -505,10 +543,7 @@ export function generatePaneContentPrimitives<TData>(
             gridStrokeWidth: baseStyle.grid.gridStrokeWidth,
             nVals,
             orientation,
-            transformedData: {
-              seriesHeaders: config.dataProps.seriesHeaders,
-              indicatorHeaders: config.dataProps.indicatorHeaders,
-            },
+            itemAxes,
             contentStyle: baseStyle.content,
             dataLabelsTextStyle: baseStyle.text.dataLabels,
             boundsUbSeriesVals: chartData.bounds?.ub[i_pane][i_tier][i_lane],

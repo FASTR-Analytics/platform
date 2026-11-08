@@ -7,6 +7,7 @@ import {
   calculateMinLabelPlotExtent,
   type ContentScaleResult,
   CustomFigureStyle,
+  getSubChartHeaders,
   isAutoScaleLegendConfig,
   measureChart,
   type MergedMapStyle,
@@ -20,6 +21,7 @@ import {
   resolveLabelPlacement,
   type SimplifiedChartConfig,
   solveContentScale,
+  type SubChartHeaders,
 } from "../deps.ts";
 import { getMapDataTransformed } from "../get_map_data.ts";
 import type { MapDataTransformed, MapInputs, MeasuredMap } from "../types.ts";
@@ -43,11 +45,7 @@ import {
   fitProjectionAtScale,
 } from "./fit_projection.ts";
 import { getProjectionFn, type ProjectionFn } from "./projections.ts";
-import {
-  getFeatureMatchKey,
-  getMapCellHeaders,
-  toLabelMode,
-} from "./label_shared.ts";
+import { getFeatureMatchKey, toLabelMode } from "./label_shared.ts";
 import type { GeoJSONFeature } from "./geojson_types.ts";
 
 export function measureMap(
@@ -72,10 +70,9 @@ export function measureMap(
     mergedStyle,
     transformedData,
     dataProps: {
-      paneHeaders: transformedData.paneHeaders,
-      tierHeaders: transformedData.tierHeaders,
-      laneHeaders: transformedData.laneHeaders,
-      seriesHeaders: [],
+      pane: transformedData.pane,
+      tier: transformedData.tier,
+      lane: transformedData.lane,
     },
     xAxisConfig: { type: "none" },
     yAxisConfig: { type: "none" },
@@ -147,6 +144,7 @@ type CellIndices = {
 
 type SolvedMapCell = {
   indices: CellIndices;
+  headers: SubChartHeaders;
   subChartRcd: RectCoordsDims;
   featuresForFitting: GeoJSONFeature[];
   shown: ShownMapRegion[];
@@ -193,19 +191,19 @@ function solveMapCell(
   const { paneIndex, tierIndex, laneIndex } = indices;
   const mode = toLabelMode(mergedStyle.map.dataLabelMode);
   const valueMap = data.valueMaps[paneIndex][tierIndex][laneIndex];
-  const headers = getMapCellHeaders(data, indices);
+  const headers = getSubChartHeaders(data, indices);
 
   const featuresForFitting = featuresForFit(
     data.geoFeatures,
     valueMap,
-    data.areaMatchProp,
+    data.area.matchProp,
     mergedStyle.map.fit,
   );
   const shown = resolveShownRegions(
     data.geoFeatures,
     valueMap,
     data.valueRange,
-    data.areaMatchProp,
+    data,
     mergedStyle.content.mapRegions.getStyle,
     paneIndex,
     tierIndex,
@@ -217,6 +215,7 @@ function solveMapCell(
   if (!projBounds || projBounds.w === 0 || projBounds.h === 0) {
     return {
       indices,
+      headers,
       subChartRcd,
       featuresForFitting,
       shown,
@@ -357,6 +356,7 @@ function solveMapCell(
 
   return {
     indices,
+    headers,
     subChartRcd,
     featuresForFitting,
     shown,
@@ -380,6 +380,7 @@ function emitMapCell(
 ): Primitive[] {
   const {
     indices,
+    headers,
     subChartRcd,
     featuresForFitting,
     shown,
@@ -390,7 +391,6 @@ function emitMapCell(
     trackCtx,
     degenerate,
   } = solvedCell;
-  const { paneIndex, tierIndex, laneIndex } = indices;
 
   if (degenerate || !unitGeom || s <= 0) {
     const fitted = fitProjectionAtScale(
@@ -400,14 +400,7 @@ function emitMapCell(
       subChartRcd.centerX(),
       subChartRcd.centerY(),
     );
-    return generateMapRegionPrimitives(
-      subChartRcd,
-      shown,
-      fitted,
-      paneIndex,
-      tierIndex,
-      laneIndex,
-    );
+    return generateMapRegionPrimitives(shown, fitted, indices, headers);
   }
 
   // Centre the union bbox in the cell — in BOTH dimensions: at s at most one
@@ -452,12 +445,10 @@ function emitMapCell(
   );
 
   const primitives: Primitive[] = generateMapRegionPrimitives(
-    subChartRcd,
     shown,
     fitted,
-    paneIndex,
-    tierIndex,
-    laneIndex,
+    indices,
+    headers,
   );
 
   primitives.push(
@@ -471,6 +462,7 @@ function emitMapCell(
       cy,
       mergedStyle,
       indices,
+      headers,
       placement,
       trackCtx,
     ),

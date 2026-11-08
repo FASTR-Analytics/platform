@@ -98,7 +98,6 @@ export function measureLegend(
       const scaledTextStyle = {
         ...s.text,
         fontSize: s.text.fontSize * scaleFactor,
-        lineHeight: s.text.lineHeight * scaleFactor,
       };
       result = measureWithItemsPerColumn(itemsPerColumn, scaledTextStyle);
     }

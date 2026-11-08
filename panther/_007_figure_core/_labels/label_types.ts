@@ -6,7 +6,9 @@
 import type {
   Coordinates,
   DataLabelStyle,
+  HeaderItem,
   MeasuredText,
+  PrimitiveItem,
   RectCoordsDims,
 } from "../deps.ts";
 import type { LabelTrack } from "./track.ts";
@@ -21,6 +23,8 @@ export type LabelMode = "none" | LabelPlacement | "auto";
 export type LabelCandidate = {
   // Completes the primitive key and lands on meta.id.
   id: string;
+  // The item of the element the label names, which the label stands for too.
+  item: PrimitiveItem | undefined;
   mText: MeasuredText;
   // Where the label sits when it goes inside, and the side it is assigned when
   // it goes outside.
@@ -95,4 +99,8 @@ export type FigureLabelMeta = {
   laneIndex: number;
   // Pie only: which pie in the sub-chart's indicator grid. Absent for map.
   indicatorIndex?: number;
+  paneHeader?: HeaderItem;
+  tierHeader?: HeaderItem;
+  laneHeader?: HeaderItem;
+  indicatorHeader?: HeaderItem;
 };

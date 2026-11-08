@@ -4,13 +4,16 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  buildItem,
   type ColorKeyOrString,
   Coordinates,
   Padding,
   type Primitive,
+  type PrimitiveItem,
   RectCoordsDims,
   type RenderContext,
   type TextInfoUnkeyed,
+  unionRectCoordsDims,
   Z_INDEX,
 } from "./deps.ts";
 import type {
@@ -30,10 +33,10 @@ export function generateAnnotationPrimitives(
 
   for (const ann of annotations) {
     if (!ann.rect) continue;
-    const bounds = groups.get(ann.group);
-    if (!bounds || bounds.length === 0) continue;
+    const targets = groups.get(ann.group);
+    if (!targets || targets.length === 0) continue;
 
-    const unionBounds = unionRectCoordsDims(bounds);
+    const unionBounds = unionRectCoordsDims(targets.map((t) => t.bounds));
     const pad = new Padding(ann.rect.padding ?? 0);
     const paddedBounds = new RectCoordsDims({
       x: unionBounds.x() - pad.pl() * sf,
@@ -56,6 +59,7 @@ export function generateAnnotationPrimitives(
     result.push({
       type: "annotation-rect",
       key: `annotation-rect-${ann.group}`,
+      item: sharedItem(targets.map((t) => t.item)),
       bounds: paddedBounds,
       zIndex: Z_INDEX.ANNOTATION_RECT,
       meta: { group: ann.group },
@@ -118,37 +122,39 @@ function measureAnnotationText(
   return { mText, position, alignH: "center", alignV };
 }
 
+type AnnotationTarget = {
+  bounds: RectCoordsDims;
+  item: PrimitiveItem | undefined;
+};
+
 function collectAnnotationGroups(
   primitives: Primitive[],
-): Map<string, RectCoordsDims[]> {
-  const groups = new Map<string, RectCoordsDims[]>();
+): Map<string, AnnotationTarget[]> {
+  const groups = new Map<string, AnnotationTarget[]>();
   for (const p of primitives) {
     if (p.annotationGroup) {
       const arr = groups.get(p.annotationGroup) ?? [];
-      arr.push(p.annotationBounds ?? p.bounds);
+      arr.push({ bounds: p.annotationBounds ?? p.bounds, item: p.item });
       groups.set(p.annotationGroup, arr);
     }
   }
   return groups;
 }
 
-function unionRectCoordsDims(rects: RectCoordsDims[]): RectCoordsDims {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const r of rects) {
-    minX = Math.min(minX, r.x());
-    minY = Math.min(minY, r.y());
-    maxX = Math.max(maxX, r.rightX());
-    maxY = Math.max(maxY, r.bottomY());
+// The dimensions every target names with one and the same member; a target
+// with no item shares none.
+function sharedItem(
+  items: (PrimitiveItem | undefined)[],
+): PrimitiveItem | undefined {
+  const [first, ...rest] = items;
+  if (first === undefined || rest.some((item) => item === undefined)) {
+    return undefined;
   }
-  return new RectCoordsDims({
-    x: minX,
-    y: minY,
-    w: maxX - minX,
-    h: maxY - minY,
-  });
+  return buildItem(
+    Object.entries(first).filter(([dimension, id]) =>
+      rest.every((item) => item?.[dimension] === id)
+    ),
+  );
 }
 
 function resolveAnnotationRectStyle(

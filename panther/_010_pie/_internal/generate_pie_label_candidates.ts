@@ -27,6 +27,7 @@ import {
   type LaidOutPie,
   layOutPie,
   type PieIndices,
+  sliceId,
 } from "./generate_pie_slice_primitives.ts";
 import {
   circleEdgeAtY,
@@ -57,6 +58,7 @@ export type PieLabelEntry = {
 // exist or what they say.
 export type PieLabelSpec = {
   id: string;
+  item: LaidOutPie["slices"][number]["item"];
   text: string;
   midAngle: number;
   sweepRadians: number;
@@ -83,11 +85,14 @@ export function collectPieLabelSpecs(
 
     const text = formatter !== "none"
       ? formatter(slice.info)
-      : `${slice.seriesHeader.label} ${autoPercent(slice.share)}`;
+      : slice.seriesHeader
+      ? `${slice.seriesHeader.label} ${autoPercent(slice.share)}`
+      : autoPercent(slice.share);
     if (!text) continue;
 
     specs.push({
-      id: slice.seriesHeader.id,
+      id: sliceId(slice),
+      item: slice.item,
       text,
       midAngle: (slice.angles.startAngle + slice.angles.endAngle) / 2,
       sweepRadians: slice.angles.endAngle - slice.angles.startAngle,
@@ -107,7 +112,7 @@ export function buildPieLabelCandidates(
 
   const entries: PieLabelEntry[] = [];
   for (const spec of collectPieLabelSpecs(pie, mergedStyle)) {
-    const { id, text, midAngle, sweepRadians, dl } = spec;
+    const { id, item, text, midAngle, sweepRadians, dl } = spec;
     const anchor = polarPoint(cx, cy, (innerR + outerR) / 2, midAngle);
     // The leader starts where THIS slice meets the arc, not where the label's
     // final row does: a stub at the label's own y would sit on the circle but
@@ -121,6 +126,7 @@ export function buildPieLabelCandidates(
     entries.push({
       candidate: {
         id,
+        item,
         mText: rc.mText(
           text,
           buildDataLabelTextStyle(mergedStyle.text.dataLabels, dl),

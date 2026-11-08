@@ -6,12 +6,14 @@
 export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export {
-  createHeaderItems,
-  sortHeaderItems,
+  buildItem,
+  computeBoundsForPath,
+  pathSegmentPoints,
+  slotHeaders,
   Z_INDEX,
 } from "../_001_render_system/mod.ts";
 export type {
-  HeaderItem,
+  DataAxis,
   HeaderSortConfig,
   HeightConstraints,
   MapRegionInfo,
@@ -19,6 +21,7 @@ export type {
   MapRegionPrimitive,
   PathSegment,
   Primitive,
+  PrimitiveItem,
   RenderContext,
   Renderer,
 } from "../_001_render_system/mod.ts";
@@ -30,22 +33,24 @@ export type {
   OutsideLabelPlacement,
 } from "../_003_figure_style/mod.ts";
 export {
+  buildDataAxis,
   buildDataLabelTextStyle,
   buildDistanceField,
   calculateChartIdealHeight,
   calculateChartMinWidth,
   calculateMinLabelPlotExtent,
-  collectHeaders,
   computeFloorScale,
   estimateMinSurroundsWidth,
   fieldTrack,
   generateResolvedFigureLabelPrimitives,
   getHeaderIndex,
+  getSubChartHeaders,
   isAutoScaleLegendConfig,
   measureChart,
   measureChartWithAutofit,
   placeNearestBoxes,
   placeOutsideBoxes,
+  readDimensionId,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveAutoScaleLegend,
@@ -55,6 +60,8 @@ export {
   resolvePaneGrid,
   scaledTrack,
   solveContentScale,
+  subChartItemCoordinates,
+  validateDistinctDimensions,
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartComponentSizes,
@@ -73,4 +80,5 @@ export type {
   Point,
   Ring,
   SimplifiedChartConfig,
+  SubChartHeaders,
 } from "../_007_figure_core/mod.ts";

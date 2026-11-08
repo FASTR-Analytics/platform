@@ -6,8 +6,8 @@
 import type {
   ChartScaleAxisLimits,
   CustomFigureStyle,
+  DataAxis,
   FigureInputsBase,
-  HeaderItem,
   HeaderSortConfig,
   JsonArray,
   LegendInput,
@@ -68,14 +68,19 @@ export type TimeseriesJsonDataConfig = {
 
 export type TimeseriesDataTransformed = {
   isTransformed: true;
-  periodType: PeriodType;
-  timeMin: number;
-  timeMax: number;
-  nTimePoints: number;
-  seriesHeaders: HeaderItem[];
-  laneHeaders: HeaderItem[];
-  tierHeaders: HeaderItem[];
-  paneHeaders: HeaderItem[];
+  // The period axis: its dimension and the time points it spans, from timeMin.
+  period: {
+    dimension: string;
+    periodType: PeriodType;
+    timeMin: number;
+    nTimePoints: number;
+  };
+  // One axis per split slot; an unsplit slot has none and is one member long
+  // in values.
+  series?: DataAxis;
+  lane?: DataAxis;
+  tier?: DataAxis;
+  pane?: DataAxis;
   values: (number | undefined)[][][][][];
   bounds?: {
     ub: (number | undefined)[][][][][];

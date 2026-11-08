@@ -6,11 +6,12 @@
 import {
   Coordinates,
   type DataLabel,
-  getColor,
   type Primitive,
   RectCoordsDims,
   Z_INDEX,
 } from "../deps.ts";
+import { chartValueItem } from "../chart_items.ts";
+import { buildLabelHalo } from "../label_halo.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 import {
   buildDataLabelTextStyle,
@@ -56,8 +57,8 @@ export function generatePointPrimitives(
         const textStyle = buildDataLabelTextStyle(ctx.dataLabelsTextStyle, dl);
 
         const mText = ctx.rc.mText(labelStr, textStyle, 9999);
-        const hasDecoration = dl.backgroundColor !== "none" ||
-          dl.borderWidth > 0;
+        const halo = buildLabelHalo(dl);
+        const hasDecoration = halo !== undefined;
 
         if (labelStr.trim() || hasDecoration) {
           const cx = mappedVal.coords.x();
@@ -87,19 +88,7 @@ export function generatePointPrimitives(
             position: pos,
             alignH,
             alignV,
-            style: hasDecoration
-              ? {
-                backgroundColor: dl.backgroundColor !== "none"
-                  ? getColor(dl.backgroundColor)
-                  : undefined,
-                padding: dl.padding,
-                borderColor: dl.borderColor !== "none"
-                  ? getColor(dl.borderColor)
-                  : undefined,
-                borderWidth: dl.borderWidth > 0 ? dl.borderWidth : undefined,
-                rectRadius: dl.rectRadius,
-              }
-              : undefined,
+            halo,
           };
         }
       }
@@ -115,7 +104,10 @@ export function generatePointPrimitives(
         type: "chart-data-point",
         key:
           `point-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}-${i_val}`,
+        item: chartValueItem(ctx.itemAxes, valueInfo),
+        part: "marker",
         bounds: pointBounds,
+        hitBounds: pointBounds,
         zIndex: Z_INDEX.CONTENT_POINT,
         meta: { value: valueInfo },
         annotationGroup: pointStyle.annotationGroup,

@@ -37,6 +37,12 @@ import {
   normalizeN,
   resolveTableHeadersTransformed,
 } from "./resolve_headers.ts";
+import {
+  type LaidOutColGroup,
+  type LaidOutRowGroup,
+  tableColGroups,
+  tableRowGroups,
+} from "../types.ts";
 
 export function measureTable(
   rc: RenderContext,
@@ -83,8 +89,10 @@ export function measureTable(
   const extraHeightDueToSurrounds = measuredSurrounds.extraHeightDueToSurrounds;
   const contentRcd = measuredSurrounds!.contentRcd;
 
-  const hasRowGroupHeaders = d.rowGroups.some((rg) => rg.label);
-  const nCols = sum(d.colGroups.map((cg) => cg.cols.length));
+  const colGroups = tableColGroups(d);
+  const rowGroups = tableRowGroups(d);
+  const hasRowGroupHeaders = rowGroups.some((rg) => rg.label);
+  const nCols = sum(colGroups.map((cg) => cg.cols.length));
   const maxPossibleRowHeader = 0.5 * contentRcd.w() -
     (s.rowHeaderPadding.totalPx() +
       (hasRowGroupHeaders ? s.rowHeaderIndentIfRowGroups : 0));
@@ -112,7 +120,7 @@ export function measureTable(
       : 0);
   const nRows = d.aoa.length;
   const allColIndices: number[] = [];
-  for (const colGroup of d.colGroups) {
+  for (const colGroup of colGroups) {
     for (const col of colGroup.cols) {
       allColIndices.push(col.index);
     }
@@ -123,7 +131,7 @@ export function measureTable(
   // excluded dimension is displayed as row groups, every row in the group is
   // the excluded dimension's data).
   const excludedRowIndices = buildExcludedRowIndices(
-    d.rowGroups,
+    rowGroups,
     d.liveDomainExcludeIds,
   );
   const columnMinMax = computeColumnMinMax(
@@ -184,8 +192,8 @@ export function measureTable(
   const rowCellPaddingB = Math.max(s.rowHeaderPadding.pb(), s.cellPadding.pb());
 
   // Measure all cell content for each row and compute row heights
-  const { rowGroupHeaderItems } = buildRowHeaderLookups(d.rowGroups);
-  const colGroupHeaderItems = buildColGroupHeadersByColIndex(d.colGroups);
+  const { rowGroupHeaderItems } = buildRowHeaderLookups(rowGroups);
+  const colGroupHeaderItems = buildColGroupHeadersByColIndex(colGroups);
 
   const measuredRows: MeasuredRowInfo[] = rowHeaderInfos.map((rhi) => {
     const cells: MeasuredCellInfo[] = [];
@@ -193,7 +201,7 @@ export function measureTable(
 
     if (rhi.index !== "group-header") {
       const rowIndex = rhi.index;
-      d.colGroups.forEach((colGroup) => {
+      colGroups.forEach((colGroup) => {
         colGroup.cols.forEach((col) => {
           const val = d.aoa[rowIndex][col.index];
           const cellInfo = buildTableCellInfo(
@@ -350,7 +358,7 @@ export function buildTableCellInfo(
 // built once from the same source the headers themselves come from — one
 // HeaderItem per header, not one per cell.
 export function buildRowHeaderLookups(
-  rowGroups: TableDataTransformed["rowGroups"],
+  rowGroups: LaidOutRowGroup[],
 ): {
   rowHeaderItems: (HeaderItem | undefined)[];
   rowGroupHeaderItems: (HeaderItem | undefined)[];
@@ -368,7 +376,7 @@ export function buildRowHeaderLookups(
 }
 
 export function buildColGroupHeadersByColIndex(
-  colGroups: TableDataTransformed["colGroups"],
+  colGroups: LaidOutColGroup[],
 ): (HeaderItem | undefined)[] {
   const byCol: (HeaderItem | undefined)[] = [];
   for (const colGroup of colGroups) {
@@ -520,7 +528,7 @@ export function createPerScaleMeasureCache(): PerScaleMeasureCache {
 type PerColumnMinWordWidths = {
   minColWidthByIndex: Map<number, number>;
   colGroupHeaderMaxWidth: number;
-  // Widest word per col-group label, in d.colGroups order (0 when unlabelled).
+  // Widest word per col-group label, in col group order (0 when unlabelled).
   // A group label paints within ITS group's span, so the floor/distribution
   // must reserve width inside that group — a table-wide max cannot see a
   // narrow group with a wide label (it overflowed with autofit blind to it).
@@ -570,10 +578,11 @@ export function computePerColumnMinWordWidths(
   nCols: number,
   columnMinMax: Map<number, { min: number; max: number }>,
 ): PerColumnMinWordWidths {
+  const colGroups = tableColGroups(d);
   const { rowHeaderItems, rowGroupHeaderItems } = buildRowHeaderLookups(
-    d.rowGroups,
+    tableRowGroups(d),
   );
-  const colGroupHeaderItems = buildColGroupHeadersByColIndex(d.colGroups);
+  const colGroupHeaderItems = buildColGroupHeadersByColIndex(colGroups);
 
   let colGroupHeaderMaxWidth = 0;
   const groupLabelWidestWordByGroup: number[] = [];
@@ -581,7 +590,7 @@ export function computePerColumnMinWordWidths(
   // All cell values share s.text.cells, so one memo is valid for the whole
   // pass — real tables repeat words (and numeric fragments) heavily.
   const cellWordWidthMemo = new Map<string, number>();
-  for (const colGroup of d.colGroups) {
+  for (const colGroup of colGroups) {
     const groupLabelWidestWord = getWidestWord(
       rc,
       colGroup.label,
@@ -667,7 +676,7 @@ export function computeAutoColumnMins(
 ): Map<number, number> {
   const mins = new Map<number, number>();
   let pos = 0;
-  d.colGroups.forEach((colGroup, iGroup) => {
+  tableColGroups(d).forEach((colGroup, iGroup) => {
     const groupAutoColIndices: number[] = [];
     let groupWidthSum = 0;
     for (const col of colGroup.cols) {
@@ -728,7 +737,7 @@ export function resolveColumnWidths(
   // must land on the DISPLAYED column, not whichever column happens to carry
   // that index.
   const displayColIndices: number[] = [];
-  for (const colGroup of d.colGroups) {
+  for (const colGroup of tableColGroups(d)) {
     for (const col of colGroup.cols) {
       displayColIndices.push(col.index);
     }
@@ -905,15 +914,16 @@ function measureNaturalColumnWidths(
   nCols: number,
   columnMinMax: Map<number, { min: number; max: number }>,
 ): number[] {
+  const colGroups = tableColGroups(d);
   const { rowHeaderItems, rowGroupHeaderItems } = buildRowHeaderLookups(
-    d.rowGroups,
+    tableRowGroups(d),
   );
-  const colGroupHeaderItems = buildColGroupHeadersByColIndex(d.colGroups);
+  const colGroupHeaderItems = buildColGroupHeadersByColIndex(colGroups);
 
   const textFormatter = s.tableCells.textFormatter;
   const naturalWidths = new Array<number>(nCols).fill(0);
 
-  for (const colGroup of d.colGroups) {
+  for (const colGroup of colGroups) {
     for (const col of colGroup.cols) {
       // Headers that will render rotated don't claim horizontal width, so
       // they must not inflate the column's natural-width weight. Only the

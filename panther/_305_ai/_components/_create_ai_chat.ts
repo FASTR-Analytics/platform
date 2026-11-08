@@ -61,7 +61,11 @@ import type {
 } from "../_core/conversation_store.ts";
 import type { AIViewSnapshot, GateView } from "../deps.ts";
 import { saveConversation } from "../_core/persistence.ts";
-import { getDisplayItemsFromMessage } from "../_core/display_items.ts";
+import {
+  getDisplayItemsFromMessage,
+  getStreamingDisplayItems,
+  type ProvisionalCardLookup,
+} from "../_core/display_items.ts";
 import { SERVER_TOOL_LABELS } from "../deps.ts";
 import {
   buildInProgressItem,
@@ -214,6 +218,31 @@ function raceAbort<T>(
   });
 }
 
+// An item equal to the one at its position keeps that object, so a delta
+// re-renders only the slot of the block it extends, and an event that changes
+// nothing shown writes nothing.
+function reuseUnchanged(
+  previous: DisplayItem[],
+  next: DisplayItem[],
+): DisplayItem[] {
+  const merged = next.map((item, i) =>
+    sameFields(previous[i], item) ? previous[i] : item
+  );
+  const unchanged = merged.length === previous.length &&
+    merged.every((item, i) => item === previous[i]);
+  return unchanged ? previous : merged;
+}
+
+function sameFields(a: DisplayItem | undefined, b: DisplayItem): boolean {
+  if (!a) return false;
+  const aFields = Object.entries(a);
+  const bFields = Object.entries(b);
+  return aFields.length === bFields.length &&
+    aFields.every(([key, value], i) =>
+      bFields[i][0] === key && bFields[i][1] === value
+    );
+}
+
 export const AIChatConfigContext = createContext<AIChatConfig>();
 
 export function createAIChat(configOverride?: Partial<AIChatConfig>) {
@@ -282,8 +311,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   const isStreaming = () => store().isStreaming[0]();
   const isProcessingTools = () => store().isProcessingTools[0]();
   const error = () => store().error[0]();
-  const currentStreamingText = () => store().currentStreamingText[0]();
-  const serverToolLabel = () => store().serverToolLabel[0]();
+  const streamingItems = () => store().streamingItems[0]();
 
   // Bind BEFORE registering so construction-time tools and later dynamic
   // register() calls run the same availableIn validation (Feature 2
@@ -315,6 +343,20 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     ...toolRegistry.getSDKTools(),
     ...resolveBuiltInTools(config.builtInTools, modelConfig.model),
   ];
+
+  // A label function waits for the complete input, so a streaming card
+  // shows only a string label. A tool whose card is interactive from its
+  // start (awaitsUserAction without approval) shows none while its block
+  // streams: the engine creates that card when the block executes.
+  const provisionalCard: ProvisionalCardLookup = (toolName) => {
+    const metadata = toolRegistry.getMetadata(toolName);
+    if (metadata?.awaitsUserAction && !metadata.approval) return null;
+    return {
+      label: typeof metadata?.inProgressLabel === "string"
+        ? metadata.inProgressLabel
+        : SERVER_TOOL_LABELS[toolName],
+    };
+  };
 
   // Queue API — conversation-scoped (the queue lives on ConversationStore).
   // enqueueMessage never materializes a display item: queued bubbles derive
@@ -629,8 +671,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   ): Promise<void> {
     const ts = turn.store;
     const [tMessages, setTMessages] = ts.messages;
-    const [tCurrentStreamingText, setTCurrentStreamingText] =
-      ts.currentStreamingText;
     turn.resolveOnFinish.push(...queueResolvers);
     ts.error[1](null);
 
@@ -712,33 +752,16 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       batch(() => {
         ts.isLoading[1](true);
         ts.isStreaming[1](true);
-        setTCurrentStreamingText(undefined);
       });
 
       await streamWithToolLoop(turn, tMessages(), prefix);
-      if (turn.abort.signal.aborted) {
-        const partialText = tCurrentStreamingText();
-        if (partialText?.trim()) {
-          addDisplayItemsTo(ts, [
-            { type: "assistant_text", text: partialText.trim() },
-          ]);
-        }
-      }
     } catch (err) {
-      if (turn.abort.signal.aborted) {
-        const partialText = tCurrentStreamingText();
-        if (partialText?.trim()) {
-          addDisplayItemsTo(ts, [
-            { type: "assistant_text", text: partialText.trim() },
-          ]);
-        }
-      } else {
+      if (!turn.abort.signal.aborted) {
         const errorDetails = err instanceof Error ? err.message : String(err);
         batch(() => {
           ts.error[1](errorDetails);
           ts.isStreaming[1](false);
-          setTCurrentStreamingText(undefined);
-          ts.serverToolLabel[1](undefined);
+          ts.streamingItems[1]([]);
           addDisplayItemsTo(ts, [
             {
               type: "system_notice",
@@ -793,10 +816,20 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       }
       turn.activeStream = null;
       batch(() => {
+        // A stopped reply keeps what it streamed; its cards go, since their
+        // calls are answered as cancelled.
+        if (turn.abort.signal.aborted) {
+          addDisplayItemsTo(
+            ts,
+            ts.streamingItems[0]().filter((item) =>
+              item.type === "assistant_text" ||
+              item.type === "thinking_summary"
+            ),
+          );
+        }
+        ts.streamingItems[1]([]);
         ts.isLoading[1](false);
         ts.isStreaming[1](false);
-        setTCurrentStreamingText(undefined);
-        ts.serverToolLabel[1](undefined);
         ts.isProcessingTools[1](false);
         clearInProgressItemsIn(ts);
       });
@@ -1338,32 +1371,23 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     });
     turn.activeStream = stream;
 
-    // Subscribe to text events
-    stream.on("text", (text) => {
-      batch(() => {
-        // Clear server tool label when text starts streaming
-        ts.serverToolLabel[1](undefined);
-        const prev = ts.currentStreamingText[0]();
-        ts.currentStreamingText[1]((prev ?? "") + text);
-      });
-    });
-
-    // Subscribe to stream events to detect server tool usage and text block boundaries
-    stream.on("streamEvent", (event) => {
-      const streamEvent = event as unknown as {
-        type: string;
-        content_block?: { type: string; name?: string };
-      };
-      if (streamEvent.type === "content_block_start") {
-        // Handle server tool usage (e.g., web_search)
-        if (streamEvent.content_block?.type === "server_tool_use") {
-          const toolName = streamEvent.content_block.name;
-          const label = toolName ? SERVER_TOOL_LABELS[toolName] : undefined;
-          if (label) {
-            ts.serverToolLabel[1](label);
-          }
-        }
-      }
+    // Only a block's start and its text or thinking deltas can change what
+    // the list shows: a card never shows its block's partial input.
+    stream.on("streamEvent", (event, snapshot) => {
+      const shown = event.type === "content_block_start" ||
+        (event.type === "content_block_delta" &&
+          (event.delta.type === "text_delta" ||
+            event.delta.type === "thinking_delta"));
+      if (!shown) return;
+      const [items, setItems] = ts.streamingItems;
+      const next = reuseUnchanged(
+        items(),
+        getStreamingDisplayItems(
+          snapshot.content as ContentBlock[],
+          provisionalCard,
+        ),
+      );
+      if (next !== items()) setItems(next);
     });
 
     // Wait for completion
@@ -1389,10 +1413,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         processMessageForDisplayTo(ts, assistantMsg);
       }
 
-      // Clear streaming state immediately after message is processed
       ts.isStreaming[1](false);
-      ts.currentStreamingText[1](undefined);
-      ts.serverToolLabel[1](undefined);
+      ts.streamingItems[1]([]);
     });
 
     // Stop-reason → next-action mapping is pure logic in turn_logic.ts.
@@ -1436,10 +1458,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // iteration limit is reached — re-send with the assistant turn appended
     // to resume where it left off.
     if (continuation.kind === "resume-pause-turn") {
-      batch(() => {
-        ts.isStreaming[1](true);
-        ts.currentStreamingText[1](undefined);
-      });
+      ts.isStreaming[1](true);
       await streamWithToolLoop(turn, updatedMessages, prefix, depth + 1);
       return;
     }
@@ -1546,7 +1565,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           block.name === "str_replace_based_edit_tool" &&
           config.textEditorHandler
         ) {
-          ts.serverToolLabel[1](SERVER_TOOL_LABELS[block.name]);
           // The handler contract is "return Error: strings, don't throw" —
           // enforce it here; a throw would propagate after the assistant
           // tool_use message was persisted but before any tool_result,
@@ -1559,7 +1577,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
               err instanceof Error ? err.message : String(err)
             }`;
           }
-          ts.serverToolLabel[1](undefined);
           const isError = result.startsWith("Error:");
           allResults.push({
             type: "tool_result",
@@ -1757,10 +1774,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       if (turn.abort.signal.aborted) return;
 
       // Continue streaming with tool results (recursive call)
-      batch(() => {
-        ts.isStreaming[1](true);
-        ts.currentStreamingText[1](undefined);
-      });
+      ts.isStreaming[1](true);
       await streamWithToolLoop(
         turn,
         messagesWithToolResults,
@@ -1896,8 +1910,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     isStreaming,
     isProcessingTools,
     error,
-    currentStreamingText,
-    serverToolLabel,
+    streamingItems,
     sendMessage,
     sendMessages,
     clearConversation,

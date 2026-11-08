@@ -7,10 +7,11 @@ import {
   computeBoundsForPath,
   Coordinates,
   type DataLabel,
-  getColor,
   type Primitive,
   Z_INDEX,
 } from "../deps.ts";
+import { chartSeriesItem } from "../chart_items.ts";
+import { buildLabelHalo } from "../label_halo.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 import {
   buildDataLabelTextStyle,
@@ -89,23 +90,10 @@ export function generateLinePrimitives(
         const textStyle = buildDataLabelTextStyle(ctx.dataLabelsTextStyle, dl);
 
         const mText = ctx.rc.mText(labelStr, textStyle, 9999);
-        const hasDecoration = dl.backgroundColor !== "none" ||
-          dl.borderWidth > 0;
+        const halo = buildLabelHalo(dl);
+        const hasDecoration = halo !== undefined;
 
         if (labelStr.trim() || hasDecoration) {
-          const style = hasDecoration
-            ? {
-              backgroundColor: dl.backgroundColor !== "none"
-                ? getColor(dl.backgroundColor)
-                : undefined,
-              padding: dl.padding,
-              borderColor: dl.borderColor !== "none"
-                ? getColor(dl.borderColor)
-                : undefined,
-              borderWidth: dl.borderWidth > 0 ? dl.borderWidth : undefined,
-              rectRadius: dl.rectRadius,
-            }
-            : undefined;
           const isHorizontal = ctx.orientation === "horizontal";
           currentSeg.pointLabels.push({
             coordIndex: currentSeg.coords.length - 1,
@@ -118,7 +106,7 @@ export function generateLinePrimitives(
                 ]),
                 alignH: "left",
                 alignV: "middle",
-                style,
+                halo,
               }
               : {
                 mText,
@@ -128,7 +116,7 @@ export function generateLinePrimitives(
                 ]),
                 alignH: "center",
                 alignV: "bottom",
-                style,
+                halo,
               },
           });
         }
@@ -152,11 +140,15 @@ export function generateLinePrimitives(
       const seg = lineData.segments[i_seg];
       if (seg.coords.length === 0) continue;
 
+      const bounds = computeBoundsForPath(seg.coords, lineStyle.strokeWidth);
       primitives.push({
         type: "chart-line-series",
         key:
           `line-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}-${i_seg}`,
-        bounds: computeBoundsForPath(seg.coords, lineStyle.strokeWidth),
+        item: chartSeriesItem(ctx.itemAxes, seriesInfo),
+        part: "body",
+        bounds,
+        hitBounds: bounds,
         zIndex: Z_INDEX.CONTENT_LINE,
         meta: {
           series: seriesInfo,
@@ -187,11 +179,15 @@ export function generateLinePrimitives(
       if (ubCoords.length > 0) {
         const closedPath = [...ubCoords, ...lbCoords.toReversed()];
         closedPath.push(closedPath[0]);
+        const bounds = computeBoundsForPath(closedPath);
         primitives.push({
           type: "chart-confidence-band",
           key:
             `confidence-band-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}`,
-          bounds: computeBoundsForPath(closedPath),
+          item: chartSeriesItem(ctx.itemAxes, seriesInfo),
+          part: "body",
+          bounds,
+          hitBounds: bounds,
           zIndex: Z_INDEX.CONTENT_AREA,
           meta: { series: seriesInfo },
           coords: closedPath,

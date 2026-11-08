@@ -15,6 +15,7 @@ import {
   type RenderContext,
   resolveDefaultLegend,
   SIZING_SAMPLE,
+  slotHeaders,
   splitIntoBreakableChunks,
 } from "../deps.ts";
 import { getChartOVDataTransformed } from "../get_chartov_data.ts";
@@ -63,7 +64,7 @@ export function getChartOVComponentSizes(
     .dims.h();
 
   const textStyle = ms.xTextAxis.text.xTextAxisTickLabels;
-  const indicatorHeaders = data.indicatorHeaders;
+  const indicatorHeaders = data.indicator.headers;
   const nIndicators = indicatorHeaders.length;
 
   // Per-column width floor for the x-text axis. The renderer draws the labels
@@ -104,7 +105,7 @@ export function getChartOVComponentSizes(
   // Unbalanced lane membership: reserve width for the fullest pane.
   const nLanes = maxVisibleCount(
     data.visibleLanesByPane,
-    data.laneHeaders.length,
+    slotHeaders(data.lane).length,
   );
   // Proportional band layout: the width floor is the fullest pane's TOTAL
   // (slotT-model: Σ over its bands of visible counts × column width +
@@ -125,15 +126,15 @@ export function getChartOVComponentSizes(
 
   const resolvedLegendLabels = resolveDefaultLegend(
     inputs.legend,
-    data.seriesHeaders,
+    data.series,
   );
 
   return {
     customFigureStyle: cs,
     mergedStyle: ms,
     nLanes,
-    nTiers: data.tierHeaders.length,
-    paneHeaders: data.paneHeaders,
+    nTiers: slotHeaders(data.tier).length,
+    nPanes: slotHeaders(data.pane).length,
     minSubChartWidth,
     minSubChartHeight: calculateMinSubChartHeight(rc, ms.yScaleAxis),
     xAxisHeight,
@@ -143,7 +144,7 @@ export function getChartOVComponentSizes(
       rc,
       cs,
       resolvedLegendLabels,
-      data.seriesHeaders,
+      data.series,
     ),
     resolvedLegendLabels,
     // Proportional layout: per-slot width floor + tick mode for the ragged

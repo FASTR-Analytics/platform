@@ -1,7 +1,6 @@
 # Font Files Module
 
-A type-safe font file management system for mapping font IDs to file paths,
-supporting both WOFF/WOFF2 and TTF formats with built-in validation utilities.
+A type-safe font file management system for mapping font IDs to file paths, supporting both WOFF/WOFF2 and TTF formats with built-in validation utilities.
 
 ## Features
 
@@ -184,8 +183,7 @@ The module is structured for clean separation of concerns:
 - `get_font_absolute_file_path.ts` - Core path resolution logic
 - `mod.ts` - Public API exports
 
-The implementation uses a shared base function to eliminate code duplication
-while maintaining type safety for each font format.
+The implementation uses a shared base function to eliminate code duplication while maintaining type safety for each font format.
 
 ## Best Practices
 

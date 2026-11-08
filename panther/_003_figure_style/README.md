@@ -1,7 +1,6 @@
 # _003_figure_style
 
-Comprehensive styling system for data visualizations including colors, fonts,
-spacing, and layout options.
+Comprehensive styling system for data visualizations including colors, fonts, spacing, and layout options.
 
 ## Purpose
 
@@ -59,8 +58,7 @@ class CustomFigureStyle {
 
 ### Merged Style Types
 
-The module exports fully-resolved style types that merge defaults with custom
-options, ensuring all style properties are defined.
+The module exports fully-resolved style types that merge defaults with custom options, ensuring all style properties are defined.
 
 ## Usage Example
 

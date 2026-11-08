@@ -6,7 +6,6 @@
 import {
   type CustomFigureStyle,
   type FigureFitReport,
-  type HeaderItem,
   type HeightConstraints,
   type MergedChartStyleBase,
   RectCoordsDims,
@@ -92,7 +91,7 @@ export type ChartComponentSizes = {
   mergedStyle: MergedChartStyleBase;
   nLanes: number;
   nTiers: number;
-  paneHeaders: HeaderItem[];
+  nPanes: number;
   minSubChartWidth: number;
   minSubChartHeight: number;
   xAxisHeight: number;
@@ -237,7 +236,7 @@ export function calculateChartIdealHeight(
     nGRows;
 
   let paneHeadersHeight = 0;
-  if (!info.mergedStyle.panes.hideHeaders && info.paneHeaders.length > 1) {
+  if (!info.mergedStyle.panes.hideHeaders && info.nPanes > 1) {
     paneHeadersHeight =
       (info.paneHeaderHeight + info.mergedStyle.panes.headerGap) * nGRows;
   }

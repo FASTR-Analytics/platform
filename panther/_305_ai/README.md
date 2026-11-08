@@ -2,12 +2,9 @@
 
 Minimal API for building AI applications with Claude.
 
-All AI chat responses use streaming for better UX with real-time text updates,
-server tool labels, and live feedback during tool execution.
+All AI chat responses stream. The reply in flight shows as display items derived from the streamed message: each run of text and each thinking summary is its own item as it streams, a started tool call shows a loading card from its block's start, and the completed reply replaces them.
 
-Architecture and contract reference (turn model, wire format, views, gating,
-interactions, approval, navigation): see the repo-root **DOC_AI_CHAT.md**. This
-README is the quickstart.
+Architecture and contract reference (turn model, wire format, views, gating, interactions, approval, navigation): see the repo-root **DOC_AI_CHAT.md**. This README is the quickstart.
 
 ## Chat Applications
 
@@ -26,10 +23,7 @@ function App() {
 }
 ```
 
-Model defaults live in panther, so an app names no model: it omits
-`modelConfig` and takes panther's model, thinking and effort on its next sync.
-An app with a need of its own overrides only the field concerned, such as a
-`max_tokens` cap:
+Model defaults live in panther, so an app names no model: it omits `modelConfig` and takes panther's model, thinking and effort on its next sync. An app with a need of its own overrides only the field concerned, such as a `max_tokens` cap:
 
 ```typescript
 <AIChatProvider
@@ -39,10 +33,7 @@ An app with a need of its own overrides only the field concerned, such as a
 </AIChatProvider>;
 ```
 
-A pane that calls `updateConfig`, `getConfig` or `sendMessage` itself builds the
-instance under the provider and hands it to `AIChat`, so the pane and the chat
-run one engine instance (one registry, one settings copy, one queue drain)
-instead of two:
+A pane that calls `updateConfig`, `getConfig` or `sendMessage` itself builds the instance under the provider and hands it to `AIChat`, so the pane and the chat run one engine instance (one registry, one settings copy, one queue drain) instead of two:
 
 ```typescript
 import {
@@ -62,9 +53,7 @@ function ChatPane() {
 }
 ```
 
-`whenIdle()` resolves once the active conversation has no turn in flight and its
-record is written, so a pane that hands the conversation to another tab waits on
-it first:
+`whenIdle()` resolves once the active conversation has no turn in flight and its record is written, so a pane that hands the conversation to another tab waits on it first:
 
 ```typescript
 async function handOver(chat: AIChatInstance, channel: BroadcastChannel) {
@@ -75,15 +64,9 @@ async function handOver(chat: AIChatInstance, channel: BroadcastChannel) {
 
 ## One-Shot Requests
 
-`callAIStructured` and the one-shot types live in `_116_ai_one_shot`, which
-loads in Deno, so a server imports it from `mod.deno.ts`; `callAI` stays here.
-`_305_ai` re-exports them, so a browser import is unchanged.
+`callAIStructured` and the one-shot types live in `_116_ai_one_shot`, which loads in Deno, so a server imports it from `mod.deno.ts`; `callAI` stays here. `_305_ai` re-exports them, so a browser import is unchanged.
 
-Every request of `callAI` and `callAIStructured` streams and settles on its
-final message, the tool runner's requests included, so panther's default
-`max_tokens` is accepted (the SDK refuses a non-streaming request that could run
-past ten minutes). Both take `options?: { signal?: AbortSignal }`, passed to
-every SDK request of the call, and both return the `model` the response names.
+Every request of `callAI` and `callAIStructured` streams and settles on its final message, the tool runner's requests included, so panther's default `max_tokens` is accepted (the SDK refuses a non-streaming request that could run past ten minutes). Both take `options?: { signal?: AbortSignal }`, passed to every SDK request of the call, and both return the `model` the response names.
 
 ```typescript
 import {
@@ -139,15 +122,7 @@ const weatherTool = createAITool({
 const result = await callAI({ ..., tools: [weatherTool] }, messages);
 ```
 
-**Signaling failure from a handler:** throw `AIToolFailure` for any anticipated
-failure — model-correctable input problems (bad input, missing referent,
-precondition not met) AND anticipated operational failures (a failed server
-call). The model receives `is_error: true` with your message, while the UI shows
-a clean failure row without a stack trace. Do NOT return an error-shaped string
-— that renders as success and tells the model nothing failed. Any other throw —
-including assertion-style "should never happen" checks — is treated as a genuine
-bug and keeps the full stack-trace display. Full contract: DOC_AI_CHAT.md
-"Failure channel".
+**Signaling failure from a handler:** throw `AIToolFailure` for any anticipated failure — model-correctable input problems (bad input, missing referent, precondition not met) AND anticipated operational failures (a failed server call). The model receives `is_error: true` with your message, while the UI shows a clean failure row without a stack trace. Do NOT return an error-shaped string — that renders as success and tells the model nothing failed. Any other throw — including assertion-style "should never happen" checks — is treated as a genuine bug and keeps the full stack-trace display. Full contract: DOC_AI_CHAT.md "Failure channel".
 
 ```typescript
 import { AIToolFailure, createAITool } from "@timroberton/panther";
@@ -166,13 +141,11 @@ const tool = createAITool({
 });
 ```
 
-Malformed tool input (failing the zod schema) is converted to `AIToolFailure`
-automatically, with a prettified per-field message.
+Malformed tool input (failing the zod schema) is converted to `AIToolFailure` automatically, with a prettified per-field message.
 
 ## Views, Interactions, Approval, Navigation
 
-The engine's organizing concept for "where the user is" and everything built on
-it. Full contracts in DOC_AI_CHAT.md; the shapes:
+The engine's organizing concept for "where the user is" and everything built on it. Full contracts in DOC_AI_CHAT.md; the shapes:
 
 ```typescript
 import {
@@ -272,14 +245,9 @@ const system = () => `${basePrompt}\n\n${buildToolCatalog(allTools)}`;
 <AIChatProvider config={{ ..., tools: [updateSlide, deleteSlide, navTool], viewController: vc }}>
 ```
 
-Run `validateAIChatConfig(config)` in a committed smoke test — it performs all
-construction-time validation (duplicate names, availableIn ids, approval policy)
-without mounting anything.
+Run `validateAIChatConfig(config)` in a committed smoke test — it performs all construction-time validation (duplicate names, availableIn ids, approval policy) without mounting anything.
 
-A headless template shared with a server (an MCP surface) binds to the view per
-call with `bindAIToolToView`: `resolve` receives the view snapshot the engine
-read for the call's gate and returns the inner tool for it, and `availableIn`
-gates a template that declares none.
+A headless template shared with a server (an MCP surface) binds to the view per call with `bindAIToolToView`: `resolve` receives the view snapshot the engine read for the call's gate and returns the inner tool for it, and `availableIn` gates a template that declares none.
 
 ```typescript
 import { AIToolFailure, bindAIToolToView } from "@timroberton/panther";
@@ -299,9 +267,7 @@ const readSlide = bindAIToolToView(
 
 ## Tool Results Display
 
-Every tool call ends as a collapsible card. Expanded, both cards open with the
-input the model sent, under an `Input (tool name):` heading, so what the model
-asked for is read beside what came back.
+Every tool call ends as a collapsible card. Expanded, both cards open with the input the model sent, under an `Input (tool name):` heading, so what the model asked for is read beside what came back.
 
 **Success:**
 
@@ -311,22 +277,13 @@ asked for is read beside what came back.
 **Errors:**
 
 - Shows the error message
-- Click to expand and see the input, the error details and the stack trace
-  (unexpected throws only — `AIToolFailure` renders without a stack section)
+- Click to expand and see the input, the error details and the stack trace (unexpected throws only — `AIToolFailure` renders without a stack section)
 
-**Custom cards:** a tool's `displayComponent` receives `{ input, view }`, where
-`view` is the id and identity of the view the call ran in (`AIViewSnapshot`),
-stored with the card; absent on cards stored before the view declared one.
+**Custom cards:** a tool's `displayComponent` receives `{ input, view }`, where `view` is the id and identity of the view the call ran in (`AIViewSnapshot`), stored with the card; absent on cards stored before the view declared one.
 
 ## Custom Renderers
 
-`AIChat`'s `customRenderers` prop is an `AIChatDisplayRegistry`: one optional
-component per kind of display item (`userText`, `assistantCompletedText`,
-`assistantStreamingText`, `toolLoading`, `toolSuccess`, `toolError`,
-`systemNotice`, `thinkingSummary`, `approvalPending`, `approvalDecision` and
-`default`). Every slot's default is exported under the matching `AIChat*` name
-(`AIChatToolError`, `AIChatSystemNotice`, ...), so a custom renderer can take
-one case and hand the rest back to the default:
+`AIChat`'s `customRenderers` prop is an `AIChatDisplayRegistry`: one optional component per kind of display item (`userText`, `assistantCompletedText`, `assistantStreamingText`, `toolLoading`, `toolSuccess`, `toolError`, `systemNotice`, `thinkingSummary`, `approvalPending`, `approvalDecision` and `default`). Every slot's default is exported under the matching `AIChat*` name (`AIChatToolError`, `AIChatSystemNotice`, ...), so a custom renderer can take one case and hand the rest back to the default:
 
 ```tsx
 const customRenderers: AIChatDisplayRegistry = {
@@ -400,27 +357,18 @@ builtInTools: {
 
 - `AIChat` - Complete chat UI
 - `AIChatProvider` - Config provider
-- `AIChatUserText`, `AIChatAssistantCompletedText`,
-  `AIChatAssistantStreamingText`, `AIChatToolLoading`, `AIChatToolSuccess`,
-  `AIChatToolError`, `AIChatSystemNotice`, `AIChatThinkingSummary`,
-  `AIChatApprovalPending`, `AIChatApprovalDecision`, `AIChatDefaultItem` - The
-  default renderer of each `AIChatDisplayRegistry` slot
+- `AIChatUserText`, `AIChatAssistantCompletedText`, `AIChatAssistantStreamingText`, `AIChatToolLoading`, `AIChatToolSuccess`, `AIChatToolError`, `AIChatSystemNotice`, `AIChatThinkingSummary`, `AIChatApprovalPending`, `AIChatApprovalDecision`, `AIChatDefaultItem` - The default renderer of each `AIChatDisplayRegistry` slot
 
 **Functions:**
 
 - `createSDKClient()` - Configure SDK
-- `createAIChat()` - One engine instance; pass it to `AIChat` as `chat` when the
-  pane needs it too
-- `createAITool()` - Define custom tools; add `viewRegistry` for view-typed
-  tools (compile-checked `availableIn`, narrowed handler view state)
-- `aiToolFactory(registry)` - Binds one registry once; the recommended form for
-  an app with a single view registry
-- `bindAIToolToView(registry, template, resolve, options?)` - Resolves a tool's
-  inner implementation per call from the view the call runs in
+- `createAIChat()` - One engine instance; pass it to `AIChat` as `chat` when the pane needs it too
+- `createAITool()` - Define custom tools; add `viewRegistry` for view-typed tools (compile-checked `availableIn`, narrowed handler view state)
+- `aiToolFactory(registry)` - Binds one registry once; the recommended form for an app with a single view registry
+- `bindAIToolToView(registry, template, resolve, options?)` - Resolves a tool's inner implementation per call from the view the call runs in
 - `callAI()` - One-shot requests
 - `view()` / `defineAIViews()` / `createAIViewController()` - View system
-- `interaction()` / `defineAIInteractions()` - Interaction log; each action is
-  reported against the view it happened in
+- `interaction()` / `defineAIInteractions()` - Interaction log; each action is reported against the view it happened in
 - `createNavigationTool()` - Built-in "the model asks to move" tool
 - `buildToolCatalog()` - Derived tool list for prompt composition
 - `validateAIChatConfig()` - Construction-time validation without mounting
@@ -429,10 +377,7 @@ builtInTools: {
 
 - `AIChatConfig`
 - `AIChatDisplayRegistry` - the `customRenderers` prop of `AIChat`
-- `AIChatInstance` - what `createAIChat()` returns; `AIChat`'s `chat` prop; its
-  `getNextTurnPreview()` gives the system text and the sections the next message
-  would carry, for a prompt panel, and its `whenIdle()` resolves once the active
-  conversation has no turn in flight and its record is written
+- `AIChatInstance` - what `createAIChat()` returns; `AIChat`'s `chat` prop; its `getNextTurnPreview()` gives the system text and the sections the next message would carry, for a prompt panel, and its `whenIdle()` resolves once the active conversation has no turn in flight and its record is written
 - `AnthropicModelConfig`
 - `BuiltInToolsConfig`
 - `CallAIConfig`

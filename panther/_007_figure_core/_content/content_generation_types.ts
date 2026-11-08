@@ -14,6 +14,7 @@ import type {
   TextInfoUnkeyed,
 } from "../deps.ts";
 import { getAdjustedFont, getColor } from "../deps.ts";
+import type { ChartItemAxes } from "../chart_items.ts";
 import type { OverhangClearance } from "../types.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 
@@ -48,13 +49,13 @@ export type ContentGenerationContext = {
     seriesValArrays: (number | undefined)[][];
     i_pane: number;
     nPanes: number;
-    paneHeader: HeaderItem;
+    paneHeader: HeaderItem | undefined;
     i_tier: number;
     nTiers: number;
-    tierHeader: HeaderItem;
+    tierHeader: HeaderItem | undefined;
     i_lane: number;
     nLanes: number;
-    laneHeader: HeaderItem;
+    laneHeader: HeaderItem | undefined;
   };
   nVals: number;
   // This unit's slot order: the global indicator index at each slot. The
@@ -65,8 +66,9 @@ export type ContentGenerationContext = {
   orientation: "vertical" | "horizontal";
   categoryIncrement: number;
   gridStrokeWidth: number;
-  seriesHeaders: HeaderItem[];
-  indicatorHeaders?: HeaderItem[];
+  // The chart's slot axes, which name both the headers the style funcs see
+  // and the items the primitives stand for.
+  itemAxes: ChartItemAxes;
   contentStyle: MergedContentStyle;
   dataLabelsTextStyle: TextInfoUnkeyed;
   valueRange: { minVal: number; maxVal: number };
@@ -88,7 +90,7 @@ export function buildSeriesInfo(
     i_series,
     isFirstSeries: i_series === 0,
     isLastSeries: i_series === ctx.subChartInfo.nSerieses - 1,
-    seriesHeader: ctx.seriesHeaders[i_series],
+    seriesHeader: ctx.itemAxes.series?.headers[i_series],
     nVals: seriesArrays[i_series].length,
   };
 }
@@ -107,6 +109,6 @@ export function buildValueInfo(
     isLastVal: i_val === ctx.slotOrder[ctx.slotOrder.length - 1],
     valueMin: ctx.valueRange.minVal,
     valueMax: ctx.valueRange.maxVal,
-    indicatorHeader: ctx.indicatorHeaders?.[i_val],
+    indicatorHeader: ctx.itemAxes.indicator?.headers[i_val],
   };
 }

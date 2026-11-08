@@ -4,12 +4,12 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  type HeaderItem,
   type MergedContentStyle,
   RectCoordsDims,
   type RenderContext,
   type TextInfoUnkeyed,
 } from "../deps.ts";
+import type { ChartItemAxes } from "../chart_items.ts";
 import { NO_OVERHANG_CLEARANCE, type ValueRange } from "../types.ts";
 import {
   buildDataLabelTextStyle,
@@ -69,8 +69,7 @@ export function measureDataLabelEndClearance(p: {
   nVals: number;
   slotOrder: number[];
   subChartInfo: ContentGenerationContext["subChartInfo"];
-  seriesHeaders: HeaderItem[];
-  indicatorHeaders?: HeaderItem[];
+  itemAxes: ChartItemAxes;
 }): number {
   const s = p.contentStyle;
   const isHorizontal = p.orientation === "horizontal";
@@ -90,8 +89,7 @@ export function measureDataLabelEndClearance(p: {
     orientation: p.orientation,
     categoryIncrement: p.categoryIncrement,
     gridStrokeWidth: 0,
-    seriesHeaders: p.seriesHeaders,
-    indicatorHeaders: p.indicatorHeaders,
+    itemAxes: p.itemAxes,
     contentStyle: s,
     dataLabelsTextStyle: p.dataLabelsTextStyle,
     valueRange: p.valueRange,

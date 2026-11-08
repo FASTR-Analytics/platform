@@ -1,7 +1,6 @@
 # _000_utils
 
-Core utility functions for arrays, numbers, strings, and general operations.
-Zero external dependencies.
+Core utility functions for arrays, numbers, strings, and general operations. Zero external dependencies.
 
 ## Purpose
 

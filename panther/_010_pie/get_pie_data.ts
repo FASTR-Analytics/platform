@@ -4,16 +4,17 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  buildDataAxis,
   checkValuePropsAssignment,
-  collectHeaders,
   createArray,
-  createHeaderItems,
+  type DataAxis,
   fillValuesWithDuplicateCheck,
   getHeaderIndex,
-  type HeaderItem,
-  type ProcessedHeaders,
-  sortHeaderItems,
+  type HeaderSortConfig,
+  type SlotAxes,
+  slotHeaders,
   validateDataInput,
+  validateDistinctDimensions,
 } from "./deps.ts";
 import {
   isPieDataTransformed,
@@ -53,93 +54,67 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
     paneProp,
   });
 
-  const seriesHeadersRaw = createHeaderItems(
-    collectHeaders(jsonArray, seriesProp, valueProps),
-    labelReplacements,
-  );
+  validateDistinctDimensions({
+    series: seriesProp,
+    indicator: indicatorProp,
+    pane: paneProp,
+    tier: tierProp,
+    lane: laneProp,
+  });
+  const axis = (prop: string | undefined, sortConfig?: HeaderSortConfig) =>
+    buildDataAxis(jsonArray, prop, valueProps, labelReplacements, sortConfig);
+  const sortsByValue = sortSeriesValues !== undefined &&
+    sortSeriesValues !== "none";
   // sortSeriesValues reorders the global slice order by data, so a configured
   // header sort would be overwritten — skip it.
-  const seriesHeaders = sortSeriesValues && sortSeriesValues !== "none"
-    ? seriesHeadersRaw
-    : sortHeaderItems(seriesHeadersRaw, sort?.series);
-  const indicatorHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(jsonArray, indicatorProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.indicator,
-  );
-  const laneHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(jsonArray, laneProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.lane,
-  );
-  const tierHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(jsonArray, tierProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.tier,
-  );
-  const paneHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(jsonArray, paneProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.pane,
-  );
+  const series = axis(seriesProp, sortsByValue ? undefined : sort?.series);
+  const indicator = axis(indicatorProp, sort?.indicator);
+  const lane = axis(laneProp, sort?.lane);
+  const tier = axis(tierProp, sort?.tier);
+  const pane = axis(paneProp, sort?.pane);
 
   const values = createEmptyValuesArray(
-    paneHeaders.length,
-    tierHeaders.length,
-    laneHeaders.length,
-    seriesHeaders.length,
-    indicatorHeaders.length,
+    slotHeaders(pane).length,
+    slotHeaders(tier).length,
+    slotHeaders(lane).length,
+    slotHeaders(series).length,
+    slotHeaders(indicator).length,
   );
 
-  const headers: ProcessedHeaders = {
-    series: seriesHeaders,
-    lane: laneHeaders,
-    tier: tierHeaders,
-    pane: paneHeaders,
-  };
+  const axes: SlotAxes = { series, lane, tier, pane };
 
   fillValuesWithDuplicateCheck(
     values,
     jsonArray,
     valueProps,
-    headers,
-    { seriesProp, laneProp, tierProp, paneProp },
+    axes,
     // The last axis is the indicator (repeat) dimension: one pie per entry.
-    (obj, valueProp) =>
-      getHeaderIndex(indicatorProp, valueProp, obj, indicatorHeaders),
+    (obj, valueProp) => getHeaderIndex(indicator, valueProp, obj),
   );
 
-  assertNoNegativeValues(values, seriesHeaders);
+  assertNoNegativeValues(values, series);
 
-  const sorted = sortSeriesValues && sortSeriesValues !== "none"
-    ? reorderSeriesByGlobalSum(values, seriesHeaders, sortSeriesValues)
-    : { values, seriesHeaders };
+  const sorted = series && sortsByValue
+    ? reorderSeriesByGlobalSum(values, series, sortSeriesValues)
+    : { values, series };
 
   // Grouping runs AFTER the series sort, so the kept order is preserved and
   // the synthetic slice lands last regardless of sort/sortSeriesValues.
-  const grouped = jsonDataConfig.groupSmallSlices
+  const grouped = sorted.series && jsonDataConfig.groupSmallSlices
     ? applyGroupSmallSlices(
       sorted.values,
-      sorted.seriesHeaders,
+      sorted.series,
       jsonDataConfig.groupSmallSlices,
     )
     : sorted;
 
   return {
     isTransformed: true,
-    seriesHeaders: grouped.seriesHeaders,
-    indicatorHeaders,
-    paneHeaders,
-    tierHeaders,
-    laneHeaders,
+    series: grouped.series,
+    indicator,
+    pane,
+    tier,
+    lane,
     values: grouped.values,
     total: total ?? "sum",
   };
@@ -156,10 +131,10 @@ const OTHER_SERIES_ID = "--other";
 // clears the threshold, and that is the correct trade.
 function applyGroupSmallSlices(
   values: (number | undefined)[][][][][],
-  seriesHeaders: HeaderItem[],
+  series: DataAxis,
   config: { threshold: number; label?: string },
-): { values: (number | undefined)[][][][][]; seriesHeaders: HeaderItem[] } {
-  const sums = seriesHeaders.map((_, i_series) => {
+): { values: (number | undefined)[][][][][]; series: DataAxis } {
+  const sums = series.headers.map((_, i_series) => {
     let total = 0;
     for (const pane of values) {
       for (const tier of pane) {
@@ -174,20 +149,20 @@ function applyGroupSmallSlices(
   });
   const globalSum = sums.reduce((a, b) => a + b, 0);
   if (globalSum <= 0) {
-    return { values, seriesHeaders };
+    return { values, series };
   }
 
   const keptIdx: number[] = [];
   const groupedIdx: number[] = [];
-  seriesHeaders.forEach((_, i) => {
+  series.headers.forEach((_, i) => {
     (sums[i] / globalSum < config.threshold ? groupedIdx : keptIdx).push(i);
   });
   if (groupedIdx.length === 0) {
-    return { values, seriesHeaders };
+    return { values, series };
   }
 
   const newHeaders = [
-    ...keptIdx.map((i) => seriesHeaders[i]),
+    ...keptIdx.map((i) => series.headers[i]),
     { id: OTHER_SERIES_ID, label: config.label ?? "Other" },
   ];
   const newValues = values.map((pane) =>
@@ -213,7 +188,10 @@ function applyGroupSmallSlices(
     )
   );
 
-  return { values: newValues, seriesHeaders: newHeaders };
+  return {
+    values: newValues,
+    series: { dimension: series.dimension, headers: newHeaders },
+  };
 }
 
 function createEmptyValuesArray(
@@ -247,7 +225,7 @@ function createEmptyValuesArray(
 // rejected; see resolvePieTotal.)
 function assertNoNegativeValues(
   values: (number | undefined)[][][][][],
-  seriesHeaders: HeaderItem[],
+  series: DataAxis | undefined,
 ): void {
   for (const pane of values) {
     for (const tier of pane) {
@@ -257,7 +235,7 @@ function assertNoNegativeValues(
             if (v !== undefined && v < 0) {
               throw new Error(
                 `Pie values must be non-negative: series "${
-                  seriesHeaders[i_series]?.id ?? i_series
+                  series?.headers[i_series].id ?? i_series
                 }" has value ${v}`,
               );
             }
@@ -270,10 +248,10 @@ function assertNoNegativeValues(
 
 function reorderSeriesByGlobalSum(
   values: (number | undefined)[][][][][],
-  seriesHeaders: HeaderItem[],
+  series: DataAxis,
   direction: "ascending" | "descending",
-): { values: (number | undefined)[][][][][]; seriesHeaders: HeaderItem[] } {
-  const sums = seriesHeaders.map((_, i_series) => {
+): { values: (number | undefined)[][][][][]; series: DataAxis } {
+  const sums = series.headers.map((_, i_series) => {
     let total = 0;
     for (const pane of values) {
       for (const tier of pane) {
@@ -287,14 +265,17 @@ function reorderSeriesByGlobalSum(
     return total;
   });
 
-  const order = seriesHeaders
+  const order = series.headers
     .map((_, i) => i)
     .sort((a, b) =>
       direction === "descending" ? sums[b] - sums[a] : sums[a] - sums[b]
     );
 
   return {
-    seriesHeaders: order.map((i) => seriesHeaders[i]),
+    series: {
+      dimension: series.dimension,
+      headers: order.map((i) => series.headers[i]),
+    },
     values: values.map((pane) =>
       pane.map((tier) => tier.map((lane) => order.map((i) => lane[i])))
     ),

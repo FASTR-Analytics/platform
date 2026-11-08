@@ -11,6 +11,7 @@ export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
 export {
   Coordinates,
   Dimensions,
+  getRectAlignmentCoords,
   Padding,
   RectCoordsDims,
 } from "../_001_geometry/mod.ts";
@@ -21,6 +22,7 @@ export type {
   RectCoordsDimsOptions,
 } from "../_001_geometry/mod.ts";
 export type {
+  ChartConnectorInfo,
   ChartSeriesInfo,
   ChartSeriesInfoFunc,
   ChartValueInfo,

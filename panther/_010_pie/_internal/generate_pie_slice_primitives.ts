@@ -4,20 +4,33 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  Decoration,
   HeaderItem,
+  Hittable,
+  ItemCoordinate,
   MergedPieStyle,
   PieSliceInfo,
   PieSlicePrimitive,
   PieSliceStyle,
+  PrimitiveItem,
+  SubChartHeaders,
 } from "../deps.ts";
-import { computeBoundsForPath, Coordinates, Z_INDEX } from "../deps.ts";
+import {
+  buildItem,
+  computeBoundsForPath,
+  getSubChartHeaders,
+  pathSegmentPoints,
+  slotCoordinate,
+  slotHeaders,
+  subChartItemCoordinates,
+  Z_INDEX,
+} from "../deps.ts";
 import type { PieDataTransformed } from "../types.ts";
 import {
   buildSlicePath,
   clampSweepAngleDeg,
   degreesToRadians,
   layOutSliceAngles,
-  pathSegmentPoints,
   resolvePieTotal,
   type SliceAngles,
 } from "./pie_geometry.ts";
@@ -26,7 +39,9 @@ import {
 // pass can place candidates without redoing the angle math.
 export type LaidOutSlice = {
   i_series: number;
-  seriesHeader: HeaderItem;
+  seriesHeader: HeaderItem | undefined;
+  // Undefined for the remainder, which stands for no series.
+  item: PrimitiveItem | undefined;
   angles: SliceAngles;
   value: number;
   share: number;
@@ -34,6 +49,11 @@ export type LaidOutSlice = {
   style: PieSliceStyle;
   info: PieSliceInfo;
 };
+
+// An unsplit series has no header, so its one slice is named by its index.
+export function sliceId(slice: LaidOutSlice): string {
+  return slice.seriesHeader?.id ?? String(slice.i_series);
+}
 
 export type PieGeometry = {
   cx: number;
@@ -44,6 +64,8 @@ export type PieGeometry = {
 
 export type LaidOutPie = {
   geometry: PieGeometry;
+  // The pie's own item, which its centre label stands for.
+  item: PrimitiveItem | undefined;
   slices: LaidOutSlice[];
   // The pie's resolved denominator, for the doughnut-hole centre label.
   declaredTotal: number;
@@ -57,6 +79,30 @@ export type PieIndices = {
   indicatorIndex: number;
 };
 
+export type PieHeaders = SubChartHeaders & {
+  indicatorHeader: HeaderItem | undefined;
+};
+
+export function getPieHeaders(
+  data: PieDataTransformed,
+  indices: PieIndices,
+): PieHeaders {
+  return {
+    ...getSubChartHeaders(data, indices),
+    indicatorHeader: data.indicator?.headers[indices.indicatorIndex],
+  };
+}
+
+export function pieItemCoordinates(
+  data: PieDataTransformed,
+  headers: PieHeaders,
+): ItemCoordinate[] {
+  return [
+    ...subChartItemCoordinates(data, headers),
+    slotCoordinate(data.indicator?.dimension, headers.indicatorHeader),
+  ];
+}
+
 // Lays out one pie's slices: resolves the denominator, turns values into
 // angles, and builds each slice's resolved style + info. Emits no primitives —
 // the caller does that once the label gutter is known.
@@ -68,7 +114,9 @@ export function layOutPie(
 ): LaidOutPie {
   const { paneIndex, tierIndex, laneIndex } = indices;
   const seriesValArrays = data.values[paneIndex][tierIndex][laneIndex];
-  const nSerieses = data.seriesHeaders.length;
+  const nSerieses = slotHeaders(data.series).length;
+  const pieCoordinates = pieItemCoordinates(data, getPieHeaders(data, indices));
+  const pieItem = buildItem(pieCoordinates);
 
   // undefined values are OMITTED (not drawn as zero-angle slices), matching
   // tensor-fill semantics elsewhere.
@@ -88,6 +136,7 @@ export function layOutPie(
   if (resolved.geometryTotal <= 0 || defined.length === 0) {
     return {
       geometry,
+      item: pieItem,
       slices: [],
       declaredTotal: resolved.declaredTotal,
       sumOfValues,
@@ -118,9 +167,14 @@ export function layOutPie(
       d.value / resolved.declaredTotal,
       resolved.declaredTotal,
     );
+    const seriesHeader = data.series?.headers[d.i_series];
     return {
       i_series: d.i_series,
-      seriesHeader: data.seriesHeaders[d.i_series],
+      seriesHeader,
+      item: buildItem([
+        slotCoordinate(data.series?.dimension, seriesHeader),
+        ...pieCoordinates,
+      ]),
       angles: laidOut[i],
       value: d.value,
       share: info.share,
@@ -146,6 +200,7 @@ export function layOutPie(
     slices.push({
       i_series: -1,
       seriesHeader: REMAINDER_HEADER,
+      item: undefined,
       angles: laidOut[laidOut.length - 1],
       value: remainderValue,
       share: info.share,
@@ -162,6 +217,7 @@ export function layOutPie(
 
   return {
     geometry,
+    item: pieItem,
     slices,
     declaredTotal: resolved.declaredTotal,
     sumOfValues,
@@ -182,28 +238,30 @@ function buildPieSliceInfo(
   total: number,
 ): PieSliceInfo {
   const { paneIndex, tierIndex, laneIndex, indicatorIndex } = indices;
+  const nSerieses = slotHeaders(data.series).length;
+  const nIndicators = slotHeaders(data.indicator).length;
   return {
     i_series,
     isFirstSeries: i_series === 0,
-    isLastSeries: i_series === data.seriesHeaders.length - 1,
-    seriesHeader: data.seriesHeaders[i_series],
-    nSerieses: data.seriesHeaders.length,
+    isLastSeries: i_series === nSerieses - 1,
+    seriesHeader: data.series?.headers[i_series],
+    nSerieses,
     // values[pane][tier][lane] IS the seriesValArrays shape ChartSeriesInfo
     // wants — the payoff of keeping the 5-D tensor.
     seriesValArrays: data.values[paneIndex][tierIndex][laneIndex],
-    nVals: data.indicatorHeaders.length,
+    nVals: nIndicators,
     i_indicator: indicatorIndex,
-    nIndicators: data.indicatorHeaders.length,
-    indicatorHeader: data.indicatorHeaders[indicatorIndex],
+    nIndicators,
+    indicatorHeader: data.indicator?.headers[indicatorIndex],
     i_pane: paneIndex,
-    nPanes: data.paneHeaders.length,
-    paneHeader: data.paneHeaders[paneIndex],
+    nPanes: slotHeaders(data.pane).length,
+    paneHeader: data.pane?.headers[paneIndex],
     i_tier: tierIndex,
-    nTiers: data.tierHeaders.length,
-    tierHeader: data.tierHeaders[tierIndex],
+    nTiers: slotHeaders(data.tier).length,
+    tierHeader: data.tier?.headers[tierIndex],
     i_lane: laneIndex,
-    nLanes: data.laneHeaders.length,
-    laneHeader: data.laneHeaders[laneIndex],
+    nLanes: slotHeaders(data.lane).length,
+    laneHeader: data.lane?.headers[laneIndex],
     value,
     share,
     total,
@@ -214,6 +272,7 @@ export function generatePieSlicePrimitives(
   pie: LaidOutPie,
   mergedStyle: MergedPieStyle,
   indices: PieIndices,
+  headers: PieHeaders,
 ): PieSlicePrimitive[] {
   const { cx, cy, innerR, outerR } = pie.geometry;
   const primitives: PieSlicePrimitive[] = [];
@@ -234,16 +293,22 @@ export function generatePieSlicePrimitives(
     if (pathSegments.length === 0) continue;
 
     const strokeWidth = slice.style.strokeWidth;
+    const bounds = computeBoundsForPath(
+      pathSegmentPoints(pathSegments),
+      strokeWidth,
+    );
+    const identity: Hittable<"body"> | Decoration = slice.isRemainder
+      ? {}
+      : { part: "body", hitBounds: bounds };
     primitives.push({
       type: "pie-slice",
       key:
         `pie-slice-${indices.paneIndex}-${indices.tierIndex}-${indices.laneIndex}-${indices.indicatorIndex}-${
-          slice.isRemainder ? "remainder" : slice.seriesHeader.id
+          slice.isRemainder ? "remainder" : sliceId(slice)
         }`,
-      bounds: computeBoundsForPath(
-        pathSegmentPoints(pathSegments).map((p) => new Coordinates([p.x, p.y])),
-        strokeWidth,
-      ),
+      item: slice.item,
+      ...identity,
+      bounds,
       zIndex: Z_INDEX.PIE_SLICE,
       meta: {
         seriesHeader: slice.seriesHeader,
@@ -251,6 +316,7 @@ export function generatePieSlicePrimitives(
         tierIndex: indices.tierIndex,
         laneIndex: indices.laneIndex,
         indicatorIndex: indices.indicatorIndex,
+        ...headers,
         value: slice.value,
         share: slice.share,
         isRemainder: slice.isRemainder,

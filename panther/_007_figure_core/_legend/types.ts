@@ -6,6 +6,8 @@
 import type { ColorKeyOrString, PointType } from "../deps.ts";
 
 export type LegendItem = {
+  // The series id the entry stands for, when it stands for one.
+  id?: string;
   label: string;
   color: ColorKeyOrString;
   pointStyle?: PointType | "as-block" | "as-line";

@@ -8,6 +8,26 @@ export type HeaderItem = {
   label: string;
 };
 
+// A slot's dimension, named, with its members. A slot with no dimension
+// configured has no axis.
+export type DataAxis = {
+  dimension: string;
+  headers: HeaderItem[];
+};
+
+// Dimension names for data whose author named none: `--` marks a name panther
+// supplies, as `--v` names the axis of value columns.
+export const MARKDOWN_TABLE_ROW_DIMENSION = "--row";
+export const MARKDOWN_TABLE_COLUMN_DIMENSION = "--column";
+
+// The members a slot lays out: an unsplit slot (no axis) is one member with no
+// header.
+export function slotHeaders(
+  axis: DataAxis | undefined,
+): (HeaderItem | undefined)[] {
+  return axis?.headers ?? [undefined];
+}
+
 // Per-axis membership policy for chart layout dimensions. "balanced" (the
 // default) gives every pane the full global header set on that axis;
 // "unbalanced" lets each pane show only the headers it has data for.

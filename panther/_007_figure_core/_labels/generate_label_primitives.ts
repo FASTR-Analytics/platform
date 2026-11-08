@@ -4,13 +4,19 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { FigureLabelPrimitive, LabelCollisionConfig } from "../deps.ts";
-import { Coordinates, getColor, Z_INDEX } from "../deps.ts";
+import {
+  computeBoundsForPath,
+  Coordinates,
+  labelBoxRcd,
+  unionRectCoordsDims,
+  Z_INDEX,
+} from "../deps.ts";
 import {
   type CollisionLabel,
   resolveInsideCollisions,
   resolveOutsideCollisions,
 } from "./collision.ts";
-import { buildLabelHalo } from "./label_style.ts";
+import { buildLabelHalo } from "../label_halo.ts";
 import { placeNearestBoxes } from "./place_outside_nearest.ts";
 import type {
   FigureLabelMeta,
@@ -76,6 +82,34 @@ export function generateResolvedFigureLabelPrimitives(
     primitives.push(...placeOutside(outside, geometry, collision, meta));
   }
   return primitives;
+}
+
+// A figure label's bounds are its label box, with its halo's padding, united
+// with its leader line; it is hit on its label box alone.
+export function withFigureLabelBounds(
+  label: Omit<FigureLabelPrimitive, "bounds" | "hitBounds">,
+): FigureLabelPrimitive {
+  const box = labelBoxRcd(
+    label.mText,
+    label.position,
+    label.alignment.h,
+    label.alignment.v,
+    label.halo?.padding,
+  );
+  const leader = label.leaderLine;
+  return {
+    ...label,
+    hitBounds: box,
+    bounds: leader
+      ? unionRectCoordsDims([
+        box,
+        computeBoundsForPath(
+          [leader.from, ...(leader.via ? [leader.via] : []), leader.to],
+          leader.strokeWidth,
+        ),
+      ])
+      : box,
+  };
 }
 
 // The geometric inputs of one outside label, stripped of primitive concerns so
@@ -335,13 +369,15 @@ function placeInside(
     collision.maxCentroidDisplacement,
   );
 
-  return labels.map((l) => ({
-    ...baseLabelPrimitive(l.candidate, geometry, meta, "inside"),
-    mText: l.candidate.mText,
-    position: new Coordinates([l.x, l.y]),
-    alignment: { h: "center" as const, v: "middle" as const },
-    halo: buildLabelHalo(l.candidate.dataLabel),
-  }));
+  return labels.map((l) =>
+    withFigureLabelBounds({
+      ...baseLabelPrimitive(l.candidate, geometry, meta, "inside"),
+      mText: l.candidate.mText,
+      position: new Coordinates([l.x, l.y]),
+      alignment: { h: "center" as const, v: "middle" as const },
+      halo: buildLabelHalo(l.candidate.dataLabel),
+    })
+  );
 }
 
 // Nearest-point placement: each label at its own nearest point on
@@ -402,20 +438,20 @@ function placeOutsideNearest(
       ? {
         from,
         to: new Coordinates([box.center.x, box.center.y]),
-        strokeColor: getColor(dl.leaderLine.strokeColor),
+        strokeColor: dl.leaderLine.strokeColor,
         strokeWidth: dl.leaderLine.strokeWidth,
         gap: dl.leaderLine.gap,
       }
       : undefined;
 
-    return {
+    return withFigureLabelBounds({
       ...baseLabelPrimitive(candidate, geometry, meta, "outside"),
       mText: candidate.mText,
       position: new Coordinates([box.position.x, box.position.y]),
       alignment: { h: box.align.h, v: box.align.v },
       halo: buildLabelHalo(dl),
       leaderLine,
-    };
+    });
   });
 }
 
@@ -458,7 +494,7 @@ function placeOutside(
     const elbowRun = geometry.outsideClearance / 2;
     const elbowX = box.side === "left" ? nearX + elbowRun : nearX - elbowRun;
 
-    return {
+    return withFigureLabelBounds({
       ...baseLabelPrimitive(candidate, geometry, meta, "outside"),
       mText: candidate.mText,
       position: labelCoords,
@@ -468,11 +504,11 @@ function placeOutside(
         from: candidate.leaderOrigin ?? candidate.anchor,
         via: new Coordinates([elbowX, finalY]),
         to: new Coordinates([nearX, finalY]),
-        strokeColor: getColor(dl.leaderLine.strokeColor),
+        strokeColor: dl.leaderLine.strokeColor,
         strokeWidth: dl.leaderLine.strokeWidth,
         gap: dl.leaderLine.gap,
       },
-    };
+    });
   });
 }
 
@@ -483,7 +519,13 @@ function baseLabelPrimitive(
   placement: "inside" | "outside",
 ): Omit<
   FigureLabelPrimitive,
-  "mText" | "position" | "alignment" | "halo" | "leaderLine"
+  | "bounds"
+  | "hitBounds"
+  | "mText"
+  | "position"
+  | "alignment"
+  | "halo"
+  | "leaderLine"
 > {
   const indicatorPart = meta.indicatorIndex === undefined
     ? ""
@@ -492,7 +534,9 @@ function baseLabelPrimitive(
     type: "figure-label",
     key:
       `${meta.keyPrefix}-${meta.paneIndex}-${meta.tierIndex}-${meta.laneIndex}${indicatorPart}-${candidate.id}`,
-    bounds: geometry.hostRcd,
+    item: candidate.item,
+    part: "label",
+    hostRcd: geometry.hostRcd,
     zIndex: Z_INDEX.FIGURE_LABEL,
     meta: {
       id: candidate.id,
@@ -502,6 +546,10 @@ function baseLabelPrimitive(
       ...(meta.indicatorIndex === undefined
         ? {}
         : { indicatorIndex: meta.indicatorIndex }),
+      paneHeader: meta.paneHeader,
+      tierHeader: meta.tierHeader,
+      laneHeader: meta.laneHeader,
+      indicatorHeader: meta.indicatorHeader,
       placement,
     },
   };

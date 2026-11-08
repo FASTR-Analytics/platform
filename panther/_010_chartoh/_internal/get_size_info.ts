@@ -16,6 +16,7 @@ import {
   type RenderContext,
   resolveDefaultLegend,
   SIZING_SAMPLE,
+  slotHeaders,
 } from "../deps.ts";
 import { getChartOHDataTransformed } from "../get_chartoh_data.ts";
 import type { ChartOHDataTransformed, ChartOHInputs } from "../types.ts";
@@ -67,7 +68,7 @@ export function getChartOHComponentSizes(
 
   // minSubChartHeight — nIndicators × tick-label height (+ strokes).
   // Mirror of ChartOV's minSubChartWidth formula.
-  const indicatorHeaders = data.indicatorHeaders;
+  const indicatorHeaders = data.indicator.headers;
   const nIndicators = indicatorHeaders.length;
   const textStyle = ms.yTextAxis.text.yTextAxisTickLabels;
   const contentMaxWidth = Infinity;
@@ -87,7 +88,7 @@ export function getChartOHComponentSizes(
   // Unbalanced tier membership: reserve height for the fullest pane.
   const nTiers = maxVisibleCount(
     data.visibleTiersByPane,
-    data.tierHeaders.length,
+    slotHeaders(data.tier).length,
   );
   // Proportional band layout: the height floor is the fullest pane's TOTAL
   // (slotT-model: Σ over its bands of visible counts × label height +
@@ -107,15 +108,15 @@ export function getChartOHComponentSizes(
 
   const resolvedLegendLabels = resolveDefaultLegend(
     inputs.legend,
-    data.seriesHeaders,
+    data.series,
   );
 
   return {
     customFigureStyle: cs,
     mergedStyle: ms,
-    nLanes: data.laneHeaders.length,
+    nLanes: slotHeaders(data.lane).length,
     nTiers,
-    paneHeaders: data.paneHeaders,
+    nPanes: slotHeaders(data.pane).length,
     minSubChartWidth,
     minSubChartHeight,
     xAxisHeight,
@@ -125,7 +126,7 @@ export function getChartOHComponentSizes(
       rc,
       cs,
       resolvedLegendLabels,
-      data.seriesHeaders,
+      data.series,
     ),
     resolvedLegendLabels,
     // Proportional layout: the tick mode drives the inter-slot stroke term

@@ -7,8 +7,8 @@ import type {
   AxisMembership,
   ChartScaleAxisLimits,
   CustomFigureStyle,
+  DataAxis,
   FigureInputsBase,
-  HeaderItem,
   HeaderSortConfig,
   JsonArray,
   LegendInput,
@@ -71,11 +71,13 @@ export type ChartOHJsonDataConfig = {
 
 export type ChartOHDataTransformed = {
   isTransformed: true;
-  indicatorHeaders: HeaderItem[]; // Y categories
-  seriesHeaders: HeaderItem[];
-  laneHeaders: HeaderItem[];
-  tierHeaders: HeaderItem[];
-  paneHeaders: HeaderItem[];
+  // One axis per split slot; an unsplit slot has none and is one member long
+  // in values. The indicators are the Y categories.
+  indicator: DataAxis;
+  series?: DataAxis;
+  lane?: DataAxis;
+  tier?: DataAxis;
+  pane?: DataAxis;
   values: (number | undefined)[][][][][]; // [pane][tier][lane][series][indicator]
   bounds?: {
     ub: (number | undefined)[][][][][];

@@ -368,8 +368,11 @@ export class PdfRenderContext implements RenderContext {
         this._jsPdf.stroke();
       }
 
-      // Safety measure
+      // Later strokes draw with the PDF defaults: a solid line, mitred joins.
+      // A q/Q pair would not do: jsPDF keeps the join it was last given and
+      // writes it again at the top of every new page.
       this._jsPdf.setLineDashPattern([], 0);
+      this._jsPdf.setLineJoin("miter");
     } catch (e) {
       throw e;
     }

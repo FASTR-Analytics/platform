@@ -14,6 +14,7 @@ import {
   type RenderContext,
   resolveDefaultLegend,
   SIZING_SAMPLE,
+  slotHeaders,
 } from "../deps.ts";
 import { getTimeseriesDataTransformed } from "../get_timeseries_data.ts";
 import type { TimeseriesDataTransformed, TimeseriesInputs } from "../types.ts";
@@ -65,21 +66,21 @@ export function getTimeseriesComponentSizes(
     .dims.h();
 
   const minSubChartWidth = calculateTimeseriesMinSubChartWidth(
-    data.nTimePoints,
+    data.period.nTimePoints,
     xAxisTickH,
   );
 
   const resolvedLegendLabels = resolveDefaultLegend(
     inputs.legend,
-    data.seriesHeaders,
+    data.series,
   );
 
   return {
     customFigureStyle: cs,
     mergedStyle: ms,
-    nLanes: data.laneHeaders.length,
-    nTiers: data.tierHeaders.length,
-    paneHeaders: data.paneHeaders,
+    nLanes: slotHeaders(data.lane).length,
+    nTiers: slotHeaders(data.tier).length,
+    nPanes: slotHeaders(data.pane).length,
     minSubChartWidth,
     minSubChartHeight: calculateMinSubChartHeight(rc, ms.yScaleAxis),
     xAxisHeight,
@@ -89,7 +90,7 @@ export function getTimeseriesComponentSizes(
       rc,
       cs,
       resolvedLegendLabels,
-      data.seriesHeaders,
+      data.series,
     ),
     resolvedLegendLabels,
   };

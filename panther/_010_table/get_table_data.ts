@@ -4,10 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  type ColGroup,
   isTableDataJson,
   isTableDataTransformed,
-  type RowGroup,
   type TableData,
   type TableDataTransformed,
   type TableJsonDataConfig,
@@ -21,7 +19,9 @@ import {
   type HeaderSortFunc,
   type JsonArray,
   type JsonArrayItem,
+  readDimensionId,
   resolveSortFunc,
+  validateDistinctDimensions,
 } from "./deps.ts";
 
 export function getTableDataTransformed(d: TableData): TableDataTransformed {
@@ -51,6 +51,12 @@ function getTableDataJsonTransformed(
   if (valueProps.length === 0) {
     throw new Error("Need at least one valueProp");
   }
+  validateDistinctDimensions({
+    col: colProp,
+    row: rowProp,
+    colGroup: colGroupProp,
+    rowGroup: rowGroupProp,
+  });
 
   const col = promoteGroupPropIfNoItemProp(
     colGroupProp,
@@ -93,13 +99,17 @@ function getTableDataJsonTransformed(
     resolveSortFunc(row.itemSort),
   );
 
-  // Flatten to ColGroup[]/RowGroup[] and build index mappings
-  const { colGroups, colComboToIndex, totalCols } = flattenToColGroups(
-    sortedColAxis,
-  );
-  const { rowGroups, rowComboToIndex, totalRows } = flattenToRowGroups(
-    sortedRowAxis,
-  );
+  // Flatten to groups and build index mappings
+  const {
+    groups: colGroups,
+    comboToIndex: colComboToIndex,
+    total: totalCols,
+  } = flattenAxis(sortedColAxis);
+  const {
+    groups: rowGroups,
+    comboToIndex: rowComboToIndex,
+    total: totalRows,
+  } = flattenAxis(sortedRowAxis);
 
   // Initialize and fill the data array
   const aoa: string[][] = createArray(
@@ -138,8 +148,24 @@ function getTableDataJsonTransformed(
 
   return {
     isTransformed: true,
-    colGroups,
-    rowGroups,
+    cols: col.itemProp === undefined ? undefined : {
+      dimension: col.itemProp,
+      groupDimension: col.groupProp,
+      groups: colGroups.map(({ id, label, members }) => ({
+        id,
+        label,
+        cols: members,
+      })),
+    },
+    rows: row.itemProp === undefined ? undefined : {
+      dimension: row.itemProp,
+      groupDimension: row.groupProp,
+      groups: rowGroups.map(({ id, label, members }) => ({
+        id,
+        label,
+        rows: members,
+      })),
+    },
     aoa: aoaWithMissing,
     liveDomainExcludeIds: jsonDataConfig.liveDomainExcludeIds,
     nMatrix: hasAnyN ? nMatrix : undefined,
@@ -203,9 +229,9 @@ function buildStructuredAxis(
   const groupToItems = new Map<string | undefined, Set<string | undefined>>();
 
   for (const vp of valueProps) {
-    for (const obj of jsonArray) {
-      const groupId = resolveId(groupProp, vp, obj);
-      const itemId = resolveId(itemProp, vp, obj);
+    for (const [i_row, obj] of jsonArray.entries()) {
+      const groupId = resolveId(groupProp, vp, obj, i_row);
+      const itemId = resolveId(itemProp, vp, obj, i_row);
 
       let itemSet = groupToItems.get(groupId);
       if (!itemSet) {
@@ -216,9 +242,7 @@ function buildStructuredAxis(
     }
   }
 
-  // Convert to structured axis with HeaderItems. Undefined ids are kept as
-  // undefined entries so rows with missing dimension values still get a bucket
-  // (and don't silently disappear in fillDataArray).
+  // An undefined id is the lone member of a slot with no prop.
   const axis: StructuredAxis = [];
   for (const [groupId, itemIds] of groupToItems) {
     const groupHeader = toHeaderItem(groupId, labelReplacements);
@@ -244,11 +268,11 @@ function resolveId(
   prop: string | undefined,
   valueProp: string,
   obj: JsonArrayItem,
+  i_row: number,
 ): string | undefined {
   if (prop === "--v") return valueProp;
   if (prop === undefined) return undefined;
-  const val = obj[prop];
-  return val === undefined || val === null ? undefined : String(val);
+  return readDimensionId(obj, prop, i_row);
 }
 
 function sortStructuredAxis(
@@ -256,19 +280,18 @@ function sortStructuredAxis(
   groupSortFunc: HeaderSortFunc | undefined,
   itemSortFunc: HeaderSortFunc | undefined,
 ): StructuredAxis {
-  // Sort items within each group. Undefined items go last regardless of the
-  // configured sort func (they have no id/label to compare).
+  // An undefined header is the lone member of a slot with no prop, so it
+  // never meets a defined one in a comparison.
   const withSortedItems = axis.map((group) => ({
     header: group.header,
     items: itemSortFunc
-      ? [...group.items].sort(sortWithUndefinedLast(itemSortFunc))
+      ? [...group.items].sort(compareDefined(itemSortFunc))
       : group.items,
   }));
 
-  // Sort groups. Undefined-headed groups go last for the same reason.
   if (groupSortFunc) {
     withSortedItems.sort((a, b) => {
-      const cmp = sortWithUndefinedLast(groupSortFunc);
+      const cmp = compareDefined(groupSortFunc);
       return cmp(a.header, b.header);
     });
   }
@@ -276,67 +299,49 @@ function sortStructuredAxis(
   return withSortedItems;
 }
 
-function sortWithUndefinedLast(
+function compareDefined(
   fn: HeaderSortFunc,
 ): (a: HeaderItem | undefined, b: HeaderItem | undefined) => number {
   return (a, b) => {
-    if (a === undefined && b === undefined) return 0;
-    if (a === undefined) return 1;
-    if (b === undefined) return -1;
+    if (a === undefined || b === undefined) return 0;
     return fn(a, b);
   };
 }
 
-function flattenToColGroups(axis: StructuredAxis): {
-  colGroups: ColGroup[];
-  colComboToIndex: Map<string, number>;
-  totalCols: number;
+type FlatAxisGroup = {
+  id: string | undefined;
+  label: string | undefined;
+  members: { id: string; label: string | undefined; index: number }[];
+};
+
+// Members of an absent axis (no item prop) have no id; the caller drops such
+// an axis, keeping only its index mapping.
+function flattenAxis(axis: StructuredAxis): {
+  groups: FlatAxisGroup[];
+  comboToIndex: Map<string, number>;
+  total: number;
 } {
-  const colGroups: ColGroup[] = [];
-  const colComboToIndex = new Map<string, number>();
+  const groups: FlatAxisGroup[] = [];
+  const comboToIndex = new Map<string, number>();
   let index = 0;
 
   for (const group of axis) {
-    const cols: ColGroup["cols"] = group.items.map((item) => {
-      const comboKey = makeComboKey(group.header?.id, item?.id);
-      colComboToIndex.set(comboKey, index);
-      return { id: item?.id, label: item?.label, index: index++ };
-    });
-
-    colGroups.push({
+    const members: FlatAxisGroup["members"] = [];
+    for (const item of group.items) {
+      comboToIndex.set(makeComboKey(group.header?.id, item?.id), index);
+      if (item !== undefined) {
+        members.push({ id: item.id, label: item.label, index });
+      }
+      index++;
+    }
+    groups.push({
       id: group.header?.id,
       label: group.header?.label,
-      cols,
+      members,
     });
   }
 
-  return { colGroups, colComboToIndex, totalCols: index };
-}
-
-function flattenToRowGroups(axis: StructuredAxis): {
-  rowGroups: RowGroup[];
-  rowComboToIndex: Map<string, number>;
-  totalRows: number;
-} {
-  const rowGroups: RowGroup[] = [];
-  const rowComboToIndex = new Map<string, number>();
-  let index = 0;
-
-  for (const group of axis) {
-    const rows: RowGroup["rows"] = group.items.map((item) => {
-      const comboKey = makeComboKey(group.header?.id, item?.id);
-      rowComboToIndex.set(comboKey, index);
-      return { id: item?.id, label: item?.label, index: index++ };
-    });
-
-    rowGroups.push({
-      id: group.header?.id,
-      label: group.header?.label,
-      rows,
-    });
-  }
-
-  return { rowGroups, rowComboToIndex, totalRows: index };
+  return { groups, comboToIndex, total: index };
 }
 
 function makeComboKey(
@@ -362,15 +367,15 @@ function fillDataArray(
   rowComboToIndex: Map<string, number>,
 ): void {
   for (const vp of valueProps) {
-    for (const obj of jsonArray) {
+    for (const [i_row, obj] of jsonArray.entries()) {
       if (obj[vp] === null || obj[vp] === undefined) {
         continue;
       }
 
-      const colGroupId = resolveId(colGroupProp, vp, obj);
-      const colItemId = resolveId(colProp, vp, obj);
-      const rowGroupId = resolveId(rowGroupProp, vp, obj);
-      const rowItemId = resolveId(rowProp, vp, obj);
+      const colGroupId = resolveId(colGroupProp, vp, obj, i_row);
+      const colItemId = resolveId(colProp, vp, obj, i_row);
+      const rowGroupId = resolveId(rowGroupProp, vp, obj, i_row);
+      const rowItemId = resolveId(rowProp, vp, obj, i_row);
 
       const colCombo = makeComboKey(colGroupId, colItemId);
       const rowCombo = makeComboKey(rowGroupId, rowItemId);

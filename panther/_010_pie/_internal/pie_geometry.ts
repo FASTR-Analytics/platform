@@ -737,19 +737,3 @@ function appendFillet(
   while (dir < 0 && sweep > 0) sweep -= TWO_PI;
   appendArc(segments, centre.x, centre.y, r, fromAngle, fromAngle + sweep);
 }
-
-// Every point the path touches, control points included. The convex hull of a
-// bezier's control points contains the curve, so feeding these to
-// computeBoundsForPath gives a correct (slightly conservative) bound.
-export function pathSegmentPoints(
-  segments: PathSegment[],
-): { x: number; y: number }[] {
-  const points: { x: number; y: number }[] = [];
-  for (const s of segments) {
-    if (s.type === "bezierCurveTo") {
-      points.push({ x: s.cp1x, y: s.cp1y }, { x: s.cp2x, y: s.cp2y });
-    }
-    points.push({ x: s.x, y: s.y });
-  }
-  return points;
-}

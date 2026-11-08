@@ -5,9 +5,9 @@
 
 import { Coordinates, getColor, RectCoordsDims, Z_INDEX } from "../deps.ts";
 import type {
+  FigureScaleLegendGradientPrimitive,
+  FigureScaleLegendSteppedPrimitive,
   RectStyle,
-  ScaleLegendGradientPrimitive,
-  ScaleLegendSteppedPrimitive,
 } from "../deps.ts";
 import type {
   MeasuredScaleLegend,
@@ -19,7 +19,7 @@ export function generateScaleLegendPrimitive(
   coords: Coordinates,
   mScaleLegend: MeasuredScaleLegend,
   bounds: RectCoordsDims,
-): ScaleLegendGradientPrimitive | ScaleLegendSteppedPrimitive {
+): FigureScaleLegendGradientPrimitive | FigureScaleLegendSteppedPrimitive {
   if (mScaleLegend.type === "gradient") {
     return generateGradientPrimitive(coords, mScaleLegend, bounds);
   }
@@ -30,7 +30,7 @@ function generateGradientPrimitive(
   coords: Coordinates,
   m: MeasuredScaleLegendGradient,
   bounds: RectCoordsDims,
-): ScaleLegendGradientPrimitive {
+): FigureScaleLegendGradientPrimitive {
   const s = m.s;
   const config = m.config;
   const barX = coords.x() + m.leftOverhang;
@@ -66,7 +66,7 @@ function generateGradientPrimitive(
     };
   });
 
-  let noData: ScaleLegendGradientPrimitive["noData"] = undefined;
+  let noData: FigureScaleLegendGradientPrimitive["noData"] = undefined;
   if (config.noData && m.noDataMeasurement) {
     const lastLabelW = m.tickMeasurements.length > 0
       ? m.tickMeasurements[m.tickMeasurements.length - 1].dims.w()
@@ -80,7 +80,7 @@ function generateGradientPrimitive(
     });
     noData = {
       rect: swatchRect,
-      style: { fillColor: getColor(config.noData.color) },
+      style: { fillColor: config.noData.color },
       mText: m.noDataMeasurement,
       labelPosition: new Coordinates({
         x: noDataX + s.noDataSwatchWidth + s.labelGap,
@@ -90,12 +90,14 @@ function generateGradientPrimitive(
   }
 
   return {
-    type: "scale-legend-gradient",
-    key: "scale-legend-gradient",
+    type: "figure-scale-legend-gradient",
+    key: "figure-scale-legend-gradient",
     bounds,
+    meta: {},
     zIndex: Z_INDEX.LEGEND,
     colorStops,
     barRect,
+    tickLength: s.tickLength,
     ticks,
     noData,
   };
@@ -105,7 +107,7 @@ function generateSteppedPrimitive(
   coords: Coordinates,
   m: MeasuredScaleLegendStepped,
   bounds: RectCoordsDims,
-): ScaleLegendSteppedPrimitive {
+): FigureScaleLegendSteppedPrimitive {
   const s = m.s;
   const config = m.config;
   const startX = coords.x() + m.leftOverhang;
@@ -125,7 +127,7 @@ function generateSteppedPrimitive(
         w: blockWidth,
         h: s.barHeight,
       }),
-      style: { fillColor: getColor(config.steps[i].color) },
+      style: { fillColor: config.steps[i].color },
     });
   }
 
@@ -155,7 +157,7 @@ function generateSteppedPrimitive(
     };
   });
 
-  let noData: ScaleLegendSteppedPrimitive["noData"] = undefined;
+  let noData: FigureScaleLegendSteppedPrimitive["noData"] = undefined;
   if (config.noData && m.noDataMeasurement) {
     const lastLabelW = m.labelMeasurements.length > 0
       ? m.labelMeasurements[m.labelMeasurements.length - 1].dims.w()
@@ -169,7 +171,7 @@ function generateSteppedPrimitive(
     });
     noData = {
       rect: swatchRect,
-      style: { fillColor: getColor(config.noData.color) },
+      style: { fillColor: config.noData.color },
       mText: m.noDataMeasurement,
       labelPosition: new Coordinates({
         x: noDataX + s.noDataSwatchWidth + s.labelGap,
@@ -179,9 +181,10 @@ function generateSteppedPrimitive(
   }
 
   return {
-    type: "scale-legend-stepped",
-    key: "scale-legend-stepped",
+    type: "figure-scale-legend-stepped",
+    key: "figure-scale-legend-stepped",
     bounds,
+    meta: {},
     zIndex: Z_INDEX.LEGEND,
     steps,
     labels,

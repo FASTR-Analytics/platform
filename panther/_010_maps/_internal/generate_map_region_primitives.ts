@@ -8,13 +8,21 @@ import type {
   MapRegionPrimitive,
   MapRegionStyle,
   Primitive,
-  RectCoordsDims,
+  PrimitiveItem,
+  SubChartHeaders,
 } from "../deps.ts";
-import { Z_INDEX } from "../deps.ts";
+import {
+  buildItem,
+  computeBoundsForPath,
+  pathSegmentPoints,
+  subChartItemCoordinates,
+  Z_INDEX,
+} from "../deps.ts";
+import type { MapDataTransformed } from "../types.ts";
 import type { GeoJSONFeature } from "./geojson_types.ts";
 import type { FittedProjection } from "./fit_projection.ts";
 import { geoToPathSegments } from "./geo_to_path_segments.ts";
-import { getFeatureMatchKey, type MapCellHeaders } from "./label_shared.ts";
+import { getFeatureMatchKey } from "./label_shared.ts";
 
 // A feature the cell will actually draw, with its style resolved ONCE (with
 // the real value range) — the same resolution the label pass reads, so the
@@ -22,6 +30,8 @@ import { getFeatureMatchKey, type MapCellHeaders } from "./label_shared.ts";
 export type ShownMapRegion = {
   feature: GeoJSONFeature;
   featureId: string;
+  // The region's area member in its sub-chart, which its label names too.
+  item: PrimitiveItem | undefined;
   value: number | undefined;
   style: MapRegionStyle;
 };
@@ -30,16 +40,17 @@ export function resolveShownRegions(
   geoFeatures: GeoJSONFeature[],
   valueMap: Record<string, number | undefined>,
   valueRange: { min: number; max: number },
-  areaMatchProp: string,
+  slots: Pick<MapDataTransformed, "area" | "pane" | "tier" | "lane">,
   getStyle: MapRegionInfoFunc<MapRegionStyle>,
   paneIndex: number,
   tierIndex: number,
   laneIndex: number,
-  headers: MapCellHeaders,
+  headers: SubChartHeaders,
 ): ShownMapRegion[] {
   const shown: ShownMapRegion[] = [];
+  const cellCoordinates = subChartItemCoordinates(slots, headers);
   for (const feature of geoFeatures) {
-    const featureId = getFeatureMatchKey(feature, areaMatchProp);
+    const featureId = getFeatureMatchKey(feature, slots.area.matchProp);
     const value = valueMap[featureId];
 
     const style = getStyle({
@@ -55,43 +66,61 @@ export function resolveShownRegions(
     });
 
     if (!style.show) continue;
-    shown.push({ feature, featureId, value, style });
+    shown.push({
+      feature,
+      featureId,
+      item: buildItem([[slots.area.dimension, featureId], ...cellCoordinates]),
+      value,
+      style,
+    });
   }
   return shown;
 }
 
 export function generateMapRegionPrimitives(
-  subChartRcd: RectCoordsDims,
   shown: ShownMapRegion[],
   fitted: FittedProjection,
-  paneIndex: number,
-  tierIndex: number,
-  laneIndex: number,
+  indices: { paneIndex: number; tierIndex: number; laneIndex: number },
+  headers: SubChartHeaders,
 ): Primitive[] {
+  const { paneIndex, tierIndex, laneIndex } = indices;
   const regionPrimitives: Primitive[] = [];
 
-  for (const { feature, featureId, value, style } of shown) {
+  for (const { feature, featureId, item, value, style } of shown) {
     const pathSegments = geoToPathSegments(feature.geometry, fitted);
     if (pathSegments.length === 0) continue;
 
+    const hasStroke = style.strokeColor !== "none" && style.strokeWidth > 0;
+    const bounds = computeBoundsForPath(
+      pathSegmentPoints(pathSegments),
+      hasStroke ? style.strokeWidth : 0,
+    );
     const prim: MapRegionPrimitive = {
       type: "map-region",
       key: `map-region-${paneIndex}-${tierIndex}-${laneIndex}-${featureId}`,
-      bounds: subChartRcd,
+      item,
+      part: "body",
+      bounds,
+      hitBounds: bounds,
       zIndex: Z_INDEX.MAP_REGION,
-      meta: { featureId, paneIndex, tierIndex, laneIndex, value },
+      meta: {
+        featureId,
+        paneIndex,
+        tierIndex,
+        laneIndex,
+        ...headers,
+        value,
+      },
       pathSegments,
       pathStyle: {
         fill: style.fillColor === "none" ? undefined : {
           color: style.fillColor,
           fillRule: "evenodd",
         },
-        stroke: style.strokeColor === "none" || style.strokeWidth <= 0
-          ? undefined
-          : {
-            color: style.strokeColor,
-            width: style.strokeWidth,
-          },
+        stroke: !hasStroke ? undefined : {
+          color: style.strokeColor,
+          width: style.strokeWidth,
+        },
       },
     };
     regionPrimitives.push(prim);

@@ -55,6 +55,7 @@ const zLegendNoData = z.object({
 });
 
 const zLegendItem = z.object({
+  id: z.string().optional(),
   label: z.string(),
   color: zColorKeyOrString,
   pointStyle: z

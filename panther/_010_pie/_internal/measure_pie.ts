@@ -17,6 +17,7 @@ import type {
 } from "../deps.ts";
 import {
   buildAutoFormatter,
+  buildItem,
   calculateMinLabelPlotExtent,
   Coordinates,
   CustomFigureStyle,
@@ -25,7 +26,10 @@ import {
   RectCoordsDims,
   resolveFlooredContentScale,
   resolveLabelPlacement,
+  slotHeaders,
   solveContentScale,
+  textBoxInAnchor,
+  withFigureLabelBounds,
   Z_INDEX,
 } from "../deps.ts";
 import { getPieDataTransformed } from "../get_pie_data.ts";
@@ -39,9 +43,12 @@ import {
 } from "./generate_pie_label_candidates.ts";
 import {
   generatePieSlicePrimitives,
+  getPieHeaders,
   layOutPie,
   type PieGeometry,
+  type PieHeaders,
   type PieIndices,
+  pieItemCoordinates,
 } from "./generate_pie_slice_primitives.ts";
 import {
   clampInnerRadiusRatio,
@@ -76,13 +83,13 @@ export function measurePie(
     mergedStyle,
     transformedData,
     dataProps: {
-      paneHeaders: transformedData.paneHeaders,
-      tierHeaders: transformedData.tierHeaders,
-      laneHeaders: transformedData.laneHeaders,
-      // Populated (unlike map's []), so measureChart's resolveDefaultLegend
-      // gives the pie a categorical legend whose swatches come from the same
+      pane: transformedData.pane,
+      tier: transformedData.tier,
+      lane: transformedData.lane,
+      // Passed (a map has none), so measureChart's resolveDefaultLegend gives
+      // the pie a categorical legend whose swatches come from the same
       // seriesColorFunc the slices use.
-      seriesHeaders: transformedData.seriesHeaders,
+      series: transformedData.series,
     },
     // Zero-way: content-primitive generation is skipped for none x none, so
     // the shared path never touches pie's values — the figure draws its own.
@@ -103,7 +110,7 @@ export function measurePie(
   // so every pie in every sub-chart stays the same size and aligned (the
   // comparability rule). "auto" maximises the achievable content scale;
   // ties break toward the ideal pass's self-consistent choice.
-  const nIndicators = transformedData.indicatorHeaders.length;
+  const nIndicators = slotHeaders(transformedData.indicator).length;
   const ind = mergedStyle.pie.indicators;
   const ctx = buildSlotObjectiveContext(rc, transformedData, mergedStyle);
   const minPlotW = Math.min(...grids.map((g) => g.plotAreaRcd.w()));
@@ -158,16 +165,35 @@ export function measurePie(
         ),
       );
       if (showHeaders) {
+        const anchorRcd = new RectCoordsDims({
+          x: slotX,
+          y: headerOnTop ? slotY : slotY + slotH - headerH,
+          w: slotW,
+          h: headerH,
+        });
+        const mText = rc.mText(
+          transformedData.indicator.headers[k].label,
+          mergedStyle.pie.text.indicatorHeaders,
+          Math.max(slotW, 1),
+        );
+        const alignV = headerOnTop ? "bottom" : "top";
         headerPrimitives.push({
           type: "chart-label",
           key:
             `indicator-header-${prim.meta.paneIndex}-${prim.meta.tierIndex}-${prim.meta.laneIndex}-${k}`,
-          bounds: new RectCoordsDims({
-            x: slotX,
-            y: headerOnTop ? slotY : slotY + slotH - headerH,
-            w: slotW,
-            h: headerH,
-          }),
+          item: buildItem(
+            pieItemCoordinates(
+              transformedData,
+              getPieHeaders(transformedData, {
+                ...prim.meta,
+                indicatorIndex: k,
+              }),
+            ),
+          ),
+          part: "header",
+          hitBounds: anchorRcd,
+          bounds: textBoxInAnchor(mText, anchorRcd, ind.headerAlignH, alignV),
+          anchorRcd,
           zIndex: Z_INDEX.LABEL,
           meta: {
             labelType: "indicator",
@@ -175,16 +201,13 @@ export function measurePie(
             tierIndex: prim.meta.tierIndex,
             laneIndex: prim.meta.laneIndex,
             indicatorIndex: k,
+            paneHeader: prim.meta.paneHeader,
+            tierHeader: prim.meta.tierHeader,
+            laneHeader: prim.meta.laneHeader,
+            indicatorHeader: transformedData.indicator.headers[k],
           },
-          mText: rc.mText(
-            transformedData.indicatorHeaders[k].label,
-            mergedStyle.pie.text.indicatorHeaders,
-            Math.max(slotW, 1),
-          ),
-          alignment: {
-            h: ind.headerAlignH,
-            v: headerOnTop ? "bottom" : "top",
-          },
+          mText,
+          alignment: { h: ind.headerAlignH, v: alignV },
         });
       }
     }
@@ -295,7 +318,7 @@ function solveOnePie(
   // that actually draws. The policy value is unscaled (merged with `m`), so
   // the fit scale multiplies here to keep shrunk figures proportional.
   const capD = mergedStyle.idealHeight.idealPieDiameter(
-    data.indicatorHeaders.length,
+    slotHeaders(data.indicator).length,
   ) * sf;
   // capD bounds the DISC diameter (2s) — the visual scale of the pie — not
   // the silhouette's drawn extent, so a half-disc gauge is capped at the same
@@ -461,6 +484,7 @@ function emitOnePie(
   s: number,
 ): Primitive[] {
   const { indices, slotRcd, outsideIds, outside, labelText } = solvedPie;
+  const headers = getPieHeaders(data, indices);
   const mode = toPieLabelMode(mergedStyle.pie.labelMode);
   const ratio = clampInnerRadiusRatio(mergedStyle.pie.innerRadiusRatio);
   const silhouette = resolvePieSilhouette(mergedStyle);
@@ -522,6 +546,7 @@ function emitOnePie(
     pie,
     mergedStyle,
     indices,
+    headers,
   );
 
   if (mode !== "none") {
@@ -550,6 +575,7 @@ function emitOnePie(
             tierIndex: indices.tierIndex,
             laneIndex: indices.laneIndex,
             indicatorIndex: indices.indicatorIndex,
+            ...headers,
           },
         ),
       );
@@ -561,6 +587,7 @@ function emitOnePie(
     pie,
     mergedStyle,
     indices,
+    headers,
     silhouette,
   );
   if (centerLabel) {
@@ -596,6 +623,7 @@ function generateCenterLabel(
   pie: ReturnType<typeof layOutPie>,
   mergedStyle: MergedPieStyle,
   indices: PieIndices,
+  headers: PieHeaders,
   silhouette: SilhouetteExtents,
 ): FigureLabelPrimitive | undefined {
   const centerLabel = mergedStyle.pie.centerLabel;
@@ -625,11 +653,13 @@ function generateCenterLabel(
   const labelX = cx + offset.x;
   const labelY = cy + offset.y;
 
-  return {
+  return withFigureLabelBounds({
     type: "figure-label",
     key:
       `pie-center-${indices.paneIndex}-${indices.tierIndex}-${indices.laneIndex}-${indices.indicatorIndex}`,
-    bounds: new RectCoordsDims({
+    item: pie.item,
+    part: "value",
+    hostRcd: new RectCoordsDims({
       x: labelX - innerR,
       y: labelY - mText.dims.h() / 2,
       w: innerR * 2,
@@ -642,12 +672,13 @@ function generateCenterLabel(
       tierIndex: indices.tierIndex,
       laneIndex: indices.laneIndex,
       indicatorIndex: indices.indicatorIndex,
+      ...headers,
       placement: "inside",
     },
     mText,
     position: new Coordinates([labelX, labelY]),
     alignment: { h: "center", v: "middle" },
-  };
+  });
 }
 
 // How far the centre label travels off the pie centre, toward the centre of the

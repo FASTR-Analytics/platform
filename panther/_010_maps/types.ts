@@ -4,8 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  DataAxis,
   FigureInputsBase,
-  HeaderItem,
   HeaderSortConfig,
   JsonArray,
   MeasuredChartBase,
@@ -52,10 +52,11 @@ export type MapJsonDataConfig = {
 export type MapDataTransformed = {
   isTransformed: true;
   geoFeatures: GeoJSONFeature[];
-  areaMatchProp: string;
-  paneHeaders: HeaderItem[];
-  tierHeaders: HeaderItem[];
-  laneHeaders: HeaderItem[];
+  // The area dimension, and the feature property its members match.
+  area: { dimension: string; matchProp: string };
+  pane?: DataAxis;
+  tier?: DataAxis;
+  lane?: DataAxis;
   valueMaps: Record<string, number | undefined>[][][];
   valueRange: { min: number; max: number };
 };

@@ -13,6 +13,7 @@ import {
   type RectCoordsDims,
   Z_INDEX,
 } from "../deps.ts";
+import { chartSeriesItem } from "../chart_items.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 import {
   buildSeriesInfo,
@@ -166,12 +167,16 @@ export function generateAreaPrimitives(
           ...areas[i_area].coords,
           areas[i_area].coords[0],
         ];
+        const bounds = computeBoundsForPath(lineCoordArray);
 
         primitives.push({
           type: "chart-area-series",
           key:
             `area-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}-${i_area}`,
-          bounds: computeBoundsForPath(lineCoordArray),
+          item: chartSeriesItem(ctx.itemAxes, seriesInfo),
+          part: "body",
+          bounds,
+          hitBounds: bounds,
           zIndex: Z_INDEX.CONTENT_AREA,
           meta: {
             series: seriesInfo,
@@ -335,17 +340,21 @@ function generateDiffPairPrimitives(
       i_series,
       isFirstSeries: i_series === 0,
       isLastSeries: i_series === ctx.subChartInfo.nSerieses - 1,
-      seriesHeader: ctx.seriesHeaders[i_series],
+      seriesHeader: ctx.itemAxes.series?.headers[i_series],
       nVals: 0,
     };
     const areaStyle = areasStyle.getStyle(seriesInfo);
     const lineCoordArray = [...areas[i_area].coords, areas[i_area].coords[0]];
+    const bounds = computeBoundsForPath(lineCoordArray);
 
     primitives.push({
       type: "chart-area-series",
       key:
         `area-diff-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_pair}-${order}-${i_area}`,
-      bounds: computeBoundsForPath(lineCoordArray),
+      item: chartSeriesItem(ctx.itemAxes, seriesInfo),
+      part: "body",
+      bounds,
+      hitBounds: bounds,
       zIndex: Z_INDEX.CONTENT_AREA,
       meta: {
         series: seriesInfo,

@@ -1,10 +1,8 @@
 # _010_chartov
 
-**Chart** overlay visualizations - bars, lines, areas, and points for category-
-based data.
+**Chart** overlay visualizations - bars, lines, areas, and points for category- based data.
 
-ChartOV is a **Chart** (Figure with panes/tiers/lanes support), not just a
-simple Figure. See `DOC_FIGURE_ARCHITECTURE.md` for the Figure taxonomy.
+ChartOV is a **Chart** (Figure with panes/tiers/lanes support), not just a simple Figure. See `DOC_FIGURE_ARCHITECTURE.md` for the Figure taxonomy.
 
 ## Purpose
 

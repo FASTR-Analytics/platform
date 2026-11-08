@@ -1,12 +1,10 @@
 # Protocols
 
-Strict conventions for building apps with panther. These documents get synced to
-consumer apps and serve as the authoritative source for AI and human developers.
+Strict conventions for building apps with panther. These documents get synced to consumer apps and serve as the authoritative source for AI and human developers.
 
 ## Purpose
 
-1. **Single source of truth**: Rules live here, not duplicated in app CLAUDE.md
-   files
+1. **Single source of truth**: Rules live here, not duplicated in app CLAUDE.md files
 2. **AI guidance**: Structured for scanning and strict compliance
 3. **Audit capability**: Checkable items enable automated validation
 4. **Consistency**: Same patterns across all apps using panther
@@ -19,10 +17,7 @@ Files are named `PROTOCOL_<SCOPE>_*.md`, where `<SCOPE>` is the audience:
 - `PROTOCOL_DENO_*`: backend only (scope: Deno)
 - `PROTOCOL_ALL_*`: universal (scope: All)
 
-The prefix matches the in-file `**Scope:**` header and the `@protocol` list the
-file appears in (UI → `mod.ui.ts`, Deno → `mod.deno.ts`, All → both). To point a
-tool or person at the frontend rules, glob `PROTOCOL_UI_*` plus the
-`PROTOCOL_ALL_*` files (which always apply).
+The prefix matches the in-file `**Scope:**` header and the `@protocol` list the file appears in (UI → `mod.ui.ts`, Deno → `mod.deno.ts`, All → both). To point a tool or person at the frontend rules, glob `PROTOCOL_UI_*` plus the `PROTOCOL_ALL_*` files (which always apply).
 
 Distinguish from:
 
@@ -41,8 +36,7 @@ Each protocol declares its scope:
 | **Deno** | `mode: "deno"` or `mode: "both"` | Building Deno servers/scripts                                      |
 | **All**  | All modes                        | Universal conventions (TypeScript, structure, sizing, translation) |
 
-Scope is declared in the protocol header and determines which consumer apps
-receive it during sync.
+Scope is declared in the protocol header and determines which consumer apps receive it during sync.
 
 ## Protocol List
 
@@ -72,8 +66,7 @@ Every protocol follows this structure:
 
 ## Rules
 
-Numbered list of 5-15 rules. Each rule is one line. This section is the TL;DR
-that AI scans first.
+Numbered list of 5-15 rules. Each rule is one line. This section is the TL;DR that AI scans first.
 
 1. **[Rule name]**: [one-line description]
 2. **[Rule name]**: [one-line description]
@@ -100,8 +93,7 @@ Canonical implementations for common scenarios. More detailed than Do/Don't.
 
 ## Checklist
 
-Machine-readable items for auditing. Each item should be verifiable by grep/AST
-analysis or manual review.
+Machine-readable items for auditing. Each item should be verifiable by grep/AST analysis or manual review.
 
 - [ ] [Auditable statement]
 - [ ] [Auditable statement]
@@ -119,8 +111,7 @@ analysis or manual review.
 
 ### Be Prescriptive
 
-Protocols are laws, not suggestions. Use "always", "never", "must", not
-"consider", "prefer", "try to".
+Protocols are laws, not suggestions. Use "always", "never", "must", not "consider", "prefer", "try to".
 
 ```markdown
 // Good **No createResource, no Suspense (hard ban, no exceptions)**
@@ -130,8 +121,7 @@ Protocols are laws, not suggestions. Use "always", "never", "must", not
 
 ### Rules First, Explanation Second
 
-AI scans top-to-bottom. Put rules before rationale. One sentence of "why" is
-enough: protocols aren't tutorials.
+AI scans top-to-bottom. Put rules before rationale. One sentence of "why" is enough: protocols aren't tutorials.
 
 ### Code Over Prose
 
@@ -139,13 +129,11 @@ Show, don't tell. A code example communicates more than a paragraph.
 
 ### Keep Scope Tight
 
-Each protocol covers one domain. Don't combine unrelated concerns. If a protocol
-grows beyond ~500 lines, consider splitting.
+Each protocol covers one domain. Don't combine unrelated concerns. If a protocol grows beyond ~500 lines, consider splitting.
 
 ### No Duplication
 
-If a rule belongs in one protocol, don't repeat it in another. Cross-reference
-instead:
+If a rule belongs in one protocol, don't repeat it in another. Cross-reference instead:
 
 ```markdown
 See PROTOCOL_ALL_TYPESCRIPT.md for function declaration rules.
@@ -171,14 +159,11 @@ protocols/
 └── PROTOCOL_DENO_API.md          → Deno, Both
 ```
 
-Protocols land in `panther/protocols/` in consumer apps, alongside the module
-code. The authoritative per-mode list is the `@protocol` comments in
-`modules/mod.ui.ts` and `modules/mod.deno.ts`.
+Protocols land in `panther/protocols/` in consumer apps, alongside the module code. The authoritative per-mode list is the `@protocol` comments in `modules/mod.ui.ts` and `modules/mod.deno.ts`.
 
 ## Consumer App Integration
 
-After protocols exist, consumer app CLAUDE.md files should reference them rather
-than duplicating rules:
+After protocols exist, consumer app CLAUDE.md files should reference them rather than duplicating rules:
 
 ```markdown
 # My App
@@ -187,8 +172,7 @@ than duplicating rules:
 
 This project follows panther protocols. See `panther/protocols/`:
 
-- PROTOCOL_ALL_*.md: Universal conventions (TypeScript, structure, sizing,
-  translation)
+- PROTOCOL_ALL_*.md: Universal conventions (TypeScript, structure, sizing, translation)
 - PROTOCOL_UI_*.md: Frontend: SolidJS, state, styling, components
 
 ## App-Specific
@@ -216,16 +200,13 @@ A planned `audit.ts` script will:
 2. Run checks against consumer app code (grep, AST analysis)
 3. Report violations with file:line references
 
-This enables validating that existing apps conform to protocols, not just new
-code.
+This enables validating that existing apps conform to protocols, not just new code.
 
 ## Versioning
 
-Protocols don't use semantic versioning. They're living documents that evolve
-with panther. Breaking changes should be:
+Protocols don't use semantic versioning. They're living documents that evolve with panther. Breaking changes should be:
 
 1. Announced in commit messages
 2. Applied to all consumer apps in the same sync
 
-Since protocols sync alongside panther modules, consumers always get the current
-version.
+Since protocols sync alongside panther modules, consumers always get the current version.

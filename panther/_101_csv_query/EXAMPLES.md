@@ -170,8 +170,7 @@ const report = query(csv)
 
 ## Using groupBy as DISTINCT
 
-Without aggregates, `groupBy()` returns unique combinations of the specified
-columns:
+Without aggregates, `groupBy()` returns unique combinations of the specified columns:
 
 ```typescript
 const uniqueRegions = query(csv)

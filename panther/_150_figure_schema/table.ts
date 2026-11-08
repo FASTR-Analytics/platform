@@ -9,10 +9,12 @@ import type {
   ColGroupCol,
   RowGroup,
   RowGroupRow,
+  TableColAxis,
   TableData,
   TableDataJson,
   TableDataTransformed,
   TableJsonDataConfig,
+  TableRowAxis,
 } from "./deps.ts";
 import {
   type Conforms,
@@ -54,11 +56,11 @@ const _zTableDataJsonConforms: Conforms<
   TableDataJson
 > = true;
 
-// ColGroup/RowGroup ids and labels are `string | undefined` on required keys;
+// Group ids and member labels are `string | undefined` on required keys;
 // zMaybeString keeps the keys required at the type level while accepting
 // absent/null at runtime (JSON round-trip drops `key: undefined`).
 const zColGroupCol = z.object({
-  id: zMaybeString,
+  id: z.string(),
   label: zMaybeString,
   index: z.number(),
 });
@@ -75,7 +77,7 @@ const zColGroup = z.object({
 const _zColGroupConforms: Conforms<z.infer<typeof zColGroup>, ColGroup> = true;
 
 const zRowGroupRow = z.object({
-  id: zMaybeString,
+  id: z.string(),
   label: zMaybeString,
   index: z.number(),
 });
@@ -91,10 +93,30 @@ const zRowGroup = z.object({
 });
 const _zRowGroupConforms: Conforms<z.infer<typeof zRowGroup>, RowGroup> = true;
 
+const zTableColAxis = z.object({
+  dimension: z.string(),
+  groupDimension: z.string().optional(),
+  groups: z.array(zColGroup),
+});
+const _zTableColAxisConforms: Conforms<
+  z.infer<typeof zTableColAxis>,
+  TableColAxis
+> = true;
+
+const zTableRowAxis = z.object({
+  dimension: z.string(),
+  groupDimension: z.string().optional(),
+  groups: z.array(zRowGroup),
+});
+const _zTableRowAxisConforms: Conforms<
+  z.infer<typeof zTableRowAxis>,
+  TableRowAxis
+> = true;
+
 export const zTableDataTransformed = z.object({
   isTransformed: z.literal(true),
-  colGroups: z.array(zColGroup),
-  rowGroups: z.array(zRowGroup),
+  cols: zTableColAxis.optional(),
+  rows: zTableRowAxis.optional(),
   aoa: z.array(z.array(z.union([z.string(), z.number()]))),
   liveDomainExcludeIds: z.array(z.string()).optional(),
   // zValueCell accepts null: JSON round-trips turn in-array undefined into

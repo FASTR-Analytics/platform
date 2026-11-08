@@ -6,7 +6,7 @@
 import {
   Coordinates,
   type CustomFigureStyle,
-  type HeaderItem,
+  type DataAxis,
   type MeasuredText,
   type MergedLegendStyle,
   type MergedSurroundsStyle,
@@ -27,20 +27,12 @@ import {
   type LegendInput,
 } from "../_legend/scale_legend_types.ts";
 import type { LegendItem } from "../types.ts";
-import { NO_DISAGGREGATION_HEADER_ID } from "../common_data_transform.ts";
-
-// Legend swatches have no pane/tier/lane context; this matches the
-// no-disaggregation sentinel that collectHeaders emits for an absent dimension.
-const DEFAULT_HEADER: HeaderItem = {
-  id: NO_DISAGGREGATION_HEADER_ID,
-  label: NO_DISAGGREGATION_HEADER_ID,
-};
 
 export function estimateMinSurroundsWidth(
   rc: RenderContext,
   cs: CustomFigureStyle,
   legendLabels: LegendInput | undefined,
-  seriesHeaders?: HeaderItem[],
+  series?: DataAxis,
 ): number {
   const sSurrounds = cs.getMergedSurroundsStyle();
 
@@ -65,7 +57,7 @@ export function estimateMinSurroundsWidth(
   const legendItems = getLegendItems(
     legendLabels,
     sSurrounds.legend,
-    seriesHeaders,
+    series,
   );
   if (!legendItems) {
     return sSurrounds.padding.totalPx();
@@ -79,7 +71,13 @@ export function estimateMinSurroundsWidth(
 }
 
 export type MeasuredSurroundsLegend =
-  | { type: "items"; rcd: RectCoordsDims; mLegend: MeasuredLegend }
+  | {
+    type: "items";
+    rcd: RectCoordsDims;
+    mLegend: MeasuredLegend;
+    // The dimension of the series its entries' ids name.
+    seriesDimension: string | undefined;
+  }
   | { type: "scale"; rcd: RectCoordsDims; mScaleLegend: MeasuredScaleLegend };
 
 export type MeasuredSurrounds = {
@@ -110,7 +108,7 @@ export function measureSurrounds(
   subCaption: string | undefined,
   footnote: string | string[] | undefined,
   legendLabels: LegendInput | undefined,
-  seriesHeaders?: HeaderItem[],
+  series?: DataAxis,
 ): MeasuredSurrounds {
   const sSurrounds = cs.getMergedSurroundsStyle();
   const innerRcd = rcd.getPadded(sSurrounds.padding);
@@ -198,7 +196,7 @@ export function measureSurrounds(
     const legendItems = getLegendItems(
       legendLabels,
       sSurrounds.legend,
-      seriesHeaders,
+      series,
     );
 
     if (isConcreteScaleLegendConfig(legendLabels)) {
@@ -253,7 +251,12 @@ export function measureSurrounds(
       const legendRcd = mLegend.dimensions.asRectCoordsDims(
         new Coordinates({ x, y }),
       );
-      legend = { type: "items", rcd: legendRcd, mLegend };
+      legend = {
+        type: "items",
+        rcd: legendRcd,
+        mLegend,
+        seriesDimension: series?.dimension,
+      };
     }
   }
 
@@ -315,43 +318,38 @@ function positionLegend(
   return { x, y };
 }
 
-// undefined when the input draws no item legend: a scale legend, no labels,
-// or the lone no-disaggregation sentinel.
+// undefined when the input draws no item legend: a scale legend or no labels.
 function getLegendItems(
   legendLabels: LegendInput,
   sLegend: MergedLegendStyle,
-  seriesHeaders: HeaderItem[] | undefined,
+  series: DataAxis | undefined,
 ): LegendItem[] | undefined {
-  if (
-    !Array.isArray(legendLabels) ||
-    legendLabels.length === 0 ||
-    (legendLabels.length === 1 &&
-      legendLabels[0] === NO_DISAGGREGATION_HEADER_ID)
-  ) {
+  if (!Array.isArray(legendLabels) || legendLabels.length === 0) {
     return undefined;
   }
   if (isArrayOfLegendItems(legendLabels)) {
     return legendLabels;
   }
   return legendLabels.map((label, i_label, arr_label) => ({
+    id: series?.headers[i_label]?.id,
     label,
     color: sLegend.seriesColorFunc({
       i_series: i_label,
       isFirstSeries: i_label === 0,
       isLastSeries: i_label === arr_label.length - 1,
-      seriesHeader: seriesHeaders?.[i_label] ?? { id: label, label },
+      seriesHeader: series?.headers[i_label] ?? { id: label, label },
       nSerieses: arr_label.length,
       seriesValArrays: [],
       nVals: 0,
       i_lane: 0,
       nLanes: 0,
-      laneHeader: DEFAULT_HEADER,
+      laneHeader: undefined,
       i_tier: 0,
       nTiers: 0,
-      tierHeader: DEFAULT_HEADER,
+      tierHeader: undefined,
       i_pane: 0,
       nPanes: 0,
-      paneHeader: DEFAULT_HEADER,
+      paneHeader: undefined,
     }),
   }));
 }

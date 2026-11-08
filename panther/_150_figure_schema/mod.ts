@@ -7,6 +7,7 @@ export {
   zChartScaleAxisLimits,
   zChartScaleAxisLimitsEntry,
   zChartScaleAxisPaneLimits,
+  zDataAxis,
   zHeaderItem,
   zHeaderItems,
   zHeaderSortConfig,

@@ -16,6 +16,7 @@ import type {
   RectCoordsDims,
   RenderContext,
   Ring,
+  SubChartHeaders,
 } from "../deps.ts";
 import {
   buildDataLabelTextStyle,
@@ -40,7 +41,6 @@ import {
 import type { ShownMapRegion } from "./generate_map_region_primitives.ts";
 import {
   buildMapRegionInfo,
-  type MapCellHeaders,
   measureMapLabel,
   resolveMapLabelText,
   toLabelMode,
@@ -57,6 +57,7 @@ type CellIndices = {
 // exist or what they say.
 export type MapLabelSpec = {
   id: string;
+  item: ShownMapRegion["item"];
   text: string;
   dl: LabelCandidate["dataLabel"];
   offset: { dx: number; dy: number };
@@ -67,7 +68,7 @@ export function collectMapLabelSpecs(
   shown: ShownMapRegion[],
   mergedStyle: MergedMapStyle,
   indices: CellIndices,
-  headers: MapCellHeaders,
+  headers: SubChartHeaders,
 ): MapLabelSpec[] {
   const specs: MapLabelSpec[] = [];
   for (const region of shown) {
@@ -90,6 +91,7 @@ export function collectMapLabelSpecs(
 
     specs.push({
       id: region.featureId,
+      item: region.item,
       text,
       dl,
       offset: {
@@ -108,6 +110,7 @@ export function collectMapLabelSpecs(
 // centroidOffset is in screen DU and does not scale.
 export type MapLabelEntry = {
   id: string;
+  item: MapLabelSpec["item"];
   // The label's own words, so the fit ladder can re-wrap them at a trial width.
   text: string;
   mText: LabelCandidate["mText"];
@@ -133,7 +136,7 @@ export function buildMapLabelEntries(
   unitFitted: FittedProjection,
   mode: Exclude<LabelMode, "none">,
   indices: CellIndices,
-  headers: MapCellHeaders,
+  headers: SubChartHeaders,
   s0: number,
 ): MapLabelEntry[] {
   const entries: MapLabelEntry[] = [];
@@ -154,6 +157,7 @@ export function buildMapLabelEntries(
 
     entries.push({
       id: spec.id,
+      item: spec.item,
       text: spec.text,
       mText: measureMapLabel(
         rc,
@@ -524,6 +528,7 @@ export function generateResolvedMapLabelPrimitives(
   cy: number,
   mergedStyle: MergedMapStyle,
   indices: CellIndices,
+  headers: SubChartHeaders,
   placement: OutsideLabelPlacement,
   ctx: MapTrackContext,
 ): Primitive[] {
@@ -534,6 +539,7 @@ export function generateResolvedMapLabelPrimitives(
   for (const e of entries) {
     const candidate: LabelCandidate = {
       id: e.id,
+      item: e.item,
       mText: e.mText,
       anchor: new Coordinates([
         cx + e.unitAnchor.x * s + e.offset.dx,
@@ -559,7 +565,7 @@ export function generateResolvedMapLabelPrimitives(
       ctx,
     ),
     mergedStyle.map.labelCollision,
-    { keyPrefix: "map-label", ...indices },
+    { keyPrefix: "map-label", ...indices, ...headers },
   );
 }
 
@@ -587,7 +593,7 @@ export function calculateMapLabelFloorBudget(
   shownPerCell: {
     shown: ShownMapRegion[];
     indices: CellIndices;
-    headers: MapCellHeaders;
+    headers: SubChartHeaders;
     unitFitted: FittedProjection;
   }[],
   mergedStyle: MergedMapStyle,

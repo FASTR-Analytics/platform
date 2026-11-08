@@ -28,6 +28,7 @@ export function generateSurroundsPrimitives(
           mSurrounds.legend.rcd.topLeftCoords(),
           mSurrounds.legend.mLegend,
           mSurrounds.legend.rcd,
+          mSurrounds.legend.seriesDimension,
         );
       }
     } else {

@@ -2,10 +2,7 @@
 
 **Scope:** All
 
-Panther's translation primitives live in `_000_utils` and are used on both
-tiers: UI labels **and** server-rendered text (e.g. figure/period labels in
-Deno-built PDFs resolve through the same language global). For sentence case of
-UI strings see `PROTOCOL_UI_STYLING.md`.
+Panther's translation primitives live in `_000_utils` and are used on both tiers: UI labels **and** server-rendered text (e.g. figure/period labels in Deno-built PDFs resolve through the same language global). For sentence case of UI strings see `PROTOCOL_UI_STYLING.md`.
 
 ```typescript
 type Language = "en" | "fr" | "pt" | "th";
@@ -19,9 +16,7 @@ t3(ts): string                      // resolve ts to the current language
 resolveTS(ts, lang): string         // resolve ts to an explicit language
 ```
 
-Panther's own `t3` and `resolveTS` are `createTranslator<Language>()`: every
-language required. An app declares the languages it supports once, in its own
-lib, and uses that pair everywhere:
+Panther's own `t3` and `resolveTS` are `createTranslator<Language>()`: every language required. An app declares the languages it supports once, in its own lib, and uses that pair everywhere:
 
 ```typescript
 // lib/language.ts
@@ -31,29 +26,14 @@ export const { t3, resolveTS } = createTranslator<"en" | "th">();
 
 ## Rules
 
-1. **User-facing strings are `TranslatableString<L>`**, never a bare string
-   literal shown to a user. An app's `t3` is `createTranslator<its languages>()`
-   in its own lib, so a literal missing one of the app's languages is a type
-   error. A bare `TranslatableString` means every language, and is what the kit
-   itself uses: a file that imports `t3` from panther gets the strict check.
+1. **User-facing strings are `TranslatableString<L>`**, never a bare string literal shown to a user. An app's `t3` is `createTranslator<its languages>()` in its own lib, so a literal missing one of the app's languages is a type error. A bare `TranslatableString` means every language, and is what the kit itself uses: a file that imports `t3` from panther gets the strict check.
 2. **Resolve with `t3`**: `t3(ts)` returns the string for the current language.
-3. **`t3` takes a `TranslatableString`, not a string**: it is not the app-level
-   `t("…")` key helper (see below). Passing a bare string is a type error.
-4. **Explicit language → `resolveTS`**: use `resolveTS(ts, lang)` when output
-   must be a specific language regardless of the global (e.g. rendering a doc in
-   a chosen language).
-5. **A language the app did not require falls back to English**: both `t3` and
-   `resolveTS` return `ts.en` when the requested language's entry is missing or
-   empty. Rely on this; don't pre-check.
-6. **Locale formatting via `Record<Language, T>` lookup**: for number/date/
-   label _formatting_ differences, define a `..._BY_LANG: Record<Language, T>`
-   table and index it with `getLanguage()`; use `t3` for whole translatable
-   strings.
-7. **Set language once at entry**: call `setLanguage()` at app start or before a
-   render pass. The language is a process-global singleton.
-8. **One language per process**: you cannot resolve EN and FR concurrently from
-   the global; to render both, flip `setLanguage()` between passes or use
-   `resolveTS(ts, lang)` with explicit languages.
+3. **`t3` takes a `TranslatableString`, not a string**: it is not the app-level `t("…")` key helper (see below). Passing a bare string is a type error.
+4. **Explicit language → `resolveTS`**: use `resolveTS(ts, lang)` when output must be a specific language regardless of the global (e.g. rendering a doc in a chosen language).
+5. **A language the app did not require falls back to English**: both `t3` and `resolveTS` return `ts.en` when the requested language's entry is missing or empty. Rely on this; don't pre-check.
+6. **Locale formatting via `Record<Language, T>` lookup**: for number/date/ label _formatting_ differences, define a `..._BY_LANG: Record<Language, T>` table and index it with `getLanguage()`; use `t3` for whole translatable strings.
+7. **Set language once at entry**: call `setLanguage()` at app start or before a render pass. The language is a process-global singleton.
+8. **One language per process**: you cannot resolve EN and FR concurrently from the global; to render both, flip `setLanguage()` between passes or use `resolveTS(ts, lang)` with explicit languages.
 
 ## Do / Don't
 
@@ -67,8 +47,7 @@ const label = "Loading…";
 const label = t3({ en: "Loading…", th: "กำลังโหลด…" });
 ```
 
-**Why:** Every user-facing string must exist in every language the app supports,
-and the type says which; `t3` is the one resolution point.
+**Why:** Every user-facing string must exist in every language the app supports, and the type says which; `t3` is the one resolution point.
 
 ### t3 vs the app-level t()
 
@@ -80,9 +59,7 @@ t3("Save");
 t3({ en: "Save", th: "บันทึก" });
 ```
 
-**Why:** Panther provides `t3` over `TranslatableString`. Some apps define their
-own `t("key")` over a translation table: that's an app convention, distinct from
-`t3`. Don't conflate them.
+**Why:** Panther provides `t3` over `TranslatableString`. Some apps define their own `t("key")` over a translation table: that's an app convention, distinct from `t3`. Don't conflate them.
 
 ### Explicit vs ambient language
 
@@ -107,8 +84,7 @@ const QUARTER_PREFIX_BY_LANG: Record<Language, string> = {
 const quarter = `${QUARTER_PREFIX_BY_LANG[getLanguage()]}${q}`;
 ```
 
-**Why:** Formatting differences (separators, quarter/month abbreviations) are
-locale logic, not translatable content.
+**Why:** Formatting differences (separators, quarter/month abbreviations) are locale logic, not translatable content.
 
 ## Patterns
 
@@ -132,11 +108,8 @@ const title = t3({ en: "Coverage by region", th: "ความครอบคล
 ## Checklist
 
 - [ ] No bare user-facing string literals: all are `TranslatableString<L>`
-- [ ] The app's `t3` and `resolveTS` come from `createTranslator<L>()` in its
-      own lib, never from panther's barrel
+- [ ] The app's `t3` and `resolveTS` come from `createTranslator<L>()` in its own lib, never from panther's barrel
 - [ ] Strings resolved via `t3` (ambient) or `resolveTS` (explicit language)
 - [ ] `t3` is called with every language the app declared, never a bare string
-- [ ] `Record<Language, T>` lookups (via `getLanguage()`) used only for
-      formatting differences, not whole strings
-- [ ] `setLanguage()` called once at entry; no assumption of concurrent
-      languages
+- [ ] `Record<Language, T>` lookups (via `getLanguage()`) used only for formatting differences, not whole strings
+- [ ] `setLanguage()` called once at entry; no assumption of concurrent languages

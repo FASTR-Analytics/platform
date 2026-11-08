@@ -13,6 +13,7 @@ import {
   type Primitive,
   RectCoordsDims,
   type RenderContext,
+  slotHeaders,
 } from "./deps.ts";
 import { resolveDefaultLegend } from "./_legend/utils.ts";
 import { measurePane } from "./measure_pane.ts";
@@ -54,7 +55,7 @@ export function measureChart<
   const dataProps = config.dataProps;
 
   const legend = config.resolvedLegend ??
-    resolveDefaultLegend(inputs.legend, dataProps.seriesHeaders);
+    resolveDefaultLegend(inputs.legend, dataProps.series);
 
   const measuredSurrounds = measureSurrounds(
     rc,
@@ -64,7 +65,7 @@ export function measureChart<
     subCaption,
     footnote,
     legend,
-    dataProps.seriesHeaders,
+    dataProps.series,
   );
   const extraHeightDueToSurrounds = measuredSurrounds.extraHeightDueToSurrounds;
 
@@ -78,7 +79,7 @@ export function measureChart<
     nGRows;
 
   const panePadding = new Padding(mergedStyle.panes.padding);
-  const nPanes = dataProps.paneHeaders.length;
+  const nPanes = slotHeaders(dataProps.pane).length;
 
   // Pane headers wrap at their pane's width (per-pane under proportional OV
   // pane widths; the uniform width otherwise). The header strip is the
@@ -92,8 +93,8 @@ export function measureChart<
   } => {
     const mCellHeaders: MeasuredText[] = [];
     const headerStripByRow: number[] = new Array(nGRows).fill(0);
-    if (!mergedStyle.panes.hideHeaders && nPanes > 1) {
-      dataProps.paneHeaders.forEach((paneHeader, i) => {
+    if (!mergedStyle.panes.hideHeaders && dataProps.pane && nPanes > 1) {
+      dataProps.pane.headers.forEach((paneHeader, i) => {
         const m = rc.mText(
           paneHeader.label,
           mergedStyle.text.paneHeaders,
@@ -281,7 +282,7 @@ export function measureChart<
     for (let i_pane_row = 0; i_pane_row < nGRows; i_pane_row++) {
       for (let i_pane_col = 0; i_pane_col < nGCols; i_pane_col++) {
         const i_pane = i_pane_row * nGCols + i_pane_col;
-        if (dataProps.paneHeaders.at(i_pane) === undefined) {
+        if (i_pane >= nPanes) {
           break;
         }
 

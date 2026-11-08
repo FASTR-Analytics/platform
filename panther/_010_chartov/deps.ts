@@ -4,9 +4,10 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
+export { slotHeaders } from "../_001_render_system/mod.ts";
 export type {
   AxisMembership,
-  HeaderItem,
+  DataAxis,
   HeaderSortConfig,
   HeightConstraints,
   Measured,

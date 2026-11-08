@@ -12,6 +12,10 @@ export {
   RectCoordsDims,
 } from "../_001_geometry/mod.ts";
 export type { AlignH } from "../_001_geometry/mod.ts";
+export {
+  MARKDOWN_TABLE_COLUMN_DIMENSION,
+  MARKDOWN_TABLE_ROW_DIMENSION,
+} from "../_001_render_system/mod.ts";
 export type {
   HeightConstraints,
   LineStyle,
@@ -28,7 +32,7 @@ export type {
 export { createItemNode } from "../_008_layouter/mod.ts";
 export type { ItemLayoutNode, LayoutNode } from "../_008_layouter/mod.ts";
 export { TableRenderer } from "../_010_table/mod.ts";
-export type { TableInputs } from "../_010_table/mod.ts";
+export type { TableDataTransformed, TableInputs } from "../_010_table/mod.ts";
 export { FigureRenderer } from "../_011_figure_renderer/mod.ts";
 export type { FigureInputs } from "../_011_figure_renderer/mod.ts";
 export { ImageRenderer } from "../_012_image_renderer/mod.ts";

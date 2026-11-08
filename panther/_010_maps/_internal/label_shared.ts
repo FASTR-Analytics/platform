@@ -4,17 +4,16 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  HeaderItem,
   LabelMode,
   MapDataLabelMode,
   MapRegionInfo,
   MapRegionInfoFunc,
   RectCoordsDims,
   RenderContext,
+  SubChartHeaders,
   TextInfoUnkeyed,
 } from "../deps.ts";
 import { buildDataLabelTextStyle } from "../deps.ts";
-import type { MapDataTransformed } from "../types.ts";
 import type { GeoJSONFeature } from "./geojson_types.ts";
 
 // map.dataLabelMode names an ANCHOR RULE ("centroid"); the shared label system
@@ -33,23 +32,6 @@ export function toLabelMode(mode: MapDataLabelMode): LabelMode {
   }
 }
 
-export type MapCellHeaders = {
-  paneHeader: HeaderItem;
-  tierHeader: HeaderItem;
-  laneHeader: HeaderItem;
-};
-
-export function getMapCellHeaders(
-  data: MapDataTransformed,
-  indices: { paneIndex: number; tierIndex: number; laneIndex: number },
-): MapCellHeaders {
-  return {
-    paneHeader: data.paneHeaders[indices.paneIndex],
-    tierHeader: data.tierHeaders[indices.tierIndex],
-    laneHeader: data.laneHeaders[indices.laneIndex],
-  };
-}
-
 export function buildMapRegionInfo(
   featureId: string,
   feature: GeoJSONFeature,
@@ -57,7 +39,7 @@ export function buildMapRegionInfo(
   paneIndex: number,
   tierIndex: number,
   laneIndex: number,
-  headers: MapCellHeaders,
+  headers: SubChartHeaders,
 ): MapRegionInfo {
   return {
     featureId,

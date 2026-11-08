@@ -123,13 +123,6 @@ export function clampOverhangClearance(
   };
 }
 
-export type TransformedDataBase = {
-  seriesHeaders: string[];
-  laneHeaders: string[];
-  tierHeaders: string[];
-  paneHeaders: string[];
-};
-
 export type UncertaintyConfig =
   | {
     uncertaintyProp: string;

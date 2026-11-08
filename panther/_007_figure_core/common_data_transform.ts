@@ -7,8 +7,11 @@
 import {
   assert,
   createArray,
+  createHeaderItems,
+  type DataAxis,
   getValidNumberOrUndefined,
-  type HeaderItem,
+  type HeaderSortConfig,
+  sortHeaderItems,
   sum,
 } from "./deps.ts";
 import type {
@@ -30,41 +33,86 @@ export function validateDataInput(
   }
 }
 
-// The sentinel header id/label collectHeaders emits for an axis with no
-// disaggregation configured (prop undefined) — a single implicit member
-// standing in for "all data, undivided" on that axis.
-export const NO_DISAGGREGATION_HEADER_ID = "default";
-
-export function collectHeaders(
+// A slot's axis, named from its prop, or undefined when the slot is unsplit.
+// Members come in first-seen row order (the value columns, for "--v") before
+// labelReplacements and the sort apply.
+export function buildDataAxis(
+  jsonArray: JsonArray,
+  prop: string,
+  valueProps: string[],
+  labelReplacements: Record<string, string> | undefined,
+  sort: HeaderSortConfig | undefined,
+): DataAxis;
+export function buildDataAxis(
   jsonArray: JsonArray,
   prop: string | undefined,
   valueProps: string[],
-  defaultValue: string = NO_DISAGGREGATION_HEADER_ID,
-): string[] {
-  const headers: string[] = prop ? [] : [defaultValue];
+  labelReplacements: Record<string, string> | undefined,
+  sort: HeaderSortConfig | undefined,
+): DataAxis | undefined;
+export function buildDataAxis(
+  jsonArray: JsonArray,
+  prop: string | undefined,
+  valueProps: string[],
+  labelReplacements: Record<string, string> | undefined,
+  sort: HeaderSortConfig | undefined,
+): DataAxis | undefined {
+  if (prop === undefined) {
+    return undefined;
+  }
+  const ids = prop === "--v"
+    ? valueProps
+    : collectDimensionIds(jsonArray, prop);
+  return {
+    dimension: prop,
+    headers: sortHeaderItems(createHeaderItems(ids, labelReplacements), sort),
+  };
+}
 
-  for (const obj of jsonArray) {
-    if (prop && prop !== "--v" && !headers.includes(String(obj[prop]))) {
-      headers.push(String(obj[prop]));
+export function readDimensionId(
+  row: JsonArrayItem,
+  prop: string,
+  i_row: number,
+): string {
+  const value = row[prop];
+  if (value === undefined || value === null) {
+    throw new Error(`Row ${i_row} has no value for dimension "${prop}"`);
+  }
+  return String(value);
+}
+
+function collectDimensionIds(jsonArray: JsonArray, prop: string): string[] {
+  const ids = new Set<string>();
+  jsonArray.forEach((row, i_row) => ids.add(readDimensionId(row, prop, i_row)));
+  return [...ids];
+}
+
+export function validateDistinctDimensions(
+  props: Record<string, string | undefined>,
+): void {
+  const slotByDimension = new Map<string, string>();
+  for (const [slot, dimension] of Object.entries(props)) {
+    if (dimension === undefined) {
+      continue;
     }
+    const other = slotByDimension.get(dimension);
+    if (other !== undefined) {
+      throw new Error(
+        `Slots ${other} and ${slot} are both given dimension "${dimension}"`,
+      );
+    }
+    slotByDimension.set(dimension, slot);
   }
-
-  if (prop === "--v") {
-    headers.push(...valueProps);
-  }
-
-  return headers;
 }
 
 export function getHeaderIndex(
-  prop: string | undefined,
+  axis: DataAxis | undefined,
   valueProp: string,
   obj: JsonArrayItem,
-  headers: HeaderItem[],
 ): number {
-  if (!prop) return 0;
-  if (prop === "--v") return headers.findIndex((h) => h.id === valueProp);
-  return headers.findIndex((h) => h.id === String(obj[prop]));
+  if (!axis) return 0;
+  const id = axis.dimension === "--v" ? valueProp : String(obj[axis.dimension]);
+  return axis.headers.findIndex((h) => h.id === id);
 }
 
 export function checkValuePropsAssignment(
@@ -459,24 +507,18 @@ export function deriveVisibleLanesByPane(
   );
 }
 
-export type ProcessedHeaders = {
-  series: HeaderItem[];
-  lane: HeaderItem[];
-  tier: HeaderItem[];
-  pane: HeaderItem[];
+export type SlotAxes = {
+  series: DataAxis | undefined;
+  lane: DataAxis | undefined;
+  tier: DataAxis | undefined;
+  pane: DataAxis | undefined;
 };
 
 export function fillValuesWithDuplicateCheck(
   values: (number | undefined)[][][][][],
   jsonArray: JsonArray,
   valueProps: string[],
-  headers: ProcessedHeaders,
-  props: {
-    seriesProp?: string;
-    laneProp?: string;
-    tierProp?: string;
-    paneProp?: string;
-  },
+  axes: SlotAxes,
   getLastDimensionIndex: (obj: JsonArrayItem, valueProp: string) => number,
 ): void {
   for (const obj of jsonArray) {
@@ -484,30 +526,10 @@ export function fillValuesWithDuplicateCheck(
       const value = getValidNumberOrUndefined(obj[valueProp]);
 
       const i_lastDim = getLastDimensionIndex(obj, valueProp);
-      const i_series = getHeaderIndex(
-        props.seriesProp,
-        valueProp,
-        obj,
-        headers.series,
-      );
-      const i_lane = getHeaderIndex(
-        props.laneProp,
-        valueProp,
-        obj,
-        headers.lane,
-      );
-      const i_tier = getHeaderIndex(
-        props.tierProp,
-        valueProp,
-        obj,
-        headers.tier,
-      );
-      const i_pane = getHeaderIndex(
-        props.paneProp,
-        valueProp,
-        obj,
-        headers.pane,
-      );
+      const i_series = getHeaderIndex(axes.series, valueProp, obj);
+      const i_lane = getHeaderIndex(axes.lane, valueProp, obj);
+      const i_tier = getHeaderIndex(axes.tier, valueProp, obj);
+      const i_pane = getHeaderIndex(axes.pane, valueProp, obj);
 
       assert(i_series >= 0);
       assert(i_lane >= 0);

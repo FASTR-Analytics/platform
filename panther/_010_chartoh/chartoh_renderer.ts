@@ -24,8 +24,9 @@ import {
   type Renderer,
   type ResolveFloorPlotH,
   type ResolveTargetPlotH,
+  slotHeaders,
 } from "./deps.ts";
-import type { HeaderItem, MergedChartOHStyle } from "./deps.ts";
+import type { MergedChartOHStyle } from "./deps.ts";
 import type {
   ChartOHDataTransformed,
   ChartOHInputs,
@@ -47,7 +48,7 @@ function maxWrappedCategoryLabelH(
   const wrapW = minPaneContentW *
     ohStyle.yTextAxis.maxTickLabelWidthAsPctOfChart;
   let maxWrappedH = 0;
-  for (const h of data.indicatorHeaders) {
+  for (const h of data.indicator.headers) {
     const mh = rc
       .mText(h.label, ohStyle.yTextAxis.text.yTextAxisTickLabels, wrapW)
       .dims.h();
@@ -85,35 +86,38 @@ function shouldConsiderNSeries(
   data: ChartOHDataTransformed,
 ): boolean {
   if (ohStyle.content.bars.stacking !== "none") return false;
-  const nSeries = data.seriesHeaders.length;
-  const nVals = data.indicatorHeaders.length;
+  const seriesHeaders = slotHeaders(data.series);
+  const paneHeaders = slotHeaders(data.pane);
+  const tierHeaders = slotHeaders(data.tier);
+  const laneHeaders = slotHeaders(data.lane);
+  const nSeries = seriesHeaders.length;
+  const nVals = data.indicator.headers.length;
   const seriesValArrays = data.values[0]?.[0]?.[0] ?? [];
-  const fb: HeaderItem = { id: "", label: "" };
   for (let i_series = 0; i_series < nSeries; i_series++) {
     const shown = ohStyle.content.bars.getStyle({
       i_series,
       isFirstSeries: i_series === 0,
       isLastSeries: i_series === nSeries - 1,
-      seriesHeader: data.seriesHeaders[i_series] ?? fb,
+      seriesHeader: seriesHeaders[i_series],
       nSerieses: nSeries,
       seriesValArrays,
       nVals,
       i_pane: 0,
-      nPanes: data.paneHeaders.length,
-      paneHeader: data.paneHeaders[0] ?? fb,
+      nPanes: paneHeaders.length,
+      paneHeader: paneHeaders[0],
       i_tier: 0,
-      nTiers: data.tierHeaders.length,
-      tierHeader: data.tierHeaders[0] ?? fb,
+      nTiers: tierHeaders.length,
+      tierHeader: tierHeaders[0],
       i_lane: 0,
-      nLanes: data.laneHeaders.length,
-      laneHeader: data.laneHeaders[0] ?? fb,
+      nLanes: laneHeaders.length,
+      laneHeader: laneHeaders[0],
       val: seriesValArrays[i_series]?.[0],
       i_val: 0,
       isFirstVal: true,
       isLastVal: nVals === 1,
       valueMin: 0,
       valueMax: 0,
-      indicatorHeader: data.indicatorHeaders[0] ?? fb,
+      indicatorHeader: data.indicator.headers[0],
     }).show;
     if (shown) return true;
   }
@@ -135,11 +139,11 @@ function buildOHResolveTarget(
     // Unbalanced membership: size for the fullest pane, not the global union.
     const nIndicators = maxVisibleCount(
       data.visibleIndicatorsByPane,
-      data.indicatorHeaders.length,
+      data.indicator.headers.length,
     );
     if (nIndicators === 0) return info.minSubChartHeight;
     const ohStyle = info.mergedStyle as MergedChartOHStyle;
-    const nSeries = data.seriesHeaders.length;
+    const nSeries = slotHeaders(data.series).length;
     const nBarsPerIndicator = shouldConsiderNSeries(ohStyle, data)
       ? nSeries
       : 1;
@@ -191,7 +195,7 @@ function buildOHResolveFloor(
     // Unbalanced membership: size for the fullest pane, not the global union.
     const nIndicators = maxVisibleCount(
       data.visibleIndicatorsByPane,
-      data.indicatorHeaders.length,
+      data.indicator.headers.length,
     );
     if (nIndicators === 0) return info.minSubChartHeight;
     const ohStyle = info.mergedStyle as MergedChartOHStyle;
@@ -227,12 +231,12 @@ function buildOHResolveTargetSlotT(
   return (info, probeLayouts, { nGCols }) => {
     const ohStyle = info.mergedStyle as MergedChartOHStyle;
     const nBarsPerIndicator = shouldConsiderNSeries(ohStyle, data)
-      ? data.seriesHeaders.length
+      ? slotHeaders(data.series).length
       : 1;
     const raggedSlots = data.visibleIndicatorsByPaneBand
       ? proportionalTotalSlots(data.visibleIndicatorsByPaneBand)
-      : data.indicatorHeaders.length * info.nTiers *
-        info.paneHeaders.length;
+      : data.indicator.headers.length * info.nTiers *
+        info.nPanes;
     const rowThickness = info.mergedStyle.idealHeight.idealRowThickness(
       (raggedSlots / Math.max(1, nGCols)) * nBarsPerIndicator,
     );

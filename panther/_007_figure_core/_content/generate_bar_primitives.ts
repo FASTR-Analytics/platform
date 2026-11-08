@@ -5,11 +5,12 @@
 
 import {
   type ChartBarPrimitive,
-  getColor,
   type Primitive,
   RectCoordsDims,
   Z_INDEX,
 } from "../deps.ts";
+import { chartValueItem } from "../chart_items.ts";
+import { buildLabelHalo } from "../label_halo.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 import {
   buildDataLabelTextStyle,
@@ -250,8 +251,8 @@ export function generateBarPrimitives(
           : String(mappedVal.val);
 
         const textStyle = buildDataLabelTextStyle(ctx.dataLabelsTextStyle, dl);
-        const hasDecoration = dl.backgroundColor !== "none" ||
-          dl.borderWidth > 0;
+        const halo = buildLabelHalo(dl);
+        const hasDecoration = halo !== undefined;
 
         // Vertical wraps label to bar width; horizontal allows overflow
         // (short bars would otherwise hide the label).
@@ -259,24 +260,11 @@ export function generateBarPrimitives(
         const mText = ctx.rc.mText(labelStr, textStyle, textMaxWidth);
 
         if (labelStr.trim() || hasDecoration) {
-          const style = hasDecoration
-            ? {
-              backgroundColor: dl.backgroundColor !== "none"
-                ? getColor(dl.backgroundColor)
-                : undefined,
-              padding: dl.padding,
-              borderColor: dl.borderColor !== "none"
-                ? getColor(dl.borderColor)
-                : undefined,
-              borderWidth: dl.borderWidth > 0 ? dl.borderWidth : undefined,
-              rectRadius: dl.rectRadius,
-            }
-            : undefined;
           dataLabel = makeBarDataLabel({
             barRcd,
             mText,
             offset: dl.offset,
-            style,
+            halo,
             orientation,
           });
         }
@@ -304,7 +292,10 @@ export function generateBarPrimitives(
         type: "chart-bar",
         key:
           `bar-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}-${i_val}`,
+        item: chartValueItem(ctx.itemAxes, valueInfo),
+        part: "body",
         bounds: barRcd,
+        hitBounds: barRcd,
         zIndex: Z_INDEX.CONTENT_BAR,
         meta: { value: valueInfo },
         annotationGroup: barStyle.annotationGroup,
@@ -320,7 +311,7 @@ export function generateBarPrimitives(
           ? { isTopOfStack, stackTotal, positionInStack }
           : undefined,
         orientation,
-        style: { fillColor: getColor(barStyle.fillColor) },
+        style: { fillColor: barStyle.fillColor },
         dataLabel,
       });
     }

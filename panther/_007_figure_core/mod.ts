@@ -30,4 +30,5 @@ export * from "./measure_types.ts";
 export * from "./one_way_chart_transform.ts";
 export * from "./generate_annotation_primitives.ts";
 export * from "./render_primitives.ts";
+export * from "./sub_chart_headers.ts";
 export * from "./types.ts";

@@ -11,7 +11,9 @@ export {
 } from "../_000_utils/mod.ts";
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export {
+  buildItem,
   resolveSortFunc,
+  slotCoordinate,
   toHeaderItem,
   Z_INDEX,
 } from "../_001_render_system/mod.ts";
@@ -48,9 +50,11 @@ export {
   generateSurroundsPrimitives,
   measureSurrounds,
   memoizeByScale,
+  readDimensionId,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveFigureAutofitOptions,
+  validateDistinctDimensions,
 } from "../_007_figure_core/mod.ts";
 export type {
   FigureInputsBase,

@@ -12,7 +12,7 @@ import type {
 } from "./deps.ts";
 import {
   type Conforms,
-  zHeaderItems,
+  zDataAxis,
   zHeaderSortConfig,
   zJsonArray,
   zValues5D,
@@ -61,11 +61,11 @@ const _zPieDataJsonConforms: Conforms<
 
 export const zPieDataTransformed = z.object({
   isTransformed: z.literal(true),
-  seriesHeaders: zHeaderItems,
-  indicatorHeaders: zHeaderItems,
-  paneHeaders: zHeaderItems,
-  tierHeaders: zHeaderItems,
-  laneHeaders: zHeaderItems,
+  series: zDataAxis.optional(),
+  indicator: zDataAxis.optional(),
+  pane: zDataAxis.optional(),
+  tier: zDataAxis.optional(),
+  lane: zDataAxis.optional(),
   // [pane][tier][lane][series][indicator] — the last axis is the repeat
   // dimension (length 1 with no indicatorProp).
   values: zValues5D,

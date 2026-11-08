@@ -2,8 +2,7 @@
 
 Time-based **Chart** with period handling (monthly, quarterly, yearly, etc.).
 
-Timeseries is a **Chart** (Figure with panes/tiers/lanes support), not just a
-simple Figure. See `DOC_FIGURE_ARCHITECTURE.md` for the Figure taxonomy.
+Timeseries is a **Chart** (Figure with panes/tiers/lanes support), not just a simple Figure. See `DOC_FIGURE_ARCHITECTURE.md` for the Figure taxonomy.
 
 ## Purpose
 

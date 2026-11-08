@@ -2,102 +2,34 @@
 
 **Scope:** UI
 
-Tokens, interactive state, spacing, and theming for app code. For the reasoning,
-the full token catalog, and the theming mechanics, see
-`DOC_UI_COLOR_AND_STATE.md`. For component usage see
-`PROTOCOL_UI_COMPONENTS.md`.
+Tokens, interactive state, spacing, and theming for app code. For the reasoning, the full token catalog, and the theming mechanics, see `DOC_UI_COLOR_AND_STATE.md`. For component usage see `PROTOCOL_UI_COMPONENTS.md`.
 
 ## Rules
 
-1. **Token colors only**: `base-100/200/300`, `base-content` (+ `-muted`,
-   `-faint`), the five intents (+ `-content`, `-hover`, `-active`, `-subtle`,
-   `-subtle-content`), `border`, `focus`, `scrim`. Nothing else.
-2. **No arbitrary values**: never `bg-[#ff0000]`, `p-[23px]`, or an inline
-   `style` for anything a token covers.
-3. **Only declared scale values exist**: the color, radius, shadow and
-   font-weight scales are wiped, so an off-scale class is never generated and
-   fails silently rather than visibly. `bg-gray-100`, `rounded-lg`, `shadow-md`,
-   `font-normal`, `font-medium` and `font-semibold` are all no-ops. Weights are
-   `font-400` and `font-700`, plus any the app declares.
-4. **Cursor change ⇒ visible state change**: no cursor-only hovers. Two
-   exceptions to the background rule: text-only interactives (inline links, tab
-   labels) hover on text color; clickable cards (content containers) hover at
-   the frame: `cursor-pointer` + `hover:border-primary` (prefer `Card`).
-5. **`ui-hoverable-{token}` is the state pattern**: every interactive opaque
-   surface uses it. Explicit `hover:`/`active:` pairs only for selectable text;
-   a transparent rest takes `ui-hoverable-ghost`. Clickable cards use the frame
-   idiom instead (rule 4).
-6. **Never stack `bg-*` on a family-classed element**: the utility wins and
-   kills the states. Scope the family per `classList` arm instead.
-7. **Declare `onBackground`**: any outline `Button` / `ButtonGroup` not sitting
-   on `base-100` must declare the surface token it sits on.
-8. **Never write a border color for the default**: bare `border` already paints
-   the border token. A border color class always marks an exception.
-9. **Side frames own their divider**: `FrameLeft`, `FrameRight`,
-   `FrameLeftResizable`, `FrameRightResizable` and `FrameThreeColumnResizable`
-   draw the panel/content edge themselves. Never put that edge's border on a
-   side-frame panel (or on the panel component's root): it double-draws. Inner
-   dividers on other edges are fine. Pass `noBorder` only when the panel is
-   tonal against its content or draws a deliberately non-default border colour.
-10. **`-subtle` washes are non-interactive**: never a hover target, never a
-    hover destination, never a click target's rest surface. Only exception: the
-    pinned surface of a _selected_ selection control. An outline `Button`'s
-    tinted hover is not `-subtle` (same ingredients, composed per surface at a
-    smaller amount, present only under the cursor): `-subtle` stays banned as a
-    destination.
+1. **Token colors only**: `base-100/200/300`, `base-content` (+ `-muted`, `-faint`), the five intents (+ `-content`, `-hover`, `-active`, `-subtle`, `-subtle-content`), `border`, `focus`, `scrim`. Nothing else.
+2. **No arbitrary values**: never `bg-[#ff0000]`, `p-[23px]`, or an inline `style` for anything a token covers.
+3. **Only declared scale values exist**: the color, radius, shadow and font-weight scales are wiped, so an off-scale class is never generated and fails silently rather than visibly. `bg-gray-100`, `rounded-lg`, `shadow-md`, `font-normal`, `font-medium` and `font-semibold` are all no-ops. Weights are `font-400` and `font-700`, plus any the app declares.
+4. **Cursor change ⇒ visible state change**: no cursor-only hovers. Two exceptions to the background rule: text-only interactives (inline links, tab labels) hover on text color; clickable cards (content containers) hover at the frame: `cursor-pointer` + `hover:border-primary` (prefer `Card`).
+5. **`ui-hoverable-{token}` is the state pattern**: every interactive opaque surface uses it. Explicit `hover:`/`active:` pairs only for selectable text; a transparent rest takes `ui-hoverable-ghost`. Clickable cards use the frame idiom instead (rule 4).
+6. **Never stack `bg-*` on a family-classed element**: the utility wins and kills the states. Scope the family per `classList` arm instead.
+7. **Declare `onBackground`**: any outline `Button` / `ButtonGroup` not sitting on `base-100` must declare the surface token it sits on.
+8. **Never write a border color for the default**: bare `border` already paints the border token. A border color class always marks an exception.
+9. **Side frames own their divider**: `FrameLeft`, `FrameRight`, `FrameLeftResizable`, `FrameRightResizable` and `FrameThreeColumnResizable` draw the panel/content edge themselves. Never put that edge's border on a side-frame panel (or on the panel component's root): it double-draws. Inner dividers on other edges are fine. Pass `noBorder` only when the panel is tonal against its content or draws a deliberately non-default border colour.
+10. **`-subtle` washes are non-interactive**: never a hover target, never a hover destination, never a click target's rest surface. Only exception: the pinned surface of a _selected_ selection control. An outline `Button`'s tinted hover is not `-subtle` (same ingredients, composed per surface at a smaller amount, present only under the cursor): `-subtle` stays banned as a destination.
 11. **Controls on washes are filled, not outline**: at the wash's own intent.
 12. **Disabled is `opacity-40`**: a treatment, not a color.
 13. **Focus is `ui-focusable`**: one focus signal; never a per-intent ring.
-14. **Spacing uses `ui-*`**: `ui-pad`, `ui-gap`, `ui-spy` and their `-sm`/`-lg`
-    variants, not raw `p-4` / `gap-4` / `space-y-6`.
+14. **Spacing uses `ui-*`**: `ui-pad`, `ui-gap`, `ui-spy` and their `-sm`/`-lg` variants, not raw `p-4` / `gap-4` / `space-y-6`.
 15. **Size via `size="sm"`**: never ad-hoc classes to resize a control.
-16. **Theme with plain `@theme`**: never `@theme inline`, never re-wipe
-    `--color-*` app-side.
+16. **Theme with plain `@theme`**: never `@theme inline`, never re-wipe `--color-*` app-side.
 17. **Sentence case**: all UI text, always.
-18. **Dark mode is `data-scheme`, and color overrides are `light-dark()`
-    pairs**: every kit color token is a pair, so an app overrides a token in
-    plain `@theme` as a pair too:
-    `--color-primary: light-dark(#6f2e30, #d98a8c)`. A single value means "same
-    color in both schemes". Offer dark mode by setting
-    `data-scheme="system|light|dark"` on `<html>` (via `setSchemePreference`);
-    no attribute renders light. `data-theme` stays reserved for palette swaps:
-    never use it for scheme.
-19. **Document surfaces wear `ui-scheme-light`**: slide canvases, page previews,
-    print/export HTML pin `color-scheme` with the utility, never `bg-white`.
-    Canvas twin: `<FigureHolder scheme="light">`.
-20. **A Frame slot scrolls; nothing inside it scrolls the slot again**: every
-    slot of every Frame is `overflow-auto`. A slot's direct child never sets
-    `overflow-*` to scroll the slot's content, and an `overflow-auto` wrapper as
-    a slot's direct child is redundant and goes. A scrolling box with no header
-    is `FrameTop` with no `panelChildren`; a scrolling sidebar with a divider is
-    `FrameLeft`; a hand-built flex column with a `flex-1 overflow-auto` region
-    is a `FrameTop` written by hand.
-21. **`h-full` on a slot's direct child only when it is the only child**: a
-    nested Frame, an `EmptyState` centred in the slot, a flex column. Beside a
-    sibling under `spy` it overflows the slot by the sibling's height plus the
-    gap, and the slot scrolls that much. Content that flows (a form, a stack of
-    cards) takes its natural height and the slot scrolls it.
-22. **Four scrollers inside a slot are content, not a slot written by hand**: a
-    kit table (`Table`, `DataGrid`, `PresenceGrid`, `TableFromCsv`), which owns
-    its scroll box and sticky header and scrolls inside itself as a slot's
-    direct child; a scroll element app code reads (scroll-sync, a cursor overlay
-    measured against it, a `data-*` hook on it); `overflow-y-scroll` for a
-    permanent scrollbar gutter, which the slot's `overflow-auto` does not
-    reproduce; and a sticky child's own scroller. A sticky child in a padded
-    slot sticks one inset below the slot's top edge, with content scrolling
-    through the gap above it, and cannot span the slot; it lives in a slot with
-    no `pad` or in an x-only padded scroller around it
-    (`ui-pad-x h-full w-full overflow-auto`). A bounded region inside content (a
-    `max-h-64 overflow-auto` list) and `overflow-hidden` on an aspect box
-    describe the content and are not slots.
+18. **Dark mode is `data-scheme`, and color overrides are `light-dark()` pairs**: every kit color token is a pair, so an app overrides a token in plain `@theme` as a pair too: `--color-primary: light-dark(#6f2e30, #d98a8c)`. A single value means "same color in both schemes". Offer dark mode by setting `data-scheme="system|light|dark"` on `<html>` (via `setSchemePreference`); no attribute renders light. `data-theme` stays reserved for palette swaps: never use it for scheme.
+19. **Document surfaces wear `ui-scheme-light`**: slide canvases, page previews, print/export HTML pin `color-scheme` with the utility, never `bg-white`. Canvas twin: `<FigureHolder scheme="light">`.
+20. **A Frame slot scrolls; nothing inside it scrolls the slot again**: every slot of every Frame is `overflow-auto`. A slot's direct child never sets `overflow-*` to scroll the slot's content, and an `overflow-auto` wrapper as a slot's direct child is redundant and goes. A scrolling box with no header is `FrameTop` with no `panelChildren`; a scrolling sidebar with a divider is `FrameLeft`; a hand-built flex column with a `flex-1 overflow-auto` region is a `FrameTop` written by hand.
+21. **`h-full` on a slot's direct child only when it is the only child**: a nested Frame, an `EmptyState` centred in the slot, a flex column. Beside a sibling under `spy` it overflows the slot by the sibling's height plus the gap, and the slot scrolls that much. Content that flows (a form, a stack of cards) takes its natural height and the slot scrolls it.
+22. **Four scrollers inside a slot are content, not a slot written by hand**: a kit table (`Table`, `DataGrid`, `PresenceGrid`, `TableFromCsv`), which owns its scroll box and sticky header and scrolls inside itself as a slot's direct child; a scroll element app code reads (scroll-sync, a cursor overlay measured against it, a `data-*` hook on it); `overflow-y-scroll` for a permanent scrollbar gutter, which the slot's `overflow-auto` does not reproduce; and a sticky child's own scroller. A sticky child in a padded slot sticks one inset below the slot's top edge, with content scrolling through the gap above it, and cannot span the slot; it lives in a slot with no `pad` or in an x-only padded scroller around it (`ui-pad-x h-full w-full overflow-auto`). A bounded region inside content (a `max-h-64 overflow-auto` list) and `overflow-hidden` on an aspect box describe the content and are not slots.
 
-23. **Three z-index levels, so a modal never depends on mount order**: page
-    content uses `z-0` to `z-30`; `z-40` is the resizable frames' drag handles';
-    `z-50` is the alert layer's (`AlertProvider`'s scrim and dialog). An app
-    never writes `z-40` or above on page content, so `AlertProvider` may be
-    mounted anywhere in the app root. Something that must sit over a modal is a
-    `popover`, which the browser puts in its top layer above every z-index, as
-    the kit's menus, tooltips and combo-box panels are.
+23. **Three z-index levels, so a modal never depends on mount order**: page content uses `z-0` to `z-30`; `z-40` is the resizable frames' drag handles'; `z-50` is the alert layer's (`AlertProvider`'s scrim and dialog). An app never writes `z-40` or above on page content, so `AlertProvider` may be mounted anywhere in the app root. Something that must sit over a modal is a `popover`, which the browser puts in its top layer above every z-index, as the kit's menus, tooltips and combo-box panels are.
 
 ## Do / Don't
 
@@ -114,8 +46,7 @@ the full token catalog, and the theming mechanics, see
 <div class="bg-primary-subtle text-primary-subtle-content">
 ```
 
-**Why:** The default Tailwind palette is wiped, so off-token classes render
-nothing at all; `-subtle` is the designed opaque wash the `/10` idiom replaced.
+**Why:** The default Tailwind palette is wiped, so off-token classes render nothing at all; `-subtle` is the designed opaque wash the `/10` idiom replaced.
 
 ### Muted text
 
@@ -128,9 +59,7 @@ nothing at all; `-subtle` is the designed opaque wash the `/10` idiom replaced.
 <span class="ui-text-caption">Last updated 3h ago</span>;
 ```
 
-**Why:** `neutral` is for fills (spinners, badges); the foreground ramp is
-`base-content` → `-muted` → `-faint`, and only the ramp inverts correctly on a
-dark theme.
+**Why:** `neutral` is for fills (spinners, badges); the foreground ramp is `base-content` → `-muted` → `-faint`, and only the ramp inverts correctly on a dark theme.
 
 ### Interactive surfaces
 
@@ -145,9 +74,7 @@ dark theme.
 <div class="ui-hoverable-base-100 ui-pad" onClick={open}>…</div>;
 ```
 
-**Why:** The family bundles affordance, rest, hover and press as one designed
-unit; a stacked utility overrides the rest surface and silently removes the
-states.
+**Why:** The family bundles affordance, rest, hover and press as one designed unit; a stacked utility overrides the rest surface and silently removes the states.
 
 ### Selected states
 
@@ -166,8 +93,7 @@ states.
 </button>;
 ```
 
-**Why:** A wash reads as "information", not "control"; pinning it to the
-selected arm keeps that meaning while the unselected arm keeps the affordance.
+**Why:** A wash reads as "information", not "control"; pinning it to the selected arm keeps that meaning while the unselected arm keeps the affordance.
 
 ### Outline buttons
 
@@ -183,9 +109,7 @@ selected arm keeps that meaning while the unselected arm keeps the affordance.
 </div>;
 ```
 
-**Why:** An outline control rests _on the surface it sits on_; `onBackground`
-names that surface so the rest matches it. Hover and press are a tint of the
-control's own colour over that surface (`ui-hoverable-outline-on-{token}`).
+**Why:** An outline control rests _on the surface it sits on_; `onBackground` names that surface so the rest matches it. Hover and press are a tint of the control's own colour over that surface (`ui-hoverable-outline-on-{token}`).
 
 ### Buttons inside a row that hovers
 
@@ -197,10 +121,7 @@ control's own colour over that surface (`ui-hoverable-outline-on-{token}`).
 <Button ghost size="sm" iconName="pencil" onClick={edit} />
 ```
 
-**Why:** Filled and outline buttons paint an opaque rest, and `onBackground` can
-name only one surface where a hovering row has two. A ghost
-(`ui-hoverable-ghost`) rests on nothing and hovers with a `currentColor` tint
-over whatever is behind it.
+**Why:** Filled and outline buttons paint an opaque rest, and `onBackground` can name only one surface where a hovering row has two. A ghost (`ui-hoverable-ghost`) rests on nothing and hovers with a `currentColor` tint over whatever is behind it.
 
 ### Controls in callouts
 
@@ -230,8 +151,7 @@ over whatever is behind it.
 <div class="border border-primary rounded">  // only when selected/active
 ```
 
-**Why:** `@layer base` sets `border-color: var(--color-border)` on every
-element, so a written border color is noise unless it marks an exception.
+**Why:** `@layer base` sets `border-color: var(--color-border)` on every element, so a written border color is noise unless it marks an exception.
 
 ### Elevation
 
@@ -245,8 +165,7 @@ element, so a written border color is noise unless it marks an exception.
 <div class="bg-base-100 rounded border shadow-floating">   // floating surface
 ```
 
-**Why:** `--radius` and `--shadow-floating` are the whole scale; in-flow
-containers are border-only, and shadow means "this left the document flow".
+**Why:** `--radius` and `--shadow-floating` are the whole scale; in-flow containers are border-only, and shadow means "this left the document flow".
 
 ### Spacing
 
@@ -260,8 +179,7 @@ containers are border-only, and shadow means "this left the document flow".
 <div class="ui-pad-sm ui-gap-sm">
 ```
 
-**Why:** The `ui-*` utilities resolve through density vars, so an app can retune
-its whole density from one `@theme` block.
+**Why:** The `ui-*` utilities resolve through density vars, so an app can retune its whole density from one `@theme` block.
 
 ### Scrolling
 
@@ -293,16 +211,11 @@ its whole density from one `@theme` block.
 </FrameTop>
 ```
 
-**Why:** the Frame is the kit's only scroll primitive, so a second scroller
-inside a slot either never scrolls or steals the slot's scroll; a `h-full` child
-beside a sibling overflows by the sibling and the gap; and a sticky child sticks
-one inset below a padded slot's edge with content scrolling through the gap
-above it.
+**Why:** the Frame is the kit's only scroll primitive, so a second scroller inside a slot either never scrolls or steals the slot's scroll; a `h-full` child beside a sibling overflows by the sibling and the gap; and a sticky child sticks one inset below a padded slot's edge with content scrolling through the gap above it.
 
 ### Type
 
-Every UI text size is a rem token from the `--text-*` scale, and text takes one
-of three roles:
+Every UI text size is a rem token from the `--text-*` scale, and text takes one of three roles:
 
 | Role    | Size    | Class                        | Used for                                                                                                                        |
 | ------- | ------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -310,42 +223,16 @@ of three roles:
 | Body    | 14      | none: inherited from `body`  | Everything else: body text, list and table cells, buttons, inputs, tabs, menus, dialog text, empty and loading messages, errors |
 | Heading | 16, 700 | `ui-text-heading`            | Section, card, modal and alert headings, and the label of a full-screen view                                                    |
 
-There is no title role. The body size is `--ui-text-body` (`text-sm`), set once
-on `body`; form text reads the same token, so controls and body text cannot
-drift.
+There is no title role. The body size is `--ui-text-body` (`text-sm`), set once on `body`; form text reads the same token, so controls and body text cannot drift.
 
-- **Do** leave body text unsized. A `text-sm` on body text is a no-op that will
-  not survive a change to `--ui-text-body`.
-- **Don't** size text in pixels, `text-[Npx]`, or a class that is not a token
-  (`text-md` emits nothing). 12px is the floor: if a badge or avatar is cramped,
-  its container grows.
-- **Don't** use `em` for UI text. It is for text that must follow the size
-  around it: icons, and markdown rendered inside a document.
-- **Line-height** comes with the token: each `--text-*` carries Tailwind's
-  default pair (`--text-sm--line-height` and so on), and `body` takes the
-  `text-sm` pair, so unsized text and `text-sm` text share a rhythm. A
-  `leading-*` utility overrides it where a control needs to.
-- **Tables.** Data grids (`DataGrid`, the CSV table, `PresenceGrid`) are caption
-  size throughout. `DisplayTable` and hand-built listings use one cell size,
-  body: a secondary value is muted, not smaller; a second line stacked under a
-  cell's main value is caption; a listing's column header is the `DisplayTable`
-  header (`font-700 text-xs uppercase tracking-wider`).
-- **Icons in `sm` controls** draw at 1.125em inside the control's
-  `--ui-form-content-h-em` box, so no control changes height.
-- **Mono** (`font-mono`, the `mono` prop on `Input`, `TextArea`, `Select` and
-  the search selects) is for text a machine reads back: identifiers and codes,
-  file names, formulas, code, logs and diffs, and any literal the user must type
-  exactly. Names, emails, body text and numbers are sans: `body` sets
-  `tabular-nums`, so counts align without a face change, and a stat's emphasis
-  is `font-700`, not mono and not a larger size. Mono inherits the size of the
-  text it sits in; the one mono size class is `text-xs` on a code or log block
-  that is caption throughout.
-- **Italic** is a content style: emphasis inside a document or user-authored
-  text. It is never a UI signal. A status, note or reason is muted. In a table,
-  an absent value is an empty cell; an absence that means something ("Never",
-  "system") is a muted word. No dashes, no italic. The one exception is the AI
-  chat (`_305_ai`), whose transient status lines (thinking, tool progress,
-  decisions) keep their italic.
+- **Do** leave body text unsized. A `text-sm` on body text is a no-op that will not survive a change to `--ui-text-body`.
+- **Don't** size text in pixels, `text-[Npx]`, or a class that is not a token (`text-md` emits nothing). 12px is the floor: if a badge or avatar is cramped, its container grows.
+- **Don't** use `em` for UI text. It is for text that must follow the size around it: icons, and markdown rendered inside a document.
+- **Line-height** comes with the token: each `--text-*` carries Tailwind's default pair (`--text-sm--line-height` and so on), and `body` takes the `text-sm` pair, so unsized text and `text-sm` text share a rhythm. A `leading-*` utility overrides it where a control needs to.
+- **Tables.** Data grids (`DataGrid`, the CSV table, `PresenceGrid`) are caption size throughout. `DisplayTable` and hand-built listings use one cell size, body: a secondary value is muted, not smaller; a second line stacked under a cell's main value is caption; a listing's column header is the `DisplayTable` header (`font-700 text-xs uppercase tracking-wider`).
+- **Icons in `sm` controls** draw at 1.125em inside the control's `--ui-form-content-h-em` box, so no control changes height.
+- **Mono** (`font-mono`, the `mono` prop on `Input`, `TextArea`, `Select` and the search selects) is for text a machine reads back: identifiers and codes, file names, formulas, code, logs and diffs, and any literal the user must type exactly. Names, emails, body text and numbers are sans: `body` sets `tabular-nums`, so counts align without a face change, and a stat's emphasis is `font-700`, not mono and not a larger size. Mono inherits the size of the text it sits in; the one mono size class is `text-xs` on a code or log block that is caption throughout.
+- **Italic** is a content style: emphasis inside a document or user-authored text. It is never a UI signal. A status, note or reason is muted. In a table, an absent value is an empty cell; an absence that means something ("Never", "system") is a muted word. No dashes, no italic. The one exception is the AI chat (`_305_ai`), whose transient status lines (thinking, tool progress, decisions) keep their italic.
 
 ### Text case
 
@@ -392,13 +279,9 @@ drift.
 | Main action / secondary action / destructive | `intent="primary"` / `outline` + `onBackground` / `intent="danger"`                                                      |
 | Quiet action in a row that hovers itself     | `ghost` (body-coloured by default): no rest surface, currentColor tint on hover; needs no `onBackground`                 |
 
-Status intents: `success` complete/positive · `warning` caution · `danger`
-error/destructive · `neutral` running/queued/pending · `primary`
-selected/active.
+Status intents: `success` complete/positive · `warning` caution · `danger` error/destructive · `neutral` running/queued/pending · `primary` selected/active.
 
-**"I need a new token."** You don't: fix the site. Never add a surface tier, a
-lighter wash, or a per-intent focus color for one awkward site. See
-`DOC_UI_COLOR_AND_STATE.md`.
+**"I need a new token."** You don't: fix the site. Never add a surface tier, a lighter wash, or a per-intent focus color for one awkward site. See `DOC_UI_COLOR_AND_STATE.md`.
 
 ### Card with a clickable header
 
@@ -441,10 +324,7 @@ lighter wash, or a per-intent focus color for one awkward site. See
 </For>;
 ```
 
-Prefer `Card` (`selected` / `onClick`) for card-shaped sites: it carries the
-`border-color` transition and the keyboard/focus wiring for you. The `font-700`
-here bolds the option label; a content container pins wash + border without
-bolding.
+Prefer `Card` (`selected` / `onClick`) for card-shaped sites: it carries the `border-color` transition and the keyboard/focus wiring for you. The `font-700` here bolds the option label; a content container pins wash + border without bolding.
 
 ### App theme block
 
@@ -463,36 +343,17 @@ bolding.
 }
 ```
 
-Dark themes additionally override `--color-scrim` (the default 30% black veil
-disappears over near-black surfaces). Palette swaps must land on `:root`
-(`:root[data-theme="dark"] { … }`), never on a wrapper element.
+Dark themes additionally override `--color-scrim` (the default 30% black veil disappears over near-black surfaces). Palette swaps must land on `:root` (`:root[data-theme="dark"] { … }`), never on a wrapper element.
 
 ### The public class API
 
 Usable from app code:
 
-- **Spacing/density:** `ui-pad`, `ui-pad-sm`, `ui-pad-lg`, `ui-pad-x`,
-  `ui-pad-x-sm`, `ui-pad-x-lg`, `ui-pad-y`, `ui-pad-y-sm`, `ui-pad-y-lg`, and
-  one-sided `ui-pad-{t,b,l,r}`, `-sm`, `-lg`, `ui-gap`, `ui-gap-sm`,
-  `ui-gap-lg`, `ui-spy`, `ui-spy-sm`, `ui-spy-lg`; and the `ui-tablepad-*`
-  family (`ui-tablepad-x-compact`, `-x-normal`, `-x-comfortable`, the same three
-  for `-y-`, and `ui-tablepad-y-header`), which is the padding of `Table`'s
-  cells and header row, one token per `paddingX` / `paddingY` value, so an app
-  tunes table density by overriding the `--ui-tablepad-*` variables
-- **Form density:** `ui-form-pad`, `ui-form-pad-sm`, `ui-form-text-size`,
-  `ui-form-text-size-sm`, `ui-icon-only-correction`,
-  `ui-icon-only-correction-sm`
-- **State:** the `ui-hoverable-{token}` family (`base-100`, `base-200`,
-  `base-300`, `base-content`, `primary`, `neutral`, `success`, `warning`,
-  `danger`), its outline sibling `ui-hoverable-outline-on-{token}` (same nine
-  members), `ui-hoverable-ghost` (one member), and `ui-focusable`
-- **Type:** three roles: body (14px, inherited from `body`, no size class),
-  `ui-text-caption` (12px, muted: metadata, help text, column headers, data grid
-  cells) and `ui-text-heading` (16px bold: section, card, modal and alert
-  headings, and a full-screen view's label). There is no title role. Also
-  `ui-text-overline`, `ui-text-small`, `ui-form-text`, `ui-label`
-- **Skins (only when building a control panther doesn't provide):**
-  `ui-fill-{intent}`, `ui-outline-{intent}`, `ui-ghost-{intent}`
+- **Spacing/density:** `ui-pad`, `ui-pad-sm`, `ui-pad-lg`, `ui-pad-x`, `ui-pad-x-sm`, `ui-pad-x-lg`, `ui-pad-y`, `ui-pad-y-sm`, `ui-pad-y-lg`, and one-sided `ui-pad-{t,b,l,r}`, `-sm`, `-lg`, `ui-gap`, `ui-gap-sm`, `ui-gap-lg`, `ui-spy`, `ui-spy-sm`, `ui-spy-lg`; and the `ui-tablepad-*` family (`ui-tablepad-x-compact`, `-x-normal`, `-x-comfortable`, the same three for `-y-`, and `ui-tablepad-y-header`), which is the padding of `Table`'s cells and header row, one token per `paddingX` / `paddingY` value, so an app tunes table density by overriding the `--ui-tablepad-*` variables
+- **Form density:** `ui-form-pad`, `ui-form-pad-sm`, `ui-form-text-size`, `ui-form-text-size-sm`, `ui-icon-only-correction`, `ui-icon-only-correction-sm`
+- **State:** the `ui-hoverable-{token}` family (`base-100`, `base-200`, `base-300`, `base-content`, `primary`, `neutral`, `success`, `warning`, `danger`), its outline sibling `ui-hoverable-outline-on-{token}` (same nine members), `ui-hoverable-ghost` (one member), and `ui-focusable`
+- **Type:** three roles: body (14px, inherited from `body`, no size class), `ui-text-caption` (12px, muted: metadata, help text, column headers, data grid cells) and `ui-text-heading` (16px bold: section, card, modal and alert headings, and a full-screen view's label). There is no title role. Also `ui-text-overline`, `ui-text-small`, `ui-form-text`, `ui-label`
+- **Skins (only when building a control panther doesn't provide):** `ui-fill-{intent}`, `ui-outline-{intent}`, `ui-ghost-{intent}`
 
 Every other `ui-*` class is internal and may change without notice.
 
@@ -509,52 +370,27 @@ Retune these in `@theme`; never override a derived one directly.
 | `--ui-form-height` / `-sm`               | Derived. A control's full outer height; what `HeadingBar` floors its row to.                     |
 | `--ui-heading-bar-tonal-bg` / `-content` | **Authoring knob (a pair).** The one tonal header surface and its text, the `heading` included.  |
 
-The ratio is deliberately shared across sizes: `em` rescales it, so there is no
-`--ui-form-content-h-sm`. Overriding `--ui-form-height` or
-`--ui-form-line-height` directly desyncs a heading bar from the controls sitting
-in it; change the ratio instead. Retune the heading-bar pair together: the
-foreground is not derived from the background.
+The ratio is deliberately shared across sizes: `em` rescales it, so there is no `--ui-form-content-h-sm`. Overriding `--ui-form-height` or `--ui-form-line-height` directly desyncs a heading bar from the controls sitting in it; change the ratio instead. Retune the heading-bar pair together: the foreground is not derived from the background.
 
 ## Checklist
 
-- [ ] No off-token colors (`bg-gray-*`, `text-slate-*`, `bg-[#…]`, and
-      `bg-white` / `text-black`: white/black are not tokens) and no arbitrary
-      values (`p-[Npx]`). Constant contrast over a data/media background is an
-      inline style beside its inline background
-- [ ] No `/N` alpha as a surface fill (`bg-primary/10`): `-subtle` instead;
-      `bg-scrim` is the one sanctioned veil
+- [ ] No off-token colors (`bg-gray-*`, `text-slate-*`, `bg-[#…]`, and `bg-white` / `text-black`: white/black are not tokens) and no arbitrary values (`p-[Npx]`). Constant contrast over a data/media background is an inline style beside its inline background
+- [ ] No `/N` alpha as a surface fill (`bg-primary/10`): `-subtle` instead; `bg-scrim` is the one sanctioned veil
 - [ ] Muted text is `base-content-muted`, never `neutral`
-- [ ] Every `cursor-pointer` element also changes background (or is a text-only
-      interactive changing text color, or a clickable card hovering at the
-      frame)
-- [ ] Interactive surfaces use `ui-hoverable-{token}`; no utility `bg-*` on the
-      same element
-- [ ] Explicit `hover:bg-*` pairs only for selectable text; a transparent-rest
-      affordance takes `ui-hoverable-ghost`
+- [ ] Every `cursor-pointer` element also changes background (or is a text-only interactive changing text color, or a clickable card hovering at the frame)
+- [ ] Interactive surfaces use `ui-hoverable-{token}`; no utility `bg-*` on the same element
+- [ ] Explicit `hover:bg-*` pairs only for selectable text; a transparent-rest affordance takes `ui-hoverable-ghost`
 - [ ] Outline `Button` / `ButtonGroup` off `base-100` declares `onBackground`
-- [ ] No `-subtle` wash on a clickable's rest surface, hover target, or hover
-      destination, except a selected arm's pin
+- [ ] No `-subtle` wash on a clickable's rest surface, hover target, or hover destination, except a selected arm's pin
 - [ ] Buttons inside `-subtle` callouts are filled at the callout's intent
-- [ ] No edge border on a side-frame panel: the frame draws it (`noBorder` only
-      for a tonal panel or a deliberate non-default border colour)
-- [ ] No `border-base-300` / `border-border`; bare `border` unless marking an
-      exception
-- [ ] No `rounded-lg` / `shadow-md`; `rounded`, and `shadow-floating` only on
-      floating surfaces
-- [ ] No named font-weight aliases (`font-normal`, `font-medium`,
-      `font-semibold`, `font-bold`): they are wiped no-ops; use `font-400` /
-      `font-700` or an app-declared weight
-- [ ] `font-mono` only on identifiers, codes, file names, formulas, code, logs
-      and diffs; never on names, emails or counts, and never with a size class
-      other than `text-xs` on a caption-size block
-- [ ] No `italic` outside document or user-authored content (the AI chat's
-      status lines excepted); an empty or special table value is empty or a
-      muted word, never a dash
+- [ ] No edge border on a side-frame panel: the frame draws it (`noBorder` only for a tonal panel or a deliberate non-default border colour)
+- [ ] No `border-base-300` / `border-border`; bare `border` unless marking an exception
+- [ ] No `rounded-lg` / `shadow-md`; `rounded`, and `shadow-floating` only on floating surfaces
+- [ ] No named font-weight aliases (`font-normal`, `font-medium`, `font-semibold`, `font-bold`): they are wiped no-ops; use `font-400` / `font-700` or an app-declared weight
+- [ ] `font-mono` only on identifiers, codes, file names, formulas, code, logs and diffs; never on names, emails or counts, and never with a size class other than `text-xs` on a caption-size block
+- [ ] No `italic` outside document or user-authored content (the AI chat's status lines excepted); an empty or special table value is empty or a muted word, never a dash
 - [ ] Spacing uses `ui-pad` / `ui-gap` / `ui-spy`, sizing uses `size="sm"`
-- [ ] No `overflow-auto` wrapper as a Frame slot's direct child; `h-full` on a
-      direct child only when it is the slot's only child
+- [ ] No `overflow-auto` wrapper as a Frame slot's direct child; `h-full` on a direct child only when it is the slot's only child
 - [ ] App CSS uses plain `@theme`, no `--color-*: initial`, palettes on `:root`
 - [ ] UI text in sentence case
-- [ ] No `z-40` or above on page content: `z-0` to `z-30` is content's, `z-40`
-      the frame handles', `z-50` the alert layer's, and anything that must sit
-      over a modal is a `popover`
+- [ ] No `z-40` or above on page content: `z-0` to `z-30` is content's, `z-40` the frame handles', `z-50` the alert layer's, and anything that must sit over a modal is a `popover`

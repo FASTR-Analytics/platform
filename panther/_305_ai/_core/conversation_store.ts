@@ -100,8 +100,9 @@ export type ConversationStore = {
   isStreaming: ReturnType<typeof createSignal<boolean>>;
   isProcessingTools: ReturnType<typeof createSignal<boolean>>;
   error: ReturnType<typeof createSignal<string | null>>;
-  currentStreamingText: ReturnType<typeof createSignal<string | undefined>>;
-  serverToolLabel: ReturnType<typeof createSignal<string | undefined>>;
+  // The reply in flight, derived from the stream's accumulated message;
+  // empty whenever no reply streams.
+  streamingItems: ReturnType<typeof createSignal<DisplayItem[]>>;
   activeTurn: ReturnType<typeof createSignal<ActiveTurn | null>>;
   pendingDecision: ReturnType<typeof createSignal<PendingDecision | null>>;
   queuedMessages: ReturnType<typeof createSignal<QueuedMessage[]>>;
@@ -161,8 +162,11 @@ export function getOrCreateConversationStore(
       isStreaming: createSignal(false),
       isProcessingTools: createSignal(false),
       error: createSignal<string | null>(null),
-      currentStreamingText: createSignal<string | undefined>(undefined),
-      serverToolLabel: createSignal<string | undefined>(undefined),
+      // Every exit of the stream empties the list, so emptying an empty one
+      // notifies no one.
+      streamingItems: createSignal<DisplayItem[]>([], {
+        equals: (a, b) => a === b || (a.length === 0 && b.length === 0),
+      }),
       activeTurn: createSignal<ActiveTurn | null>(null),
       pendingDecision: createSignal<PendingDecision | null>(null),
       queuedMessages: createSignal<QueuedMessage[]>([]),
@@ -194,8 +198,7 @@ export function clearConversationStore(conversationId: string): void {
     const [, setIsStreaming] = store.isStreaming;
     const [, setIsProcessingTools] = store.isProcessingTools;
     const [, setError] = store.error;
-    const [, setCurrentStreamingText] = store.currentStreamingText;
-    const [, setServerToolLabel] = store.serverToolLabel;
+    const [, setStreamingItems] = store.streamingItems;
 
     // Queued messages are dropped; their senders' promises resolve at drop
     // (await means "the attempt finished"). activeTurn is NOT touched — a
@@ -210,8 +213,7 @@ export function clearConversationStore(conversationId: string): void {
       setIsStreaming(false);
       setIsProcessingTools(false);
       setError(null);
-      setCurrentStreamingText(undefined);
-      setServerToolLabel(undefined);
+      setStreamingItems([]);
       store.approvedTools[1]([]);
       store.prefixHash[1](undefined);
       setQueued([]);

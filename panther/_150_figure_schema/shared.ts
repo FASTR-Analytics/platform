@@ -3,12 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { z } from "./deps.ts";
+import { slotHeaders, z } from "./deps.ts";
 import type {
   AxisMembership,
   ChartScaleAxisLimits,
   ChartScaleAxisLimitsEntry,
   ChartScaleAxisPaneLimits,
+  DataAxis,
   HeaderItem,
   HeaderSortConfig,
   HeaderSortFunc,
@@ -74,6 +75,12 @@ const _zHeaderItemConforms: Conforms<z.infer<typeof zHeaderItem>, HeaderItem> =
   true;
 
 export const zHeaderItems = z.array(zHeaderItem);
+
+export const zDataAxis = z.object({
+  dimension: z.string(),
+  headers: zHeaderItems,
+});
+const _zDataAxisConforms: Conforms<z.infer<typeof zDataAxis>, DataAxis> = true;
 
 const zHeaderSortFunc = z.custom<HeaderSortFunc>(
   (v) => typeof v === "function",
@@ -174,17 +181,17 @@ const _zChartScaleAxisLimitsConforms: Conforms<
 // chart): every per-pane tierLimits/laneLimits array must match the header
 // counts, so those blobs fail and trigger the upgrader.
 export function chartLimitsMatchHeaders(d: {
-  paneHeaders: HeaderItem[];
-  tierHeaders: HeaderItem[];
-  laneHeaders: HeaderItem[];
+  pane?: DataAxis;
+  tier?: DataAxis;
+  lane?: DataAxis;
   scaleAxisLimits: ChartScaleAxisLimits;
 }): boolean {
   return (
-    d.scaleAxisLimits.paneLimits.length === d.paneHeaders.length &&
+    d.scaleAxisLimits.paneLimits.length === slotHeaders(d.pane).length &&
     d.scaleAxisLimits.paneLimits.every(
       (p) =>
-        p.tierLimits.length === d.tierHeaders.length &&
-        p.laneLimits.length === d.laneHeaders.length,
+        p.tierLimits.length === slotHeaders(d.tier).length &&
+        p.laneLimits.length === slotHeaders(d.lane).length,
     )
   );
 }

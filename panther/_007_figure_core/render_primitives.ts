@@ -6,15 +6,18 @@
 import type {
   AreaStyle,
   Arrowhead,
-  CascadeArrowPrimitive,
   ChartAxisPrimitive,
-  ChartCaptionPrimitive,
+  ChartCascadeArrowPrimitive,
   ChartConnectorPrimitive,
   ChartGridPrimitive,
   ChartLabelPrimitive,
-  ChartLegendPrimitive,
   DataLabel,
+  FigureCaptionPrimitive,
   FigureLabelPrimitive,
+  FigureLegendPrimitive,
+  FigureScaleLegendGradientPrimitive,
+  FigureScaleLegendSteppedPrimitive,
+  LabelHalo,
   LineStyle,
   MeasuredText,
   PieSlicePrimitive,
@@ -22,15 +25,13 @@ import type {
   RenderContext,
   SankeyLinkPrimitive,
   SankeyNodePrimitive,
-  ScaleLegendGradientPrimitive,
-  ScaleLegendSteppedPrimitive,
   ShapePathPrimitive,
   ShapePrimitive,
   TableBorderPrimitive,
   TableGridPrimitive,
   TableHeaderAxisPrimitive,
 } from "./deps.ts";
-import { Coordinates, Padding, RectCoordsDims } from "./deps.ts";
+import { Coordinates, labelBoxRcd, RectCoordsDims } from "./deps.ts";
 import type { MeasuredSurrounds } from "./_surrounds/measure_surrounds.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -87,57 +88,21 @@ export function renderFigurePrimitives(
   }
 }
 
-// One home for the alignment-aware padded rect of a label. Shared by chart data
-// labels (renderDataLabel), figure labels (map regions, pie slices) and the
-// leader-line trim — the same algorithm was written twice in this file before.
-function labelBoxRcd(
-  mText: MeasuredText,
-  position: Coordinates,
-  alignH: "left" | "center" | "right",
-  alignV: "top" | "middle" | "bottom",
-  padding?: Padding,
-): RectCoordsDims {
-  const textW = mText.dims.w();
-  const textH = mText.dims.h();
-  const pad = padding ?? new Padding(0);
-
-  let bgX = position.x() - pad.pl();
-  let bgY = position.y() - pad.pt();
-
-  if (alignH === "center") bgX -= textW / 2;
-  else if (alignH === "right") bgX -= textW;
-  if (alignV === "middle") bgY -= textH / 2;
-  else if (alignV === "bottom") bgY -= textH;
-
-  return new RectCoordsDims({
-    x: bgX,
-    y: bgY,
-    w: textW + pad.pl() + pad.pr(),
-    h: textH + pad.pt() + pad.pb(),
-  });
-}
-
 function renderLabelBackground(
   rc: RenderContext,
   mText: MeasuredText,
   position: Coordinates,
   alignH: "left" | "center" | "right",
   alignV: "top" | "middle" | "bottom",
-  style: {
-    fillColor?: string;
-    borderColor?: string;
-    borderWidth?: number;
-    padding?: Padding;
-    rectRadius?: number;
-  },
+  halo: LabelHalo,
 ): void {
   rc.rRect(
-    labelBoxRcd(mText, position, alignH, alignV, style.padding),
+    labelBoxRcd(mText, position, alignH, alignV, halo.padding),
     {
-      fillColor: style.fillColor ?? "transparent",
-      strokeColor: style.borderColor,
-      strokeWidth: style.borderWidth,
-      rectRadius: style.rectRadius,
+      fillColor: halo.fillColor ?? "transparent",
+      strokeColor: halo.borderColor,
+      strokeWidth: halo.borderWidth,
+      rectRadius: halo.rectRadius,
     },
   );
 }
@@ -178,20 +143,24 @@ function segmentEntryParam(
 }
 
 function renderDataLabel(rc: RenderContext, dl: DataLabel): void {
-  if (dl.style && (dl.style.backgroundColor || dl.style.borderWidth)) {
-    renderLabelBackground(rc, dl.mText, dl.position, dl.alignH, dl.alignV, {
-      fillColor: dl.style.backgroundColor,
-      borderColor: dl.style.borderColor,
-      borderWidth: dl.style.borderWidth,
-      padding: dl.style.padding,
-      rectRadius: dl.style.rectRadius,
-    });
+  if (dl.halo) {
+    renderLabelBackground(
+      rc,
+      dl.mText,
+      dl.position,
+      dl.alignH,
+      dl.alignV,
+      dl.halo,
+    );
   }
 
   rc.rText(dl.mText, dl.position, dl.alignH, dl.alignV);
 }
 
-function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
+export function renderPrimitive(
+  rc: RenderContext,
+  primitive: Primitive,
+): void {
   switch (primitive.type) {
     case "chart-data-point": {
       rc.rPoint(primitive.coords, primitive.style);
@@ -298,11 +267,11 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       renderAxisPrimitive(rc, primitive);
       break;
 
-    case "chart-legend":
+    case "figure-legend":
       renderLegendPrimitive(rc, primitive);
       break;
 
-    case "chart-caption":
+    case "figure-caption":
       renderCaptionPrimitive(rc, primitive);
       break;
 
@@ -318,7 +287,7 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       renderSankeyLinkPrimitive(rc, primitive);
       break;
 
-    case "cascade-arrow":
+    case "chart-cascade-arrow":
       renderCascadeArrowPrimitive(rc, primitive);
       break;
 
@@ -390,11 +359,11 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       }
       break;
 
-    case "scale-legend-gradient":
+    case "figure-scale-legend-gradient":
       renderScaleLegendGradientPrimitive(rc, primitive);
       break;
 
-    case "scale-legend-stepped":
+    case "figure-scale-legend-stepped":
       renderScaleLegendSteppedPrimitive(rc, primitive);
       break;
 
@@ -568,7 +537,7 @@ function renderAxisPrimitive(
 
 function renderLegendPrimitive(
   rc: RenderContext,
-  primitive: ChartLegendPrimitive,
+  primitive: FigureLegendPrimitive,
 ): void {
   for (const item of primitive.items) {
     // Draw label text
@@ -597,7 +566,7 @@ function renderLegendPrimitive(
 
 function renderScaleLegendGradientPrimitive(
   rc: RenderContext,
-  primitive: ScaleLegendGradientPrimitive,
+  primitive: FigureScaleLegendGradientPrimitive,
 ): void {
   const N = 50;
   const barX = primitive.barRect.x();
@@ -624,7 +593,10 @@ function renderScaleLegendGradientPrimitive(
     rc.rLine(
       [
         new Coordinates({ x: barX + tick.pixelOffset, y: barY + barH }),
-        new Coordinates({ x: barX + tick.pixelOffset, y: barY + barH + 4 }),
+        new Coordinates({
+          x: barX + tick.pixelOffset,
+          y: barY + barH + primitive.tickLength,
+        }),
       ],
       { strokeColor: "#000000", strokeWidth: 1, lineDash: "solid" },
     );
@@ -639,7 +611,7 @@ function renderScaleLegendGradientPrimitive(
 
 function renderScaleLegendSteppedPrimitive(
   rc: RenderContext,
-  primitive: ScaleLegendSteppedPrimitive,
+  primitive: FigureScaleLegendSteppedPrimitive,
 ): void {
   for (const step of primitive.steps) {
     rc.rRect(step.rect, step.style);
@@ -694,11 +666,11 @@ function lerpHex(a: string, b: string, t: number): string {
 
 function renderCaptionPrimitive(
   rc: RenderContext,
-  primitive: ChartCaptionPrimitive,
+  primitive: FigureCaptionPrimitive,
 ): void {
   rc.rText(
     primitive.mText,
-    primitive.bounds,
+    primitive.anchorRcd,
     primitive.alignment.h,
     primitive.alignment.v,
   );
@@ -716,7 +688,7 @@ function renderLabelPrimitive(
 ): void {
   rc.rText(
     primitive.mText,
-    primitive.bounds,
+    primitive.anchorRcd,
     primitive.alignment.h,
     primitive.alignment.v,
   );
@@ -847,7 +819,7 @@ function renderSankeyLinkPrimitive(
 
 function renderCascadeArrowPrimitive(
   rc: RenderContext,
-  primitive: CascadeArrowPrimitive,
+  primitive: ChartCascadeArrowPrimitive,
 ): void {
   rc.rPath(primitive.pathSegments, primitive.pathStyle);
 
@@ -946,20 +918,14 @@ function renderFigureLabelPrimitive(
   }
 
   if (primitive.halo) {
-    const halo = primitive.halo;
-    const hasFill = halo.fillColor !== undefined;
-    const hasBorder = halo.borderColor !== undefined &&
-      halo.borderWidth !== undefined && halo.borderWidth > 0;
-    if (hasFill || hasBorder) {
-      renderLabelBackground(
-        rc,
-        primitive.mText,
-        primitive.position,
-        primitive.alignment.h,
-        primitive.alignment.v,
-        halo,
-      );
-    }
+    renderLabelBackground(
+      rc,
+      primitive.mText,
+      primitive.position,
+      primitive.alignment.h,
+      primitive.alignment.v,
+      primitive.halo,
+    );
   }
 
   rc.rText(

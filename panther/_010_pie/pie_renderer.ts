@@ -22,6 +22,7 @@ import {
   resolveFigureAutofitOptions,
   resolvePaneGrid,
   SIZING_SAMPLE,
+  slotHeaders,
 } from "./deps.ts";
 import type { MeasuredPie, PieInputs } from "./types.ts";
 import { getPieDataTransformed } from "./get_pie_data.ts";
@@ -130,7 +131,7 @@ export function getPieComponentSizes(
   // ceil(sqrt(n)). That overstates the demand for a wide, short
   // frame — conservative in the safe direction: an overstated floor only
   // makes autofit shrink type marginally earlier than it had to.
-  const nIndicators = transformedData.indicatorHeaders.length;
+  const nIndicators = slotHeaders(transformedData.indicator).length;
   const nSlotCols = Math.ceil(Math.sqrt(nIndicators));
   const nSlotRows = Math.ceil(nIndicators / nSlotCols);
   const ind = mergedStyle.pie.indicators;
@@ -147,15 +148,15 @@ export function getPieComponentSizes(
   // Categorical, not a scale legend: the swatches are the slices.
   const resolvedLegendLabels: LegendInput | undefined = resolveDefaultLegend(
     item.legend,
-    transformedData.seriesHeaders,
+    transformedData.series,
   );
 
   return {
     customFigureStyle,
     mergedStyle,
-    nLanes: transformedData.laneHeaders.length,
-    nTiers: transformedData.tierHeaders.length,
-    paneHeaders: transformedData.paneHeaders,
+    nLanes: slotHeaders(transformedData.lane).length,
+    nTiers: slotHeaders(transformedData.tier).length,
+    nPanes: slotHeaders(transformedData.pane).length,
     minSubChartWidth: nSlotCols * (minSlotDiameter + labelBudget.horizontal) +
       (nSlotCols - 1) * ind.gapX,
     // The vertical demand COMBINES differently by placer: under
@@ -183,7 +184,7 @@ export function getPieComponentSizes(
       rc,
       customFigureStyle,
       resolvedLegendLabels,
-      transformedData.seriesHeaders,
+      transformedData.series,
     ),
     resolvedLegendLabels,
   };

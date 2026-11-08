@@ -4,19 +4,30 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  buildItem,
   Coordinates,
   type Primitive,
   RectCoordsDims,
+  slotCoordinate,
   sum,
+  toHeaderItem,
   Z_INDEX,
 } from "../deps.ts";
 import type { MeasuredTable } from "../types.ts";
+import { tableColGroups, tableRowGroups } from "../types.ts";
+import {
+  buildColGroupHeadersByColIndex,
+  buildRowHeaderLookups,
+} from "./measure_table.ts";
 
 export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
   const primitives: Primitive[] = [];
   const s = mTable.mergedStyle;
   const d = mTable.transformedData;
   const m = mTable.measuredInfo;
+  const colGroups = tableColGroups(d);
+  const { rowGroupHeaderItems } = buildRowHeaderLookups(tableRowGroups(d));
+  const colGroupHeaderItems = buildColGroupHeadersByColIndex(colGroups);
 
   const extraTop = m.extraTopPaddingForRows;
   const extraBottom = m.extraBottomPaddingForRows;
@@ -48,21 +59,30 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
         ]);
       }
 
+      const header = toHeaderItem(
+        colGroups[i_colGroup].id,
+        colGroups[i_colGroup].label,
+      );
+      const bounds = new RectCoordsDims({
+        x: currentX,
+        y: m.colGroupHeadersInnerY,
+        w: cghi.colGroupInnerWidth,
+        h: bgH,
+      });
       primitives.push({
         type: "table-col-header",
         key: `table-col-group-header-${i_colGroup}`,
-        bounds: new RectCoordsDims({
-          x: currentX,
-          y: m.colGroupHeadersInnerY,
-          w: cghi.colGroupInnerWidth,
-          h: bgH,
-        }),
+        item: buildItem([slotCoordinate(d.cols?.groupDimension, header)]),
+        part: "header",
+        bounds,
+        hitBounds: bounds,
         zIndex: Z_INDEX.TABLE_HEADER_BG,
         meta: {
           i_col: undefined,
-          label: d.colGroups[i_colGroup].label ?? "",
+          label: colGroups[i_colGroup].label ?? "",
           isGroupHeader: true,
           i_colGroup,
+          header,
         },
         backgroundColor: cghi.headerStyle.backgroundColor,
         mText: cghi.mText,
@@ -119,15 +139,26 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
         }
       }
 
+      const header = toHeaderItem(chi.id, chi.label);
+      const bounds = new RectCoordsDims({
+        x: currentX,
+        y: m.colHeadersInnerY,
+        w: colWidth,
+        h: bgH,
+      });
       primitives.push({
         type: "table-col-header",
         key: `table-col-header-${chi.index}`,
-        bounds: new RectCoordsDims({
-          x: currentX,
-          y: m.colHeadersInnerY,
-          w: colWidth,
-          h: bgH,
-        }),
+        item: buildItem([
+          slotCoordinate(d.cols?.dimension, header),
+          slotCoordinate(
+            d.cols?.groupDimension,
+            colGroupHeaderItems[chi.index],
+          ),
+        ]),
+        part: "header",
+        bounds,
+        hitBounds: bounds,
         zIndex: Z_INDEX.TABLE_HEADER_BG,
         meta: {
           i_col: chi.index,
@@ -136,6 +167,7 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
           // resolved label, so the item header must not diverge.
           label: chi.mText?.lines.map((l) => l.text).join("\n") ?? "",
           isGroupHeader: false,
+          header,
         },
         backgroundColor: chi.headerStyle.backgroundColor,
         mText: chi.mText,
@@ -172,20 +204,36 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
         ? `table-row-group-header-${groupHeaderSeqIdx}`
         : `table-row-header-${rhi.index}`;
 
+      const header = toHeaderItem(rhi.id, rhi.label);
+      const bounds = new RectCoordsDims({
+        x: m.rowHeadersInnerX,
+        y: currentY,
+        w: m.firstCellX - m.rowHeadersInnerX,
+        h: rowHeight,
+      });
       primitives.push({
         type: "table-row-header",
         key,
-        bounds: new RectCoordsDims({
-          x: m.rowHeadersInnerX,
-          y: currentY,
-          w: m.firstCellX - m.rowHeadersInnerX,
-          h: rowHeight,
-        }),
+        item: buildItem(
+          rhi.index === "group-header"
+            ? [slotCoordinate(d.rows?.groupDimension, header)]
+            : [
+              slotCoordinate(d.rows?.dimension, header),
+              slotCoordinate(
+                d.rows?.groupDimension,
+                rowGroupHeaderItems[rhi.index],
+              ),
+            ],
+        ),
+        part: "header",
+        bounds,
+        hitBounds: bounds,
         zIndex: Z_INDEX.TABLE_TEXT,
         meta: {
           i_row: rhi.index,
           label: rhi.label ?? "",
           isGroupHeader,
+          header,
         },
         backgroundColor: rhi.headerStyle.backgroundColor,
         mText: rhi.mText,
@@ -210,27 +258,37 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
     if (rhi.index !== "group-header") {
       let currentX = m.firstCellX;
       mr.cells.forEach((cell) => {
-        const colWidth = m.colInnerWidths[cell.cellInfo.i_col];
+        const ci = cell.cellInfo;
+        const colWidth = m.colInnerWidths[ci.i_col];
         const cellContentWidth = colWidth - s.cellPadding.pl() -
           s.cellPadding.pr();
 
+        const bounds = new RectCoordsDims({
+          x: currentX,
+          y: currentY,
+          w: colWidth,
+          h: rowHeight,
+        });
         primitives.push({
           type: "table-cell",
-          key: `table-cell-${cell.cellInfo.i_row}-${cell.cellInfo.i_col}`,
-          bounds: new RectCoordsDims({
-            x: currentX,
-            y: currentY,
-            w: colWidth,
-            h: rowHeight,
-          }),
+          key: `table-cell-${ci.i_row}-${ci.i_col}`,
+          item: buildItem([
+            slotCoordinate(d.rows?.dimension, ci.rowHeader),
+            slotCoordinate(d.rows?.groupDimension, ci.rowGroupHeader),
+            slotCoordinate(d.cols?.dimension, ci.colHeader),
+            slotCoordinate(d.cols?.groupDimension, ci.colGroupHeader),
+          ]),
+          part: "body",
+          bounds,
+          hitBounds: bounds,
           zIndex: Z_INDEX.TABLE_CELL_BG,
           meta: {
-            i_row: cell.cellInfo.i_row,
-            i_col: cell.cellInfo.i_col,
-            rowHeader: cell.cellInfo.rowHeader,
-            colHeader: cell.cellInfo.colHeader,
-            rowGroupHeader: cell.cellInfo.rowGroupHeader,
-            colGroupHeader: cell.cellInfo.colGroupHeader,
+            i_row: ci.i_row,
+            i_col: ci.i_col,
+            rowHeader: ci.rowHeader,
+            colHeader: ci.colHeader,
+            rowGroupHeader: ci.rowGroupHeader,
+            colGroupHeader: ci.colGroupHeader,
           },
           annotationGroup: cell.cellStyle.annotationGroup,
           backgroundColor: cell.cellStyle.backgroundColor,
@@ -285,9 +343,9 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
   // Vertical grid lines (inner) and right border
   {
     let vX = m.firstCellX;
-    const totalCols = sum(d.colGroups.map((cg) => cg.cols.length));
+    const totalCols = sum(colGroups.map((cg) => cg.cols.length));
     let colIndex = 0;
-    d.colGroups.forEach((colGroup) => {
+    colGroups.forEach((colGroup) => {
       const nColsThisGroup = colGroup.cols.length;
       colGroup.cols.forEach((col, i_col) => {
         vX += m.colInnerWidths[col.index];

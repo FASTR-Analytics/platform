@@ -32,6 +32,7 @@ import {
 import { getTableDataTransformed } from "./get_table_data.ts";
 import type { TableInputs } from "./mod.ts";
 import type { MeasuredTable } from "./types.ts";
+import { tableColGroups, tableRowGroups } from "./types.ts";
 
 function getMinComfortableWidth(
   rc: RenderContext,
@@ -53,8 +54,8 @@ function getMinComfortableWidth(
     s,
   ).data;
 
-  const nCols = sum(d.colGroups.map((cg) => cg.cols.length));
-  const hasRowGroupHeaders = d.rowGroups.some((rg) => rg.label);
+  const nCols = sum(tableColGroups(d).map((cg) => cg.cols.length));
+  const hasRowGroupHeaders = tableRowGroups(d).some((rg) => rg.label);
 
   // Calculate surrounds minimum width first (mainly right-positioned
   // legends) — it also feeds the row-header cap below.
@@ -74,7 +75,7 @@ function getMinComfortableWidth(
     (s.rowHeaderPadding.totalPx() +
       (hasRowGroupHeaders ? s.rowHeaderIndentIfRowGroups : 0));
   let minRowHeaderWidth = 0;
-  for (const rowGroup of d.rowGroups) {
+  for (const rowGroup of tableRowGroups(d)) {
     if (rowGroup.label !== undefined) {
       minRowHeaderWidth = Math.max(
         minRowHeaderWidth,
@@ -97,13 +98,13 @@ function getMinComfortableWidth(
   // Shared helpers — same logic used by measureTable.
   const nRows = d.aoa.length;
   const allColIndices: number[] = [];
-  for (const colGroup of d.colGroups) {
+  for (const colGroup of tableColGroups(d)) {
     for (const col of colGroup.cols) {
       allColIndices.push(col.index);
     }
   }
   const excludedRowIndices = buildExcludedRowIndices(
-    d.rowGroups,
+    tableRowGroups(d),
     d.liveDomainExcludeIds,
   );
   const columnMinMax = computeColumnMinMax(

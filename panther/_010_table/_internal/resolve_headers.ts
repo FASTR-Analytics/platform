@@ -9,7 +9,12 @@ import type {
   TableHeaderInfoFunc,
   TableHeaderSampleN,
 } from "../deps.ts";
-import type { ResolvedTableHeaders, TableDataTransformed } from "../types.ts";
+import {
+  type ResolvedTableHeaders,
+  tableColGroups,
+  type TableDataTransformed,
+  tableRowGroups,
+} from "../types.ts";
 import {
   buildExcludedColIndices,
   buildExcludedRowIndices,
@@ -59,8 +64,10 @@ export function resolveTableHeadersTransformed(
   d: TableDataTransformed,
   s: MergedTableStyle,
 ): ResolvedTableHeaders {
-  const nRows = d.rowGroups.reduce((t, rg) => t + rg.rows.length, 0);
-  const nCols = d.colGroups.reduce((t, cg) => t + cg.cols.length, 0);
+  const rowGroups = tableRowGroups(d);
+  const colGroups = tableColGroups(d);
+  const nRows = rowGroups.reduce((t, rg) => t + rg.rows.length, 0);
+  const nCols = colGroups.reduce((t, cg) => t + cg.cols.length, 0);
 
   const rowSampleN: (TableHeaderSampleN | undefined)[] = [];
   const colSampleN: (TableHeaderSampleN | undefined)[] = [];
@@ -81,24 +88,24 @@ export function resolveTableHeadersTransformed(
       );
     }
     const excludedRows = buildExcludedRowIndices(
-      d.rowGroups,
+      rowGroups,
       d.liveDomainExcludeIds,
     );
     const excludedCols = buildExcludedColIndices(
-      d.colGroups,
+      colGroups,
       d.liveDomainExcludeIds,
     );
 
     // Slices follow display order (groups flattened), which for hand-authored
     // data may differ from index order.
     const rowIndexOrder: number[] = [];
-    for (const rg of d.rowGroups) {
+    for (const rg of rowGroups) {
       for (const row of rg.rows) {
         rowIndexOrder.push(row.index);
       }
     }
     const colIndexOrder: number[] = [];
-    for (const cg of d.colGroups) {
+    for (const cg of colGroups) {
       for (const col of cg.cols) {
         colIndexOrder.push(col.index);
       }
@@ -115,7 +122,7 @@ export function resolveTableHeadersTransformed(
         excluded: excludedCols.has(ci),
       }));
 
-    d.colGroups.forEach((cg, gi) => {
+    colGroups.forEach((cg, gi) => {
       for (const col of cg.cols) {
         colSampleN[col.index] = digestSlice(colCells(col.index));
       }
@@ -123,7 +130,7 @@ export function resolveTableHeadersTransformed(
         cg.cols.flatMap((col) => colCells(col.index)),
       );
     });
-    d.rowGroups.forEach((rg, gi) => {
+    rowGroups.forEach((rg, gi) => {
       for (const row of rg.rows) {
         rowSampleN[row.index] = digestSlice(rowCells(row.index));
       }
@@ -161,56 +168,62 @@ export function resolveTableHeadersTransformed(
 
   const data: TableDataTransformed = {
     ...d,
-    colGroups: d.colGroups.map((cg, gi) => ({
-      id: cg.id,
-      label: cg.label === undefined ? undefined : resolveLabel(
-        colFormatter,
-        cg.id,
-        cg.label,
-        undefined,
-        nCols,
-        true,
-        colGroupSampleN[gi],
-      ),
-      cols: cg.cols.map((col) => ({
-        id: col.id,
-        label: col.label === undefined ? undefined : resolveLabel(
+    cols: d.cols && {
+      ...d.cols,
+      groups: d.cols.groups.map((cg, gi) => ({
+        id: cg.id,
+        label: cg.label === undefined ? undefined : resolveLabel(
           colFormatter,
-          col.id,
-          col.label,
-          col.index,
+          cg.id,
+          cg.label,
+          undefined,
           nCols,
-          false,
-          colSampleN[col.index],
+          true,
+          colGroupSampleN[gi],
         ),
-        index: col.index,
+        cols: cg.cols.map((col) => ({
+          id: col.id,
+          label: col.label === undefined ? undefined : resolveLabel(
+            colFormatter,
+            col.id,
+            col.label,
+            col.index,
+            nCols,
+            false,
+            colSampleN[col.index],
+          ),
+          index: col.index,
+        })),
       })),
-    })),
-    rowGroups: d.rowGroups.map((rg, gi) => ({
-      id: rg.id,
-      label: rg.label === undefined ? undefined : resolveLabel(
-        rowFormatter,
-        rg.id,
-        rg.label,
-        undefined,
-        nRows,
-        true,
-        rowGroupSampleN[gi],
-      ),
-      rows: rg.rows.map((row) => ({
-        id: row.id,
-        label: row.label === undefined ? undefined : resolveLabel(
+    },
+    rows: d.rows && {
+      ...d.rows,
+      groups: d.rows.groups.map((rg, gi) => ({
+        id: rg.id,
+        label: rg.label === undefined ? undefined : resolveLabel(
           rowFormatter,
-          row.id,
-          row.label,
-          row.index,
+          rg.id,
+          rg.label,
+          undefined,
           nRows,
-          false,
-          rowSampleN[row.index],
+          true,
+          rowGroupSampleN[gi],
         ),
-        index: row.index,
+        rows: rg.rows.map((row) => ({
+          id: row.id,
+          label: row.label === undefined ? undefined : resolveLabel(
+            rowFormatter,
+            row.id,
+            row.label,
+            row.index,
+            nRows,
+            false,
+            rowSampleN[row.index],
+          ),
+          index: row.index,
+        })),
       })),
-    })),
+    },
   };
 
   return { data, rowSampleN, colSampleN, rowGroupSampleN, colGroupSampleN };

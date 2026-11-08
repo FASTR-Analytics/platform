@@ -20,6 +20,7 @@ import { generateErrorBarPrimitives } from "./generate_error_bar_primitives.ts";
 import { generateLinePrimitives } from "./generate_line_primitives.ts";
 import { generatePointPrimitives } from "./generate_point_primitives.ts";
 import { resolveDataLabelOwnership } from "./resolve_data_label_ownership.ts";
+import type { ChartItemAxes } from "../chart_items.ts";
 import type { OverhangClearance, ValueRange } from "../types.ts";
 
 export type ContentPrimitiveGenerationParams = {
@@ -30,13 +31,13 @@ export type ContentPrimitiveGenerationParams = {
     seriesValArrays: (number | undefined)[][];
     i_pane: number;
     nPanes: number;
-    paneHeader: HeaderItem;
+    paneHeader: HeaderItem | undefined;
     i_tier: number;
     nTiers: number;
-    tierHeader: HeaderItem;
+    tierHeader: HeaderItem | undefined;
     i_lane: number;
     nLanes: number;
-    laneHeader: HeaderItem;
+    laneHeader: HeaderItem | undefined;
   };
   seriesVals: (number | undefined)[][];
   valueRange: ValueRange;
@@ -46,10 +47,7 @@ export type ContentPrimitiveGenerationParams = {
   gridStrokeWidth: number;
   nVals: number;
   orientation: "vertical" | "horizontal";
-  transformedData: {
-    seriesHeaders: HeaderItem[];
-    indicatorHeaders?: HeaderItem[];
-  };
+  itemAxes: ChartItemAxes;
   contentStyle: MergedContentStyle;
   dataLabelsTextStyle: TextInfoUnkeyed;
   boundsUbSeriesVals?: (number | undefined)[][];
@@ -89,7 +87,6 @@ export function generateContentPrimitives(
     gridStrokeWidth,
     nVals,
     orientation,
-    transformedData: d,
     contentStyle: s,
     slotOrder,
   } = params;
@@ -148,8 +145,7 @@ export function generateContentPrimitives(
     orientation,
     categoryIncrement,
     gridStrokeWidth,
-    seriesHeaders: d.seriesHeaders,
-    indicatorHeaders: d.indicatorHeaders,
+    itemAxes: params.itemAxes,
     contentStyle: s,
     dataLabelsTextStyle: params.dataLabelsTextStyle,
     valueRange,

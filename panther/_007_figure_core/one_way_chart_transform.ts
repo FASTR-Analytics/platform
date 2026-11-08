@@ -14,15 +14,14 @@
 import {
   type AxisMembership,
   createArray,
-  createHeaderItems,
-  type HeaderItem,
+  type DataAxis,
   type HeaderSortConfig,
-  sortHeaderItems,
+  slotHeaders,
 } from "./deps.ts";
 import {
+  buildDataAxis,
   calculateChartScaleLimits,
   checkValuePropsAssignment,
-  collectHeaders,
   deriveVisibleIndicatorsByPane,
   deriveVisibleIndicatorsByPaneBand,
   deriveVisibleLanesByPane,
@@ -31,11 +30,12 @@ import {
   getHeaderIndex,
   orderVisibleByPane,
   orderVisibleByPaneBand,
-  type ProcessedHeaders,
   resolveChartProportional,
+  type SlotAxes,
   validateChartMembership,
   validateChartProportional,
   validateDataInput,
+  validateDistinctDimensions,
 } from "./common_data_transform.ts";
 import {
   type ChartScaleAxisLimits,
@@ -85,11 +85,11 @@ export type OneWayJsonConfigCore = {
 
 export type OneWayTransformResult = {
   isTransformed: true;
-  indicatorHeaders: HeaderItem[];
-  seriesHeaders: HeaderItem[];
-  laneHeaders: HeaderItem[];
-  tierHeaders: HeaderItem[];
-  paneHeaders: HeaderItem[];
+  indicator: DataAxis;
+  series?: DataAxis;
+  lane?: DataAxis;
+  tier?: DataAxis;
+  pane?: DataAxis;
   values: (number | undefined)[][][][][];
   bounds?: {
     ub: (number | undefined)[][][][][];
@@ -176,41 +176,32 @@ export function transformOneWayChartJson(
     ? jsonArray
     : sourceRows;
 
-  const indicatorHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(headersSource, indicatorProp, valueProps),
+  validateDistinctDimensions({
+    indicator: indicatorProp,
+    series: seriesProp,
+    lane: laneProp,
+    tier: tierProp,
+    pane: paneProp,
+  });
+  const axis = (prop: string | undefined, sortConfig?: HeaderSortConfig) =>
+    buildDataAxis(
+      headersSource,
+      prop,
+      valueProps,
       labelReplacements,
-    ),
+      sortConfig,
+    );
+  const indicator = buildDataAxis(
+    headersSource,
+    indicatorProp,
+    valueProps,
+    labelReplacements,
     sort?.indicator,
   );
-  const seriesHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(headersSource, seriesProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.series,
-  );
-  const laneHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(headersSource, laneProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.lane,
-  );
-  const tierHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(headersSource, tierProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.tier,
-  );
-  const paneHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(headersSource, paneProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.pane,
-  );
+  const series = axis(seriesProp, sort?.series);
+  const lane = axis(laneProp, sort?.lane);
+  const tier = axis(tierProp, sort?.tier);
+  const pane = axis(paneProp, sort?.pane);
 
   checkValuePropsAssignment(valueProps, {
     indicatorProp,
@@ -220,11 +211,11 @@ export function transformOneWayChartJson(
     paneProp,
   });
 
-  const nPanes = paneHeaders.length;
-  const nTiers = tierHeaders.length;
-  const nLanes = laneHeaders.length;
-  const nSeries = seriesHeaders.length;
-  const nIndicators = indicatorHeaders.length;
+  const nPanes = slotHeaders(pane).length;
+  const nTiers = slotHeaders(tier).length;
+  const nLanes = slotHeaders(lane).length;
+  const nSeries = slotHeaders(series).length;
+  const nIndicators = indicator.headers.length;
 
   const values = createEmptyValuesArray(
     nPanes,
@@ -234,25 +225,18 @@ export function transformOneWayChartJson(
     nIndicators,
   );
 
-  const headers: ProcessedHeaders = {
-    series: seriesHeaders,
-    lane: laneHeaders,
-    tier: tierHeaders,
-    pane: paneHeaders,
-  };
+  const axes: SlotAxes = { series, lane, tier, pane };
 
-  const dimensionProps = { seriesProp, laneProp, tierProp, paneProp };
   const getIndicatorIndex = (
     obj: { [key: string]: string | number | undefined | null },
     valueProp: string,
-  ) => getHeaderIndex(indicatorProp, valueProp, obj, indicatorHeaders);
+  ) => getHeaderIndex(indicator, valueProp, obj);
 
   fillValuesWithDuplicateCheck(
     values,
     sourceRows,
     valueProps,
-    headers,
-    dimensionProps,
+    axes,
     getIndicatorIndex,
   );
 
@@ -289,16 +273,14 @@ export function transformOneWayChartJson(
         ubValues,
         ubRows,
         valueProps,
-        headers,
-        dimensionProps,
+        axes,
         getIndicatorIndex,
       );
       fillValuesWithDuplicateCheck(
         lbValues,
         lbRows,
         valueProps,
-        headers,
-        dimensionProps,
+        axes,
         getIndicatorIndex,
       );
     } else {
@@ -306,16 +288,14 @@ export function transformOneWayChartJson(
         ubValues,
         jsonArray,
         uncertainty.ubValueProps,
-        headers,
-        dimensionProps,
+        axes,
         getIndicatorIndex,
       );
       fillValuesWithDuplicateCheck(
         lbValues,
         jsonArray,
         uncertainty.lbValueProps,
-        headers,
-        dimensionProps,
+        axes,
         getIndicatorIndex,
       );
     }
@@ -389,7 +369,7 @@ export function transformOneWayChartJson(
     ? orderVisibleByPane(
       raggedIndicators
         ? deriveVisibleIndicatorsByPane(values, bounds, nIndicators)
-        : paneHeaders.map(() => indicatorHeaders.map((_, i) => i)),
+        : createArray(nPanes, () => indicator.headers.map((_, i) => i)),
       values,
       spec.bandAxis,
       valueSort,
@@ -418,11 +398,11 @@ export function transformOneWayChartJson(
 
   return {
     isTransformed: true,
-    indicatorHeaders,
-    seriesHeaders,
-    laneHeaders,
-    tierHeaders,
-    paneHeaders,
+    indicator,
+    series,
+    lane,
+    tier,
+    pane,
     values,
     bounds,
     scaleAxisLimits: scaleLimits,

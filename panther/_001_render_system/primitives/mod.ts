@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+export * from "./identity.ts";
 export * from "./types.ts";
 export * from "./utils.ts";
 export * from "./translate.ts";

@@ -76,8 +76,9 @@ export type TableJsonDataConfig = {
 
 export type TableDataTransformed = {
   isTransformed: true;
-  colGroups: ColGroup[];
-  rowGroups: RowGroup[];
+  // An absent axis is one column (or row) without a header.
+  cols?: TableColAxis;
+  rows?: TableRowAxis;
   aoa: (string | number)[][];
   liveDomainExcludeIds?: string[];
   // Sample sizes, same orientation and final sorted index space as aoa.
@@ -96,8 +97,8 @@ export type ResolvedTableHeaders = {
   data: TableDataTransformed;
   rowSampleN: (TableHeaderSampleN | undefined)[]; // by row.index
   colSampleN: (TableHeaderSampleN | undefined)[]; // by col.index
-  rowGroupSampleN: (TableHeaderSampleN | undefined)[]; // by rowGroups position
-  colGroupSampleN: (TableHeaderSampleN | undefined)[]; // by colGroups position
+  rowGroupSampleN: (TableHeaderSampleN | undefined)[]; // by row group position
+  colGroupSampleN: (TableHeaderSampleN | undefined)[]; // by col group position
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -114,6 +115,22 @@ export function isTableDataTransformed(
   return (d as TableDataTransformed).isTransformed === true;
 }
 
+// A table axis names its dimension and, when it is grouped, its group
+// dimension. A group's id and label are undefined exactly when groupDimension
+// is absent, which leaves one group. A member's label is undefined when it
+// shows no header (a positional row).
+export type TableColAxis = {
+  dimension: string;
+  groupDimension?: string;
+  groups: ColGroup[];
+};
+
+export type TableRowAxis = {
+  dimension: string;
+  groupDimension?: string;
+  groups: RowGroup[];
+};
+
 export type ColGroup = {
   id: string | undefined;
   label: string | undefined;
@@ -121,7 +138,7 @@ export type ColGroup = {
 };
 
 export type ColGroupCol = {
-  id: string | undefined;
+  id: string;
   label: string | undefined;
   index: number;
 };
@@ -133,10 +150,40 @@ export type RowGroup = {
 };
 
 export type RowGroupRow = {
-  id: string | undefined;
+  id: string;
   label: string | undefined;
   index: number;
 };
+
+// The groups a table lays out. An absent axis is one group holding one member
+// with no header, so its member has no id.
+export type LaidOutColGroup = {
+  id: string | undefined;
+  label: string | undefined;
+  cols: { id: string | undefined; label: string | undefined; index: number }[];
+};
+
+export type LaidOutRowGroup = {
+  id: string | undefined;
+  label: string | undefined;
+  rows: { id: string | undefined; label: string | undefined; index: number }[];
+};
+
+export function tableColGroups(d: TableDataTransformed): LaidOutColGroup[] {
+  return d.cols?.groups ?? [{
+    id: undefined,
+    label: undefined,
+    cols: [{ id: undefined, label: undefined, index: 0 }],
+  }];
+}
+
+export function tableRowGroups(d: TableDataTransformed): LaidOutRowGroup[] {
+  return d.rows?.groups ?? [{
+    id: undefined,
+    label: undefined,
+    rows: [{ id: undefined, label: undefined, index: 0 }],
+  }];
+}
 
 export type RowHeaderInfo = {
   mText: MeasuredText | undefined;
@@ -166,6 +213,8 @@ export type ColGroupHeaderInfo = {
 
 export type ColHeaderInfo = {
   mText: MeasuredText | undefined;
+  id: string | undefined;
+  label: string | undefined;
   index: number;
   headerStyle: TableHeaderStyle;
 };

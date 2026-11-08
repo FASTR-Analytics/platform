@@ -3,15 +3,16 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { HeaderItem } from "../deps.ts";
+import type { DataAxis } from "../deps.ts";
 import type { LegendItem } from "./types.ts";
 import type { LegendInput } from "./scale_legend_types.ts";
 
+// An unsplit series has no legend.
 export function resolveDefaultLegend(
   legend: LegendInput | undefined,
-  seriesHeaders: HeaderItem[],
+  series: DataAxis | undefined,
 ): LegendInput {
-  return legend ?? seriesHeaders.map((h) => h.label);
+  return legend ?? series?.headers.map((h) => h.label) ?? [];
 }
 
 export function getLegendItemsInGroups(

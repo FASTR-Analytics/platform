@@ -1,7 +1,6 @@
 # Temp Module
 
-A comprehensive temporary file and directory management system for Deno with
-advanced features.
+A comprehensive temporary file and directory management system for Deno with advanced features.
 
 ## Features
 

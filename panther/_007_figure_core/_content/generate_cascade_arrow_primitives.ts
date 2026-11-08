@@ -5,15 +5,16 @@
 
 import type {
   CascadeArrowInfo,
-  CascadeArrowPrimitive,
   CascadeArrowStyle,
   ChartBarPrimitive,
+  ChartCascadeArrowPrimitive,
   DataLabel,
   MergedCascadeArrowStyle,
   PathSegment,
   RenderContext,
 } from "../deps.ts";
-import { Coordinates, getColor, RectCoordsDims, Z_INDEX } from "../deps.ts";
+import { Coordinates, RectCoordsDims, Z_INDEX } from "../deps.ts";
+import { buildLabelHalo } from "../label_halo.ts";
 import { buildDataLabelTextStyle } from "./content_generation_types.ts";
 import { catCenterOfRect } from "./orientation_helpers.ts";
 
@@ -22,12 +23,12 @@ export function generateCascadeArrowPrimitives(
   arrowStyle: MergedCascadeArrowStyle,
   rc: RenderContext,
   orientation: "vertical" | "horizontal",
-): CascadeArrowPrimitive[] {
+): ChartCascadeArrowPrimitive[] {
   if (orientation !== "vertical") {
     return [];
   }
 
-  const result: CascadeArrowPrimitive[] = [];
+  const result: ChartCascadeArrowPrimitive[] = [];
 
   const groups = new Map<string, ChartBarPrimitive[]>();
   for (const bar of barPrimitives) {
@@ -117,7 +118,7 @@ function computeCascadeArrow(
   s: CascadeArrowStyle,
   arrowStyle: MergedCascadeArrowStyle,
   rc: RenderContext,
-): CascadeArrowPrimitive {
+): ChartCascadeArrowPrimitive {
   const { relRetention } = cascadeArrowInfo;
   const sw = s.strokeWidth;
 
@@ -287,26 +288,12 @@ function computeCascadeArrow(
 
   let dataLabel: DataLabel | undefined;
   if (mText) {
-    const hasDecoration = dl.backgroundColor !== "none" ||
-      dl.borderWidth > 0;
     dataLabel = {
       mText,
       position: new Coordinates({ x: midX, y: labelY }),
       alignH: "center",
       alignV: "top",
-      style: hasDecoration
-        ? {
-          backgroundColor: dl.backgroundColor !== "none"
-            ? getColor(dl.backgroundColor)
-            : undefined,
-          padding: dl.padding,
-          borderColor: dl.borderColor !== "none"
-            ? getColor(dl.borderColor)
-            : undefined,
-          borderWidth: dl.borderWidth > 0 ? dl.borderWidth : undefined,
-          rectRadius: dl.rectRadius,
-        }
-        : undefined,
+      halo: buildLabelHalo(dl),
     };
   }
 
@@ -323,15 +310,17 @@ function computeCascadeArrow(
   });
 
   return {
-    type: "cascade-arrow",
+    type: "chart-cascade-arrow",
     key:
-      `cascade-arrow-${fromBar.meta.value.i_pane}-${fromBar.meta.value.i_tier}-${fromBar.meta.value.i_lane}-${fromBar.meta.value.i_series}-${fromBar.meta.value.i_val}`,
+      `chart-cascade-arrow-${fromBar.meta.value.i_pane}-${fromBar.meta.value.i_tier}-${fromBar.meta.value.i_lane}-${fromBar.meta.value.i_series}-${fromBar.meta.value.i_val}`,
+    item: fromBar.item,
+    part: "link",
     bounds,
+    hitBounds: bounds,
     zIndex: Z_INDEX.CASCADE_ARROW,
     meta: {
-      i_fromStage: fromBar.meta.value.i_val,
-      i_toStage: toBar.meta.value.i_val,
-      i_series: fromBar.meta.value.i_series,
+      from: fromBar.meta.value,
+      to: toBar.meta.value,
       relRetention,
     },
     pathSegments,

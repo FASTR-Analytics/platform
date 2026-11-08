@@ -1,15 +1,12 @@
 # _007_figure_core
 
-Core visualization framework providing the foundational rendering system for all
-Figures (Charts, Tables, Scenes and Diagrams).
+Core visualization framework providing the foundational rendering system for all Figures (Charts, Tables, Scenes and Diagrams).
 
 ## Purpose
 
-The heart of the Panther visualization system, providing shared infrastructure
-for all Figure types:
+The heart of the Panther visualization system, providing shared infrastructure for all Figure types:
 
-- **Primitive system**: Low-level rendering instructions (points, lines, bars,
-  areas, nodes, edges, axes, grids, captions, legends)
+- **Primitive system**: Low-level rendering instructions (points, lines, bars, areas, nodes, edges, axes, grids, captions, legends)
 - **Renderer pattern**: Common `measure()` and `render()` interface
 - **Styling infrastructure**: Consistent style merging across all figures
 - **Surrounds**: Titles, subtitles, footnotes, captions (shared by all figures)
@@ -24,15 +21,12 @@ for all Figure types:
 
 ## Figure vs Chart
 
-**Figure** is the abstract concept for any renderable visualization component.
-All Figures share common infrastructure from this module.
+**Figure** is the abstract concept for any renderable visualization component. All Figures share common infrastructure from this module.
 
-**Chart** is a specific type of Figure that uses a grid-based coordinate system
-with panes, tiers, and lanes:
+**Chart** is a specific type of Figure that uses a grid-based coordinate system with panes, tiers, and lanes:
 
 - **Chart types**: Timeseries (`_010_timeseries/`), ChartOV (`_010_chartov/`)
-- **Non-Chart Figures**: Table (`_010_table/`), Scene and Diagram
-  (`_010_scene/`)
+- **Non-Chart Figures**: Table (`_010_table/`), Scene and Diagram (`_010_scene/`)
 
 See `DOC_FIGURE_ARCHITECTURE.md` for detailed taxonomy.
 
@@ -45,8 +39,8 @@ All figures now use a **primitives-based rendering system**:
 Generate primitives (pure data structures with positions, styles, content):
 
 ```typescript
-const measured = measureChart(rc, bounds, inputs);
-// measured.primitives contains all rendering instructions
+const measured = measureChart(rc, bounds, inputs, config);
+// measured.primitives contains all rendering instructions, surrounds included
 ```
 
 ### 2. Render Phase
@@ -54,25 +48,18 @@ const measured = measureChart(rc, bounds, inputs);
 Render primitives to canvas:
 
 ```typescript
-renderPrimitives(rc, measured.primitives);
+renderFigurePrimitives(rc, measured.primitives);
 ```
 
 ### Primitive Types
 
 **Chart primitives** (ChartOV, Timeseries):
 
-- `ChartAxisPrimitive` - Axis lines, ticks, labels
-- `ChartGridPrimitive` - Grid lines
-- `ChartPointPrimitive` - Data points
-- `ChartLinePrimitive` - Line segments
-- `ChartAreaPrimitive` - Filled areas
-- `ChartBarPrimitive` - Bar rectangles
-- `ChartCaptionPrimitive` - Titles, subtitles, footnotes
-- `ChartLegendPrimitive` - Legend with symbols and labels
+- `ChartAxisPrimitive`, `ChartGridPrimitive`, `ChartLabelPrimitive`, `ChartDataPointPrimitive`, `ChartLineSeriesPrimitive`, `ChartAreaSeriesPrimitive`, `ChartConnectorPrimitive`, `ChartBarPrimitive`, `ChartErrorBarPrimitive`, `ChartConfidenceBandPrimitive`, `ChartCascadeArrowPrimitive`
 
-**Shape primitives** (`shape-rect`, `shape-text`, `shape-path`, `shape-image`):
-the generic shapes a scene element lowers to (`_010_scene`), each keyed under
-its element and painted with an optional ambient `opacity`.
+**Figure primitives** (every figure): `FigureCaptionPrimitive`, `FigureLegendPrimitive`, `FigureScaleLegendGradientPrimitive`, `FigureScaleLegendSteppedPrimitive`, `FigureLabelPrimitive`
+
+**Shape primitives** (`shape-rect`, `shape-text`, `shape-path`, `shape-image`): the generic shapes a scene element lowers to (`_010_scene`), each keyed under its element and painted with an optional ambient `opacity`.
 
 **Table**: Uses surrounds primitives for captions/legend
 
@@ -109,36 +96,32 @@ This pane/tier/lane system is what distinguishes Charts from other Figures.
 ### Chart Measurement
 
 ```typescript
-measureChart(
+measureChart<TInputs, TData, TStyle>(
   rc: RenderContext,
-  bounds: RectCoordsDims,
-  chartInputs: ChartInputs,
-): MeasuredChart
+  rcdWithSurrounds: RectCoordsDims,
+  inputs: TInputs,
+  config: SimplifiedChartConfig<TInputs, TData, TStyle>,
+  fitScale?: number,
+  layoutOnly?: boolean,
+): MeasuredChartBase<TInputs, TData, TStyle>
 
-measurePane(
+measurePane<TData>(
   rc: RenderContext,
-  bounds: RectCoordsDims,
-  paneInputs: PaneInputs,
-): MeasuredPane
+  config: MeasurePaneConfig<TData>,
+  layoutOnly?: boolean,
+): { primitives: Primitive[]; layout: PaneLayout }
 ```
 
 ### Primitives Generation
 
 ```typescript
-// Generate chart primitives (axes, grid, data)
-generateChartPrimitives(
-  rc: RenderContext,
-  measured: MeasuredChart,
-  config: ChartPrimitivesConfig,
-): Primitive[]
-
 // Generate surrounds primitives (captions + legend)
 generateSurroundsPrimitives(
   mSurrounds: MeasuredSurrounds,
 ): Primitive[]
 
 // Render all primitives
-renderPrimitives(
+renderFigurePrimitives(
   rc: RenderContext,
   primitives: Primitive[],
 ): void
@@ -158,8 +141,7 @@ type XAxisType = "period" | "text" | "scale";
 type YAxisType = "scale";
 ```
 
-Note: Axis rendering is now handled via primitives (no direct rendering
-functions).
+Note: Axis rendering is now handled via primitives (no direct rendering functions).
 
 ### Legend
 
@@ -192,12 +174,7 @@ measureSurrounds(
 ## Usage Example
 
 ```typescript
-import {
-  generateChartPrimitives,
-  generateSurroundsPrimitives,
-  measureChart,
-  renderPrimitives,
-} from "@timroberton/panther";
+import { measureChart, renderFigurePrimitives } from "@timroberton/panther";
 
 // Define chart inputs
 const chartInputs = {
@@ -211,23 +188,11 @@ const measured = measureChart(
   renderContext,
   boundingBox,
   chartInputs,
-);
-
-// Generate chart primitives
-const chartPrimitives = generateChartPrimitives(
-  renderContext,
-  measured,
   config,
 );
 
-// Generate surrounds primitives
-const surroundsPrimitives = generateSurroundsPrimitives(
-  measured.measuredSurrounds,
-);
-
-// Combine and render
-const primitives = [...chartPrimitives, ...surroundsPrimitives];
-renderPrimitives(renderContext, primitives);
+// Render the chart's primitives, surrounds included
+renderFigurePrimitives(renderContext, measured.primitives);
 ```
 
 ## Module Dependencies
@@ -247,8 +212,7 @@ Axis measurement and primitive generation for period, text, and scale axes.
 
 ### `_content/`
 
-Content primitive generation (points, lines, areas, bars) and coordinate
-mapping.
+Content primitive generation (points, lines, areas, bars) and coordinate mapping.
 
 ### `_legend/`
 

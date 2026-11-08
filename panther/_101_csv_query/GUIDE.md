@@ -25,8 +25,7 @@ Queries execute in a fixed order regardless of method call order:
 2. **groupBy** - Group and aggregate
 3. **orderBy** - Sort results
 
-This means `.orderBy()` always operates on the final result, even if called
-before `.groupBy()`.
+This means `.orderBy()` always operates on the final result, even if called before `.groupBy()`.
 
 ## Methods
 
@@ -57,8 +56,7 @@ Groups rows by specified columns. Can only be called once.
 
 ### Aggregates
 
-Must be used with `groupBy()`. Each takes a column name and optional output
-column name.
+Must be used with `groupBy()`. Each takes a column name and optional output column name.
 
 | Method                        | Behavior on empty set           |
 | ----------------------------- | ------------------------------- |
@@ -72,8 +70,7 @@ column name.
 | `first(col, output?)`         | Returns `""`                    |
 | `last(col, output?)`          | Returns `""`                    |
 
-Default output column names: `{col}_sum`, `{col}_avg`, `{col}_median`,
-`{col}_distinct`, `{col}_first`, `{col}_last`, etc.
+Default output column names: `{col}_sum`, `{col}_avg`, `{col}_median`, `{col}_distinct`, `{col}_first`, `{col}_last`, etc.
 
 ### `orderBy(column, direction?)` or `orderBy(specs[])`
 
@@ -106,10 +103,8 @@ Runs the query and returns a new `Csv`.
 
 - Input can be `Csv<T>` of any type
 - `where()` preserves the input type
-- `groupBy()` always produces `Csv<string>` (keys and aggregates are
-  stringified)
-- Numeric comparisons in `where()` handle string-to-number conversion
-  automatically
+- `groupBy()` always produces `Csv<string>` (keys and aggregates are stringified)
+- Numeric comparisons in `where()` handle string-to-number conversion automatically
 
 ## Common Patterns
 

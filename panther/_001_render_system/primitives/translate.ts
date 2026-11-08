@@ -5,17 +5,17 @@
 
 import { Coordinates, type RectCoordsDims } from "../deps.ts";
 import type {
-  ChartCaptionPrimitive,
-  ChartLegendPrimitive,
-  ScaleLegendGradientPrimitive,
-  ScaleLegendSteppedPrimitive,
+  FigureCaptionPrimitive,
+  FigureLegendPrimitive,
+  FigureScaleLegendGradientPrimitive,
+  FigureScaleLegendSteppedPrimitive,
 } from "./types.ts";
 
 export type SurroundsPrimitive =
-  | ChartCaptionPrimitive
-  | ChartLegendPrimitive
-  | ScaleLegendGradientPrimitive
-  | ScaleLegendSteppedPrimitive;
+  | FigureCaptionPrimitive
+  | FigureLegendPrimitive
+  | FigureScaleLegendGradientPrimitive
+  | FigureScaleLegendSteppedPrimitive;
 
 export function translatePrimitive(
   p: SurroundsPrimitive,
@@ -36,24 +36,34 @@ export function translatePrimitive(
   const bounds = rect(p.bounds);
   const annotationBounds = p.annotationBounds && rect(p.annotationBounds);
   switch (p.type) {
-    case "chart-caption":
-      return { ...p, bounds, annotationBounds, position: pt(p.position) };
-    case "chart-legend":
+    case "figure-caption":
       return {
         ...p,
         bounds,
         annotationBounds,
-        items: p.items.map((item) => ({
-          ...item,
-          labelPosition: pt(item.labelPosition),
-          symbol: item.symbol.type === "point"
-            ? { ...item.symbol, position: pt(item.symbol.position) }
-            : item.symbol.type === "line"
-            ? { ...item.symbol, coords: item.symbol.coords.map(pt) }
-            : { ...item.symbol, position: rect(item.symbol.position) },
-        })),
+        anchorRcd: rect(p.anchorRcd),
+        hitBounds: rect(p.hitBounds),
       };
-    case "scale-legend-gradient":
+    case "figure-legend":
+      return {
+        ...p,
+        bounds,
+        annotationBounds,
+        items: p.items.map((item) => {
+          const placed = {
+            labelPosition: pt(item.labelPosition),
+            symbol: item.symbol.type === "point"
+              ? { ...item.symbol, position: pt(item.symbol.position) }
+              : item.symbol.type === "line"
+              ? { ...item.symbol, coords: item.symbol.coords.map(pt) }
+              : { ...item.symbol, position: rect(item.symbol.position) },
+          };
+          return item.part === undefined
+            ? { ...item, ...placed }
+            : { ...item, ...placed, hitBounds: rect(item.hitBounds) };
+        }),
+      };
+    case "figure-scale-legend-gradient":
       return {
         ...p,
         bounds,
@@ -65,7 +75,7 @@ export function translatePrimitive(
         })),
         noData: noData(p.noData),
       };
-    case "scale-legend-stepped":
+    case "figure-scale-legend-stepped":
       return {
         ...p,
         bounds,

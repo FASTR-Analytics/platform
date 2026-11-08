@@ -22,6 +22,8 @@ export type XAxisConfig =
   }
   | {
     type: "period";
+    // The period's dimension, which names the items of its time points.
+    dimension: string;
     periodType: PeriodType;
     nTimePoints: number;
     timeMin: number;

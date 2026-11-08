@@ -15,6 +15,7 @@ import {
   type Primitive,
   Z_INDEX,
 } from "../deps.ts";
+import { chartConnectorItem } from "../chart_items.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 import {
   buildSeriesInfo,
@@ -28,7 +29,7 @@ type Endpoint = {
   coord: Coordinates;
   val: number;
   i_series: number;
-  seriesHeader: HeaderItem;
+  seriesHeader: HeaderItem | undefined;
   pointRadius: number;
 };
 
@@ -66,18 +67,19 @@ export function generateConnectorPrimitives(
       lineDash: style.lineDash,
     };
     const coords = endpoints.map((e) => e.coord);
+    const bounds = computeBoundsForPath(coords);
 
     primitives.push({
       type: "chart-connector",
       key:
         `connector-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_val}`,
-      bounds: computeBoundsForPath(coords),
+      item: chartConnectorItem(ctx.itemAxes, info),
+      part: "link",
+      bounds,
+      hitBounds: bounds,
       zIndex: Z_INDEX.CONTENT_CONNECTOR,
       annotationGroup: style.annotationGroup,
-      meta: {
-        i_val,
-        seriesIndices: endpoints.map((e) => e.i_series),
-      },
+      meta: { connector: info },
       coords,
       style: lineStyle,
       arrowheads: heads,
@@ -109,7 +111,7 @@ function collectEndpoints(
       coord: m.coords,
       val: m.val,
       i_series,
-      seriesHeader: ctx.seriesHeaders[i_series],
+      seriesHeader: ctx.itemAxes.series?.headers[i_series],
       pointRadius: pointStyle.show ? pointStyle.radius : 0,
     });
   }

@@ -51,7 +51,7 @@ export function resolvePaneGrid(
   info: ChartComponentSizes,
   frameWidth: number,
 ): PaneGrid {
-  const nPanes = info.paneHeaders.length;
+  const nPanes = info.nPanes;
   const { nCols, minWidth, gapX } = info.mergedStyle.panes;
   if (nCols !== "auto") return calculatePaneGrid(nPanes, nCols);
   const available = frameWidth - info.surroundsMinWidth;

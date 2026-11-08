@@ -3,7 +3,15 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type Component, For, Match, Show, Switch } from "solid-js";
+import {
+  type Accessor,
+  type Component,
+  For,
+  Index,
+  Match,
+  Show,
+  Switch,
+} from "solid-js";
 import type { CustomMarkdownStyleOptions } from "../deps.ts";
 import type { ToolRegistry } from "../_core/tool_engine.ts";
 import type {
@@ -34,8 +42,7 @@ type Props = {
   // engine is waiting on the USER, so the "Thinking..." fallback must not
   // show (the card/dialog already communicates what is being waited for).
   awaitingDecision?: boolean;
-  currentStreamingText?: string | undefined;
-  serverToolLabel?: string | undefined;
+  streamingItems: DisplayItem[];
   // Queued-but-unsent user texts, rendered as a derived tail below the
   // display items — they come straight from the conversation's queue signal,
   // so clearing the queue clears the bubbles by construction and nothing
@@ -52,6 +59,13 @@ type Props = {
   assistantMessageStyle?: MessageStyle;
   markdownStyle?: CustomMarkdownStyleOptions;
 };
+
+function ofType<T extends DisplayItem["type"]>(
+  item: DisplayItem,
+  type: T,
+): Extract<DisplayItem, { type: T }> | false {
+  return item.type === type && (item as Extract<DisplayItem, { type: T }>);
+}
 
 export function MessageList(p: Props) {
   const renderItem = (item: DisplayItem) => {
@@ -139,6 +153,50 @@ export function MessageList(p: Props) {
     }
   };
 
+  // An Index slot keeps its DOM while its position holds an item, so a card's
+  // spinner and a thinking card's expanded state survive the deltas after
+  // its start. The slot body runs untracked: the item is read only inside
+  // JSX, where it stays live.
+  const renderStreamingItem = (item: Accessor<DisplayItem>, index: number) => {
+    const registry = p.customRenderers ?? {};
+    const StreamingText = registry.assistantStreamingText ??
+      AIChatAssistantStreamingText;
+    const CompletedText = registry.assistantCompletedText ??
+      AIChatAssistantCompletedText;
+    const ThinkingSummary = registry.thinkingSummary ?? AIChatThinkingSummary;
+    const ToolLoading = registry.toolLoading ?? AIChatToolLoading;
+    return (
+      <Switch>
+        <Match when={ofType(item(), "assistant_text")}>
+          {(textItem) => (
+            <Show
+              when={index === p.streamingItems.length - 1}
+              fallback={
+                <CompletedText
+                  item={textItem()}
+                  messageStyle={p.assistantMessageStyle}
+                  markdownStyle={p.markdownStyle}
+                />
+              }
+            >
+              <StreamingText
+                text={textItem().text}
+                messageStyle={p.assistantMessageStyle}
+                markdownStyle={p.markdownStyle}
+              />
+            </Show>
+          )}
+        </Match>
+        <Match when={ofType(item(), "thinking_summary")}>
+          {(thinkingItem) => <ThinkingSummary item={thinkingItem()} />}
+        </Match>
+        <Match when={ofType(item(), "tool_in_progress")}>
+          {(card) => <ToolLoading item={card()} />}
+        </Match>
+      </Switch>
+    );
+  };
+
   const regularItems = () =>
     p.displayItems.filter((item) => item.type !== "tool_in_progress");
   const toolInProgressItems = () =>
@@ -153,38 +211,18 @@ export function MessageList(p: Props) {
       >
         <For each={regularItems()}>{(item) => renderItem(item)}</For>
 
-        <Switch>
-          <Match
-            when={p.isStreaming && p.currentStreamingText !== undefined}
-          >
-            {(() => {
-              const Renderer = p.customRenderers?.assistantStreamingText ??
-                AIChatAssistantStreamingText;
-              return (
-                <Renderer
-                  text={p.currentStreamingText!}
-                  messageStyle={p.assistantMessageStyle}
-                  markdownStyle={p.markdownStyle}
-                />
-              );
-            })()}
-          </Match>
-          <Match when={p.serverToolLabel}>
-            <div class="text-base-content-muted text-sm italic">
-              <SpinningCursor class="mr-1 inline-block" />
-              {p.serverToolLabel}
-            </div>
-          </Match>
-          <Match
-            when={(p.isStreaming || p.isLoading) &&
-              toolInProgressItems().length === 0 && !p.awaitingDecision}
-          >
-            <div class="text-base-content-muted text-sm italic">
-              <SpinningCursor class="mr-1 inline-block" />
-              Thinking...
-            </div>
-          </Match>
-        </Switch>
+        <Index each={p.streamingItems}>{renderStreamingItem}</Index>
+
+        <Show
+          when={(p.isStreaming || p.isLoading) &&
+            p.streamingItems.length === 0 &&
+            toolInProgressItems().length === 0 && !p.awaitingDecision}
+        >
+          <div class="text-base-content-muted text-sm italic">
+            <SpinningCursor class="mr-1 inline-block" />
+            Thinking...
+          </div>
+        </Show>
 
         <For each={toolInProgressItems()}>{(item) => renderItem(item)}</For>
 

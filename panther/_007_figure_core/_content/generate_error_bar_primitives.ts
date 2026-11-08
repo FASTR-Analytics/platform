@@ -7,6 +7,7 @@ import {
   type ChartErrorBarPrimitive,
   type ChartValueInfo,
   type Primitive,
+  type PrimitiveItem,
   Z_INDEX,
 } from "../deps.ts";
 import type { ContentGenerationContext } from "./content_generation_types.ts";
@@ -20,6 +21,7 @@ import {
 
 type Anchor = {
   value: ChartValueInfo;
+  item: PrimitiveItem | undefined;
   categoryCenter: number;
   markExtent: number;
   zIndex: number;
@@ -45,6 +47,7 @@ export function generateErrorBarPrimitives(
     if (p.type === "chart-bar") {
       anchors.set(cellKey(p.meta.value), {
         value: p.meta.value,
+        item: p.item,
         categoryCenter: catCenterOfRect(p.bounds, orientation),
         markExtent: catExtentOfRect(p.bounds, orientation),
         zIndex: Z_INDEX.CONTENT_BAR + 1,
@@ -54,6 +57,7 @@ export function generateErrorBarPrimitives(
     ) {
       anchors.set(cellKey(p.meta.value), {
         value: p.meta.value,
+        item: p.item,
         categoryCenter: catCoord(p.coords, orientation),
         markExtent: p.style.radius * 2,
         zIndex: Z_INDEX.CONTENT_POINT - 1,
@@ -75,6 +79,7 @@ export function generateErrorBarPrimitives(
     primitives.push(makeErrorBarPrimitive({
       key:
         `errorbar-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${a.value.i_series}-${a.value.i_val}`,
+      item: a.item,
       meta: { value: a.value },
       categoryCenter: a.categoryCenter,
       valUb: valCoord(ubMapped.coords, orientation),

@@ -4,8 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  DataAxis,
   FigureInputsBase,
-  HeaderItem,
   HeaderSortConfig,
   JsonArray,
   MeasuredChartBase,
@@ -69,11 +69,13 @@ export type PieJsonDataConfig = {
 
 export type PieDataTransformed = {
   isTransformed: true;
-  seriesHeaders: HeaderItem[];
-  indicatorHeaders: HeaderItem[];
-  paneHeaders: HeaderItem[];
-  tierHeaders: HeaderItem[];
-  laneHeaders: HeaderItem[];
+  // One axis per split slot; an unsplit slot has none and is one member long
+  // in values.
+  series?: DataAxis;
+  indicator?: DataAxis;
+  pane?: DataAxis;
+  tier?: DataAxis;
+  lane?: DataAxis;
   // [pane][tier][lane][series][indicator] — literally ChartOV's shape. The
   // last axis is the repeat dimension (one pie per indicator, length 1 with no
   // indicatorProp), which keeps fillValuesWithDuplicateCheck reused verbatim

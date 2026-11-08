@@ -6,19 +6,21 @@
 import { getTimeFromPeriodId } from "./deps.ts";
 import {
   assert,
+  buildDataAxis,
   calculateChartScaleLimits,
   checkValuePropsAssignment,
-  collectHeaders,
   createArray,
-  createHeaderItems,
   getHeaderIndex,
   getValidNumberOrUndefined,
-  type HeaderItem,
+  type HeaderSortConfig,
   isRowBasedUncertainty,
   type JsonArray,
   type PeriodType,
-  sortHeaderItems,
+  readDimensionId,
+  type SlotAxes,
+  slotHeaders,
   validateDataInput,
+  validateDistinctDimensions,
   validateUncertaintyConfig,
 } from "./deps.ts";
 import {
@@ -76,14 +78,7 @@ function fillTimeseriesValues(
   periodProp: string | "--v",
   periodType: PeriodType,
   timeMin: number,
-  seriesProp: string | undefined,
-  laneProp: string | undefined,
-  tierProp: string | undefined,
-  paneProp: string | undefined,
-  seriesHeaders: HeaderItem[],
-  laneHeaders: HeaderItem[],
-  tierHeaders: HeaderItem[],
-  paneHeaders: HeaderItem[],
+  axes: SlotAxes,
 ): void {
   for (const obj of rows) {
     for (const valueProp of valueProps) {
@@ -91,21 +86,16 @@ function fillTimeseriesValues(
 
       const period = periodProp === "--v"
         ? Number(valueProp)
-        : Number(obj[periodProp as string]);
+        : Number(obj[periodProp]);
 
       const time = getTimeFromPeriodId(period, periodType);
       const i_time = time - timeMin;
       assert(i_time >= 0);
 
-      const i_series = getHeaderIndex(
-        seriesProp,
-        valueProp,
-        obj,
-        seriesHeaders,
-      );
-      const i_lane = getHeaderIndex(laneProp, valueProp, obj, laneHeaders);
-      const i_tier = getHeaderIndex(tierProp, valueProp, obj, tierHeaders);
-      const i_pane = getHeaderIndex(paneProp, valueProp, obj, paneHeaders);
+      const i_series = getHeaderIndex(axes.series, valueProp, obj);
+      const i_lane = getHeaderIndex(axes.lane, valueProp, obj);
+      const i_tier = getHeaderIndex(axes.tier, valueProp, obj);
+      const i_pane = getHeaderIndex(axes.pane, valueProp, obj);
 
       assert(i_series >= 0);
       assert(i_lane >= 0);
@@ -161,34 +151,30 @@ export function getTimeseriesDataJsonTransformed(
     ? jsonArray
     : sourceRows;
 
-  const seriesHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(headersSource, seriesProp, valueProps),
+  validateDistinctDimensions({
+    period: periodProp,
+    series: seriesProp,
+    lane: laneProp,
+    tier: tierProp,
+    pane: paneProp,
+  });
+  if (periodProp !== "--v") {
+    headersSource.forEach((row, i_row) =>
+      readDimensionId(row, periodProp, i_row)
+    );
+  }
+  const axis = (prop: string | undefined, sortConfig?: HeaderSortConfig) =>
+    buildDataAxis(
+      headersSource,
+      prop,
+      valueProps,
       labelReplacements,
-    ),
-    sort?.series,
-  );
-  const laneHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(headersSource, laneProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.lane,
-  );
-  const tierHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(headersSource, tierProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.tier,
-  );
-  const paneHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(headersSource, paneProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.pane,
-  );
+      sortConfig,
+    );
+  const series = axis(seriesProp, sort?.series);
+  const lane = axis(laneProp, sort?.lane);
+  const tier = axis(tierProp, sort?.tier);
+  const pane = axis(paneProp, sort?.pane);
 
   let periodIdMin: number = Number.POSITIVE_INFINITY;
   let periodIdMax: number = Number.NEGATIVE_INFINITY;
@@ -201,7 +187,7 @@ export function getTimeseriesDataJsonTransformed(
     }
   } else {
     for (const obj of sourceRows) {
-      const period = Number(obj[periodProp as string]);
+      const period = Number(obj[periodProp]);
       periodIdMin = Math.min(periodIdMin, period);
       periodIdMax = Math.max(periodIdMax, period);
     }
@@ -216,15 +202,15 @@ export function getTimeseriesDataJsonTransformed(
   });
 
   const timeMin: number = getTimeFromPeriodId(periodIdMin, periodType);
-  const timeMax: number = getTimeFromPeriodId(periodIdMax, periodType);
-  const nTimes = timeMax - timeMin + 1;
+  const nTimes = getTimeFromPeriodId(periodIdMax, periodType) - timeMin + 1;
   assert(nTimes >= 1);
   assert(nTimes <= 50 * 12);
 
-  const nPanes = paneHeaders.length;
-  const nTiers = tierHeaders.length;
-  const nLanes = laneHeaders.length;
-  const nSeries = seriesHeaders.length;
+  const nPanes = slotHeaders(pane).length;
+  const nTiers = slotHeaders(tier).length;
+  const nLanes = slotHeaders(lane).length;
+  const nSeries = slotHeaders(series).length;
+  const axes: SlotAxes = { series, lane, tier, pane };
 
   const values = createEmptyTimeseries(nPanes, nTiers, nLanes, nSeries, nTimes);
 
@@ -235,14 +221,7 @@ export function getTimeseriesDataJsonTransformed(
     periodProp,
     periodType,
     timeMin,
-    seriesProp,
-    laneProp,
-    tierProp,
-    paneProp,
-    seriesHeaders,
-    laneHeaders,
-    tierHeaders,
-    paneHeaders,
+    axes,
   );
 
   let bounds: {
@@ -280,14 +259,7 @@ export function getTimeseriesDataJsonTransformed(
         periodProp,
         periodType,
         timeMin,
-        seriesProp,
-        laneProp,
-        tierProp,
-        paneProp,
-        seriesHeaders,
-        laneHeaders,
-        tierHeaders,
-        paneHeaders,
+        axes,
       );
       fillTimeseriesValues(
         lbValues,
@@ -296,14 +268,7 @@ export function getTimeseriesDataJsonTransformed(
         periodProp,
         periodType,
         timeMin,
-        seriesProp,
-        laneProp,
-        tierProp,
-        paneProp,
-        seriesHeaders,
-        laneHeaders,
-        tierHeaders,
-        paneHeaders,
+        axes,
       );
     } else {
       fillTimeseriesValues(
@@ -313,14 +278,7 @@ export function getTimeseriesDataJsonTransformed(
         periodProp,
         periodType,
         timeMin,
-        seriesProp,
-        laneProp,
-        tierProp,
-        paneProp,
-        seriesHeaders,
-        laneHeaders,
-        tierHeaders,
-        paneHeaders,
+        axes,
       );
       fillTimeseriesValues(
         lbValues,
@@ -329,14 +287,7 @@ export function getTimeseriesDataJsonTransformed(
         periodProp,
         periodType,
         timeMin,
-        seriesProp,
-        laneProp,
-        tierProp,
-        paneProp,
-        seriesHeaders,
-        laneHeaders,
-        tierHeaders,
-        paneHeaders,
+        axes,
       );
     }
 
@@ -399,14 +350,16 @@ export function getTimeseriesDataJsonTransformed(
 
   return {
     isTransformed: true,
-    periodType: jsonDataConfig.periodType,
-    timeMin,
-    timeMax,
-    nTimePoints: 1 + timeMax - timeMin,
-    seriesHeaders,
-    laneHeaders,
-    tierHeaders,
-    paneHeaders,
+    period: {
+      dimension: periodProp,
+      periodType,
+      timeMin,
+      nTimePoints: nTimes,
+    },
+    series,
+    lane,
+    tier,
+    pane,
     values,
     bounds,
     scaleAxisLimits: scaleLimits,

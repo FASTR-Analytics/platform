@@ -9,19 +9,19 @@ export type ChartSeriesInfo = {
   i_series: number;
   isFirstSeries: boolean;
   isLastSeries: boolean;
-  seriesHeader: HeaderItem;
+  seriesHeader: HeaderItem | undefined;
   nSerieses: number;
   seriesValArrays: (number | undefined)[][];
   nVals: number;
   i_pane: number;
   nPanes: number;
-  paneHeader: HeaderItem;
+  paneHeader: HeaderItem | undefined;
   i_tier: number;
   nTiers: number;
-  tierHeader: HeaderItem;
+  tierHeader: HeaderItem | undefined;
   i_lane: number;
   nLanes: number;
-  laneHeader: HeaderItem;
+  laneHeader: HeaderItem | undefined;
 };
 
 export type ChartSeriesInfoFunc<T> = (info: ChartSeriesInfo) => T;
@@ -71,7 +71,7 @@ export type PieSliceInfo = ChartSeriesInfo & {
   // slice belongs to (mirrors ChartValueInfo's i_val/indicatorHeader).
   i_indicator: number;
   nIndicators: number;
-  indicatorHeader: HeaderItem;
+  indicatorHeader: HeaderItem | undefined;
 };
 
 export type PieSliceInfoFunc<T> = (info: PieSliceInfo) => T;
@@ -87,17 +87,17 @@ export type ChartConnectorInfo = {
   seriesValArrays: (number | undefined)[][];
   i_pane: number;
   nPanes: number;
-  paneHeader: HeaderItem;
+  paneHeader: HeaderItem | undefined;
   i_tier: number;
   nTiers: number;
-  tierHeader: HeaderItem;
+  tierHeader: HeaderItem | undefined;
   i_lane: number;
   nLanes: number;
-  laneHeader: HeaderItem;
+  laneHeader: HeaderItem | undefined;
   // Endpoint info — parallel arrays describing each point on the connector,
   // in series order, after gap filtering.
   seriesIndices: number[];
-  seriesHeaders: HeaderItem[];
+  seriesHeaders: (HeaderItem | undefined)[];
   values: number[];
 };
 
@@ -112,9 +112,9 @@ export type MapRegionInfo = {
   paneIndex: number;
   tierIndex: number;
   laneIndex: number;
-  paneHeader: HeaderItem;
-  tierHeader: HeaderItem;
-  laneHeader: HeaderItem;
+  paneHeader: HeaderItem | undefined;
+  tierHeader: HeaderItem | undefined;
+  laneHeader: HeaderItem | undefined;
 };
 
 export type MapRegionInfoFunc<T> = (info: MapRegionInfo) => T;

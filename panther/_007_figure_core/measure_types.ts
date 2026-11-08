@@ -5,8 +5,8 @@
 
 import type {
   CustomFigureStyle,
+  DataAxis,
   FigureFitReport,
-  HeaderItem,
   MeasuredText,
   MergedChartStyleBase,
   Primitive,
@@ -64,11 +64,13 @@ export type SimplifiedChartConfig<
   mergedStyle: TStyle;
   transformedData: TData;
   dataProps: {
-    paneHeaders: HeaderItem[];
-    tierHeaders: HeaderItem[];
-    laneHeaders: HeaderItem[];
-    seriesHeaders: HeaderItem[];
-    indicatorHeaders?: HeaderItem[];
+    // An unsplit slot has no axis; a timeseries has no indicator axis, its
+    // period being the x-axis.
+    pane?: DataAxis;
+    tier?: DataAxis;
+    lane?: DataAxis;
+    series?: DataAxis;
+    indicator?: DataAxis;
     // Per-pane masks (global indices, array order = slot order). Absent =
     // balanced and no value sort (every pane shows the full global set in
     // storage order). Only the categorical-direction dims are ever masked:
@@ -106,11 +108,13 @@ export type MeasurePaneConfig<TData> = {
   };
   paneHeader: MeasuredText | undefined;
   dataProps: {
-    paneHeaders: HeaderItem[];
-    tierHeaders: HeaderItem[];
-    laneHeaders: HeaderItem[];
-    seriesHeaders: HeaderItem[];
-    indicatorHeaders?: HeaderItem[];
+    // An unsplit slot has no axis; a timeseries has no indicator axis, its
+    // period being the x-axis.
+    pane?: DataAxis;
+    tier?: DataAxis;
+    lane?: DataAxis;
+    series?: DataAxis;
+    indicator?: DataAxis;
     // Per-pane masks (global indices, array order = slot order). Absent =
     // balanced and no value sort.
     visibleIndicatorsByPane?: number[][];

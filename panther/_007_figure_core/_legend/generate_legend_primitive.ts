@@ -3,8 +3,16 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Coordinates, RectCoordsDims, Z_INDEX } from "../deps.ts";
-import type { ChartLegendPrimitive } from "../deps.ts";
+import {
+  buildItem,
+  Coordinates,
+  labelBoxRcd,
+  RectCoordsDims,
+  slotCoordinate,
+  unionRectCoordsDims,
+  Z_INDEX,
+} from "../deps.ts";
+import type { FigureLegendPrimitive, NestedIdentity } from "../deps.ts";
 import type { MeasuredLegend } from "./measure_legend.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,8 +25,9 @@ export function generateLegendPrimitive(
   coords: Coordinates,
   mLegend: MeasuredLegend,
   bounds: RectCoordsDims,
-): ChartLegendPrimitive {
-  const items: ChartLegendPrimitive["items"] = [];
+  seriesDimension: string | undefined,
+): FigureLegendPrimitive {
+  const items: FigureLegendPrimitive["items"] = [];
 
   let currentX = coords.x();
   let currentY = coords.y();
@@ -40,7 +49,7 @@ export function generateLegendPrimitive(
         ]);
 
         // Symbol configuration (discriminated union)
-        let symbol: ChartLegendPrimitive["items"][number]["symbol"];
+        let symbol: FigureLegendPrimitive["items"][number]["symbol"];
 
         if (pointStyle === undefined || pointStyle === "as-block") {
           // Rectangle symbol
@@ -93,10 +102,27 @@ export function generateLegendPrimitive(
           };
         }
 
+        const seriesHeader = item.id === undefined
+          ? undefined
+          : { id: item.id, label: item.label };
         items.push({
+          seriesHeader,
           mText,
           labelPosition,
           symbol,
+          ...entryIdentity(
+            seriesDimension,
+            seriesHeader,
+            unionRectCoordsDims([
+              new RectCoordsDims([
+                currentX,
+                currentY,
+                colorBoxWidthOrPointWidth,
+                mText.dims.h(),
+              ]),
+              labelBoxRcd(mText, labelPosition, "left", "top"),
+            ]),
+          ),
         });
 
         currentY += mText.dims.h() + mLegend.s.legendItemVerticalGap;
@@ -112,7 +138,7 @@ export function generateLegendPrimitive(
   );
 
   return {
-    type: "chart-legend",
+    type: "figure-legend",
     key: "legend",
     bounds,
     meta: {
@@ -121,4 +147,15 @@ export function generateLegendPrimitive(
     items,
     zIndex: Z_INDEX.LEGEND,
   };
+}
+
+// An entry that names a series stands for it, and is hit on its symbol's
+// slot and its label.
+function entryIdentity(
+  seriesDimension: string | undefined,
+  seriesHeader: FigureLegendPrimitive["items"][number]["seriesHeader"],
+  hitBounds: RectCoordsDims,
+): NestedIdentity {
+  const item = buildItem([slotCoordinate(seriesDimension, seriesHeader)]);
+  return item === undefined ? {} : { item, part: "header", hitBounds };
 }

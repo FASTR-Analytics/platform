@@ -10,7 +10,12 @@ import type {
   ImageInputs,
   ImageMap,
   MarkdownRendererInput,
+  TableDataTransformed,
   TableInputs,
+} from "./deps.ts";
+import {
+  MARKDOWN_TABLE_COLUMN_DIMENSION,
+  MARKDOWN_TABLE_ROW_DIMENSION,
 } from "./deps.ts";
 import type { FigureMap, MarkdownInline, ParsedMarkdownItem } from "./types.ts";
 
@@ -66,7 +71,7 @@ export function contentGroupToPageContentItem(
       return undefined;
     }
     const tableData = convertMarkdownTableToTableData(element);
-    const nCols = tableData.colGroups[0].cols.length;
+    const nCols = tableData.cols?.groups[0].cols.length ?? 0;
     return {
       figureType: "table",
       data: tableData,
@@ -119,7 +124,7 @@ export function docElementToPageContentItem(
 ): ConvertedPageContent | undefined {
   if (element.type === "table") {
     const tableData = convertMarkdownTableToTableData(element);
-    const nCols = tableData.colGroups[0].cols.length;
+    const nCols = tableData.cols?.groups[0].cols.length ?? 0;
     return {
       figureType: "table",
       data: tableData,
@@ -137,12 +142,9 @@ export function docElementToPageContentItem(
   };
 }
 
-// Return type is inferred (not annotated as the public `TableData` union) so
-// callers in this file can read `.colGroups` directly without a runtime type
-// guard -- this always constructs the transformed shape, never the JSON one.
 function convertMarkdownTableToTableData(
   element: ParsedMarkdownItem & { type: "table" },
-) {
+): TableDataTransformed {
   // GFM tables have exactly one header row (markdown-it emits one thead tr).
   const headers = element.header?.[0] || [];
   const rows = element.rows || [];
@@ -152,30 +154,34 @@ function convertMarkdownTableToTableData(
     row.map((cell) => inlineContentToPlainText(cell))
   );
 
-  const tableData = {
-    isTransformed: true as const,
-    colGroups: [{
-      id: undefined,
-      label: undefined,
-      cols: colHeaders.map((header, index) => ({
-        id: header,
-        label: header,
-        index,
-      })),
-    }],
-    rowGroups: [{
-      id: undefined,
-      label: undefined,
-      rows: dataRows.map((_row, index) => ({
+  return {
+    isTransformed: true,
+    cols: {
+      dimension: MARKDOWN_TABLE_COLUMN_DIMENSION,
+      groups: [{
         id: undefined,
         label: undefined,
-        index,
-      })),
-    }],
+        cols: colHeaders.map((header, index) => ({
+          id: header,
+          label: header,
+          index,
+        })),
+      }],
+    },
+    rows: {
+      dimension: MARKDOWN_TABLE_ROW_DIMENSION,
+      groups: [{
+        id: undefined,
+        label: undefined,
+        rows: dataRows.map((_row, index) => ({
+          id: String(index),
+          label: undefined,
+          index,
+        })),
+      }],
+    },
     aoa: dataRows,
   };
-
-  return tableData;
 }
 
 // A custom style rather than data, so an app-level tableCells /

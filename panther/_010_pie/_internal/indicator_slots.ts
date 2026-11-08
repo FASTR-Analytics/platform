@@ -3,8 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { MergedPieStyle, RenderContext } from "../deps.ts";
-import { calculatePaneGrid } from "../deps.ts";
+import type { DataAxis, MergedPieStyle, RenderContext } from "../deps.ts";
+import { calculatePaneGrid, slotHeaders } from "../deps.ts";
 import type { PieDataTransformed } from "../types.ts";
 import { layOutPie, type PieIndices } from "./generate_pie_slice_primitives.ts";
 import {
@@ -20,16 +20,20 @@ const SLOT_SCALE_TIE_EPSILON = 1e-9;
 
 export function allPieIndices(data: PieDataTransformed): PieIndices[] {
   const indices: PieIndices[] = [];
-  for (let paneIndex = 0; paneIndex < data.paneHeaders.length; paneIndex++) {
-    for (let tierIndex = 0; tierIndex < data.tierHeaders.length; tierIndex++) {
+  const nPanes = slotHeaders(data.pane).length;
+  const nTiers = slotHeaders(data.tier).length;
+  const nLanes = slotHeaders(data.lane).length;
+  const nIndicators = slotHeaders(data.indicator).length;
+  for (let paneIndex = 0; paneIndex < nPanes; paneIndex++) {
+    for (let tierIndex = 0; tierIndex < nTiers; tierIndex++) {
       for (
         let laneIndex = 0;
-        laneIndex < data.laneHeaders.length;
+        laneIndex < nLanes;
         laneIndex++
       ) {
         for (
           let indicatorIndex = 0;
-          indicatorIndex < data.indicatorHeaders.length;
+          indicatorIndex < nIndicators;
           indicatorIndex++
         ) {
           indices.push({ paneIndex, tierIndex, laneIndex, indicatorIndex });
@@ -66,8 +70,8 @@ export function maxSlicesPerPie(
 export function showsIndicatorHeaders(
   data: PieDataTransformed,
   mergedStyle: MergedPieStyle,
-): boolean {
-  return data.indicatorHeaders.length >= 2 &&
+): data is PieDataTransformed & { indicator: DataAxis } {
+  return data.indicator !== undefined && data.indicator.headers.length >= 2 &&
     !mergedStyle.pie.indicators.hideHeaders;
 }
 
@@ -78,7 +82,7 @@ export function measureIndicatorHeaderHeight(
   slotW: number,
 ): number {
   let maxH = 0;
-  for (const header of data.indicatorHeaders) {
+  for (const header of data.indicator?.headers ?? []) {
     const mText = rc.mText(
       header.label,
       mergedStyle.pie.text.indicatorHeaders,
@@ -106,7 +110,7 @@ function slotScaleAt(
   plotH: number,
 ): number {
   const { rc, data, mergedStyle, labelBudget } = ctx;
-  const n = data.indicatorHeaders.length;
+  const n = slotHeaders(data.indicator).length;
   const ind = mergedStyle.pie.indicators;
   const { nGCols, nGRows } = calculatePaneGrid(n, c);
   const slotW = (plotW - (nGCols - 1) * ind.gapX) / nGCols;
@@ -137,7 +141,7 @@ export function bestSlotColsAt(
   plotH: number,
   preferred?: number,
 ): number {
-  const n = ctx.data.indicatorHeaders.length;
+  const n = slotHeaders(ctx.data.indicator).length;
   if (n <= 1) return 1;
   let bestC = 1;
   let bestS = -Infinity;
@@ -169,7 +173,7 @@ export function idealSubChartHeightAt(
   contentFloor: number,
 ): number {
   const { rc, data, mergedStyle, labelBudget } = ctx;
-  const n = data.indicatorHeaders.length;
+  const n = slotHeaders(data.indicator).length;
   const ind = mergedStyle.pie.indicators;
   const { nGCols, nGRows } = calculatePaneGrid(n, c);
   const slotW = (cellW - (nGCols - 1) * ind.gapX) / nGCols;
@@ -210,7 +214,7 @@ export function resolveIdealSlotCols(
   // ideal height is computed for a grid the measure pass will not draw.
   const explicit = ctx.mergedStyle.pie.indicators.nCols;
   if (explicit !== "auto") return explicit;
-  const n = ctx.data.indicatorHeaders.length;
+  const n = slotHeaders(ctx.data.indicator).length;
   if (n <= 1) return 1;
   for (let c = 1; c <= n; c++) {
     const impliedH = idealSubChartHeightAt(ctx, c, cellW, contentFloor);
