@@ -20,7 +20,7 @@ function getMapCoverage(data: MapDataTransformed): MapCoverage {
     for (const lanes of tiers) {
       for (const values of lanes) {
         for (const areaId of Object.keys(values)) {
-          if (areaId !== "") dataAreas.add(areaId);
+          dataAreas.add(areaId);
         }
       }
     }

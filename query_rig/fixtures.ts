@@ -1299,6 +1299,33 @@ export const F20_ICEH_NO_DIMS: Fixture = {
   firstPeriodOption: undefined,
 };
 
+// F21: a text cell holding only a no-break space, beside a NULL cell of the
+// same column. JavaScript's trim() strips U+00A0, so the options list and
+// panther's figures call the cell blank; the fold must too, or the group it
+// keys is one that no filter option names.
+// By source_indicator: dhis2 = 1, blank = 2 + 4.
+export const F21_HMIS_NBSP_BLANK: Fixture = {
+  name: "hmis_nbsp_blank",
+  family: "hmis",
+  adminDepth: 4,
+  moduleId: "m_nbsp_blank",
+  moduleDefinition: hmisModule(),
+  resultsObjectId: "21212121-2121-2121-2121-212121212121",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
+  facilities: [],
+  roColumns: [
+    { name: "source_indicator", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
+  ],
+  roRows: [
+    { source_indicator: "dhis2", value: 1 },
+    { source_indicator: null, value: 2 },
+    { source_indicator: "\u00A0", value: 4 },
+  ],
+  indicators: [],
+  firstPeriodOption: undefined,
+};
+
 export const ALL_FIXTURES: Fixture[] = [
   F1_HMIS_MONTHLY,
   F2_HFA_SERVICE_CATS,
@@ -1320,4 +1347,5 @@ export const ALL_FIXTURES: Fixture[] = [
   F18_ICEH_SCOPE_DIMS,
   F19_HFA_DATED_ROUNDS,
   F20_ICEH_NO_DIMS,
+  F21_HMIS_NBSP_BLANK,
 ];

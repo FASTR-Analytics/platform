@@ -9,7 +9,7 @@
 `./validate_queries` builds a **real results package** per declarative fixture. The fixture's rows are written as the module's raw output CSV, then the **production** parquet writer and package builder (`buildRunPackageIntoTmp`) produce the parquet and the manifest into a throwaway runs directory. It then runs the **production** run read path (`server/run_query/run_read.ts`: `getPresentationObjectItemsFromRun`, `getPossibleValuesFromRun`, `getResultsValueInfoFromRun`, `getResultsObjectItemsFromRun`, and `computeRunReplicantOptions` from `run_data_reads.ts`) against it over a `RunReadContext` at the case's scope (the "All data" definition, unless the case carries a `scope`). Config → SQL → DuckDB over parquet → real rows: the engine production serves from, not a stand-in. Nothing is mocked and there is no test seam. A throwaway Postgres survives only for what the package builder reads from the MAIN database (the per-family structure schema rows in `instance_config`).
 
 ```bash
-./validate_queries            # ~15s: container up, 20 packages built, 321 cases
+./validate_queries            # ~15s: container up, 21 packages built, 357 cases
 ```
 
 (once the `postgres:17.4` image is cached locally; the first run pulls it.)
@@ -21,7 +21,7 @@ Also offered as an optional prompt in `./deploy`, next to migration validation. 
 | `validate_queries`           | container + runs-dir lifecycle, env, invokes the runner                         |
 | `query_rig/mod.ts`           | runner: build packages, loop cases, summarise                                   |
 | `query_rig/cases.ts`         | **the case table**, where you add coverage                                      |
-| `query_rig/fixtures.ts`      | F1–F20                                                                          |
+| `query_rig/fixtures.ts`      | F1–F21                                                                          |
 | `query_rig/build_package.ts` | fixture → structure-schema rows + results package + "All data" `RunReadContext` |
 | `query_rig/harness.ts`       | connections, schema loading, multiset compare                                   |
 
@@ -139,6 +139,7 @@ Check `git status` on the file first and restore by copy if it has uncommitted c
 | `iceh_scope_dims` (F18)      | family `iceh`: `iceh_indicator`, physical `year`, no admin column                                                                             | the ICEH section: its exclusion, its own year range on a `year` column (apart from the HMIS years), the indicator list, the module list, and geography not applying                                                                           |
 | `hfa_dated_rounds` (F19)     | the HFA shape with a physical `year` column beside `time_point`                                                                               | the HFA section having no years: another section's year range leaves an HFA results object whole and its period bounds unclamped                                                                                                              |
 | `iceh_no_dims` (F20)         | family `iceh` with neither a `year` nor an `iceh_indicator` column                                                                            | the ICEH years and indicators not applying                                                                                                                                                                                                    |
+| `hmis_nbsp_blank` (F21)      | a `source_indicator` cell of only a no-break space beside a NULL one                                                                          | the blank fold trims panther's `BLANK_CHARACTERS`, every character JS `.trim()` strips, so the two are one `__BLANK` group                                                                                                                    |
 
 **F2/F3 are a minimal pair and the rig's central argument.** They differ in one thing: `time_point`'s declared column type. The blank fold emits `btrim()` and returns a text sentinel from its `CASE`, both of which Postgres rejects on a numeric column, so a name-only gate turns working visualizations into a hard SQL error. Results-column types are authored per module, so the same disaggregation option genuinely is text in one instance and integer in another. No SQL-string assertion can see this class of bug; only execution can.
 

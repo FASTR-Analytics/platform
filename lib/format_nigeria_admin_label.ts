@@ -1,10 +1,7 @@
+import { BLANK_LABEL, BLANK_SENTINEL } from "@timroberton/panther";
 import { ADMIN_LEVELS } from "./rollup.ts";
 import { t3 } from "./translate/mod.ts";
 import { CountryCodes } from "./types/instance.ts";
-import {
-  BLANK_SENTINEL,
-  BLANK_SENTINEL_LABEL,
-} from "./validate_fetch_config.ts";
 
 const ADMIN_AREA_DISAGGREGATIONS = new Set<string>(ADMIN_LEVELS);
 
@@ -46,7 +43,7 @@ export function formatReplicantLabelForDisplay(
   countryIso3: string | undefined,
 ): string {
   if (label === BLANK_SENTINEL) {
-    return t3(BLANK_SENTINEL_LABEL);
+    return t3(BLANK_LABEL);
   }
   if (
     countryIso3 === CountryCodes.Nigeria &&

@@ -3,12 +3,8 @@ import type {
   DisaggregationOption,
   TranslatableString,
 } from "lib";
-import {
-  BLANK_SENTINEL,
-  BLANK_SENTINEL_LABEL,
-  getDisaggregationLabel,
-  t3,
-} from "lib";
+import { getDisaggregationLabel, t3 } from "lib";
+import { BLANK_LABEL, BLANK_SENTINEL } from "panther";
 import { instanceState } from "./t1_store";
 
 // Display text for one VALUE of a disaggregation (a filter chip, a replicant
@@ -18,7 +14,7 @@ export function getDisplayDisaggregationValueLabel(
   id: string,
   label: string,
 ): string {
-  return id === BLANK_SENTINEL ? t3(BLANK_SENTINEL_LABEL) : label;
+  return id === BLANK_SENTINEL ? t3(BLANK_LABEL) : label;
 }
 
 // Facility-column labels are per family: pass the results value's

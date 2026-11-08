@@ -1,10 +1,10 @@
+import { BLANK_CHARACTERS, BLANK_SENTINEL } from "@timroberton/panther";
 import type {
   DisaggregationOption,
   GenericLongFormFetchConfig,
   PeriodOption,
 } from "lib";
 import {
-  BLANK_SENTINEL,
   inferPeriodFormatFromValuesIfTheSame,
   INTEGER_FILTER_COLUMNS,
   isRollupDimension,
@@ -24,14 +24,11 @@ import { escapeSqlString } from "../db/utils.ts";
 // Blank Folding
 // ============================================================================
 
-// trim's default charset is ASCII space only, so the whitespace classes have
-// to be spelled out: a tab-only cell would otherwise stay unfolded here while
-// JS `.trim()` still stripped it from the options list, which is precisely the
-// chart-group-with-no-filter-option defect this whole mechanism exists to kill.
-// Two-arg trim(), not btrim(): this SQL runs on BOTH engines (Postgres and
-// DuckDB-over-parquet share the builders) and DuckDB has no btrim. Both accept
-// trim(string, chars) and E'…' escape strings (verified by execution).
-const BLANK_WHITESPACE_CHARS = String.raw`E' \t\r\n'`;
+// trim's default charset is ASCII space only, so the set is spelled out, and
+// it is panther's: a cell is blank here exactly when panther's figures and the
+// options list's JS `.trim()` call it blank, so no group is offered that no
+// filter option names.
+const BLANK_CHARACTERS_LITERAL = `'${escapeSqlString(BLANK_CHARACTERS)}'`;
 
 /**
  * Wraps a column reference so NULL and whitespace-only cells both surface as
@@ -82,7 +79,7 @@ export function shouldFoldBlank(
  * filter and swallows every other predicate in the WHERE clause.
  */
 export function blankPredicate(columnRef: string): string {
-  return `(${columnRef} IS NULL OR trim(${columnRef}, ${BLANK_WHITESPACE_CHARS}) = '')`;
+  return `(${columnRef} IS NULL OR trim(${columnRef}, ${BLANK_CHARACTERS_LITERAL}) = '')`;
 }
 
 // ============================================================================

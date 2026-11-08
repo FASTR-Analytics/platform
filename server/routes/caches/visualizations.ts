@@ -105,7 +105,10 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "28" (2026-10-26): manifest schema v14, where `indicators[]` sort_order is
 // the rank within the entry's dimension. po_items carries that list, and "27"
 // entries hold the per-parent order for HFA sub-categories and variant items.
-const PO_CACHE_VERSION = "28";
+// "29" (2026-11-08): the blank fold trims every character JavaScript's trim()
+// strips, where "28" trimmed only space, tab, CR and LF. A cell of only a
+// no-break space was a named group in "28" entries and is the blank group now.
+const PO_CACHE_VERSION = "29";
 
 // The immutable run id is the uniqueness scope for the four data caches, so two
 // products on the same run share entries. The scopeToken rides beside it: the

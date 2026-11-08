@@ -1,6 +1,6 @@
+import { BLANK_SENTINEL } from "@timroberton/panther";
 import {
   ALL_FACILITIES_SENTINEL,
-  BLANK_SENTINEL,
   geographyOnlyScopeDefinition,
   ROLLUP_SENTINEL,
 } from "lib";
@@ -221,6 +221,19 @@ const EXPLICIT_CASES: Case[] = [
         { source_indicator: BLANK_SENTINEL, value: 15 },
         { source_indicator: "x", value: 1 },
         { source_indicator: " x", value: 2 },
+      ],
+    },
+  },
+  {
+    name:
+      "blank fold groups a no-break-space cell with NULL, as JavaScript's trim() does",
+    fixture: "hmis_nbsp_blank",
+    fetchConfig: { ...base(), groupBys: ["source_indicator"] },
+    expect: {
+      status: "ok",
+      rows: [
+        { source_indicator: "dhis2", value: 1 },
+        { source_indicator: BLANK_SENTINEL, value: 6 },
       ],
     },
   },

@@ -1,4 +1,4 @@
-import { BLANK_SENTINEL } from "lib";
+import { BLANK_SENTINEL } from "@timroberton/panther";
 
 export const MAX_ITEMS = 20000;
 // The Explore grid read's row cap: one value per row, so rows are cells. Its

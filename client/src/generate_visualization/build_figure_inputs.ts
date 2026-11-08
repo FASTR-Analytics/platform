@@ -1,10 +1,14 @@
 import {
+  CustomFigureStyle,
   FigureInputs,
   formatPeriod,
   type GeoJSONFeatureCollection,
+  getChartOHDataTransformed,
+  getChartOVDataTransformed,
   getMapDataTransformed,
   getPeriodTypeFromValue,
   getPieDataTransformed,
+  getTableDataTransformed,
   getTimeseriesDataTransformed,
   type JsonArrayItem,
   PeriodType,
@@ -28,6 +32,7 @@ import {
   resolveEffectiveIndicatorFactsFromItems,
   ResultsValueForVisualization,
   selectCf,
+  type TranslatableString,
   withReplicant,
 } from "lib";
 import { getLegendFromConfig } from "./conditional_formatting";
@@ -204,14 +209,19 @@ function buildInputs(
         dateRange,
         localization,
       ),
-      footnote: withDateRange(
-        withReplicant(
-          config.t.footnote,
-          config,
-          indicatorLabelReplacements,
-          localization.countryIso3,
+      footnote: withBlankRowsNote(
+        withDateRange(
+          withReplicant(
+            config.t.footnote,
+            config,
+            indicatorLabelReplacements,
+            localization.countryIso3,
+          ),
+          dateRange,
+          localization,
         ),
-        dateRange,
+        d.period.nBlankRows,
+        noPeriodNote,
         localization,
       ),
       style: getStyleFromPresentationObject(
@@ -230,7 +240,7 @@ function buildInputs(
   if (effectiveConfig.d.type === "table") {
     return {
       figureType: "table",
-      data: {
+      data: getTableDataTransformed({
         jsonArray: items,
         jsonDataConfig: getTableJsonDataConfigFromPresentationObjectConfig(
           resultsValue,
@@ -242,7 +252,7 @@ function buildInputs(
           scope,
           items,
         ),
-      },
+      }),
       caption: withDateRange(
         withReplicant(
           config.t.caption,
@@ -287,6 +297,15 @@ function buildInputs(
   }
 
   if (effectiveConfig.d.type === "chart") {
+    const style = getStyleFromPresentationObject(
+      config,
+      effectiveFormat,
+      localization,
+      deckStyle,
+      allowNegativeScale,
+      effectiveValueProps,
+      chartPalette,
+    );
     const surrounds = {
       caption: withDateRange(
         withReplicant(
@@ -318,23 +337,41 @@ function buildInputs(
         dateRange,
         localization,
       ),
-      style: getStyleFromPresentationObject(
-        config,
-        effectiveFormat,
-        localization,
-        deckStyle,
-        allowNegativeScale,
-        effectiveValueProps,
-        chartPalette,
-      ),
+      style,
       legend: legend(),
     };
+    // Transformed under the stacking panther's measure derives from the same
+    // style, so the scale limits match the bars drawn.
     if (effectiveConfig.s.horizontal) {
       return {
         figureType: "chart-oh",
-        data: {
+        data: getChartOHDataTransformed(
+          {
+            jsonArray: items,
+            jsonDataConfig:
+              getChartOHJsonDataConfigFromPresentationObjectConfig(
+                resultsValue,
+                effectiveConfig,
+                effectiveValueProps,
+                indicatorLabelReplacements,
+                catalogIdOrder,
+                localization,
+                scope,
+                items,
+              ),
+          },
+          new CustomFigureStyle(style).getMergedChartOHStyle().content.bars
+            .stacking === "stacked",
+        ),
+        ...surrounds,
+      };
+    }
+    return {
+      figureType: "chart-ov",
+      data: getChartOVDataTransformed(
+        {
           jsonArray: items,
-          jsonDataConfig: getChartOHJsonDataConfigFromPresentationObjectConfig(
+          jsonDataConfig: getChartOVJsonDataConfigFromPresentationObjectConfig(
             resultsValue,
             effectiveConfig,
             effectiveValueProps,
@@ -345,24 +382,9 @@ function buildInputs(
             items,
           ),
         },
-        ...surrounds,
-      };
-    }
-    return {
-      figureType: "chart-ov",
-      data: {
-        jsonArray: items,
-        jsonDataConfig: getChartOVJsonDataConfigFromPresentationObjectConfig(
-          resultsValue,
-          effectiveConfig,
-          effectiveValueProps,
-          indicatorLabelReplacements,
-          catalogIdOrder,
-          localization,
-          scope,
-          items,
-        ),
-      },
+        new CustomFigureStyle(style).getMergedChartOVStyle().content.bars
+          .stacking === "stacked",
+      ),
       ...surrounds,
     };
   }
@@ -375,6 +397,7 @@ function buildInputs(
       effectiveValueProps,
       indicatorLabelReplacements,
       catalogIdOrder,
+      localization,
     );
     // panther expects numeric values for the color scale; items are string-typed
     // in the bundle, so parse numeric strings to numbers here.
@@ -390,13 +413,14 @@ function buildInputs(
     });
     // Transformed here, once: the coverage tally reads it, and panther's own
     // transform passes a transformed input through.
+    const d = getMapDataTransformed({
+      geoData: geoJson,
+      jsonArray: mapItems,
+      jsonDataConfig: mapDataConfig,
+    });
     return {
       figureType: "map",
-      data: getMapDataTransformed({
-        geoData: geoJson,
-        jsonArray: mapItems,
-        jsonDataConfig: mapDataConfig,
-      }),
+      data: d,
       caption: withDateRange(
         withReplicant(
           config.t.caption,
@@ -417,14 +441,19 @@ function buildInputs(
         dateRange,
         localization,
       ),
-      footnote: withDateRange(
-        withReplicant(
-          config.t.footnote,
-          config,
-          indicatorLabelReplacements,
-          localization.countryIso3,
+      footnote: withBlankRowsNote(
+        withDateRange(
+          withReplicant(
+            config.t.footnote,
+            config,
+            indicatorLabelReplacements,
+            localization.countryIso3,
+          ),
+          dateRange,
+          localization,
         ),
-        dateRange,
+        d.area.nBlankRows,
+        noAreaNote,
         localization,
       ),
       style: getStyleFromPresentationObject(
@@ -640,6 +669,48 @@ function buildMapAutoLegend(
     ...format,
     noData,
   };
+}
+
+// A row whose period or area is blank has no place on the plot, so panther
+// leaves it off and counts it; without this sentence the figure would read as
+// if it showed every row.
+function withBlankRowsNote(
+  footnote: string,
+  nBlankRows: number,
+  note: (n: number) => TranslatableString,
+  localization: Pick<FigureLocalization, "language">,
+): string {
+  if (nBlankRows === 0) return footnote;
+  const sentence = pickLang(localization.language, note(nBlankRows));
+  return footnote === "" ? sentence : `${footnote} ${sentence}`;
+}
+
+function noPeriodNote(n: number): TranslatableString {
+  return n === 1
+    ? {
+      en: "1 row has no period and is not shown.",
+      fr: "1 ligne n'a pas de période et n'est pas affichée.",
+      pt: "1 linha não tem período e não é mostrada.",
+    }
+    : {
+      en: `${n} rows have no period and are not shown.`,
+      fr: `${n} lignes n'ont pas de période et ne sont pas affichées.`,
+      pt: `${n} linhas não têm período e não são mostradas.`,
+    };
+}
+
+function noAreaNote(n: number): TranslatableString {
+  return n === 1
+    ? {
+      en: "1 row has no area and is not shown.",
+      fr: "1 ligne n'a pas de zone et n'est pas affichée.",
+      pt: "1 linha não tem área e não é mostrada.",
+    }
+    : {
+      en: `${n} rows have no area and are not shown.`,
+      fr: `${n} lignes n'ont pas de zone et ne sont pas affichées.`,
+      pt: `${n} linhas não têm área e não são mostradas.`,
+    };
 }
 
 function withDateRange(

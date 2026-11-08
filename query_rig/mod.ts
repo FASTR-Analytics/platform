@@ -1,7 +1,7 @@
+import { BLANK_SENTINEL } from "@timroberton/panther";
 import type { Sql } from "postgres";
 import {
   ALL_DATA_SCOPE_DEFINITION,
-  BLANK_SENTINEL,
   scopeDefinitionHash,
   setCalendar,
   validateFetchConfig,

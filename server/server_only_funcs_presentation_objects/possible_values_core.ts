@@ -1,8 +1,7 @@
-import { foldString } from "@timroberton/panther";
+import { BLANK_SENTINEL, foldString } from "@timroberton/panther";
 import { tryCatchDatabaseAsync } from "../db/mod.ts";
 import {
   APIResponseWithData,
-  BLANK_SENTINEL,
   DisaggregationOption,
   GenericLongFormFetchConfig,
   MULTI_MEMBERSHIP_DELIMITER,
