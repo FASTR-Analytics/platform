@@ -9,7 +9,6 @@ import {
   type GlobalStyleOptions,
   type HeaderItem,
   MapRegionInfo,
-  NO_DISAGGREGATION_HEADER_ID,
   PieSliceInfo,
   TableCellInfo,
   TableHeaderInfo,
@@ -353,10 +352,10 @@ export function getIndicatorIdsForChartValue(
   return [
     effectiveValueProps.length === 1 ? effectiveValueProps[0] : undefined,
     info.indicatorHeader?.id,
-    info.seriesHeader.id,
-    info.laneHeader.id,
-    info.tierHeader.id,
-    info.paneHeader.id,
+    info.seriesHeader?.id,
+    info.laneHeader?.id,
+    info.tierHeader?.id,
+    info.paneHeader?.id,
   ];
 }
 
@@ -370,9 +369,9 @@ export function getIndicatorIdsForMapRegion(
 ): (string | undefined)[] {
   return [
     effectiveValueProps.length === 1 ? effectiveValueProps[0] : undefined,
-    info.paneHeader.id,
-    info.tierHeader.id,
-    info.laneHeader.id,
+    info.paneHeader?.id,
+    info.tierHeader?.id,
+    info.laneHeader?.id,
   ];
 }
 
@@ -422,9 +421,8 @@ export function getMapRegionsContent(
 // textFormatter (only when labels are on) exists to honor s.decimalPlaces;
 // panther's built-in formatter auto-picks decimals.
 //
-// The name is dropped when the slice axis carries no disaggregation: panther
-// yields its NO_DISAGGREGATION_HEADER_ID sentinel there, whose label is the
-// literal "default". That is every completion pie (the whole point is one
+// The name is dropped when the slice axis carries no disaggregation, where
+// panther gives the slice no series header. That is every completion pie (the whole point is one
 // filled arc per indicator, named by the indicator header panther draws beside
 // it) and any pie left with an empty Slices slot.
 export function getPieSlicesContent(config: PresentationObjectConfig) {
@@ -437,7 +435,7 @@ export function getPieSlicesContent(config: PresentationObjectConfig) {
           "percent",
           config.s.decimalPlaces ?? 0,
         )(info.share);
-        return info.seriesHeader.id === NO_DISAGGREGATION_HEADER_ID
+        return info.seriesHeader === undefined
           ? share
           : `${info.seriesHeader.label} ${share}`;
       }
@@ -460,11 +458,12 @@ export function getPieCenterLabel(
 }
 
 // The header whose index drives series coloring (see getIndex below): the
-// sentinel check must look at the same axis the palette indexes.
+// roll-up pin check must look at the same axis the palette indexes. Undefined
+// for an axis with no disaggregation.
 function getColorPropHeaderId(
   info: ChartSeriesInfo,
   seriesColorFuncPropToUse: "series" | "cell" | "row" | "col" | undefined,
-): string {
+): string | undefined {
   const header = seriesColorFuncPropToUse === "cell"
     ? info.paneHeader
     : seriesColorFuncPropToUse === "col"
@@ -472,7 +471,7 @@ function getColorPropHeaderId(
     : seriesColorFuncPropToUse === "row"
     ? info.tierHeader
     : info.seriesHeader;
-  return header.id;
+  return header?.id;
 }
 
 export function getStandardSeriesColorFunc(
@@ -494,7 +493,9 @@ export function getStandardSeriesColorFunc(
   const neutral = chartPalette?.neutral ?? _CF_COMPARISON;
   return (info: ChartSeriesInfo) => {
     const id = getColorPropHeaderId(info, config.s.seriesColorFuncPropToUse);
-    return ROLLUP_PIN_IDS.includes(id) ? neutral : base(info);
+    return id !== undefined && ROLLUP_PIN_IDS.includes(id)
+      ? neutral
+      : base(info);
   };
 }
 

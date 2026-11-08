@@ -2,7 +2,9 @@ import {
   CustomFigureStyle,
   resolveTableHeaders,
   type TableCellInfo,
+  tableColGroups,
   type TableInputs,
+  tableRowGroups,
   toHeaderItem,
 } from "panther";
 
@@ -24,10 +26,10 @@ export function getTableExportAoa(inputs: TableInputs): string[][] {
   // resolveTableHeaders, not getTableDataTransformed: header labels go through
   // the style's header textFormatters (sample sizes, today), and reading the
   // raw labels here would silently diverge from what the render shows.
-  const { colGroups, rowGroups, aoa } = resolveTableHeaders(
-    inputs.data,
-    inputs.style,
-  ).data;
+  const data = resolveTableHeaders(inputs.data, inputs.style).data;
+  const colGroups = tableColGroups(data);
+  const rowGroups = tableRowGroups(data);
+  const aoa = data.aoa;
 
   // Columns flattened in render order (by col.index). The enclosing group
   // travels with each column: a cell's formatter may identify its indicator by

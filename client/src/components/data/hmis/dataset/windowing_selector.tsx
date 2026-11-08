@@ -162,7 +162,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
             }
 
             // Use actual data range for index calculations
-            const dataMinTime = timeseriesData.timeMin;
+            const dataMinTime = timeseriesData.period.timeMin;
 
             // Calculate indices relative to the chart data, but offset by global bounds
             const startTime = getTimeFromPeriodId(
@@ -177,7 +177,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
             // Calculate indices based on the actual data range
             const startTimeIndex = Math.max(0, startTime - dataMinTime);
             const endTimeIndex = Math.min(
-              timeseriesData.nTimePoints - 1,
+              timeseriesData.period.nTimePoints - 1,
               endTime - dataMinTime,
             );
 
@@ -212,7 +212,8 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                           pointInfo.i_val <= endTimeIndex;
 
                         const inSelectedIndicators = takeAll ||
-                          indicators.includes(pointInfo.seriesHeader.label);
+                          (pointInfo.seriesHeader !== undefined &&
+                            indicators.includes(pointInfo.seriesHeader.label));
 
                         const isGreen = inPeriodRange && inSelectedIndicators;
                         return isGreen
@@ -235,7 +236,8 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                           pointInfo.i_val <= endTimeIndex;
 
                         const inSelectedIndicators = takeAll ||
-                          indicators.includes(pointInfo.seriesHeader.label);
+                          (pointInfo.seriesHeader !== undefined &&
+                            indicators.includes(pointInfo.seriesHeader.label));
 
                         const isRed = inPeriodRange && inSelectedIndicators;
                         return isRed

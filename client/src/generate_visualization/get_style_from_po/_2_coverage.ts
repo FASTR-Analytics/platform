@@ -73,7 +73,8 @@ function getCoverageSeriesColorFunc(
     const label = typeof header === "string"
       ? header
       : (header as { label?: string } | undefined)?.label ?? "";
-    if (label.startsWith("default")) return strong;
+    // A chart with no series disaggregation has no series header.
+    if (header === undefined) return strong;
     if (
       label.startsWith("Survey") ||
       label.startsWith("Estimation basée")
