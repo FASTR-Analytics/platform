@@ -8,9 +8,11 @@ import {
   createSignal,
   For,
   type JSX,
+  Match,
   onCleanup,
   onMount,
   Show,
+  Switch,
 } from "solid-js";
 import { Button } from "../form_inputs/button.tsx";
 import type { IconName } from "../icons/mod.ts";
@@ -41,10 +43,19 @@ export type MenuItemDivider = {
   type: "divider";
 };
 
+// A non-interactive row that titles the items after it. Never focused,
+// hovered or clicked.
+export type MenuItemHeading = {
+  type: "heading";
+  label: string;
+  detail?: string;
+};
+
 export type MenuItem =
   | MenuItemClickable
   | MenuItemWithSubmenu
-  | MenuItemDivider;
+  | MenuItemDivider
+  | MenuItemHeading;
 
 export type PopoverPosition =
   | "bottom"
@@ -229,11 +240,8 @@ export function PopoverMenuProvider() {
             <div class="bg-base-100 min-w-[160px] overflow-hidden rounded border shadow-floating">
               <For each={state.items}>
                 {(item, index) => (
-                  <Show
-                    when={item.type !== "divider"}
-                    fallback={<div class="bg-border my-1 h-px" />}
-                  >
-                    {(() => {
+                  <Switch
+                    fallback={(() => {
                       let buttonRef: HTMLButtonElement | undefined;
                       const hasSubMenu = "subMenu" in item && !!item.subMenu;
                       return (
@@ -278,7 +286,14 @@ export function PopoverMenuProvider() {
                         </button>
                       );
                     })()}
-                  </Show>
+                  >
+                    <Match when={item.type === "divider"}>
+                      <MenuDivider />
+                    </Match>
+                    <Match when={item.type === "heading" ? item : undefined}>
+                      {(heading) => <MenuHeading item={heading()} />}
+                    </Match>
+                  </Switch>
                 )}
               </For>
             </div>
@@ -308,30 +323,37 @@ export function PopoverMenuProvider() {
             <div class="bg-base-100 min-w-[160px] overflow-hidden rounded border shadow-floating">
               <For each={state.items}>
                 {(item) => (
-                  <Show
-                    when={item.type !== "divider"}
-                    fallback={<div class="bg-border my-1 h-px" />}
+                  <Switch
+                    fallback={
+                      <button
+                        type="button"
+                        class="ui-hoverable-base-100 flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-40"
+                        classList={{
+                          "text-danger": (item as MenuItemClickable).intent ===
+                            "danger",
+                        }}
+                        disabled={(item as MenuItemClickable).disabled}
+                        onClick={() =>
+                          handleItemClick(item as MenuItemClickable)}
+                      >
+                        <Show when={(item as MenuItemClickable).icon}>
+                          {(icon) => (
+                            <span class="w-4">
+                              <IconRenderer iconName={icon()} />
+                            </span>
+                          )}
+                        </Show>
+                        <span>{(item as MenuItemClickable).label}</span>
+                      </button>
+                    }
                   >
-                    <button
-                      type="button"
-                      class="ui-hoverable-base-100 flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-40"
-                      classList={{
-                        "text-danger": (item as MenuItemClickable).intent ===
-                          "danger",
-                      }}
-                      disabled={(item as MenuItemClickable).disabled}
-                      onClick={() => handleItemClick(item as MenuItemClickable)}
-                    >
-                      <Show when={(item as MenuItemClickable).icon}>
-                        {(icon) => (
-                          <span class="w-4">
-                            <IconRenderer iconName={icon()} />
-                          </span>
-                        )}
-                      </Show>
-                      <span>{(item as MenuItemClickable).label}</span>
-                    </button>
-                  </Show>
+                    <Match when={item.type === "divider"}>
+                      <MenuDivider />
+                    </Match>
+                    <Match when={item.type === "heading" ? item : undefined}>
+                      {(heading) => <MenuHeading item={heading()} />}
+                    </Match>
+                  </Switch>
                 )}
               </For>
             </div>
@@ -339,6 +361,23 @@ export function PopoverMenuProvider() {
         </Show>
       </div>
     </>
+  );
+}
+
+function MenuDivider(): JSX.Element {
+  return <div class="bg-border my-1 h-px" />;
+}
+
+function MenuHeading(p: { item: MenuItemHeading }): JSX.Element {
+  return (
+    <div class="max-w-72 px-3 py-2">
+      <div class="font-700 truncate text-sm">{p.item.label}</div>
+      <Show when={p.item.detail}>
+        {(detail) => (
+          <div class="text-base-content-muted truncate text-xs">{detail()}</div>
+        )}
+      </Show>
+    </div>
   );
 }
 
