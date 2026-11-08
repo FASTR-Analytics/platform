@@ -1,3 +1,11 @@
+[TBD] [user] [fixed] - Fixed chart highlighting errors when data series info is missing
+[TBD] [user] [fixed] - Fixed pie chart labels showing "default" instead of proper names
+[TBD] [user] [fixed] - Fixed incorrect color assignments on charts without grouped data
+[TBD] [admin] [fixed] - Fixed chart rendering errors when data lacks disaggregation
+[TBD] [admin] [fixed] - Fixed pie chart labels showing "default" instead of being hidden
+[TBD] [admin] [fixed] - Fixed coverage chart coloring for non-disaggregated series
+[TBD] [admin] [fixed] - Fixed data windowing selector errors with updated data format
+[TBD] [admin] [fixed] - Fixed table export to work with updated data structure
 [TBD] [user] [changed] - Scopes page is now visible to all approved users
 [TBD] [user] [changed] - Restricted users can view their assigned scopes but cannot edit them
 [TBD] [user] [changed] - Any unrestricted user can now create, edit, and delete scopes
