@@ -1,3 +1,10 @@
+[TBD] [user] [added] - You can now start and stop indicator verification runs
+[TBD] [user] [added] - Verification progress is shown in real time as indicators are checked
+[TBD] [user] [fixed] - Editing an indicator formula now clears any previous suggested fix
+[TBD] [admin] [added] - HFA verification can now run as a background process with live progress tracking
+[TBD] [admin] [added] - HFA verification runs can be stopped while in progress
+[TBD] [admin] [fixed] - Editing an indicator formula now correctly clears any pending fix suggestion
+[TBD] [admin] [internal] - Server restart automatically marks interrupted verification runs as errors
 [TBD] [user] [added] - Footnote now notes how many rows with missing period or area are excluded from the figure
 [TBD] [user] [fixed] - Cells containing only special whitespace characters (like non-breaking spaces) are now correctly treated as blank
 [TBD] [admin] [added] - Figures now note when rows are hidden due to missing period or area data
