@@ -1,45 +1,45 @@
-[TBD] [user] [changed] - Verify button now available as a bulk action on selected indicators
-[TBD] [user] [changed] - Verification progress shows who started the run if started by another user
-[TBD] [user] [changed] - "Verify all" menu item replaced by bulk-select and Verify workflow
-[TBD] [user] [fixed] - Verification progress updates arrive more promptly after each indicator is checked
-[TBD] [user] [changed] - Stop button disables while verification is stopping
-[TBD] [admin] [changed] - Verification runs now use the instance's API key directly, bypassing per-user token limits
-[TBD] [admin] [changed] - Verification progress now shows who started the run if started by another user
-[TBD] [admin] [changed] - "Verify all" moved from menu to a bulk action on selected indicators
-[TBD] [admin] [fixed] - Verification run no longer silently stalls if its background worker fails to start
-[TBD] [admin] [fixed] - Last verification result now broadcasts promptly instead of waiting for the next check
-[TBD] [user] [added] - You can now start and stop indicator verification runs
-[TBD] [user] [added] - Verification progress is shown in real time as indicators are checked
-[TBD] [user] [fixed] - Editing an indicator formula now clears any previous suggested fix
-[TBD] [admin] [added] - HFA verification can now run as a background process with live progress tracking
-[TBD] [admin] [added] - HFA verification runs can be stopped while in progress
-[TBD] [admin] [fixed] - Editing an indicator formula now correctly clears any pending fix suggestion
-[TBD] [admin] [internal] - Server restart automatically marks interrupted verification runs as errors
-[TBD] [user] [added] - Footnote now notes how many rows with missing period or area are excluded from the figure
-[TBD] [user] [fixed] - Cells containing only special whitespace characters (like non-breaking spaces) are now correctly treated as blank
-[TBD] [admin] [added] - Figures now note when rows are hidden due to missing period or area data
-[TBD] [admin] [fixed] - Cells containing only special whitespace characters (e.g., non-breaking spaces) are now correctly treated as blank
-[TBD] [admin] [changed] - Visualization cache version updated; cached figures will regenerate automatically
-[TBD] [admin] [fixed] - Chart and table data errors now surface clearer messages instead of silent failures
-[TBD] [user] [fixed] - Fixed chart highlighting errors when data series info is missing
-[TBD] [user] [fixed] - Fixed pie chart labels showing "default" instead of proper names
-[TBD] [user] [fixed] - Fixed incorrect color assignments on charts without grouped data
-[TBD] [admin] [fixed] - Fixed chart rendering errors when data lacks disaggregation
-[TBD] [admin] [fixed] - Fixed pie chart labels showing "default" instead of being hidden
-[TBD] [admin] [fixed] - Fixed coverage chart coloring for non-disaggregated series
-[TBD] [admin] [fixed] - Fixed data windowing selector errors with updated data format
-[TBD] [admin] [fixed] - Fixed table export to work with updated data structure
-[TBD] [user] [changed] - Scopes page is now visible to all approved users
-[TBD] [user] [changed] - Restricted users can view their assigned scopes but cannot edit them
-[TBD] [user] [changed] - Any unrestricted user can now create, edit, and delete scopes
-[TBD] [user] [changed] - Scopes assigned to restricted users require a user manager to modify or delete
-[TBD] [user] [added] - Each scope now shows how many products use it
-[TBD] [admin] [changed] - Scopes page is now visible to all approved users
-[TBD] [admin] [changed] - Any unrestricted user can create, edit, and delete scopes
-[TBD] [admin] [changed] - Restricted users can view their granted scopes but cannot modify them
-[TBD] [admin] [changed] - Editing or deleting a scope granted to users requires user management permission
-[TBD] [admin] [added] - Each scope now shows its product count across the instance
-[TBD] [admin] [changed] - Restricted users can no longer change scopes, even with other permissions
+[2.10.0] [user] [changed] - Verify button now available as a bulk action on selected indicators
+[2.10.0] [user] [changed] - Verification progress shows who started the run if started by another user
+[2.10.0] [user] [changed] - "Verify all" menu item replaced by bulk-select and Verify workflow
+[2.10.0] [user] [fixed] - Verification progress updates arrive more promptly after each indicator is checked
+[2.10.0] [user] [changed] - Stop button disables while verification is stopping
+[2.10.0] [admin] [changed] - Verification runs now use the instance's API key directly, bypassing per-user token limits
+[2.10.0] [admin] [changed] - Verification progress now shows who started the run if started by another user
+[2.10.0] [admin] [changed] - "Verify all" moved from menu to a bulk action on selected indicators
+[2.10.0] [admin] [fixed] - Verification run no longer silently stalls if its background worker fails to start
+[2.10.0] [admin] [fixed] - Last verification result now broadcasts promptly instead of waiting for the next check
+[2.10.0] [user] [added] - You can now start and stop indicator verification runs
+[2.10.0] [user] [added] - Verification progress is shown in real time as indicators are checked
+[2.10.0] [user] [fixed] - Editing an indicator formula now clears any previous suggested fix
+[2.10.0] [admin] [added] - HFA verification can now run as a background process with live progress tracking
+[2.10.0] [admin] [added] - HFA verification runs can be stopped while in progress
+[2.10.0] [admin] [fixed] - Editing an indicator formula now correctly clears any pending fix suggestion
+[2.10.0] [admin] [internal] - Server restart automatically marks interrupted verification runs as errors
+[2.10.0] [user] [added] - Footnote now notes how many rows with missing period or area are excluded from the figure
+[2.10.0] [user] [fixed] - Cells containing only special whitespace characters (like non-breaking spaces) are now correctly treated as blank
+[2.10.0] [admin] [added] - Figures now note when rows are hidden due to missing period or area data
+[2.10.0] [admin] [fixed] - Cells containing only special whitespace characters (e.g., non-breaking spaces) are now correctly treated as blank
+[2.10.0] [admin] [changed] - Visualization cache version updated; cached figures will regenerate automatically
+[2.10.0] [admin] [fixed] - Chart and table data errors now surface clearer messages instead of silent failures
+[2.10.0] [user] [fixed] - Fixed chart highlighting errors when data series info is missing
+[2.10.0] [user] [fixed] - Fixed pie chart labels showing "default" instead of proper names
+[2.10.0] [user] [fixed] - Fixed incorrect color assignments on charts without grouped data
+[2.10.0] [admin] [fixed] - Fixed chart rendering errors when data lacks disaggregation
+[2.10.0] [admin] [fixed] - Fixed pie chart labels showing "default" instead of being hidden
+[2.10.0] [admin] [fixed] - Fixed coverage chart coloring for non-disaggregated series
+[2.10.0] [admin] [fixed] - Fixed data windowing selector errors with updated data format
+[2.10.0] [admin] [fixed] - Fixed table export to work with updated data structure
+[2.10.0] [user] [changed] - Scopes page is now visible to all approved users
+[2.10.0] [user] [changed] - Restricted users can view their assigned scopes but cannot edit them
+[2.10.0] [user] [changed] - Any unrestricted user can now create, edit, and delete scopes
+[2.10.0] [user] [changed] - Scopes assigned to restricted users require a user manager to modify or delete
+[2.10.0] [user] [added] - Each scope now shows how many products use it
+[2.10.0] [admin] [changed] - Scopes page is now visible to all approved users
+[2.10.0] [admin] [changed] - Any unrestricted user can create, edit, and delete scopes
+[2.10.0] [admin] [changed] - Restricted users can view their granted scopes but cannot modify them
+[2.10.0] [admin] [changed] - Editing or deleting a scope granted to users requires user management permission
+[2.10.0] [admin] [added] - Each scope now shows its product count across the instance
+[2.10.0] [admin] [changed] - Restricted users can no longer change scopes, even with other permissions
 [2.9.1] [user] [added] - AI assistant fixes report drafts with small edits instead of rewriting entirely
 [2.9.1] [user] [fixed] - Reports no longer proposed with half-empty pages when browser tab is hidden
 [2.9.1] [user] [changed] - AI planning descriptions now use plain language instead of technical format names
