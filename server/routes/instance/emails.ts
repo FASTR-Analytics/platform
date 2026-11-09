@@ -6,7 +6,13 @@ import {
   _SEND_GRID_API,
   _SERVER_VERSION,
 } from "../../exposed_env_vars.ts";
-import { queueFeedbackPlan } from "../../utils/feedback_planner.ts";
+import {
+  queueFeedbackPlan,
+  REPORTER_LOG_HOURS,
+  REPORTER_LOG_LIMIT,
+} from "../../utils/feedback_planner.ts";
+import { getRecentUserRequests } from "../../db/instance/user_logs.ts";
+import { USER_PERMISSIONS } from "lib";
 import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";
 import {
@@ -300,6 +306,13 @@ defineRoute(
     }
 
     if (feedbackType !== "help") {
+      const user = c.var.globalUser;
+      const recent = await getRecentUserRequests(
+        c.var.mainDb,
+        userEmail,
+        new Date(Date.now() - REPORTER_LOG_HOURS * 3_600_000),
+        REPORTER_LOG_LIMIT,
+      );
       queueFeedbackPlan({
         feedbackType,
         description,
@@ -307,6 +320,14 @@ defineRoute(
         instanceId: _INSTANCE_ID,
         serverVersion: _SERVER_VERSION,
         imageCount: images?.length ?? 0,
+        reporter: {
+          isGlobalAdmin: user.isGlobalAdmin,
+          permissions: USER_PERMISSIONS.filter((k) =>
+            user.thisUserPermissions[k]
+          ),
+          allScopes: user.scopeAccess.all,
+          recentRequests: recent.success ? recent.data : undefined,
+        },
       }, sendEmail);
     }
 

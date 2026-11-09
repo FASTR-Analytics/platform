@@ -3,6 +3,7 @@ import { tryCatchDatabaseAsync } from "./../utils.ts";
 import {
   APIResponseNoData,
   APIResponseWithData,
+  parseJsonOrUndefined,
   type UserLastActive,
 } from "lib";
 
@@ -39,6 +40,59 @@ export async function getUsersLastActive(
         email: r.email,
         lastActive: r.last_active.toISOString(),
       })),
+    };
+  });
+}
+
+export type RecentUserRequest = {
+  at: string;
+  endpoint: string;
+  status: string;
+  params: Record<string, string>;
+};
+
+// One user's own logged requests since `since`, oldest first: endpoint, HTTP
+// status and route params (ids) only, never the request body. The feedback
+// planner hands these to the model as evidence about what the reporter did.
+export async function getRecentUserRequests(
+  mainDb: Sql,
+  userEmail: string,
+  since: Date,
+  limit: number,
+): Promise<APIResponseWithData<RecentUserRequest[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const rows = await mainDb<{
+      timestamp: Date;
+      endpoint: string;
+      endpoint_result: string;
+      details: string | null;
+    }[]>`
+      SELECT timestamp, endpoint, endpoint_result, details
+      FROM user_logs
+      WHERE user_email = ${userEmail}
+        AND timestamp > ${since}
+        AND endpoint NOT IN ('getCurrentUser', 'sendHelpEmail')
+      ORDER BY timestamp DESC
+      LIMIT ${limit}
+    `;
+    return {
+      success: true,
+      data: rows.reverse().map((r) => {
+        const raw = parseJsonOrUndefined<{ params?: unknown }>(r.details)
+          ?.params;
+        const params: Record<string, string> = {};
+        if (raw && typeof raw === "object") {
+          for (const [k, v] of Object.entries(raw)) {
+            if (typeof v === "string") params[k] = v.slice(0, 100);
+          }
+        }
+        return {
+          at: r.timestamp.toISOString(),
+          endpoint: r.endpoint,
+          status: r.endpoint_result,
+          params,
+        };
+      }),
     };
   });
 }

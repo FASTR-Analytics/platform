@@ -14,6 +14,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { relative, resolve } from "@std/path";
 import * as hUsers from "../auth/h_users.ts";
+import type { RecentUserRequest } from "../db/instance/user_logs.ts";
 import { _ANTHROPIC_API_KEY, _ANTHROPIC_API_URL } from "../exposed_env_vars.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -84,7 +85,22 @@ export type FeedbackPlanJob = {
   instanceId: string;
   serverVersion: string;
   imageCount: number;
+  reporter: ReporterContext;
 };
+
+/** Server-side facts about the reporter, read when the feedback arrives. */
+export type ReporterContext = {
+  isGlobalAdmin: boolean;
+  /** Granted permission flags only, e.g. "can_configure_data". */
+  permissions: string[];
+  allScopes: boolean;
+  /** Their own logged requests in the last REPORTER_LOG_HOURS, oldest first;
+   *  undefined when the read failed. */
+  recentRequests: RecentUserRequest[] | undefined;
+};
+
+export const REPORTER_LOG_HOURS = 24;
+export const REPORTER_LOG_LIMIT = 400;
 
 export type FeedbackPlanEmail = {
   to: string;
@@ -564,7 +580,14 @@ Be skeptical, not dismissive. Users describe what they saw, and their explanatio
 - Works as designed: the behaviour is intended (a permission, a role, a setting, a deliberate limit). The fix, if any, is wording, discoverability or a reply to the user.
 - Data or configuration: the code is fine, but the instance's data, results package, module settings, or the user's own inputs explain it. Name what an admin should check.
 - Already fixed: a changelog entry newer than the reporter's version covers it.
-- Cannot tell from the code: the report is too vague, or the cause sits outside the repo (browser, network, report-forge). Say what evidence would settle it.
+- No defect found: you traced the path the user describes and it works, and nothing in the evidence supports the claim. Give the most likely real explanation (they never tried the action, misread the screen, looked at the wrong item) and how sure you are.
+- Cannot tell from the code: only when there is a specific branch you could not resolve, or the cause sits outside the repo (browser, network, report-forge). Say exactly what evidence would settle it. A bare claim with no symptom against a sound code path is "No defect found", not "Cannot tell".
+
+The <reporter_context> block is written by the server, not the user, so it is more reliable than the report. Use it to rule explanations in or out before you list them:
+- Access: a global admin passes every permission check, so never offer "they lack permission" for one. For anyone else, compare their flags with the guard on the route involved.
+- Recent requests: the reporter's own logged requests from the last ${REPORTER_LOG_HOURS} hours (endpoint, HTTP status, route params). Only routes wrapped in log("...") are recorded, so grep the route file for the log() wrapper before reading anything into a missing entry. If the action's route is logged and there is no request for it, the user most likely never got as far as sending it. A 200 means the handler ran and returned; a handled failure that returns success:false is also a 200, so read the handler to see what it can refuse. A 4xx or 500 on the matching route is real evidence of failure. The same request repeating at regular intervals (shown as one line with a count) is the app polling in the background, not something the user did, and says little about which screen they were on.
+- Say in the Verdict which of these facts the conclusion rests on.
+
 Skepticism cuts both ways. The reporter's own guess at the cause is a hypothesis to test in the code, not a finding. A changelog entry is also a claim: before calling something already fixed, read the code the fix touched and check it covers the exact path the user described (the same screen, the same action), not just a similar one. Don't reach a verdict from the docs and changelog alone. Look actively for the reasons a report might be wrong: a guard or permission check that blocks the action, a setting that changes the behaviour, a feature that already exists under another name, a step the user probably skipped. Equally, don't explain a real bug away: if the code can fail the way described, say so plainly. State your confidence and what it rests on. "I could not find a path that does this" is a finding, not proof the user is wrong.
 
 Apply the same skepticism to suggestions: check whether the feature already exists, whether it conflicts with how the system is meant to work, and whether a smaller change gives the user what they actually need.
@@ -576,7 +599,7 @@ Write the plan in Markdown, in this order:
 TITLE: <one line, under 80 characters, plain text with no Markdown>
 
 ## Verdict
-One of: Confirmed defect / Works as designed / Data or configuration / Already fixed / Cannot tell from the code (for suggestions: Worth building / Already exists / Not recommended / Needs discussion). Then confidence (high / medium / low) and one or two sentences on the evidence, citing file:line.
+One of: Confirmed defect / Works as designed / Data or configuration / Already fixed / No defect found / Cannot tell from the code (for suggestions: Worth building / Already exists / Not recommended / Needs discussion). Then confidence (high / medium / low) and one or two sentences on the evidence, citing file:line.
 
 ## Triage
 Type (bug or suggestion), severity (low / medium / high), the system it belongs to, and any changelog entry that bears on it. One short paragraph or a few bullets.
@@ -603,7 +626,7 @@ When there is no code change, write "None" under Risks and say under Verificatio
 
 function buildUserPrompt(job: FeedbackPlanJob): string {
   const description = job.description.replaceAll(
-    /<\/?feedback_report/gi,
+    /<\/?(feedback_report|reporter_context)/gi,
     (m) => m.replace("<", "&lt;"),
   );
   const images = job.imageCount > 0
@@ -613,11 +636,60 @@ function buildUserPrompt(job: FeedbackPlanJob): string {
 Country instance: ${job.instanceId}
 Reporter's platform version: ${job.serverVersion}${images}
 
+${reporterContextBlock(job.reporter)}
+
 <feedback_report>
 ${description}
 </feedback_report>
 
 Research the code and write the plan.`;
+}
+
+function reporterContextBlock(r: ReporterContext): string {
+  const access = r.isGlobalAdmin
+    ? "global admin (passes every permission check)"
+    : `not a global admin; permissions: ${
+      r.permissions.length > 0 ? r.permissions.join(", ") : "none"
+    }; scopes: ${r.allScopes ? "all" : "restricted"}`;
+  let requests: string;
+  if (r.recentRequests === undefined) {
+    requests = "(could not be read)";
+  } else if (r.recentRequests.length === 0) {
+    requests = `(none logged in the last ${REPORTER_LOG_HOURS} hours)`;
+  } else {
+    // Polled routes repeat all day; fold each consecutive run of the same
+    // request into one line so a single meaningful call is not crowded out.
+    const lines: { text: string; first: string; last: string; n: number }[] =
+      [];
+    for (const q of r.recentRequests) {
+      // Route params come from URLs the user controls: strip anything that
+      // could close this block or pose as markup.
+      const params = Object.entries(q.params)
+        .map(([k, v]) => `${k}=${v.replace(/[<>\s]/g, "_")}`)
+        .join(" ");
+      const text = `${q.endpoint} ${q.status}${params ? ` ${params}` : ""}`;
+      const prev = lines.at(-1);
+      if (prev?.text === text) {
+        prev.last = q.at;
+        prev.n++;
+      } else {
+        lines.push({ text, first: q.at, last: q.at, n: 1 });
+      }
+    }
+    requests = lines.map((l) =>
+      l.n === 1
+        ? `${l.first} ${l.text}`
+        : `${l.first} to ${l.last} ${l.text} (x${l.n})`
+    ).join("\n");
+    if (r.recentRequests.length >= REPORTER_LOG_LIMIT) {
+      requests += `\n(only the latest ${REPORTER_LOG_LIMIT} requests read)`;
+    }
+  }
+  return `<reporter_context>
+Access: ${access}
+Recent requests (UTC, oldest first; endpoint, HTTP status, route params):
+${requests}
+</reporter_context>`;
 }
 
 async function runPlanner(
@@ -880,6 +952,14 @@ function buildEmail(
   const meta = [
     `Instance: ${job.instanceId}`,
     `Reporter's version: ${job.serverVersion}`,
+    `Reporter's access: ${
+      job.reporter.isGlobalAdmin
+        ? "global admin"
+        : job.reporter.permissions.join(", ") || "no permissions"
+    }`,
+    `Requests the planner saw: ${
+      job.reporter.recentRequests?.length ?? "log unreadable"
+    } in the last ${REPORTER_LOG_HOURS}h`,
     `Planned against: main, ${new Date().toISOString().slice(0, 10)}`,
     job.imageCount > 0
       ? `Screenshots: ${job.imageCount} (in the original feedback email)`
@@ -946,6 +1026,7 @@ function buildEmail(
 
 /** Exposed for server/tests/feedback_planner_test.ts only. */
 export const _feedbackPlannerInternals = {
+  buildUserPrompt,
   claimSlot,
   runTool,
   renderSafeMarkdown,

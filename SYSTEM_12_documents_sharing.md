@@ -2957,8 +2957,13 @@ stays the only SendGrid egress) to `_FEEDBACK_PLAN_RECIPIENTS` in the gitignored
 `h_users.ts`, read optionally so a checkout without it boots with the planner
 off. The prompt makes Claude check the report against the code first and open
 with a verdict (confirmed defect, works as designed, data or configuration,
-already fixed, cannot tell), so a non-defect gets a suggested reply instead of
-invented code work. Jobs run one at a time, capped at 3 per reporter and 15 per instance per day
+no defect found, already fixed, cannot tell), so a non-defect gets a suggested
+reply instead of invented code work. The route also hands it server-side facts
+about the reporter, which the report cannot forge: admin flag, permission flags,
+scope access and their own logged requests from the last 24 hours
+(`getRecentUserRequests` in `server/db/instance/user_logs.ts`: endpoint, status
+and route params, never bodies), so "I can't do X" can be checked against
+whether an X request was ever sent. Jobs run one at a time, capped at 3 per reporter and 15 per instance per day
 in memory; its tokens are not written to the AI usage log. User-typed text (`message`/`description`/`context`/
 `userEmail`) is HTML-escaped before interpolation in every route.
 
