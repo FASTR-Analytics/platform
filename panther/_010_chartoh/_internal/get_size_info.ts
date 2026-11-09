@@ -43,9 +43,9 @@ export function getChartOHComponentSizes(
   );
   const ms = cs.getMergedChartOHStyle();
 
-  // X-scale axis height (self-contained, sample tick label).
   const xAxisHeight = estimateMinXAxisHeightForScale(
     rc,
+    data.xScaleAxisLabel,
     ms.xScaleAxis,
     ms.grid,
   );

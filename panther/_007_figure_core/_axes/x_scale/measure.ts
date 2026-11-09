@@ -16,8 +16,19 @@ import { getGoodAxisTickValues } from "../get_good_axis_tick_values.ts";
 import { resolveScaleAxisLimits } from "../resolve_scale_axis_limits.ts";
 import type { XScaleAxisHeightInfo, XScaleAxisMeasuredInfo } from "./types.ts";
 
+function measureXScaleAxisLabelAndLabelGapHeight(
+  rc: RenderContext,
+  axisLabel: string | undefined,
+  sx: MergedXScaleAxisStyle,
+): number {
+  if (!axisLabel) return 0;
+  return rc.mText(axisLabel, sx.text.xScaleAxisLabel, Number.POSITIVE_INFINITY)
+    .dims.h() + sx.labelGap;
+}
+
 export function estimateMinXAxisHeightForScale(
   rc: RenderContext,
+  axisLabel: string | undefined,
   sx: MergedXScaleAxisStyle,
   sg: MergedGridStyle,
 ): number {
@@ -26,12 +37,15 @@ export function estimateMinXAxisHeightForScale(
     sx.text.xScaleAxisTickLabels,
     Infinity,
   );
-  return sample.dims.h() + sx.tickLabelGap + sx.tickHeight + sg.axisStrokeWidth;
+  return sample.dims.h() + sx.tickLabelGap + sx.tickHeight +
+    sg.axisStrokeWidth +
+    measureXScaleAxisLabelAndLabelGapHeight(rc, axisLabel, sx);
 }
 
 export function measureXScaleAxisHeightInfo(
   rc: RenderContext,
   dx: ChartScaleAxisLimits,
+  axisLabel: string | undefined,
   sx: MergedXScaleAxisStyle,
   sg: MergedGridStyle,
   contentRcd: RectCoordsDims,
@@ -46,7 +60,8 @@ export function measureXScaleAxisHeightInfo(
     .dims.h();
   const heightIncludingXAxisStrokeWidth = sx.exactAxisY !== "none"
     ? sx.exactAxisY + sg.axisStrokeWidth
-    : sampleH + sx.tickLabelGap + sx.tickHeight + sg.axisStrokeWidth;
+    : sampleH + sx.tickLabelGap + sx.tickHeight + sg.axisStrokeWidth +
+      measureXScaleAxisLabelAndLabelGapHeight(rc, axisLabel, sx);
 
   // Guess tick count from per-lane sub-chart width (mirror of Y-scale,
   // which divides by tierCount to size per-tier sub-chart height).

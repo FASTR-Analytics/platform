@@ -79,7 +79,7 @@ Same as ChartOV (orientation doesn't change the facet geometry):
 Axis placement within the pane (horizontal):
 
 - **Y-text axis** at the left of the pane, one per tier. All tiers show the same indicator labels (categories); drawn once per tier on the lane‑0 pass.
-- **X-scale axis** at the bottom of the pane, one per lane. Each lane can have its own value range via `allowIndividualLaneLimits`.
+- **X-scale axis** at the bottom of the pane, one per lane. Each lane can have its own value range via `allowIndividualLaneLimits`. The axis band includes the axis label (`xScaleAxisLabel`), below the tick labels and separated from them by `xScaleAxis.labelGap`.
 
 ## Out of Scope (v1)
 

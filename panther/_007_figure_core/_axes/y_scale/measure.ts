@@ -20,8 +20,23 @@ import type {
 import { getGoodAxisTickValues } from "../get_good_axis_tick_values.ts";
 import { resolveScaleAxisLimits } from "../resolve_scale_axis_limits.ts";
 
+function measureYScaleAxisLabelAndLabelGapWidth(
+  rc: RenderContext,
+  axisLabel: string | undefined,
+  sy: MergedYScaleAxisStyle,
+): number {
+  if (!axisLabel) return 0;
+  return rc.mText(
+    axisLabel,
+    sy.text.yScaleAxisLabel,
+    Number.POSITIVE_INFINITY,
+    { rotation: "anticlockwise" },
+  ).dims.w() + sy.labelGap;
+}
+
 export function estimateMinYAxisWidth(
   rc: RenderContext,
+  axisLabel: string | undefined,
   sy: MergedYScaleAxisStyle,
   sg: MergedGridStyle,
 ): number {
@@ -30,7 +45,8 @@ export function estimateMinYAxisWidth(
     sy.text.yScaleAxisTickLabels,
     Infinity,
   );
-  return sampleLabel.dims.w() + sy.tickLabelGap + sy.tickWidth +
+  return measureYScaleAxisLabelAndLabelGapWidth(rc, axisLabel, sy) +
+    sampleLabel.dims.w() + sy.tickLabelGap + sy.tickWidth +
     sg.axisStrokeWidth;
 }
 
@@ -45,16 +61,11 @@ export function measureYScaleAxisWidthInfo(
   tierHeaderAndLabelGapWidth: number,
   tierCount: number,
 ): YScaleAxisWidthInfo {
-  let axisLabelAndLabelGapWidth = 0;
-  if (axisLabel) {
-    const mLabel = rc.mText(
-      axisLabel,
-      sy.text.yScaleAxisLabel,
-      Number.POSITIVE_INFINITY,
-      { rotation: "anticlockwise" },
-    );
-    axisLabelAndLabelGapWidth = mLabel.dims.w() + sy.labelGap;
-  }
+  const axisLabelAndLabelGapWidth = measureYScaleAxisLabelAndLabelGapWidth(
+    rc,
+    axisLabel,
+    sy,
+  );
 
   const guessSubChartH = (contentRcd.h() * 0.8) / tierCount;
   const yAxisTickLabelH = rc

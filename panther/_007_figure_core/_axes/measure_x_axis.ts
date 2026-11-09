@@ -76,6 +76,7 @@ export function measureXAxis(
       const xScaleHeightInfo = measureXScaleAxisHeightInfo(
         rc,
         xAxisConfig.axisData,
+        xAxisConfig.axisLabel,
         xAxisConfig.axisStyle,
         gridStyle,
         contentRcd,

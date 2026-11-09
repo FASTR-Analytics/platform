@@ -139,7 +139,12 @@ export function getChartOVComponentSizes(
     minSubChartHeight: calculateMinSubChartHeight(rc, ms.yScaleAxis),
     xAxisHeight,
     paneHeaderHeight,
-    minYAxisWidth: estimateMinYAxisWidth(rc, ms.yScaleAxis, ms.grid),
+    minYAxisWidth: estimateMinYAxisWidth(
+      rc,
+      data.yScaleAxisLabel,
+      ms.yScaleAxis,
+      ms.grid,
+    ),
     surroundsMinWidth: estimateMinSurroundsWidth(
       rc,
       cs,

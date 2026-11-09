@@ -367,6 +367,7 @@ builtInTools: {
 - `aiToolFactory(registry)` - Binds one registry once; the recommended form for an app with a single view registry
 - `bindAIToolToView(registry, template, resolve, options?)` - Resolves a tool's inner implementation per call from the view the call runs in
 - `callAI()` - One-shot requests
+- `callAIStructured()` - Schema-constrained one-shot request (from `_116_ai_one_shot`, loads in Deno)
 - `view()` / `defineAIViews()` / `createAIViewController()` - View system
 - `interaction()` / `defineAIInteractions()` - Interaction log; each action is reported against the view it happened in
 - `createNavigationTool()` - Built-in "the model asks to move" tool
