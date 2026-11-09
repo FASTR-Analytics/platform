@@ -1,3 +1,9 @@
+[2.11.0] [user] [changed] - Users table now always shows "Last active" column
+[2.11.0] [user] [changed] - Users table sorts by last active time by default
+[2.11.0] [user] [fixed] - "Last active" column loads instantly instead of showing "..."
+[2.11.0] [admin] [added] - "Last active" column now appears for all user managers
+[2.11.0] [admin] [changed] - Users table sorts by last active time by default
+[2.11.0] [admin] [internal] - Last active time is now tracked more efficiently on each request
 [2.10.0] [user] [changed] - Verify button now available as a bulk action on selected indicators
 [2.10.0] [user] [changed] - Verification progress shows who started the run if started by another user
 [2.10.0] [user] [changed] - "Verify all" menu item replaced by bulk-select and Verify workflow
