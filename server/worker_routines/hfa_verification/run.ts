@@ -155,7 +155,10 @@ export async function runHfaVerification(
   };
 
   let lastNotify = -Infinity;
+  let trailing: ReturnType<typeof setTimeout> | undefined;
   const notify = async () => {
+    clearTimeout(trailing);
+    trailing = undefined;
     lastNotify = now();
     try {
       notifyInstanceIndicatorsUpdated(
@@ -164,6 +167,13 @@ export async function runHfaVerification(
     } catch (e) {
       console.error("HFA verification notify failed:", e);
     }
+  };
+  // An answer inside the interval is broadcast when the interval ends, not
+  // left for the next answer, which can be a whole call away.
+  const notifySoon = async () => {
+    const wait = lastNotify + NOTIFY_INTERVAL_MS - now();
+    if (wait <= 0) await notify();
+    else trailing ??= setTimeout(notify, wait);
   };
 
   const check = async (
@@ -199,7 +209,7 @@ export async function runHfaVerification(
           },
         },
     );
-    if (now() - lastNotify >= NOTIFY_INTERVAL_MS) await notify();
+    await notifySoon();
   };
 
   let firstError: unknown;

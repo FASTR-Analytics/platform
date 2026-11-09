@@ -349,8 +349,8 @@ export async function queueHfaVerificationIndicators(
 }
 
 // Queues the ids, refusing while a run is stopping, and spawns a new run's
-// worker once the queue commits. `onWorkerCrash` runs after a crashed
-// worker's run is marked as an error.
+// worker once the queue commits. `onWorkerCrash` runs after a run whose
+// worker crashed or failed to start is ended in error.
 export async function startHfaVerificationRun(
   mainDb: Sql,
   indicatorIds: string[],
@@ -386,6 +386,7 @@ export async function startHfaVerificationRun(
             e instanceof Error ? e.message : String(e)
           }`,
         );
+        await onWorkerCrash();
         throw e;
       }
     }

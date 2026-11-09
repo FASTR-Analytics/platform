@@ -16,12 +16,14 @@ import {
 } from "../exposed_env_vars.ts";
 
 // The Anthropic /v1/messages passthrough behind the copilot proxy (mounted
-// at /ai, copilot_ai_proxy.ts). Governance (daily-user + weekly-instance
-// token limits), usage logging, and the beta-header policy live here; the
-// mount stays logic-free.
+// at /ai, copilot_ai_proxy.ts) and behind createGovernedAnthropicClient, the
+// server's own calls. Governance (daily-user + weekly-instance token
+// limits), usage logging, and the beta-header policy live here; the mount
+// stays logic-free.
 //
 // Responses are Anthropic-shaped (including errors), NOT the APIResponse
-// envelope: the browser Anthropic SDK parses them (see SYSTEM_13).
+// envelope: an Anthropic SDK parses them, the browser's or the governed
+// client's (see SYSTEM_13).
 
 // Client-supplied anthropic-beta values (SDK >=0.110 sends betas via this
 // header, not the body) are forwarded ONLY from this allowlist: the set
