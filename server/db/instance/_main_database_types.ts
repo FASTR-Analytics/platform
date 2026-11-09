@@ -1,4 +1,5 @@
 import type {
+  HfaVerificationRunStatus,
   ProductDefaultAccess,
   ProductGrantLevel,
   ProductType,
@@ -288,6 +289,17 @@ export type DBHfaVerificationFinding = {
   dismissed_at: Date | null;
   dismissed_by: string | null;
   created_at: Date;
+};
+
+export type DBHfaVerificationRun = {
+  id: string;
+  status: HfaVerificationRunStatus;
+  started_by: string;
+  started_at: Date;
+  ended_at: Date | null;
+  done: number;
+  not_checked: string;
+  error: string | null;
 };
 
 export type DBIcehImportRun = {

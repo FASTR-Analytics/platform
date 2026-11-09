@@ -29,6 +29,7 @@ import {
   type HfaVerificationFinding,
   hfaVerificationInputHash,
   hfaVerificationOutputSchema,
+  type HfaVerificationResult,
   type HfaVerificationRule,
 } from "lib";
 import { getPgConnection } from "../db/postgres/connection_manager.ts";
@@ -379,8 +380,11 @@ async function findingsOf(indicatorId: string) {
     );
 }
 
+const save = (results: HfaVerificationResult[]) =>
+  db.begin((sql) => saveHfaIndicatorVerifications(sql, results, "a@b.c"));
+
 Deno.test("save: several results in one call, a round that is not a time point dropped, one rule and round merged, a deleted indicator skipped", async () => {
-  const res = await saveHfaIndicatorVerifications(db, [
+  await save([
     {
       indicatorId: "ind001",
       inputHash: "h1",
@@ -394,8 +398,7 @@ Deno.test("save: several results in one call, a round that is not a time point d
     },
     { indicatorId: "ind002", inputHash: "h2", model: "m", findings: [] },
     { indicatorId: "gone", inputHash: "h3", model: "m", findings: [] },
-  ], "a@b.c");
-  assert(res.success, res.success ? "" : res.err);
+  ]);
   const rows = await getHfaVerification(db);
   assert(rows.success);
   assertEquals(
@@ -421,7 +424,7 @@ Deno.test("save: several results in one call, a round that is not a time point d
 });
 
 Deno.test("save: a dismissal suppresses its rule for an equal round, and for every round when it was about the whole indicator, but not a returned whole-indicator finding; undismissed findings are replaced", async () => {
-  await saveHfaIndicatorVerifications(db, [{
+  await save([{
     indicatorId: "ind003",
     inputHash: "a",
     model: "m",
@@ -430,14 +433,14 @@ Deno.test("save: a dismissal suppresses its rule for an equal round, and for eve
       found("category_fits", null, "Wrong category."),
       found("round_coverage", "R2", "No code in R2."),
     ],
-  }], "a@b.c");
+  }]);
   const before = await getHfaVerification(db);
   assert(before.success);
   const dismissIds = before.data.findings
     .filter((f) => f.indicatorId === "ind003" && f.rule !== "round_coverage")
     .map((f) => f.id);
   await setHfaVerificationFindingsDismissed(db, dismissIds, true, "a@b.c");
-  await saveHfaIndicatorVerifications(db, [{
+  await save([{
     indicatorId: "ind003",
     inputHash: "b",
     model: "m",
@@ -447,7 +450,7 @@ Deno.test("save: a dismissal suppresses its rule for an equal round, and for eve
       found("category_fits", "R2", "Wrong category in R2."),
       found("threshold_matches_label", "R1", "Threshold."),
     ],
-  }], "a@b.c");
+  }]);
   assertEquals(await findingsOf("ind003"), [
     {
       rule: "category_fits",
@@ -491,12 +494,12 @@ Deno.test("version: moves on a save, a dismissal, an undismissal, a rule switch 
   await setHfaVerificationFindingsDismissed(db, [open.id], false, "a@b.c");
   const v2 = await getHfaVerificationVersion(db);
   assertNotEquals(v2, v1);
-  await saveHfaIndicatorVerifications(db, [{
+  await save([{
     indicatorId: "ind002",
     inputHash: "h2",
     model: "m",
     findings: [],
-  }], "a@b.c");
+  }]);
   const v3 = await getHfaVerificationVersion(db);
   assertNotEquals(v3, v2);
   await setHfaVerificationRulesOff(db, ["category_fits"]);

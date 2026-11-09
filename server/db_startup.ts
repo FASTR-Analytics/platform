@@ -11,6 +11,7 @@ import { _INSTANCE_COUNTRY_ISO3, _RUNS_DIR_PATH } from "./exposed_env_vars.ts";
 import { runInstanceMigrations } from "./db/migrations/runner.ts";
 import {
   getPgConnectionFromCacheOrNew,
+  markStaleHfaVerificationRuns,
   markStaleRunningDatasetHfaImportRuns,
   markStaleRunningDatasetHmisImportRuns,
   markStaleRunningDatasetIcehImportRuns,
@@ -72,6 +73,12 @@ ${userInserts}
   if (staleIcehRuns > 0) {
     console.log(
       `[startup] Marked ${staleIcehRuns} ICEH import run(s) wedged mid-run by a previous shutdown`,
+    );
+  }
+  const staleVerificationRuns = await markStaleHfaVerificationRuns(sqlMain);
+  if (staleVerificationRuns > 0) {
+    console.log(
+      `[startup] Marked ${staleVerificationRuns} HFA verification run(s) interrupted by a previous shutdown`,
     );
   }
   await runInstanceDataTransforms(sqlMain);
