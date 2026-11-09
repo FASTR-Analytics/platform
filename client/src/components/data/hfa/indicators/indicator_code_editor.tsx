@@ -613,6 +613,7 @@ function EditorInner(p: {
 
   function markDirty() {
     p.setNeedsSaving(true);
+    p.fix.clear();
   }
 
   function insertSymbol(symbol: string) {
