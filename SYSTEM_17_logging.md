@@ -12,7 +12,7 @@ docs_absorbed:
 Who did what, when, on which instance. Two tables in the main DB (`user_logs`
 raw, `user_logs_aggregate` weekly roll-up), two writers (the per-route `log()`
 middleware and S16's edit-session hook), one retention cron, and a read surface
-that spans the instance Users tab, S15's unauthenticated health endpoints, and
+that spans the instance Users tab, S15's status-key health endpoints, and
 the external Admin-Website. Tiny code surface, two files, but fleet-wide data:
 the Admin-Website's activity analytics are built entirely on these rows.
 
@@ -65,7 +65,7 @@ remove that exemption and never de-log the `getCurrentUser` route.
 - `getUsersLastActive` (instance `can_view_users`): each user's latest log
   timestamp, one `GROUP BY user_email` query, for the Users tab's "Last active"
   column (`users/users.tsx`). No route returns a row's `details`.
-- S15's unauthenticated health endpoints (`server/routes/instance/health.ts`):
+- S15's status-key health endpoints (`server/routes/instance/health.ts`):
   `/user_logs` (getCurrentUser trail), `/user_logs_all`, `/user_logs_aggregate`,
   plus `/health_check` and `/user_activity` derived views. S15 owns the file;
   S17 is a mandatory reader of the queries.
