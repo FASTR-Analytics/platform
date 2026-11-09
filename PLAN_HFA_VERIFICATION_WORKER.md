@@ -203,3 +203,9 @@ The runs table holds the latest run only: a start deletes ended rows. `not_check
 - A column on `ai_usage_logs` telling a run's calls from a chat's.
 
 ## §6 Log
+
+- Step 1: `tests/ai_one_shot_structured_test.ts` imports `callAIStructured` from `modules/_116_ai_one_shot/mod.ts`, not `mod.deno.ts`, because `mod.deno.ts` loads DuckDB's native binding, which fails under `deno task test`'s `--allow-read=modules`.
+- Step 1: `modules/_116_ai_one_shot/deps.ts` also imports zod's types, because `callAIStructured` takes a `ZodType<T>` schema.
+- Step 1: `DOC_MODULE_STRUCTURE.md`'s systems table lists `_116_ai_one_shot`, outside the Surface, because that table is the module map.
+- Step 1: `DOC_AI_CHAT.md`'s module list gains `_116_ai_one_shot` and its intro says "these modules", outside the `callAI` paragraph, because that list is where the doc names its modules.
+- Step 1: `modules/_305_ai/README.md`'s API lists gain the one-shot types and `callAIStructured()`, outside "One-Shot Requests", because those lists are `_305_ai`'s exports.

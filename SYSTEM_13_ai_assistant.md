@@ -168,9 +168,9 @@ First synced at commits 62ed6c03/ca3ae868 (SDK 0.71 → 0.110) and repeatedly si
 
 - **Request shaping** ([request_shaping.ts](panther/_110_ai_types/request_shaping.ts)): ≤3 prompt-cache breakpoints placed per send (system, last user message, last document block of the last document-carrying user message; stored state never carries `cache_control`); per-model resolution of thinking and effort (prevents 400s across the whole allowed-models list, including adaptive-only Opus 4.8); persisted settings sanitized against retired model ids and caps at init.
 - **Turn logic** ([turn_logic.ts](panther/_110_ai_types/turn_logic.ts)): stop_reason → done / halt (refusal, truncation, context-exceeded) / pause_turn resume / tool loop / caps, recursion bounded by `MAX_TURN_CONTINUATIONS = 24` (`panther/_305_ai/_components/_create_ai_chat.ts`). Both capped **and halted** turns synthesize cancelled tool_results, so persisted history never ends in unresolved `tool_use` (which would 400 every later send); a cap-pause trim that empties an assistant message persists a placeholder text instead. Halts render as `system_notice` display items.
-- **Built-in server tools** ([builtin_tools.ts](panther/_305_ai/_core/builtin_tools.ts)): webSearch/webFetch resolved per model; on non-dynamic models the basic variants + `web-fetch-2025-09-10` beta, which only works because the proxy forwards allowlisted client beta headers.
+- **Built-in server tools** ([builtin_tools.ts](panther/_110_ai_types/builtin_tools.ts)): webSearch/webFetch resolved per model; on non-dynamic models the basic variants + `web-fetch-2025-09-10` beta, which only works because the proxy forwards allowlisted client beta headers.
 - **Every continuation round is a separate proxy POST**, so each round is independently limit-gated and logged. The multi-turn design has no unlogged turns; the remaining accounting gap is server-tool request fees (Open items).
-- `one_shot.ts` (`callAI`/`callAIStructured`) exists in the barrel but has **zero consumers in this app**.
+- `callAI` (`panther/_305_ai/_core/one_shot.ts`) has zero consumers in this app; `callAIStructured` (`panther/_116_ai_one_shot/`, re-exported by `_305_ai`) is the call of the HFA verification and of Draft a fix (SYSTEM_05).
 
 ## The HFA tools (S5-owned, S13-governed)
 
