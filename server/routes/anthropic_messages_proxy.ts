@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import type { Sql } from "postgres";
 import {
   AddAiUsageLog,
@@ -58,6 +59,31 @@ export async function proxyAnthropicMessages(
       { status: 502 },
     );
   }
+}
+
+// An SDK client for the server's own model calls, made as one user: its fetch
+// is this proxy called in process, so each call takes that user's limits, is
+// logged against them, and sends only allowlisted betas.
+export function createGovernedAnthropicClient(
+  user: Pick<ProxyArgs, "userEmail" | "unlimitedAi" | "mainDb">,
+): Anthropic {
+  return new Anthropic({
+    apiKey: null,
+    authToken: null,
+    defaultHeaders: { Authorization: null },
+    fetch: (_url: string | URL | Request, init?: RequestInit) =>
+      proxyAnthropicMessages({
+        parseBody: () => {
+          if (typeof init?.body !== "string") {
+            throw new Error("The SDK sent a request with no JSON body.");
+          }
+          return Promise.resolve(JSON.parse(init.body));
+        },
+        clientBetaHeader: new Headers(init?.headers).get("anthropic-beta") ??
+          undefined,
+        ...user,
+      }),
+  });
 }
 
 async function runProxy(args: ProxyArgs): Promise<Response> {
