@@ -13,17 +13,33 @@ import type {
 import { SIZING_SAMPLE } from "../../dimension_helpers.ts";
 import type { YTextAxisWidthInfo } from "./types.ts";
 
+function measureYTextAxisWidth(
+  sy: MergedYTextAxisStyle,
+  sg: MergedGridStyle,
+  tickLabelW: number,
+  tierHeaderAndLabelGapWidth: number,
+): number {
+  return tierHeaderAndLabelGapWidth + tickLabelW + sy.tickLabelGap +
+    sy.tickWidth + sg.axisStrokeWidth;
+}
+
 export function estimateMinYTextAxisWidth(
   rc: RenderContext,
   sy: MergedYTextAxisStyle,
   sg: MergedGridStyle,
+  tierHeaderAndLabelGapWidth: number,
 ): number {
   const sample = rc.mText(
     SIZING_SAMPLE.textTick,
     sy.text.yTextAxisTickLabels,
     Infinity,
   );
-  return sample.dims.w() + sy.tickLabelGap + sy.tickWidth + sg.axisStrokeWidth;
+  return measureYTextAxisWidth(
+    sy,
+    sg,
+    sample.dims.w(),
+    tierHeaderAndLabelGapWidth,
+  );
 }
 
 export function measureYTextAxisWidthInfo(
@@ -42,11 +58,12 @@ export function measureYTextAxisWidthInfo(
     if (m.dims.w() > maxTickLabelW) maxTickLabelW = m.dims.w();
     if (m.dims.h() > maxTickLabelH) maxTickLabelH = m.dims.h();
   }
-  const widthIncludingYAxisStrokeWidth = tierHeaderAndLabelGapWidth +
-    maxTickLabelW +
-    sy.tickLabelGap +
-    sy.tickWidth +
-    sg.axisStrokeWidth;
+  const widthIncludingYAxisStrokeWidth = measureYTextAxisWidth(
+    sy,
+    sg,
+    maxTickLabelW,
+    tierHeaderAndLabelGapWidth,
+  );
 
   return {
     widthIncludingYAxisStrokeWidth,

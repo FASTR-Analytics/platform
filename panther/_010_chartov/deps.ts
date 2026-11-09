@@ -21,7 +21,8 @@ export type { MergedChartOVStyle } from "../_003_figure_style/mod.ts";
 export {
   calculateMinSubChartHeight,
   estimateMinSurroundsWidth,
-  estimateMinYAxisWidth,
+  estimateMinYScaleAxisWidth,
+  estimateTierHeaderAndLabelGapWidth,
   getChartHeightConstraintsByMeasure,
   maxProportionalPanePlotExtent,
   maxVisibleCount,

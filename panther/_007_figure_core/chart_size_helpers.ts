@@ -123,8 +123,8 @@ export type ResolveTargetPlotH = (
 // real wrap width; rotation/caps applied). Same shape as ResolveTargetPlotH but
 // a different policy — the floor omits comfort terms (e.g. ideal bar thickness)
 // that the natural target reserves. Consumed by the shrink-to-fit decision so it
-// reacts to wrapped tick labels. Scale-axis charts don't supply one: their floor
-// (minSubChartHeight) is layout-independent and already exact.
+// reacts to wrapped tick labels. ChartOV supplies resolveScaleAxisFloorPlotH so
+// the probe path sees its real x-text axis height; Timeseries does not.
 export type ResolveFloorPlotH = (
   info: ChartComponentSizes,
   probeLayouts: PaneLayout[],
@@ -145,7 +145,7 @@ export function resolveScaleAxisPlotHeight(
   );
 }
 
-// Legibility-FLOOR resolver for scale-axis charts (ChartOV, Timeseries): the
+// Legibility-FLOOR resolver for scale-axis charts (ChartOV): the
 // per-sub-chart plot floor is the scale-axis minimum, which is layout- and
 // scale-independent (no wrapped text in the run direction). Supplying it routes
 // the chart through the probe-based fit decision, which makes the OVERHEAD —
@@ -295,7 +295,7 @@ export function measureChartWithAutofit<
   // When provided alongside probeMeasure, resolves the natural target for
   // naturalH in the fitReport so it matches getIdealHeight().idealH.
   resolveTargetForReport?: ResolveTargetPlotH,
-  // When provided alongside probeMeasure (ChartOH), the shrink-to-fit decision
+  // When provided alongside probeMeasure, the shrink-to-fit decision
   // measures the height floor and min-width from real probe layouts instead of
   // the unwrapped/sample estimates, so it reacts to wrapped tick labels.
   resolveFloor?: ResolveFloorPlotH,
@@ -323,7 +323,7 @@ export function measureChartWithAutofit<
   const nTiers = info1.nTiers;
 
   // Per-scale memoized probe closures, cached across scales. Only built when the
-  // probe-based floor path is active (ChartOH).
+  // probe-based floor path is active.
   const probeByScale = new Map<number, (probeH: number) => PaneLayout[]>();
   function getMemoProbeAtScale(
     scale: number,
@@ -341,10 +341,9 @@ export function measureChartWithAutofit<
   // The autofit decision checks the LEGIBILITY FLOOR (minH semantics), not the
   // natural idealH. This decoupling is Phase B1: a figure may be smaller than
   // natural without shrinking fonts. When the renderer supplies a probe + floor
-  // resolver (ChartOH), the floor and min-width are measured from real probe
+  // resolver, the floor and min-width are measured from real probe
   // layouts so the decision sees the renderer's true wrapped/real extent (the
-  // floor is the no-overlap minimum, not a comfort target). Otherwise
-  // (scale-axis charts) the layout-independent estimate is exact.
+  // floor is the no-overlap minimum, not a comfort target).
   const getSizeAtScale = memoizeByScale((scale: number) => {
     const info = getSizes(scale);
     const paneGrid = getGrid(scale);
@@ -534,8 +533,9 @@ export function getChartHeightConstraintsByMeasure<
     scale?: number,
   ) => PaneLayout[],
   resolveTarget: ResolveTargetPlotH,
-  // When supplied (ChartOH), minH uses the real wrapped-label floor, matching
-  // the live fit decision's no-overlap floor instead of the unwrapped estimate.
+  // When supplied, minH is inverted from the renderer's floor through real
+  // probes (ChartOH's wrapped-label floor, ChartOV's minSubChartHeight with
+  // the real overhead), matching the live fit decision instead of the estimate.
   resolveFloor?: ResolveFloorPlotH,
   // Per-SLOT thickness resolvers — see measureChartWithAutofit.
   resolveTargetSlotT?: ResolveTargetPlotH,
@@ -636,9 +636,9 @@ export function getChartHeightConstraintsByMeasure<
     probeMeasure(probeH, gridFloor, floorScale)
   );
   // minH uses the legibility floor — the minimum renderable size, not the
-  // natural size. When a floor resolver is supplied (ChartOH) it reflects the
-  // real wrapped-label height, matching the live fit decision; otherwise the
-  // layout-independent minSubChartHeight estimate is exact.
+  // natural size: the renderer's floor through real probes when it supplies a
+  // resolver (ChartOH's wrapped-label floor, ChartOV's minSubChartHeight with
+  // the real overhead), else the layout-independent minSubChartHeight.
   const floorLayouts = memoProbeFloor(estMinH);
   let minH: number;
   if (

@@ -9,7 +9,8 @@ import {
   type ChartComponentSizes,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
-  estimateMinYAxisWidth,
+  estimateMinYScaleAxisWidth,
+  estimateTierHeaderAndLabelGapWidth,
   PANE_HEADER_SAMPLE_MAX_W,
   type RenderContext,
   resolveDefaultLegend,
@@ -85,11 +86,12 @@ export function getTimeseriesComponentSizes(
     minSubChartHeight: calculateMinSubChartHeight(rc, ms.yScaleAxis),
     xAxisHeight,
     paneHeaderHeight,
-    minYAxisWidth: estimateMinYAxisWidth(
+    minYAxisWidth: estimateMinYScaleAxisWidth(
       rc,
       data.yScaleAxisLabel,
       ms.yScaleAxis,
       ms.grid,
+      estimateTierHeaderAndLabelGapWidth(rc, data.tier, data.lane, ms),
     ),
     surroundsMinWidth: estimateMinSurroundsWidth(
       rc,

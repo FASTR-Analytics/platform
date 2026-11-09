@@ -34,20 +34,40 @@ function measureYScaleAxisLabelAndLabelGapWidth(
   ).dims.w() + sy.labelGap;
 }
 
-export function estimateMinYAxisWidth(
+function measureYScaleAxisWidth(
   rc: RenderContext,
   axisLabel: string | undefined,
   sy: MergedYScaleAxisStyle,
   sg: MergedGridStyle,
+  tickLabelW: number,
+  tierHeaderAndLabelGapWidth: number,
+): number {
+  if (sy.exactAxisX !== "none") return sy.exactAxisX + sg.axisStrokeWidth;
+  return tierHeaderAndLabelGapWidth +
+    measureYScaleAxisLabelAndLabelGapWidth(rc, axisLabel, sy) +
+    tickLabelW + sy.tickLabelGap + sy.tickWidth + sg.axisStrokeWidth;
+}
+
+export function estimateMinYScaleAxisWidth(
+  rc: RenderContext,
+  axisLabel: string | undefined,
+  sy: MergedYScaleAxisStyle,
+  sg: MergedGridStyle,
+  tierHeaderAndLabelGapWidth: number,
 ): number {
   const sampleLabel = rc.mText(
     SIZING_SAMPLE.scaleTickWide,
     sy.text.yScaleAxisTickLabels,
     Infinity,
   );
-  return measureYScaleAxisLabelAndLabelGapWidth(rc, axisLabel, sy) +
-    sampleLabel.dims.w() + sy.tickLabelGap + sy.tickWidth +
-    sg.axisStrokeWidth;
+  return measureYScaleAxisWidth(
+    rc,
+    axisLabel,
+    sy,
+    sg,
+    sampleLabel.dims.w(),
+    tierHeaderAndLabelGapWidth,
+  );
 }
 
 export function measureYScaleAxisWidthInfo(
@@ -61,12 +81,6 @@ export function measureYScaleAxisWidthInfo(
   tierHeaderAndLabelGapWidth: number,
   tierCount: number,
 ): YScaleAxisWidthInfo {
-  const axisLabelAndLabelGapWidth = measureYScaleAxisLabelAndLabelGapWidth(
-    rc,
-    axisLabel,
-    sy,
-  );
-
   const guessSubChartH = (contentRcd.h() * 0.8) / tierCount;
   const yAxisTickLabelH = rc
     .mText(
@@ -127,14 +141,14 @@ export function measureYScaleAxisWidthInfo(
     }
   }
 
-  const widthIncludingYAxisStrokeWidth = sy.exactAxisX !== "none"
-    ? sy.exactAxisX + sg.axisStrokeWidth
-    : tierHeaderAndLabelGapWidth +
-      axisLabelAndLabelGapWidth +
-      maxYTickWidth +
-      sy.tickLabelGap +
-      sy.tickWidth +
-      sg.axisStrokeWidth;
+  const widthIncludingYAxisStrokeWidth = measureYScaleAxisWidth(
+    rc,
+    axisLabel,
+    sy,
+    sg,
+    maxYTickWidth,
+    tierHeaderAndLabelGapWidth,
+  );
 
   return {
     widthIncludingYAxisStrokeWidth,

@@ -8,10 +8,11 @@ import {
   type ChartComponentSizes,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
-  estimateMinXAxisHeightForScale,
   estimateMinYTextAxisWidth,
+  estimateTierHeaderAndLabelGapWidth,
   maxProportionalPanePlotExtent,
   maxVisibleCount,
+  measureXScaleAxisHeight,
   PANE_HEADER_SAMPLE_MAX_W,
   type RenderContext,
   resolveDefaultLegend,
@@ -43,7 +44,7 @@ export function getChartOHComponentSizes(
   );
   const ms = cs.getMergedChartOHStyle();
 
-  const xAxisHeight = estimateMinXAxisHeightForScale(
+  const xAxisHeight = measureXScaleAxisHeight(
     rc,
     data.xScaleAxisLabel,
     ms.xScaleAxis,
@@ -52,7 +53,12 @@ export function getChartOHComponentSizes(
 
   // Y-text axis width (sample). Actual width depends on indicator labels;
   // the estimator gives a conservative minimum.
-  const minYAxisWidth = estimateMinYTextAxisWidth(rc, ms.yTextAxis, ms.grid);
+  const minYAxisWidth = estimateMinYTextAxisWidth(
+    rc,
+    ms.yTextAxis,
+    ms.grid,
+    estimateTierHeaderAndLabelGapWidth(rc, data.tier, data.lane, ms),
+  );
 
   const paneHeaderHeight = rc
     .mText(

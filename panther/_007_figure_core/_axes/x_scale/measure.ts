@@ -26,12 +26,13 @@ function measureXScaleAxisLabelAndLabelGapHeight(
     .dims.h() + sx.labelGap;
 }
 
-export function estimateMinXAxisHeightForScale(
+export function measureXScaleAxisHeight(
   rc: RenderContext,
   axisLabel: string | undefined,
   sx: MergedXScaleAxisStyle,
   sg: MergedGridStyle,
 ): number {
+  if (sx.exactAxisY !== "none") return sx.exactAxisY + sg.axisStrokeWidth;
   const sample = rc.mText(
     SIZING_SAMPLE.scaleTickPct,
     sx.text.xScaleAxisTickLabels,
@@ -52,16 +53,12 @@ export function measureXScaleAxisHeightInfo(
   i_pane: number,
   laneCount: number,
 ): XScaleAxisHeightInfo {
-  const sampleH = rc.mText(
-    SIZING_SAMPLE.scaleTickPct,
-    sx.text.xScaleAxisTickLabels,
-    Infinity,
-  )
-    .dims.h();
-  const heightIncludingXAxisStrokeWidth = sx.exactAxisY !== "none"
-    ? sx.exactAxisY + sg.axisStrokeWidth
-    : sampleH + sx.tickLabelGap + sx.tickHeight + sg.axisStrokeWidth +
-      measureXScaleAxisLabelAndLabelGapHeight(rc, axisLabel, sx);
+  const heightIncludingXAxisStrokeWidth = measureXScaleAxisHeight(
+    rc,
+    axisLabel,
+    sx,
+    sg,
+  );
 
   // Guess tick count from per-lane sub-chart width (mirror of Y-scale,
   // which divides by tierCount to size per-tier sub-chart height).

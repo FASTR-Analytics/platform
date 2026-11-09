@@ -385,6 +385,25 @@ export function measurePane<TData>(
   };
 }
 
+export function estimateTierHeaderAndLabelGapWidth(
+  rc: RenderContext,
+  tier: DataAxis | undefined,
+  lane: DataAxis | undefined,
+  s: MergedChartStyleBase,
+): number {
+  if (s.tiers.hideHeaders) return 0;
+  if (resolveTierHeaderPosition(s.tiers.headerPosition, lane) !== "left") {
+    return 0;
+  }
+  return measureTierHeaders(
+    rc,
+    tier,
+    s.text.tierHeaders,
+    s.tiers.headerGap,
+    Number.POSITIVE_INFINITY,
+  ).value;
+}
+
 function measureTierHeaders(
   rc: RenderContext,
   tier: DataAxis | undefined,

@@ -8,7 +8,8 @@ import {
   type ChartComponentSizes,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
-  estimateMinYAxisWidth,
+  estimateMinYScaleAxisWidth,
+  estimateTierHeaderAndLabelGapWidth,
   maxProportionalPanePlotExtent,
   maxVisibleCount,
   PANE_HEADER_SAMPLE_MAX_W,
@@ -139,11 +140,12 @@ export function getChartOVComponentSizes(
     minSubChartHeight: calculateMinSubChartHeight(rc, ms.yScaleAxis),
     xAxisHeight,
     paneHeaderHeight,
-    minYAxisWidth: estimateMinYAxisWidth(
+    minYAxisWidth: estimateMinYScaleAxisWidth(
       rc,
       data.yScaleAxisLabel,
       ms.yScaleAxis,
       ms.grid,
+      estimateTierHeaderAndLabelGapWidth(rc, data.tier, data.lane, ms),
     ),
     surroundsMinWidth: estimateMinSurroundsWidth(
       rc,
