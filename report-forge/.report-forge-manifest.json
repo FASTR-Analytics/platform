@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-11-09T03:14:28.022Z",
+  "sourceCommit": "d302429",
+  "sourceSubject": "A template area is overfull only when a child box runs past it",
+  "sourceDirty": false,
+  "target": "platform"
+}

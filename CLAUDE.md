@@ -32,6 +32,7 @@ FASTR Analytics Platform: a Deno/Hono server and SolidJS client that ingests hea
 ## Boundaries
 
 - `panther/` is a synced copy of an external library. Never edit it here. Fix the source in the panther repo, then re-sync with its `./sync`, which copies the working tree wholesale. Confirm panther typechecks first, and commit app changes before syncing, so the sync diff stays isolated.
+- `report-forge/` is a synced copy of Nick's report-forge repo (github.com/NicholasWillmott/report-forge), the same way: never edit it here. Its files are marked `DO NOT EDIT` and `.report-forge-manifest.json` names the source commit. Changes go in the report-forge repo, then its `./sync platform` copies and commits them here. Report a report-forge bug to Nick rather than patching the copy.
 - `lib/` compiles into both the Deno server and the Vite client. It may import from panther only through `@timroberton/panther`, and only the shared `_000_utils`-level exports that exist in both entry files (`mod.deno.ts` and `mod.ui.ts`). UI-only symbols belong in `client/`, which imports the bare `"panther"` specifier.
 - Three repos move together: this app, `wb-fastr-modules` (edit the metric sources, `deno task build` regenerates each `definition.json`, push in lockstep with schema changes), and panther.
 - Generated files are regenerated, never hand-edited: `lib/help/help_targets.generated.ts` comes from `deno task build:help-buttons`.
