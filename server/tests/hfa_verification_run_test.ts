@@ -1,12 +1,12 @@
 // Pins the HFA indicator verification run on the server: the queue a start
 // and a second start build, the refusal while stopping, and run.ts driven by
 // a stub SDK fetch, each answer saved under its queuer as it arrives, an
-// indicator queued again mid-call checked
-// twice, an indicator queued before the end checked, the first call after
-// every snapshot read alone, a 429 and a stop each ending the run with the
-// answers in flight saved, a deleted indicator's queue row, and the startup
-// sweep. On a throwaway database built from _main_database.sql on the dev
-// postgres (the .env the test task loads), dropped afterwards.
+// indicator queued again mid-call checked twice, an indicator queued before
+// the end checked, the first call after every snapshot read alone, a 429 and
+// a stop each ending the run with the answers in flight saved, a deleted
+// indicator's queue row, and the startup sweep. On a throwaway database built
+// from _main_database.sql on the dev postgres (the .env the test task loads),
+// dropped afterwards.
 //
 //   deno task test:files server/tests/hfa_verification_run_test.ts
 
