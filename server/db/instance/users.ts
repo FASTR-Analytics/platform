@@ -117,6 +117,7 @@ export function otherUserFromRow(
     organisation: row.organisation ?? undefined,
     unlimitedAi: row.unlimited_ai,
     isContactPerson: row.is_contact_person,
+    lastActiveAt: row.last_active_at?.toISOString() ?? null,
     scopeAccess: scopeAccessOf(isGlobalAdmin, row.all_scopes, grantedScopeIds),
     ...pickUserPermissions(row),
   };

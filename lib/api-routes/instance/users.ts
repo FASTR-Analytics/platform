@@ -8,7 +8,6 @@ import {
 import type {
   PersonalAccessTokenSummary,
   RenameEmailInstanceResult,
-  UserLastActive,
 } from "../../types/mod.ts";
 import { scopeUuidSchema } from "../../types/scope.ts";
 import { route } from "../route-utils.ts";
@@ -79,12 +78,6 @@ export const userRouteRegistry = {
       asset_file_name: z.string().min(1),
       replace_all_existing: z.boolean(),
     }),
-  }),
-  getUsersLastActive: route({
-    path: "/users/last-active",
-    method: "GET",
-    guard: GUARD.permission("can_view_users"),
-    response: {} as UserLastActive[],
   }),
   updateUserPermissions: route({
     path: "/user/permissions",

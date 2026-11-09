@@ -300,11 +300,6 @@ export type PersonalAccessTokenSummary = {
   lastUsedAt: string | null;
 };
 
-export type UserLastActive = {
-  email: string;
-  lastActive: string;
-};
-
 export type UserLogAggregate = {
   id: number;
   user_email: string;

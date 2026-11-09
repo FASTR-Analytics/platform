@@ -338,7 +338,6 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   getStructureStagedRecodeRows: closed("can_configure_data"),
   getStructureUploadAttempt: closed("can_configure_data"),
   getStructureUploadStatus: closed("can_configure_data"),
-  getUsersLastActive: closed("can_view_users"),
   getVisualizationDetail: closed("product:view"),
   getVisualizationVersion: closed("product:view"),
   getWhatsNewPosts: closed("approved"),

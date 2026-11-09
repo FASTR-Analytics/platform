@@ -23,6 +23,7 @@ export type DBUser = {
   is_contact_person: boolean;
   all_scopes: boolean;
   organisation: string | null;
+  last_active_at: Date | null;
 };
 
 export type UserLog = {

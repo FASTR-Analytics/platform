@@ -38,6 +38,7 @@ export type OtherUser = {
   organisation?: string;
   unlimitedAi: boolean;
   isContactPerson: boolean;
+  lastActiveAt: string | null;
   scopeAccess: ScopeAccess;
 } & UserPermissions;
 

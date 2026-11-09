@@ -78,6 +78,7 @@ function rosterRow(
     isHUser: false,
     unlimitedAi: false,
     isContactPerson: false,
+    lastActiveAt: null,
     scopeAccess,
     ...NO_PERMISSIONS,
     can_view_data: true,

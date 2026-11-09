@@ -21,9 +21,11 @@ CREATE TABLE users (
   is_contact_person boolean NOT NULL DEFAULT false,
   -- FALSE = restricted to the scopes in user_scopes. Ignored for a global
   -- admin. After the permission bits because migration 205 adds it to a live
-  -- table; organisation follows it for the same reason (219).
+  -- table; organisation and last_active_at follow it for the same reason
+  -- (219, 230).
   all_scopes boolean NOT NULL DEFAULT TRUE,
   organisation text,
+  last_active_at timestamptz,
   -- A global admin is unrestricted (224).
   CONSTRAINT users_admin_unrestricted CHECK (NOT is_admin OR all_scopes)
 );

@@ -347,6 +347,7 @@ Deno.test("the instance stream ends when an approved connection's user leaves th
     scopeAccess: ALL_SCOPES,
     unlimitedAi: false,
     isContactPerson: false,
+    lastActiveAt: null,
     ...userPermissions(false),
   };
   const filter = createInstanceSseFilter({
