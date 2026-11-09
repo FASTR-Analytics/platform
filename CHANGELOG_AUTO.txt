@@ -1,3 +1,13 @@
+[TBD] [user] [changed] - Verify button now available as a bulk action on selected indicators
+[TBD] [user] [changed] - Verification progress shows who started the run if started by another user
+[TBD] [user] [changed] - "Verify all" menu item replaced by bulk-select and Verify workflow
+[TBD] [user] [fixed] - Verification progress updates arrive more promptly after each indicator is checked
+[TBD] [user] [changed] - Stop button disables while verification is stopping
+[TBD] [admin] [changed] - Verification runs now use the instance's API key directly, bypassing per-user token limits
+[TBD] [admin] [changed] - Verification progress now shows who started the run if started by another user
+[TBD] [admin] [changed] - "Verify all" moved from menu to a bulk action on selected indicators
+[TBD] [admin] [fixed] - Verification run no longer silently stalls if its background worker fails to start
+[TBD] [admin] [fixed] - Last verification result now broadcasts promptly instead of waiting for the next check
 [TBD] [user] [added] - You can now start and stop indicator verification runs
 [TBD] [user] [added] - Verification progress is shown in real time as indicators are checked
 [TBD] [user] [fixed] - Editing an indicator formula now clears any previous suggested fix
