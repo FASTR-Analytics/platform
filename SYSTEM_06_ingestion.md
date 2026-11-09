@@ -63,7 +63,7 @@ globs:
 
 The stage→integrate machinery for the three dataset families, HMIS (CSV + DHIS2), HFA (CSV + XLSForm), and ICEH (zip), plus their wizards, the import-run state machines, and the run-capture seam. Every family is import runs; only the structure family (S5) uses upload attempts.
 
-Structure/facility ELT (`server_only_funcs_importing/**`) is **S5**. The worker lifecycle (spawn, READY handshake, teardown) is [PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md) (machinery owned by S8). DHIS2 fetching/retry is S7.
+Structure/facility ELT (`server_only_funcs_importing/**`) is **S5**. The worker lifecycle (spawn, READY handshake, teardown) is [PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md) (machinery owned by S8). `worker_store.ts` also holds the `"hfa_verification"` key, the HFA indicator verification run's worker, which is S5's (SYSTEM_05 "HFA indicator verification"). DHIS2 fetching/retry is S7.
 
 ## One execution model
 

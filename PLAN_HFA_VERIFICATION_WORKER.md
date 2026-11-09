@@ -209,3 +209,4 @@ The runs table holds the latest run only: a start deletes ended rows. `not_check
 - Step 1: `DOC_MODULE_STRUCTURE.md`'s systems table lists `_116_ai_one_shot`, outside the Surface, because that table is the module map.
 - Step 1: `DOC_AI_CHAT.md`'s module list gains `_116_ai_one_shot` and its intro says "these modules", outside the `callAI` paragraph, because that list is where the doc names its modules.
 - Step 1: `modules/_305_ai/README.md`'s API lists gain the one-shot types and `callAIStructured()`, outside "One-Shot Requests", because those lists are `_305_ai`'s exports.
+- Step 3: a Verify that queues an indicator whose call is in flight sets `requeue` and also makes the caller the row's queuer and stamps its `queued_at`, because the second check is that caller's request: it is charged to and signed by them, and claimed in that Verify's order.

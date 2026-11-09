@@ -80,7 +80,7 @@ The host owns termination. Two empirically verified failure modes: a `BroadcastC
 
 ### 3. Attach the spawn-site listeners
 
-**Every spawn site attaches an `error` listener with `e.preventDefault()`.** Without it, `reportError` propagates as an unhandled rejection and exits the whole server process (verified on Deno 2.5.3 and 2.6.4). The listener records the error completion, clears the tracker, and terminates the worker. Spawn sites today: `worker_routines/generate_run/launch.ts` (`launchRunGeneration`, results-package generation), `db/instance/dataset_hfa_import_runs.ts` (`spawnHfaRunWorker`), `db/instance/dataset_iceh_import_runs.ts` (`spawnIcehRunWorker`), and `db/instance/dataset_hmis_import_runs.ts` (`spawnRunWorker` / `spawnCsvRunWorker`, HMIS import runs). The dataset shape:
+**Every spawn site attaches an `error` listener with `e.preventDefault()`.** Without it, `reportError` propagates as an unhandled rejection and exits the whole server process (verified on Deno 2.5.3 and 2.6.4). The listener records the error completion, clears the tracker, and terminates the worker. Spawn sites today: `worker_routines/generate_run/launch.ts` (`launchRunGeneration`, results-package generation), `db/instance/dataset_hfa_import_runs.ts` (`spawnHfaRunWorker`), `db/instance/dataset_iceh_import_runs.ts` (`spawnIcehRunWorker`), `db/instance/dataset_hmis_import_runs.ts` (`spawnRunWorker` / `spawnCsvRunWorker`, HMIS import runs), and `db/instance/hfa_verification.ts` (`spawnHfaVerificationWorker`, the HFA indicator verification run). The dataset shape:
 
 ```ts
 setWorker("hmis", worker); // per-family worker slot
@@ -111,20 +111,21 @@ The consumers are not interchangeable: dataset clients poll the run row's `statu
 
 ### 6. Register a tracker, and clear it on every terminal path
 
-- **`worker_store.ts`**: at most one live worker per import family: `Map<WorkerKey, Worker>` with `WorkerKey = "hmis" | "hfa" | "iceh" | "hmis_dhis2_run"` (extend the union when adding a family), `setWorker` / `getWorker` / `clearWorker`. `clearWorker` is compare-and-delete (deletes only if the stored worker IS this worker), so a stale worker's late error/COMPLETED event cannot clobber a successor under the same key. The caller checks `getWorker(key)` before starting and refuses if one is in flight.
+- **`worker_store.ts`**: at most one live worker per key: `Map<WorkerKey, Worker>` with `WorkerKey = "hmis" | "hfa" | "iceh" | "hmis_dhis2_run" | "hfa_verification"` (extend the union when adding a routine), `setWorker` / `getWorker` / `clearWorker`. `clearWorker` is compare-and-delete (deletes only if the stored worker IS this worker), so a stale worker's late error/COMPLETED event cannot clobber a successor under the same key. The caller checks `getWorker(key)` before starting and refuses if one is in flight.
 - **`GENERATING_BY_RUN`** (results-package generation, `launch.ts`): keyed `runId`, each entry `{ moduleIds, worker }`. The entry is set before the catalogue row is created and deleted on the completion broadcast, on the crash path, or when the launch itself throws; `moduleIds` is what the crash path needs to name the containers. Generations run concurrently, so there is no in-flight check. Owned by S8.
 
 An unterminated completed worker leaks its isolate and threads for the life of the process; a worker that dies without clearing its tracker blocks future work.
 
 ## The routine inventory
 
-| Folder                   | Payload                                                           | Report-back                                              | Tracker                           |
-| ------------------------ | ----------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------- |
-| `generate_run`           | `{ runId, label, step1Result, step2Result }`                      | `run_generation_ended` broadcast / `reportError` (crash) | `GENERATING_BY_RUN`               |
-| `import_hmis_data_csv`   | `{ runId, config, csvFilePath, stagingResult? }`                  | `postMessage("COMPLETED")` + run row                     | `worker_store` (`hmis`)           |
-| `import_hmis_data_dhis2` | `{ runId, selection }`                                            | `postMessage("COMPLETED")` + run row + ledger            | `worker_store` (`hmis_dhis2_run`) |
-| `import_hfa_data_csv`    | `{ runId, config, csvFilePath, xlsFormFilePath, stagingResult? }` | `postMessage("COMPLETED")` + run row                     | `worker_store` (`hfa`)            |
-| `import_iceh_data`       | `{ runId, config, zipFilePath }`                                  | `postMessage("COMPLETED")` + run row                     | `worker_store` (`iceh`)           |
+| Folder                   | Payload                                                           | Report-back                                              | Tracker                             |
+| ------------------------ | ----------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------- |
+| `generate_run`           | `{ runId, label, step1Result, step2Result }`                      | `run_generation_ended` broadcast / `reportError` (crash) | `GENERATING_BY_RUN`                 |
+| `import_hmis_data_csv`   | `{ runId, config, csvFilePath, stagingResult? }`                  | `postMessage("COMPLETED")` + run row                     | `worker_store` (`hmis`)             |
+| `import_hmis_data_dhis2` | `{ runId, selection }`                                            | `postMessage("COMPLETED")` + run row + ledger            | `worker_store` (`hmis_dhis2_run`)   |
+| `import_hfa_data_csv`    | `{ runId, config, csvFilePath, xlsFormFilePath, stagingResult? }` | `postMessage("COMPLETED")` + run row                     | `worker_store` (`hfa`)              |
+| `import_iceh_data`       | `{ runId, config, zipFilePath }`                                  | `postMessage("COMPLETED")` + run row                     | `worker_store` (`iceh`)             |
+| `hfa_verification`       | `{ runId }`                                                       | `postMessage("COMPLETED")` + run row                     | `worker_store` (`hfa_verification`) |
 
 ## Gotchas
 
