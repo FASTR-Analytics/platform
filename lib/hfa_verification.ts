@@ -25,7 +25,7 @@ import type {
 // text and the indicator as the message; and, for one indicator in the code
 // editor, the fix call over the same two blocks.
 
-export const hfaVerificationNewFindingSchema = z.object({
+const hfaVerificationNewFindingSchema = z.object({
   rule: z.enum(HFA_VERIFICATION_MODEL_RULE_IDS).describe(
     "The id of the one rule the indicator breaks.",
   ),
@@ -155,9 +155,9 @@ export function buildHfaVerificationBlocks(
   };
 }
 
-// The two system blocks of every verification call, which the fix call sends
-// unchanged, so a fix drafted over the same state within the prompt cache's
-// lifetime reads the context block a run wrote.
+// The two system blocks of every verification call and of the fix call. The
+// context block is marked for the prompt cache, so a run's calls after its
+// first read it.
 export function hfaVerificationSystem(
   blocks: { instructionBlock: string; contextBlock: string },
 ) {
