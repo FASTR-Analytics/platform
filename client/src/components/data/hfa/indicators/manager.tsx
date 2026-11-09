@@ -16,6 +16,7 @@ import {
   type HfaIndicatorVariantItem,
   type HfaVerificationRows,
   hfaVerificationRule,
+  type HfaVerificationRunState,
   t3,
   TC,
 } from "lib";
@@ -23,6 +24,7 @@ import {
   ActionMenuButton,
   type BulkAction,
   Button,
+  createButtonAction,
   createDeleteAction,
   createTableConfig,
   FrameLeft,
@@ -32,6 +34,7 @@ import {
   HeadingBar,
   type ListItem,
   type MenuItem,
+  openAlert,
   openComponent,
   plural,
   saveAs,
@@ -65,13 +68,10 @@ import {
 } from "./unused_variables_modal";
 import {
   createHfaVerificationHashes,
-  type HfaVerificationProgress,
   HfaVerificationRulesModal,
-  hfaVerificationRun,
   hfaVerificationState,
+  liveHfaVerificationRun,
   noAnswerReason,
-  startRun,
-  stopRun,
 } from "./verification/mod.ts";
 import {
   copilotViewController,
@@ -444,8 +444,13 @@ export function HfaIndicatorsManager(p: Props) {
     });
   };
 
+  const lastRun = () => instanceState.hfaVerificationRun;
+  const verificationStopping = () => lastRun()?.status === "stopping";
+
   const notCheckedMessage = () => {
-    const list = hfaVerificationRun().notChecked.map((n) =>
+    const notChecked = lastRun()?.notChecked ?? [];
+    if (notChecked.length === 0) return undefined;
+    const list = notChecked.map((n) =>
       `${n.indicatorId} (${noAnswerReason(n.stopReason)})`
     ).join(", ");
     return t3({
@@ -455,14 +460,36 @@ export function HfaIndicatorsManager(p: Props) {
     });
   };
 
-  const progressLabel = (p: HfaVerificationProgress) => {
-    const current = p.current ?? "…";
-    return t3({
-      en: `Verifying ${p.done} of ${p.queued}: ${current}`,
-      fr: `Vérification ${p.done} sur ${p.queued} : ${current}`,
-      pt: `A verificar ${p.done} de ${p.queued}: ${current}`,
-    });
+  const progressLabel = (run: HfaVerificationRunState) => {
+    const done = run.done;
+    const total = run.done + run.pending.length;
+    const by = run.startedBy;
+    if (run.status === "stopping") {
+      return t3({
+        en: `Stopping: ${done} of ${total} verified`,
+        fr: `Arrêt en cours : ${done} sur ${total} vérifiés`,
+        pt: `A parar: ${done} de ${total} verificados`,
+      });
+    }
+    return by === instanceState.currentUserEmail
+      ? t3({
+        en: `Verifying ${done} of ${total}`,
+        fr: `Vérification ${done} sur ${total}`,
+        pt: `A verificar ${done} de ${total}`,
+      })
+      : t3({
+        en: `Verifying ${done} of ${total}, started by ${by}`,
+        fr: `Vérification ${done} sur ${total}, lancée par ${by}`,
+        pt: `A verificar ${done} de ${total}, iniciada por ${by}`,
+      });
   };
+
+  const startVerification = (indicatorIds: string[]) =>
+    serverActions.startHfaVerificationRun({ indicatorIds });
+  const verify = createButtonAction(startVerification);
+  const stopVerification = createButtonAction(() =>
+    serverActions.stopHfaVerificationRun({})
+  );
 
   async function openCreateIndicator(initialDefinition?: string) {
     const st = indicators();
@@ -1159,23 +1186,6 @@ export function HfaIndicatorsManager(p: Props) {
   const otherActions = (): MenuItem[] => [
     {
       label: t3({
-        en: "Verify all",
-        fr: "Tout vérifier",
-        pt: "Verificar tudo",
-      }),
-      icon: "refresh",
-      disabled: !hfaDataAvailable() ||
-        indicators().status !== "ready" ||
-        hfaVerificationRun().progress !== undefined,
-      onClick: () => {
-        const st = indicators();
-        if (st.status === "ready") {
-          startRun(st.data.map((i) => i.indicatorId));
-        }
-      },
-    },
-    {
-      label: t3({
         en: "Verification rules",
         fr: "Règles de vérification",
         pt: "Regras de verificação",
@@ -1227,9 +1237,27 @@ export function HfaIndicatorsManager(p: Props) {
     },
   ];
 
+  // Select-all selects the filtered rows, so Verify over the selection is
+  // also how every indicator, or every one a filter shows, is verified.
   const bulkActions = createMemo<BulkAction<HfaIndicator>[]>(() =>
     can("can_configure_data")
       ? [
+        ...(hfaDataAvailable() && !verificationStopping()
+          ? [{
+            label: t3({ en: "Verify", fr: "Vérifier", pt: "Verificar" }),
+            outline: true,
+            onClick: async (selected: HfaIndicator[]) => {
+              const res = await startVerification(
+                selected.map((i) => i.indicatorId),
+              );
+              if (!res.success) {
+                await openAlert({ text: res.err, intent: "danger" });
+                return;
+              }
+              return "CLEAR_SELECTION" as const;
+            },
+          }]
+          : []),
         {
           label: t3(TC.delete),
           intent: "danger",
@@ -1275,21 +1303,23 @@ export function HfaIndicatorsManager(p: Props) {
                       {noHfaDataMsg()}
                     </div>
                   </Show>
-                  <Show when={hfaVerificationRun().stopError}>
-                    {(stopError) => (
+                  <Show when={lastRun()?.error}>
+                    {(error) => (
                       <div class="bg-danger-subtle text-danger-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
                         {t3({
-                          en: `The verification stopped: ${stopError()}`,
-                          fr: `La vérification s'est arrêtée : ${stopError()}`,
-                          pt: `A verificação parou: ${stopError()}`,
+                          en: `The verification stopped: ${error()}`,
+                          fr: `La vérification s'est arrêtée : ${error()}`,
+                          pt: `A verificação parou: ${error()}`,
                         })}
                       </div>
                     )}
                   </Show>
-                  <Show when={hfaVerificationRun().notChecked.length > 0}>
-                    <div class="bg-warning-subtle text-warning-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
-                      {notCheckedMessage()}
-                    </div>
+                  <Show when={notCheckedMessage()}>
+                    {(message) => (
+                      <div class="bg-warning-subtle text-warning-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
+                        {message()}
+                      </div>
+                    )}
                   </Show>
                   <div class="h-0 w-full flex-1">
                     <Table
@@ -1330,7 +1360,7 @@ export function HfaIndicatorsManager(p: Props) {
                         children: (
                           <Show when={can("can_configure_data")}>
                             <Show
-                              when={hfaVerificationRun().progress}
+                              when={liveHfaVerificationRun()}
                               fallback={
                                 <div
                                   title={hfaDataAvailable()
@@ -1339,9 +1369,10 @@ export function HfaIndicatorsManager(p: Props) {
                                 >
                                   <Button
                                     iconName="check"
-                                    onClick={() => startRun(
+                                    onClick={() => verify.click(
                                       verificationState()?.queue ?? [],
                                     )}
+                                    state={verify.state()}
                                     disabled={!hfaDataAvailable() ||
                                       !verificationState()?.queue.length}
                                     outline
@@ -1351,14 +1382,16 @@ export function HfaIndicatorsManager(p: Props) {
                                 </div>
                               }
                             >
-                              {(progress) => (
+                              {(run) => (
                                 <>
                                   <span class="text-sm">
-                                    {progressLabel(progress())}
+                                    {progressLabel(run())}
                                   </span>
                                   <Button
                                     iconName="x"
-                                    onClick={stopRun}
+                                    onClick={() => stopVerification.click()}
+                                    state={stopVerification.state()}
+                                    disabled={run().status === "stopping"}
                                     outline
                                   >
                                     {t3({

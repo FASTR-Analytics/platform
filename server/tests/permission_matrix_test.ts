@@ -400,7 +400,6 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   revokePersonalAccessToken: closed("approved"),
   saveGeoJsonMap: closed("can_configure_data"),
   saveHfaIndicatorFull: closed("can_configure_data"),
-  saveHfaIndicatorVerifications: closed("can_configure_data"),
   saveHfaIndicatorsBatch: closed("can_configure_data"),
   saveInstanceDhis2Credentials: closed("can_configure_data"),
   saveRunGenerationDefaults: closed("can_configure_data"),

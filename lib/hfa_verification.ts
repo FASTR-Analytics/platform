@@ -230,7 +230,7 @@ export function buildHfaVerificationMessages(
 }
 
 // SHA-256 hex. The model id is not an ingredient: a new model re-checks
-// through Verify all, not by marking every indicator changed.
+// through a Verify of every indicator, not by marking every indicator changed.
 export async function hfaVerificationInputHash(
   instructionBlock: string,
   hashedMessage: string,

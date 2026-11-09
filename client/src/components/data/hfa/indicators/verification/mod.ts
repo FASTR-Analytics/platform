@@ -7,10 +7,4 @@ export type {
   HfaVerificationState,
 } from "./hashes.ts";
 export { HfaVerificationRulesModal } from "./rules_modal.tsx";
-export {
-  hfaVerificationRun,
-  noAnswerReason,
-  startRun,
-  stopRun,
-} from "./runner.ts";
-export type { HfaVerificationProgress } from "./runner.ts";
+export { liveHfaVerificationRun, noAnswerReason } from "./run_state.ts";

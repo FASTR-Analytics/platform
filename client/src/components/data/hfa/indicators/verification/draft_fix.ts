@@ -7,6 +7,8 @@ import {
   type HfaIndicatorEditorPatch,
   type HfaTaxonomyInput,
   type HfaVerificationFinding,
+  hfaVerificationSystem,
+  modelCallErrorMessage,
   t3,
 } from "lib";
 import { callAIStructured } from "panther";
@@ -14,11 +16,7 @@ import { createSignal } from "solid-js";
 import { createAiProxyClient } from "~/components/_shared/mod.ts";
 import { getSnapshotInstanceState } from "~/state/instance/t1_store";
 import { loadReadInput, validateHfaIndicatorPatch } from "../_shared/mod.ts";
-import {
-  callErrorMessage,
-  hfaVerificationSystem,
-  noAnswerReason,
-} from "./runner.ts";
+import { noAnswerReason } from "./run_state.ts";
 
 // `mono` marks code, shown in the code face.
 export type HfaDraftFixChange = {
@@ -71,7 +69,7 @@ export function createHfaDraftFix(): HfaDraftFix {
     try {
       outcome = await draftFix(request, thisController.signal);
     } catch (e) {
-      const message = callErrorMessage(e);
+      const message = modelCallErrorMessage(e);
       outcome = {
         status: "not_applied",
         reason: t3({

@@ -1,14 +1,11 @@
 import { Hono } from "hono";
-import type { TransactionSql } from "postgres";
 import {
   getHfaVerification,
   getInstanceIndicatorsSummary,
-  saveHfaIndicatorVerifications,
   setHfaVerificationFindingsDismissed,
   setHfaVerificationRulesOff,
   startHfaVerificationRun,
   stopHfaVerificationRun,
-  tryCatchDatabaseAsync,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { notifyInstanceIndicatorsUpdated } from "../../task_management/notify_instance_updated.ts";
@@ -22,30 +19,6 @@ defineRoute(
   log("getHfaVerification"),
   async (c) => {
     const res = await getHfaVerification(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesHfaVerification,
-  "saveHfaIndicatorVerifications",
-  log("saveHfaIndicatorVerifications"),
-  async (c, { body }) => {
-    const res = await tryCatchDatabaseAsync(async () => {
-      await c.var.mainDb.begin((sql: TransactionSql) =>
-        saveHfaIndicatorVerifications(
-          sql,
-          body.results,
-          c.var.globalUser.email,
-        )
-      );
-      return { success: true } as const;
-    });
-    if (res.success) {
-      notifyInstanceIndicatorsUpdated(
-        await getInstanceIndicatorsSummary(c.var.mainDb),
-      );
-    }
     return c.json(res);
   },
 );
