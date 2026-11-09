@@ -3,6 +3,7 @@ import type { AssetInfo } from "./assets.ts";
 import type { HfaTimePoint } from "./dataset_hfa.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
+import type { HfaVerificationRunState } from "./hfa_verification.ts";
 import type {
   RosterEntry,
   ScopeAccess,
@@ -169,6 +170,8 @@ export type InstanceState = {
   countIndicatorsVersion: string;
   hfaIndicatorsVersion: string;
   hfaVerificationVersion: string;
+  // The latest HFA verification run, undefined before the first.
+  hfaVerificationRun: HfaVerificationRunState | undefined;
 
   // Per-connection current user (populated by server in starting message,
   // re-derived on users_updated: different for each connected client)
@@ -215,6 +218,7 @@ export type InstanceIndicatorsSummary = {
   countIndicatorsVersion: string;
   hfaIndicatorsVersion: string;
   hfaVerificationVersion: string;
+  hfaVerificationRun: HfaVerificationRunState | undefined;
 };
 
 export type InstanceDatasetsSummary = {
