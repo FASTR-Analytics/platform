@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import type { Sql } from "postgres";
 import {
   AddAiUsageLog,
@@ -16,14 +15,12 @@ import {
 } from "../exposed_env_vars.ts";
 
 // The Anthropic /v1/messages passthrough behind the copilot proxy (mounted
-// at /ai, copilot_ai_proxy.ts) and behind createGovernedAnthropicClient, the
-// server's own calls. Governance (daily-user + weekly-instance token
-// limits), usage logging, and the beta-header policy live here; the mount
-// stays logic-free.
+// at /ai, copilot_ai_proxy.ts). Governance (daily-user + weekly-instance
+// token limits), usage logging, and the beta-header policy live here; the
+// mount stays logic-free.
 //
 // Responses are Anthropic-shaped (including errors), NOT the APIResponse
-// envelope: an Anthropic SDK parses them, the browser's or the governed
-// client's (see SYSTEM_13).
+// envelope: the browser Anthropic SDK parses them (see SYSTEM_13).
 
 // Client-supplied anthropic-beta values (SDK >=0.110 sends betas via this
 // header, not the body) are forwarded ONLY from this allowlist: the set
@@ -61,31 +58,6 @@ export async function proxyAnthropicMessages(
       { status: 502 },
     );
   }
-}
-
-// An SDK client for the server's own model calls, made as one user: its fetch
-// is this proxy called in process, so each call takes that user's limits, is
-// logged against them, and sends only allowlisted betas.
-export function createGovernedAnthropicClient(
-  user: Pick<ProxyArgs, "userEmail" | "unlimitedAi" | "mainDb">,
-): Anthropic {
-  return new Anthropic({
-    apiKey: null,
-    authToken: null,
-    defaultHeaders: { Authorization: null },
-    fetch: (_url: string | URL | Request, init?: RequestInit) =>
-      proxyAnthropicMessages({
-        parseBody: () => {
-          if (typeof init?.body !== "string") {
-            throw new Error("The SDK sent a request with no JSON body.");
-          }
-          return Promise.resolve(JSON.parse(init.body));
-        },
-        clientBetaHeader: new Headers(init?.headers).get("anthropic-beta") ??
-          undefined,
-        ...user,
-      }),
-  });
 }
 
 async function runProxy(args: ProxyArgs): Promise<Response> {

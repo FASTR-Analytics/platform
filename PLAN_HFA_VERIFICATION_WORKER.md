@@ -18,10 +18,9 @@ Vocabulary, used throughout:
 - **queue**: the `hfa_verification_queue` rows: the indicators the run has still to answer, claimed or not.
 - **claim**: the worker's mark (`claimed_at`) on a queue row whose call is in flight.
 - **pending**: every indicator with a queue row, claimed or not.
-- **queuer**: the user whose Verify put an indicator on the queue (`queued_by`); the run charges, logs and signs that indicator's answer as that user.
+- **queuer**: the user whose Verify put an indicator on the queue (`queued_by`); the run signs that indicator's answer as that user.
 - **answer**: the model's result for one indicator: findings, or null.
 - **run state**: `HfaVerificationRunState`, the run row and the pending ids as clients receive them on `InstanceIndicatorsSummary`.
-- **governed client**: an Anthropic SDK client built for one user, whose `fetch` is `proxyAnthropicMessages` called in process, so every request takes the proxy's limits, usage logging and beta allowlist as that user's.
 - **snapshot**: the HFA read input the worker builds messages and hashes from, re-read when `hfaIndicatorsVersion` moves.
 - Verification, finding, rule, dismissed, rule switch, open finding, input hash, draft fix: as SYSTEM_05 "HFA indicator verification" defines them.
 
@@ -37,7 +36,6 @@ Rules peculiar to this plan:
 - **No way to verify a chosen set.** The manager offers the not-verified and changed queue ("Verify N") and every indicator ("Verify all", [manager.tsx:1162](client/src/components/data/hfa/indicators/manager.tsx#L1162)); its bulk actions hold Delete only ([manager.tsx:1230](client/src/components/data/hfa/indicators/manager.tsx#L1230)).
 - **Discard drops later edits.** After a drafted fix lands, Discard restores the draft from before the fix and marks it saved ([indicator_code_editor.tsx:737-742](client/src/components/data/hfa/indicators/indicator_code_editor.tsx#L737-L742)), so an edit made after the fix, by the user or the copilot's `update_hfa_indicator_editor`, is lost without a word. `markDirty` ([:614](client/src/components/data/hfa/indicators/indicator_code_editor.tsx#L614)) leaves the banner and its Discard in place.
 - **Panther's one-shot call cannot load on the server.** `callAIStructured` ([panther/\_305_ai/\_core/one_shot.ts:88](panther/_305_ai/_core/one_shot.ts#L88)) lives in `_305_ai`, whose `deps.ts` evaluates the UI kit, so Deno code cannot import it. What it uses is Deno-safe: `_110_ai_types`'s model resolvers and `renderOutgoingMessages`, and the SDK's `betaZodOutputFormat`.
-- **Governance lives in the HTTP proxy.** The daily and weekly limits, the usage log and the beta allowlist are in `runProxy` ([anthropic_messages_proxy.ts:63](server/routes/anthropic_messages_proxy.ts#L63)), reached only by the `/ai` route. S13's first principle says nothing server-side talks to Anthropic but through it ([SYSTEM_13_ai_assistant.md:68-71](SYSTEM_13_ai_assistant.md#L68-L71)).
 - **Doc defects.** SYSTEM_05 has code spans split across lines at [:1197](SYSTEM_05_facilities_indicators.md#L1197), [:1203](SYSTEM_05_facilities_indicators.md#L1203), [:1207](SYSTEM_05_facilities_indicators.md#L1207), [:1253](SYSTEM_05_facilities_indicators.md#L1253) and [:1277](SYSTEM_05_facilities_indicators.md#L1277). CLAUDE.md's formatting section ([CLAUDE.md:13](CLAUDE.md#L13)) names `server/tests/fixtures/fastr_pdf/`, which does not exist, and omits `report-forge/`, which `deno.json` excludes.
 
 ## §2 The model
@@ -78,14 +76,14 @@ The runs table holds the latest run only: a start deletes ended rows. `not_check
 
 `saveHfaIndicatorVerifications` (route, client action and permission-matrix row) is deleted. The DB function of that name stays: the worker calls it.
 
-**The worker**, `server/worker_routines/hfa_verification/` (`worker.ts`, `instantiate_worker.ts`, and the run logic in `run.ts`, which takes its connection, its governed-client factory (a queuer's email to that user's SDK client) and its clock as arguments so a test drives it), under the recipe of PROTOCOL_APP_WORKER_ROUTINES: the standard preamble, READY, its own connection from `server/db/postgres/worker_connections.ts` ended on every exit path, report-back by `postMessage("COMPLETED")` and the run row, tracker key `"hfa_verification"` in `worker_store.ts`. Payload: `{ runId }`.
+**The worker**, `server/worker_routines/hfa_verification/` (`worker.ts`, `instantiate_worker.ts`, and the run logic in `run.ts`, which takes its connection, its SDK client and its clock as arguments so a test drives it), under the recipe of PROTOCOL_APP_WORKER_ROUTINES: the standard preamble, READY, its own connection from `server/db/postgres/worker_connections.ts` ended on every exit path, report-back by `postMessage("COMPLETED")` and the run row, tracker key `"hfa_verification"` in `worker_store.ts`. Payload: `{ runId }`.
 
 - It reads the snapshot (the route functions' own DB reads: `getHfaIndicators`, the taxonomy reads, `getAllHfaIndicatorCode`, `getAllHfaIndicatorVariantCode`, `getHfaDictionaryForValidation`, `getDatasetHfaItemsForDisplay`, and `hfaIndicatorsStatus` over them), the dismissed findings, and builds the blocks with `_INSTANCE_LANGUAGE`. Before each claim it reads the run's status and, when `getHfaIndicatorsVersion` has moved since the last read, re-reads the snapshot, so an indicator added after an edit is checked as saved.
 - It claims the oldest unclaimed queue row (`FOR UPDATE SKIP LOCKED`). The first claim after every snapshot read goes alone, so the context block's cache write lands once, then four in flight.
 - Each answer is one transaction: `saveHfaIndicatorVerifications` for one result with the row's queuer as `verified_by` (or the `not_checked` append for a null), the queue row deleted, or unclaimed when `requeue` is set; `done` incremented as the last statement.
 - Notifies are throttled: at most one per 5 seconds while answers land, and one when the run ends.
 - It finishes in a transaction that locks the run row and flips it to `completed` only when the queue is empty, so an id added at the last moment is never lost. A run found `stopping` at a claim ends the claiming; the calls in flight finish and save, then the worker flips the run to `stopped`. A thrown error (a 429, a network failure, a failed save) ends the claiming the same way: the calls in flight finish and save, the queue is deleted, and the run is flipped to `error` with the first error's message (the response body's own message for an API error). No call is aborted: an abort loses the answer and pays the partial usage.
-- Every call goes through a **governed client** `createGovernedAnthropicClient({ userEmail, unlimitedAi, mainDb })`, exported from `server/routes/anthropic_messages_proxy.ts` beside `proxyAnthropicMessages`, whose `fetch` hands the SDK's request to `proxyAnthropicMessages`. The worker builds one per queuer, from the row's `queued_by` and that user's `unlimited_ai`, so the limits and the usage log charge the user whose Verify queued the indicator, as the browser run charged the user whose tab ran it. The call is panther's `callAIStructured`, now Deno-loadable (step 1), with `hfaVerificationSystem(blocks)`.
+- Every call is panther's `callAIStructured`, now Deno-loadable (step 1), with `hfaVerificationSystem(blocks)`, through one SDK client the worker builds with the instance's key, straight to Anthropic, outside the copilot proxy's token limits and usage log.
 
 `markStaleHfaVerificationRuns` in `db_startup.ts` flips a run left `running` or `stopping` by a restart to `error` ("Interrupted by a server restart. Verify checks the indicators it did not reach.") and deletes the queue.
 
@@ -102,7 +100,7 @@ The runs table holds the latest run only: a start deletes ended rows. `not_check
 ## §3 Rulings
 
 1. The verification run moves to a server worker, one per instance (Tim, 2026-11-03).
-2. Every call of a run goes through `proxyAnthropicMessages` in process, through a governed client built for the indicator's queuer, so limits, usage logging and the beta allowlist are the proxy's and charge the user who queued each indicator, who is also its `verified_by`. S13's first principle is restated as "every model call goes through the proxy's governance". _(proposed)_
+2. Every call of a run goes straight to Anthropic with the instance's key, outside the proxy's token limits and usage log; the user who queued each indicator is its `verified_by` (Tim, 2026-11-09).
 3. The one-shot structured call becomes Deno-loadable in panther and is shared by the worker and Draft a fix; the model config stays panther's default. _(proposed)_
 4. Draft a fix stays in the browser: it is one interactive call by one user. _(proposed)_
 5. The queue is a table. A Verify during a run adds to it; an indicator added while its call is in flight is checked again after its answer. _(proposed)_
@@ -161,18 +159,17 @@ The runs table holds the latest run only: a start deletes ended rows. `not_check
 - The two tables of §2 in the migration and the base schema, idempotent.
 - The DB layer: the start transaction, the stop, the claim, the per-answer transaction, the finish, `getHfaVerificationRunState`, and `markStaleHfaVerificationRuns`, called from `db_startup.ts` as the import runs' markers are.
 - `HfaVerificationRunState`; `InstanceIndicatorsSummary.hfaVerificationRun`, read by `getInstanceIndicatorsSummary` and set in the T1 store.
-- `createGovernedAnthropicClient` beside `proxyAnthropicMessages`.
 - The worker as §2 describes it, its `"hfa_verification"` key in `worker_store.ts`, spawned by `startHfaVerificationRun` with the spawn-site `error` and `message` listeners of PROTOCOL_APP_WORKER_ROUTINES.
 - `startHfaVerificationRun` and `stopHfaVerificationRun`, with their rows in the permission matrix test. The save route stays until step 4, so the client stays green.
 - `hfaVerificationSystem` and `modelCallErrorMessage` in `lib/hfa_verification.ts`.
-- `server/tests/hfa_verification_run_test.ts` pins, on a throwaway database with `run.ts` driven by a stub SDK `fetch`: a start queues under its caller and a second start by another user adds to the live run under that user; a start while `stopping` refuses; each call uses the client the factory built for the row's queuer; each answer saves under its queuer with its queue row gone and `done` moved; a null answer lands in `not_checked`; a re-added claimed indicator is checked twice; an id added before the finish transaction is checked, not dropped; after the stamp moves, one call goes alone before four resume; a 429 ends the run as `error` with the body's message, the other answers in flight saved and the queue emptied; Stop ends it `stopped` with the answers in flight saved; a deleted indicator's queue row goes with it; the stale marker ends a live run. `hfa_verification_test.ts` pins that the hashes the worker computes from the DB reads equal those computed from the routes' JSON bodies.
-- SYSTEM_05's verification section describes the run as built (tables, routes, worker, run state, restart); SYSTEM_13's first principle and the HFA paragraph say a run's calls go through the proxy's governance in process; SYSTEM_03's catalogue names the summary's run state; SYSTEM_02 names the stale marker; SYSTEM_06 names the store's new key; the worker routines protocol's inventory and `WorkerKey` list gain the routine; `PROTOCOL_APP_STATE.md`'s T1 table gains the field; SYSTEM_05's manifest claims the new folder.
+- `server/tests/hfa_verification_run_test.ts` pins, on a throwaway database with `run.ts` driven by a stub SDK `fetch`: a start queues under its caller and a second start by another user adds to the live run under that user; a start while `stopping` refuses; each answer saves under its queuer with its queue row gone and `done` moved; a null answer lands in `not_checked`; a re-added claimed indicator is checked twice; an id added before the finish transaction is checked, not dropped; after the stamp moves, one call goes alone before four resume; a 429 ends the run as `error` with the body's message, the other answers in flight saved and the queue emptied; Stop ends it `stopped` with the answers in flight saved; a deleted indicator's queue row goes with it; the stale marker ends a live run. `hfa_verification_test.ts` pins that the hashes the worker computes from the DB reads equal those computed from the routes' JSON bodies.
+- SYSTEM_05's verification section describes the run as built (tables, routes, worker, run state, restart); SYSTEM_13's first principle and the HFA paragraph say a run's calls go straight to Anthropic, outside the limits and the usage log; SYSTEM_03's catalogue names the summary's run state; SYSTEM_02 names the stale marker; SYSTEM_06 names the store's new key; the worker routines protocol's inventory and `WorkerKey` list gain the routine; `PROTOCOL_APP_STATE.md`'s T1 table gains the field; SYSTEM_05's manifest claims the new folder.
 
 **Not in this step.** The client's switch; the save route's deletion.
 
 **Gates.** The floor, `./validate_migrations`, `./validate_fresh_boot`.
 
-**Ends with.** Several commits, each green: the governed client; the tables and DB layer; the worker and routes; the run state on the summary; the docs.
+**Ends with.** Several commits, each green: the tables and DB layer; the worker and routes; the run state on the summary; the docs.
 
 ### Step 4: The client uses the server run (this repo)
 
@@ -200,7 +197,6 @@ The runs table holds the latest run only: a start deletes ended rows. `not_check
 - Moving Draft a fix or the copilot to the server.
 - Moving `callAI` (with tools) out of `_305_ai`.
 - Incremental fetches of the verification rows: the throttle bounds refetches.
-- A column on `ai_usage_logs` telling a run's calls from a chat's.
 
 ## §6 Log
 
@@ -209,4 +205,4 @@ The runs table holds the latest run only: a start deletes ended rows. `not_check
 - Step 1: `DOC_MODULE_STRUCTURE.md`'s systems table lists `_116_ai_one_shot`, outside the Surface, because that table is the module map.
 - Step 1: `DOC_AI_CHAT.md`'s module list gains `_116_ai_one_shot` and its intro says "these modules", outside the `callAI` paragraph, because that list is where the doc names its modules.
 - Step 1: `modules/_305_ai/README.md`'s API lists gain the one-shot types and `callAIStructured()`, outside "One-Shot Requests", because those lists are `_305_ai`'s exports.
-- Step 3: a Verify that queues an indicator whose call is in flight sets `requeue` and also makes the caller the row's queuer and stamps its `queued_at`, because the second check is that caller's request: it is charged to and signed by them, and claimed in that Verify's order.
+- Step 3: a Verify that queues an indicator whose call is in flight sets `requeue` and also makes the caller the row's queuer and stamps its `queued_at`, because the second check is that caller's request: it is signed by them, and claimed in that Verify's order.

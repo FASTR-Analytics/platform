@@ -15,7 +15,6 @@ import {
   parseJsonOrThrow,
   t3,
 } from "lib";
-import { isHUser } from "../../auth/operators.ts";
 import { instantiateHfaVerificationWorker } from "../../worker_routines/hfa_verification/instantiate_worker.ts";
 import { clearWorker, setWorker } from "../../worker_routines/worker_store.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
@@ -606,21 +605,6 @@ export async function getHfaVerificationRunState(
     ),
     error: run.error,
   };
-}
-
-// Whether a queuer's calls skip the token limits, by the rule a session of
-// theirs takes (global_user.ts): an operator, or a user marked unlimited.
-export async function getHfaVerificationQueuerUnlimitedAi(
-  sql: Sql,
-  email: string,
-): Promise<boolean> {
-  if (isHUser(email)) return true;
-  const row = (
-    await sql<{ unlimited_ai: boolean }[]>`
-      SELECT unlimited_ai FROM users WHERE email = ${email}
-    `
-  ).at(0);
-  return row?.unlimited_ai ?? false;
 }
 
 // Startup sweep: a restart leaves a live run with no worker, onto which every

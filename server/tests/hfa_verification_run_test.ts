@@ -1,7 +1,7 @@
 // Pins the HFA indicator verification run on the server: the queue a start
 // and a second start build, the refusal while stopping, and run.ts driven by
-// a stub SDK fetch, each call through the client built for its queuer, each
-// answer saved as it arrives, an indicator queued again mid-call checked
+// a stub SDK fetch, each answer saved under its queuer as it arrives, an
+// indicator queued again mid-call checked
 // twice, an indicator queued before the end checked, the first call after
 // every snapshot read alone, a 429 and a stop each ending the run with the
 // answers in flight saved, a deleted indicator's queue row, and the startup
@@ -145,58 +145,51 @@ type Reply =
   | { refusal: true }
   | { rateLimit: string };
 
-// A model per queuer, behind the SDK's own client: each call records who it
-// was made for, which indicator it checks and how many calls were in flight
-// as it began, waits `before`, then answers `reply` after `delayMs`.
+// A model behind the SDK's own client: each call records which indicator it
+// checks and how many calls were in flight as it began, waits `before`, then
+// answers `reply` after `delayMs`.
 function stubModel(options: {
   reply?: (indicatorId: string) => Reply;
   before?: (indicatorId: string, callIndex: number) => Promise<void>;
   delayMs?: (indicatorId: string) => number;
 }) {
-  const calls: { queuedBy: string; indicatorId: string; inFlight: number }[] =
-    [];
-  const built: string[] = [];
+  const calls: { indicatorId: string; inFlight: number }[] = [];
   let active = 0;
-  const clientFor = (queuedBy: string) => {
-    built.push(queuedBy);
-    return Promise.resolve(
-      new Anthropic({
-        apiKey: "stub",
-        fetch: async (_url: string | URL | Request, init?: RequestInit) => {
-          const body = JSON.stringify(JSON.parse(String(init?.body)).messages);
-          const indicatorId = body.match(/ind\d{3}|gone/)![0];
-          active++;
-          const callIndex = calls.length;
-          calls.push({ queuedBy, indicatorId, inFlight: active });
-          try {
-            await options.before?.(indicatorId, callIndex);
-            await sleep(options.delayMs?.(indicatorId) ?? 0);
-            const reply = options.reply?.(indicatorId) ?? { findings: [] };
-            if ("rateLimit" in reply) {
-              return Response.json(
-                {
-                  type: "error",
-                  error: { type: "rate_limit_error", message: reply.rateLimit },
-                },
-                { status: 429, headers: { "x-should-retry": "false" } },
-              );
-            }
-            return "refusal" in reply
-              ? streamed("", "refusal")
-              : streamed(JSON.stringify(reply), "end_turn");
-          } finally {
-            active--;
-          }
-        },
-      }),
-    );
-  };
-  return { calls, built, clientFor, active: () => active };
+  const sdkClient = new Anthropic({
+    apiKey: "stub",
+    fetch: async (_url: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.stringify(JSON.parse(String(init?.body)).messages);
+      const indicatorId = body.match(/ind\d{3}|gone/)![0];
+      active++;
+      const callIndex = calls.length;
+      calls.push({ indicatorId, inFlight: active });
+      try {
+        await options.before?.(indicatorId, callIndex);
+        await sleep(options.delayMs?.(indicatorId) ?? 0);
+        const reply = options.reply?.(indicatorId) ?? { findings: [] };
+        if ("rateLimit" in reply) {
+          return Response.json(
+            {
+              type: "error",
+              error: { type: "rate_limit_error", message: reply.rateLimit },
+            },
+            { status: 429, headers: { "x-should-retry": "false" } },
+          );
+        }
+        return "refusal" in reply
+          ? streamed("", "refusal")
+          : streamed(JSON.stringify(reply), "end_turn");
+      } finally {
+        active--;
+      }
+    },
+  });
+  return { calls, sdkClient, active: () => active };
 }
 
 function run(model: ReturnType<typeof stubModel>, runId: string) {
   return runHfaVerification(
-    { mainDb: db, clientFor: model.clientFor, now: () => 0 },
+    { mainDb: db, sdkClient: model.sdkClient, now: () => 0 },
     runId,
   );
 }
@@ -229,7 +222,7 @@ Deno.test("start: refused while the run is stopping, which has dropped its uncla
   assertEquals((await runState()).status, "stopping");
 });
 
-Deno.test("run: each call through the client built for its queuer, each answer saved under its queuer with its queue row gone and done moved, a null answer listed as not checked", async () => {
+Deno.test("run: each answer saved under its queuer with its queue row gone and done moved, a null answer listed as not checked", async () => {
   await reset();
   const runId = await queue(["ind001", "ind002"], A);
   await queueHfaVerificationIndicators(db, ["ind003"], B);
@@ -245,10 +238,9 @@ Deno.test("run: each call through the client built for its queuer, each answer s
       },
   });
   await run(model, runId);
-  assertEquals(model.built.sort(), [A, B]);
   assertEquals(
-    model.calls.map((c) => [c.indicatorId, c.queuedBy]).sort(),
-    [["ind001", A], ["ind002", A], ["ind003", B]],
+    model.calls.map((c) => c.indicatorId).sort(),
+    ["ind001", "ind002", "ind003"],
   );
   assertEquals(await verifiedBy(), [["ind001", A], ["ind002", A]]);
   const rows = await getHfaVerification(db);
@@ -281,10 +273,7 @@ Deno.test("run: an indicator queued again while its call is in flight is checked
     },
   });
   await run(model, runId);
-  assertEquals(
-    model.calls.map((c) => [c.indicatorId, c.queuedBy]),
-    [["ind001", A], ["ind001", B]],
-  );
+  assertEquals(model.calls.map((c) => c.indicatorId), ["ind001", "ind001"]);
   assertEquals(await verifiedBy(), [["ind001", B]]);
   const state = await runState();
   assertEquals(state.status, "completed");

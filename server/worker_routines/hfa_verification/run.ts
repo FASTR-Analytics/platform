@@ -42,9 +42,7 @@ const NOTIFY_INTERVAL_MS = 5000;
 
 export type HfaVerificationRunDeps = {
   mainDb: Sql;
-  // The SDK client every call for an indicator is made through, built for
-  // the user who queued it.
-  clientFor: (queuedBy: string) => Promise<Anthropic>;
+  sdkClient: Anthropic;
   now: () => number;
 };
 
@@ -146,13 +144,7 @@ export async function runHfaVerification(
   deps: HfaVerificationRunDeps,
   runId: string,
 ): Promise<void> {
-  const { mainDb, now } = deps;
-  const clients = new Map<string, Promise<Anthropic>>();
-  const clientFor = (queuedBy: string) => {
-    const client = clients.get(queuedBy) ?? deps.clientFor(queuedBy);
-    clients.set(queuedBy, client);
-    return client;
-  };
+  const { mainDb, sdkClient, now } = deps;
 
   let lastNotify = -Infinity;
   let trailing: ReturnType<typeof setTimeout> | undefined;
@@ -182,7 +174,7 @@ export async function runHfaVerification(
     sent: { message: string; hashedMessage: string },
   ) => {
     const res = await callAIStructured(
-      { sdkClient: await clientFor(claim.queuedBy), system: snapshot.system },
+      { sdkClient, system: snapshot.system },
       [{ role: "user", content: sent.message }],
       hfaVerificationOutputSchema,
     );
