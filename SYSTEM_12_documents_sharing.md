@@ -2963,7 +2963,12 @@ about the reporter, which the report cannot forge: admin flag, permission flags,
 scope access and their own logged requests from the last 24 hours
 (`getRecentUserRequests` in `server/db/instance/user_logs.ts`: endpoint, status
 and route params, never bodies), so "I can't do X" can be checked against
-whether an X request was ever sent. Jobs run one at a time, capped at 3 per reporter and 15 per instance per day
+whether an X request was ever sent. When there is code work the plan ends with a paste-ready Claude
+Code prompt between fixed markers; the server lifts it into its own box, wraps
+it in a fixed header and standing instructions (verify, typecheck, no commits),
+and puts a warning above it if it contains a URL, a network or destructive
+command, secrets or encoded data, since it is model output shaped by an
+untrusted report. Jobs run one at a time, capped at 3 per reporter and 15 per instance per day
 in memory; its tokens are not written to the AI usage log. User-typed text (`message`/`description`/`context`/
 `userEmail`) is HTML-escaped before interpolation in every route.
 
