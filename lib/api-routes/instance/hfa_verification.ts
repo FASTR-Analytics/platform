@@ -27,6 +27,17 @@ export const hfaVerificationRouteRegistry = {
       })).min(1),
     }),
   }),
+  startHfaVerificationRun: route({
+    path: "/hfa-verification/run",
+    method: "POST",
+    guard: GUARD.permission("can_configure_data"),
+    body: z.object({ indicatorIds: z.array(z.string()).min(1) }),
+  }),
+  stopHfaVerificationRun: route({
+    path: "/hfa-verification/run/stop",
+    method: "POST",
+    guard: GUARD.permission("can_configure_data"),
+  }),
   setHfaVerificationFindingsDismissed: route({
     path: "/hfa-verification/dismissed",
     method: "POST",

@@ -155,6 +155,41 @@ export function buildHfaVerificationBlocks(
   };
 }
 
+// The two system blocks of every verification call, which the fix call sends
+// unchanged, so a fix drafted over the same state within the prompt cache's
+// lifetime reads the context block a run wrote.
+export function hfaVerificationSystem(
+  blocks: { instructionBlock: string; contextBlock: string },
+) {
+  return () => [
+    { type: "text" as const, text: blocks.instructionBlock },
+    {
+      type: "text" as const,
+      text: blocks.contextBlock,
+      cache_control: { type: "ephemeral" as const },
+    },
+  ];
+}
+
+// An API error's message is its status and the response body as JSON; the
+// body's own message is the readable part (the proxy's quota rejection and
+// its reset time). Read from the error's shape, so lib needs no SDK.
+export function modelCallErrorMessage(e: unknown): string {
+  if (typeof e === "object" && e !== null && "error" in e) {
+    const body = e.error;
+    if (typeof body === "object" && body !== null && "error" in body) {
+      const detail = body.error;
+      if (
+        typeof detail === "object" && detail !== null &&
+        "message" in detail && typeof detail.message === "string"
+      ) {
+        return detail.message;
+      }
+    }
+  }
+  return e instanceof Error ? e.message : String(e);
+}
+
 function dismissedSection(dismissed: HfaVerificationFinding[]): string {
   return [
     "## Findings the user dismissed",

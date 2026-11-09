@@ -432,6 +432,8 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   setUserUnlimitedAi: closed("h_user", {
     body: { email: UNAPPROVED.email, unlimited: true },
   }),
+  startHfaVerificationRun: closed("can_configure_data"),
+  stopHfaVerificationRun: closed("can_configure_data"),
   structureStep0_SetSourceType: closed("can_configure_data"),
   structureStep1Csv_UploadFile: closed("can_configure_data"),
   structureStep1Dhis2_ConfirmConnection: closed(

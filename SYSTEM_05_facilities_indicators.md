@@ -71,6 +71,7 @@ globs:
   - server/tests/hfa_indicator_code_test.ts
   - server/tests/hfa_indicator_status_test.ts
   - server/tests/hfa_r_emit_test.ts
+  - server/tests/hfa_verification_run_test.ts
   - server/tests/hfa_verification_test.ts
   - server/tests/hfa_workbook_text_columns_test.ts
   - server/tests/indicator_analysed_set_test.ts
@@ -82,6 +83,7 @@ globs:
   - server/tests/indicator_naming_test.ts
   - server/tests/indicator_rename_test.ts
   - server/tests/indicator_schema_test.ts
+  - server/worker_routines/hfa_verification/**
 docs_absorbed:
 ---
 

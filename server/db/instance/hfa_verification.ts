@@ -15,6 +15,9 @@ import {
   parseJsonOrThrow,
   t3,
 } from "lib";
+import { isHUser } from "../../auth/operators.ts";
+import { instantiateHfaVerificationWorker } from "../../worker_routines/hfa_verification/instantiate_worker.ts";
+import { clearWorker, setWorker } from "../../worker_routines/worker_store.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import type {
   DBHfaIndicatorVerification,
@@ -298,7 +301,7 @@ export async function getHfaVerificationVersion(mainDb: Sql): Promise<string> {
 // Serializes starts, so two with no live run cannot both create one.
 const HFA_VERIFICATION_RUN_ADVISORY_LOCK_KEY = 727403;
 
-type HfaVerificationStart =
+export type HfaVerificationQueued =
   | { kind: "stopping" }
   | { kind: "queued" }
   | { kind: "created"; runId: string };
@@ -306,47 +309,59 @@ type HfaVerificationStart =
 // With a run running, the ids join its queue under the caller: an unclaimed
 // row keeps its queuer, and a claimed one is marked to be checked again after
 // its answer, as the caller's. With none live, the ended run is deleted and a
-// new one starts with the ids as its queue. A stopping run refuses.
+// new one starts with the ids as its queue. A stopping run takes nothing.
+export async function queueHfaVerificationIndicators(
+  mainDb: Sql,
+  indicatorIds: string[],
+  queuedBy: string,
+): Promise<HfaVerificationQueued> {
+  return await mainDb.begin(async (sql): Promise<HfaVerificationQueued> => {
+    await sql`SELECT pg_advisory_xact_lock(${HFA_VERIFICATION_RUN_ADVISORY_LOCK_KEY})`;
+    const live = (
+      await sql<Pick<DBHfaVerificationRun, "id" | "status">[]>`
+        SELECT id, status FROM hfa_verification_runs
+        WHERE status IN ('running', 'stopping')
+        FOR UPDATE
+      `
+    ).at(0);
+    if (live?.status === "stopping") return { kind: "stopping" };
+    const runId = live?.id ?? crypto.randomUUID();
+    if (live === undefined) {
+      await sql`DELETE FROM hfa_verification_runs`;
+      await sql`
+        INSERT INTO hfa_verification_runs
+          (id, status, started_by, started_at, done, not_checked)
+        VALUES (${runId}, 'running', ${queuedBy}, now(), 0, '[]')
+      `;
+    }
+    await sql`
+      INSERT INTO hfa_verification_queue (indicator_id, queued_by, queued_at)
+      SELECT indicator_id, ${queuedBy}, now() FROM hfa_indicators
+      WHERE indicator_id = ANY(${indicatorIds})
+      ON CONFLICT (indicator_id) DO UPDATE SET
+        requeue = true,
+        queued_by = EXCLUDED.queued_by,
+        queued_at = EXCLUDED.queued_at
+      WHERE hfa_verification_queue.claimed_at IS NOT NULL
+    `;
+    return live === undefined ? { kind: "created", runId } : { kind: "queued" };
+  });
+}
+
+// Queues the ids, refusing while a run is stopping, and spawns a new run's
+// worker once the queue commits. `onWorkerCrash` runs after a crashed
+// worker's run is marked as an error.
 export async function startHfaVerificationRun(
   mainDb: Sql,
   indicatorIds: string[],
   queuedBy: string,
+  onWorkerCrash: () => Promise<void>,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const start = await mainDb.begin(
-      async (sql): Promise<HfaVerificationStart> => {
-        await sql`SELECT pg_advisory_xact_lock(${HFA_VERIFICATION_RUN_ADVISORY_LOCK_KEY})`;
-        const live = (
-          await sql<Pick<DBHfaVerificationRun, "id" | "status">[]>`
-            SELECT id, status FROM hfa_verification_runs
-            WHERE status IN ('running', 'stopping')
-            FOR UPDATE
-          `
-        ).at(0);
-        if (live?.status === "stopping") return { kind: "stopping" };
-        const runId = live?.id ?? crypto.randomUUID();
-        if (live === undefined) {
-          await sql`DELETE FROM hfa_verification_runs`;
-          await sql`
-            INSERT INTO hfa_verification_runs
-              (id, status, started_by, started_at, done, not_checked)
-            VALUES (${runId}, 'running', ${queuedBy}, now(), 0, '[]')
-          `;
-        }
-        await sql`
-          INSERT INTO hfa_verification_queue (indicator_id, queued_by, queued_at)
-          SELECT indicator_id, ${queuedBy}, now() FROM hfa_indicators
-          WHERE indicator_id = ANY(${indicatorIds})
-          ON CONFLICT (indicator_id) DO UPDATE SET
-            requeue = true,
-            queued_by = EXCLUDED.queued_by,
-            queued_at = EXCLUDED.queued_at
-          WHERE hfa_verification_queue.claimed_at IS NOT NULL
-        `;
-        return live === undefined
-          ? { kind: "created", runId }
-          : { kind: "queued" };
-      },
+    const start = await queueHfaVerificationIndicators(
+      mainDb,
+      indicatorIds,
+      queuedBy,
     );
     if (start.kind === "stopping") {
       return {
@@ -360,7 +375,55 @@ export async function startHfaVerificationRun(
         }),
       };
     }
+    if (start.kind === "created") {
+      try {
+        spawnHfaVerificationWorker(mainDb, start.runId, onWorkerCrash);
+      } catch (e) {
+        await endHfaVerificationRun(
+          mainDb,
+          start.runId,
+          `Failed to start the verification worker: ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        );
+        throw e;
+      }
+    }
     return { success: true };
+  });
+}
+
+function spawnHfaVerificationWorker(
+  mainDb: Sql,
+  runId: string,
+  onWorkerCrash: () => Promise<void>,
+): void {
+  const worker = instantiateHfaVerificationWorker({ runId });
+  setWorker("hfa_verification", worker);
+  worker.addEventListener("error", async (e) => {
+    console.error("HFA verification worker crashed:", e);
+    e.preventDefault();
+    clearWorker("hfa_verification", worker);
+    worker.terminate();
+    try {
+      await endHfaVerificationRun(
+        mainDb,
+        runId,
+        `Worker crashed: ${e.message || "Unknown error"}`,
+      );
+      await onWorkerCrash();
+    } catch (err) {
+      console.error(
+        "Failed to end the HFA verification run after a crash:",
+        err,
+      );
+    }
+  });
+  worker.addEventListener("message", (e) => {
+    if (e.data === "COMPLETED") {
+      clearWorker("hfa_verification", worker);
+      worker.terminate();
+    }
   });
 }
 
@@ -481,17 +544,22 @@ export async function saveHfaVerificationAnswer(
 
 // Without an error, a running run completes only when its queue is empty, and
 // reports false otherwise so the worker claims again; a stopping run stops.
-// With one, the run ends in error. A run that ends leaves an empty queue.
+// With one, the run ends in error. A run that ends leaves an empty queue; a
+// run already ended, or replaced by a later one, is left as it is.
 export async function endHfaVerificationRun(
   mainDb: Sql,
   runId: string,
   error: string | undefined,
 ): Promise<boolean> {
   return await mainDb.begin(async (sql) => {
-    const [run] = await sql<Pick<DBHfaVerificationRun, "status">[]>`
-      SELECT status FROM hfa_verification_runs WHERE id = ${runId}
-      FOR UPDATE
-    `;
+    const run = (
+      await sql<Pick<DBHfaVerificationRun, "status">[]>`
+        SELECT status FROM hfa_verification_runs
+        WHERE id = ${runId} AND status IN ('running', 'stopping')
+        FOR UPDATE
+      `
+    ).at(0);
+    if (run === undefined) return true;
     if (error === undefined && run.status === "running") {
       const [{ queued }] = await sql<{ queued: boolean }[]>`
         SELECT EXISTS (SELECT 1 FROM hfa_verification_queue) AS queued
@@ -507,7 +575,7 @@ export async function endHfaVerificationRun(
     await sql`
       UPDATE hfa_verification_runs
       SET status = ${status}, ended_at = now(), error = ${error ?? null}
-      WHERE id = ${runId} AND status IN ('running', 'stopping')
+      WHERE id = ${runId}
     `;
     return true;
   });
@@ -537,6 +605,21 @@ export async function getHfaVerificationRunState(
     ),
     error: run.error,
   };
+}
+
+// Whether a queuer's calls skip the token limits, by the rule a session of
+// theirs takes (global_user.ts): an operator, or a user marked unlimited.
+export async function getHfaVerificationQueuerUnlimitedAi(
+  sql: Sql,
+  email: string,
+): Promise<boolean> {
+  if (isHUser(email)) return true;
+  const row = (
+    await sql<{ unlimited_ai: boolean }[]>`
+      SELECT unlimited_ai FROM users WHERE email = ${email}
+    `
+  ).at(0);
+  return row?.unlimited_ai ?? false;
 }
 
 // Startup sweep: a restart leaves a live run with no worker, onto which every

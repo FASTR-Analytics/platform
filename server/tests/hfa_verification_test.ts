@@ -41,6 +41,7 @@ import {
   setHfaVerificationFindingsDismissed,
   setHfaVerificationRulesOff,
 } from "../db/instance/hfa_verification.ts";
+import { readHfaVerificationInput } from "../worker_routines/hfa_verification/run.ts";
 
 type Equal<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
 
@@ -525,6 +526,53 @@ Deno.test("rules off: stored in the rules list's order without duplicates, and r
   assertEquals(rows.data.rulesOff, ["positive_test", "category_fits"]);
   await setHfaVerificationRulesOff(db, []);
   assertEquals(await getHfaVerificationRulesOff(db), []);
+});
+
+Deno.test("read input: the hashes a run computes from the DB reads equal those the browser computes from the routes' JSON bodies", async () => {
+  await db`
+    INSERT INTO hfa_variables (time_point, variable_id, variable_label, variable_type)
+    VALUES ('R2', 'wat_01', 'Piped water', 'select_one')
+  `;
+  await db`
+    INSERT INTO hfa_indicator_code (indicator_id, time_point, code)
+    VALUES ('ind001', 'R2', 'wat_01 == 1')
+  `;
+  const fromDb = await readHfaVerificationInput(db);
+  const viaJson = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+  const indicators = viaJson(fromDb.indicators);
+  const taxonomy = viaJson(fromDb.taxonomy);
+  const code = viaJson(fromDb.code);
+  const variantCode = viaJson(fromDb.variantCode);
+  const dictionary = viaJson(fromDb.dictionary);
+  const fromJson: HfaIndicatorsForAIInput = {
+    indicators,
+    taxonomy,
+    code,
+    variantCode,
+    dictionary,
+    displayRows: viaJson(fromDb.displayRows),
+    status: hfaIndicatorsStatus({
+      indicators,
+      code,
+      variantCode,
+      variantItems: taxonomy.variantItems,
+      dictionary,
+    }),
+  };
+  const hashes = async (read: HfaIndicatorsForAIInput) => {
+    const { instructionBlock } = buildHfaVerificationBlocks(read, "en");
+    return await Promise.all(
+      [...buildHfaVerificationMessages(read, new Map())].map(
+        async ([id, m]) => [
+          id,
+          await hfaVerificationInputHash(instructionBlock, m.hashedMessage),
+        ],
+      ),
+    );
+  };
+  const expected = await hashes(fromJson);
+  assertEquals(expected.length, 3);
+  assertEquals(await hashes(fromDb), expected);
 });
 
 Deno.test("cleanup: drop the throwaway database", async () => {

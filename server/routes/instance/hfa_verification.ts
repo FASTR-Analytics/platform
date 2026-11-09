@@ -6,6 +6,8 @@ import {
   saveHfaIndicatorVerifications,
   setHfaVerificationFindingsDismissed,
   setHfaVerificationRulesOff,
+  startHfaVerificationRun,
+  stopHfaVerificationRun,
   tryCatchDatabaseAsync,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
@@ -39,6 +41,42 @@ defineRoute(
       );
       return { success: true } as const;
     });
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaVerification,
+  "startHfaVerificationRun",
+  log("startHfaVerificationRun"),
+  async (c, { body }) => {
+    const mainDb = c.var.mainDb;
+    const notify = async () =>
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(mainDb),
+      );
+    const res = await startHfaVerificationRun(
+      mainDb,
+      body.indicatorIds,
+      c.var.globalUser.email,
+      notify,
+    );
+    if (res.success) await notify();
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaVerification,
+  "stopHfaVerificationRun",
+  log("stopHfaVerificationRun"),
+  async (c) => {
+    const res = await stopHfaVerificationRun(c.var.mainDb);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),
