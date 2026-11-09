@@ -1445,7 +1445,7 @@ tail). The HFA whole-object read-modify-write finding was **rejected**: it
 matches the app-wide last-write-wins model (see the HFA tools section).
 Remaining:
 
-**Report figure references (fixes in `report-forge/`, the submodule)**
+**Report figure references (fixes in the report-forge repo, synced into `report-forge/`)**
 
 Both are gaps between what `fastrBodyReferences` reports and what the document
 resolves, so they land in the shared reader, not here. Its own contract comment

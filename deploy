@@ -18,23 +18,22 @@ fi
 ORIGINAL_VERSION=$(cat VERSION)
 echo "Current version: $ORIGINAL_VERSION"
 
-# report-forge is a git submodule. The image is built from its working tree
-# and the deploy commit records its HEAD, so both must be a commit its own
-# repository has: otherwise production runs code that is in no commit, and a
-# fresh clone cannot check the recorded commit out.
-if [ -d report-forge ]; then
-    if [ -n "$(git -C report-forge status --porcelain)" ]; then
-        echo "ERROR: report-forge has uncommitted changes. Commit and push them first."
-        exit 1
-    fi
-    if ! git -C report-forge fetch -q origin; then
-        echo "ERROR: could not reach report-forge's remote to check its commit is pushed."
-        exit 1
-    fi
-    if [ -z "$(git -C report-forge branch -r --contains HEAD)" ]; then
-        echo "ERROR: report-forge's commit is not on its remote. Push it first (git -C report-forge push)."
-        exit 1
-    fi
+# report-forge/ is a synced copy of the report-forge repo (its ./sync writes it
+# and .report-forge-manifest.json). Production must run code that some
+# report-forge commit has, so refuse a copy synced from uncommitted work, and
+# an edit made to the copy here (it belongs in the report-forge repo).
+RF_MANIFEST="report-forge/.report-forge-manifest.json"
+if [ ! -f "$RF_MANIFEST" ]; then
+    echo "ERROR: $RF_MANIFEST is missing. Sync report-forge in (./sync platform, run in the report-forge repo)."
+    exit 1
+fi
+if grep -q '"sourceDirty": true' "$RF_MANIFEST"; then
+    echo "ERROR: report-forge was synced from uncommitted work. Commit it in the report-forge repo, then ./sync platform again."
+    exit 1
+fi
+if [ -n "$(git status --porcelain -- report-forge)" ]; then
+    echo "ERROR: report-forge/ has uncommitted changes. It is a synced copy: make the change in the report-forge repo and ./sync platform."
+    exit 1
 fi
 
 # ── Every question the deploy asks, asked here ──────────────────────────────

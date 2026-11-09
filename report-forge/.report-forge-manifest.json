@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-11-09T03:08:55.002Z",
+  "sourceCommit": "69a6da5",
+  "sourceSubject": "get_page_template answers every layout a report uses in one call",
+  "sourceDirty": false,
+  "target": "platform"
+}

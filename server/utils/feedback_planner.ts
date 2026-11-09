@@ -35,7 +35,7 @@ const TARBALL_URL =
 const MAX_TARBALL_BYTES = 100 * 1024 * 1024;
 // Only what a plan needs: server, shared lib, client source, panther, the docs
 // at the root (CLAUDE.md, SYSTEMS.md, SYSTEM_*.md, PROTOCOL_*.md) and the
-// changelog. report-forge is a private submodule and arrives empty anyway.
+// changelog. report-forge (a synced copy of its own repo) is left out.
 const TAR_MEMBERS = [
   "*/server",
   "*/lib",

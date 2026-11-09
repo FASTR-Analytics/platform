@@ -169,10 +169,10 @@ ORPHAN until a SYSTEM file's `globs:` claims it. The lint is chained into
 `deno task typecheck` (which the deploy script gates on), so an unclaimed file
 blocks deploy rather than accumulating silently.
 
-`report-forge/`, the report editor package, is a git submodule
-(`github.com/NicholasWillmott/report-forge`, private): a change to it is
-committed and pushed inside the folder, then this repo commits the moved
-pointer. It is outside those roots and is claimed by no manifest. It is reviewed
+`report-forge/`, the report editor package, is a synced copy of its own repo
+(`github.com/NicholasWillmott/report-forge`), like `panther/`: a change to it
+is made and committed there, then that repo's `./sync platform` copies it in
+and commits it here (`.report-forge-manifest.json` names the source commit). It is outside those roots and is claimed by no manifest. It is reviewed
 with S12 and guarded by its own boundary lint, `deno task lint:report-forge`
 (`report-forge/harness/lint_boundary.ts`: nothing under the folder imports from
 outside it), which `deno task typecheck` runs last.
