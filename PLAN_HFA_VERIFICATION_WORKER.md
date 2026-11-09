@@ -144,7 +144,7 @@ The runs table holds the latest run only: a start deletes ended rows. `not_check
 
 - `markDirty` calls `p.fix.clear()` after `p.setNeedsSaving(true)`.
 - SYSTEM_05: the code spans at :1197, :1203, :1207, :1253 and :1277 are rejoined onto one line each; the editor paragraph says what this step changed.
-- CLAUDE.md's formatting section lists the `fmt.exclude` of `deno.json` as it is: `vendor/`, `client/public/`, `client/package-lock.json`, `report-forge/` and `URGENT_BUG_CATALOGUE_EMAILS.md`.
+- CLAUDE.md's formatting section lists the `fmt.exclude` of `deno.json` as it is: `vendor/`, `client/public/`, `client/package-lock.json` and `report-forge/`.
 
 **Not in this step.** The server run; the bulk Verify, which step 4 writes against the server run.
 
