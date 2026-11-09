@@ -2,7 +2,7 @@
 
 The HFA indicator verification (SYSTEM_05 "HFA indicator verification") runs in the browser tab that starts it. A run is tied to that tab: one per tab, not per instance; it dies when the tab closes; nobody else sees it; and its findings reach the table only every ten answers. This plan moves the run into a server worker, one per instance, whose queue any Verify adds to and whose progress every client sees. Each answer is saved as it arrives. It also adds Verify as a bulk action on the manager's selection, fixes Discard dropping edits made after a drafted fix, and corrects two doc defects found in review.
 
-**Next step: Do 2.**
+**Next step: Do 3.**
 
 Branch: `main` here and in panther. Repos: this one and panther (`/Users/timroberton/projects/panther/timroberton-panther`, whose `./sync` copies it into `panther/`). Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md) "HFA indicator verification", [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Principles" and "The proxy", [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md) the notify recipe, [PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md), [PROTOCOL_APP_ROUTES.md](PROTOCOL_APP_ROUTES.md), [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md), [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md), and panther's `DOC_AI_CHAT.md` where it describes `callAIStructured`. Start when: both trees are clean.
 
