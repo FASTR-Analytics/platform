@@ -173,7 +173,7 @@ The runs table holds the latest run only: a start deletes ended rows. `not_check
 
 ### Step 4: The client uses the server run (this repo)
 
-**Surface.** `client/src/components/data/hfa/indicators/verification/runner.ts` (deleted), `client/src/components/data/hfa/indicators/verification/draft_fix.ts`, `client/src/components/data/hfa/indicators/verification/mod.ts`, `client/src/components/data/hfa/indicators/manager.tsx`, `client/src/components/data/hfa/indicators/indicator_code_editor.tsx`, `lib/api-routes/instance/hfa_verification.ts`, `server/routes/instance/hfa_verification.ts`, `server/tests/permission_matrix_test.ts`, SYSTEM_05, SYSTEM_13.
+**Surface.** `client/src/components/data/hfa/indicators/verification/runner.ts` (deleted), `client/src/components/data/hfa/indicators/verification/draft_fix.ts`, `client/src/components/data/hfa/indicators/verification/mod.ts`, `client/src/components/data/hfa/indicators/verification/run_state.ts` (new), `client/src/components/data/hfa/indicators/_shared/read_input.ts`, `lib/hfa_verification.ts`, `client/src/components/data/hfa/indicators/manager.tsx`, `client/src/components/data/hfa/indicators/indicator_code_editor.tsx`, `lib/api-routes/instance/hfa_verification.ts`, `server/routes/instance/hfa_verification.ts`, `server/tests/permission_matrix_test.ts`, SYSTEM_05, SYSTEM_13.
 
 **Deliverable.**
 
