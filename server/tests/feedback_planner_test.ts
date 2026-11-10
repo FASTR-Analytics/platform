@@ -1,6 +1,7 @@
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import {
   _feedbackPlannerInternals as P,
+  queueFeedbackPlan,
   type ReporterContext,
 } from "../utils/feedback_planner.ts";
 
@@ -274,9 +275,328 @@ Deno.test("feedback planner: daily caps", () => {
   const day = new Date("2030-01-01T10:00:00Z");
   assert(P.claimSlot("a@x.org", day));
   assert(P.claimSlot("A@x.org ", day));
-  assert(P.claimSlot("a@x.org", day));
-  assertEquals(P.claimSlot("a@x.org", day), false, "4th from one reporter");
-  for (let i = 0; i < 12; i++) assert(P.claimSlot(`u${i}@x.org`, day));
-  assertEquals(P.claimSlot("new@x.org", day), false, "16th on the instance");
+  for (let i = 0; i < 3; i++) assert(P.claimSlot("a@x.org", day));
+  assertEquals(P.claimSlot("a@x.org", day), false, "6th from one reporter");
+  for (let i = 0; i < 95; i++) assert(P.claimSlot(`u${i}@x.org`, day));
+  assertEquals(P.claimSlot("new@x.org", day), false, "101st on the instance");
   assert(P.claimSlot("a@x.org", new Date("2030-01-02T00:00:01Z")), "resets");
+});
+
+const BUG_JOB = {
+  feedbackType: "bug" as const,
+  description: "x",
+  userEmail: "user@example.org",
+  instanceId: "testing",
+  serverVersion: "2.9.3",
+  imageCount: 0,
+  reporter: NO_CONTEXT,
+};
+
+const result = (plan: string) => ({
+  plan,
+  turns: 1,
+  usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 },
+});
+
+const withNote = (verdict: string, inner: string) =>
+  `TITLE: T\n\n## Verdict\n${verdict}\n\n## Plan\nReply to them.\n\n## Note for support\n<<<SUPPORT_NOTE\n${inner}\nSUPPORT_NOTE>>>\n\n## Claude Code prompt\n<<<CLAUDE_CODE_PROMPT\nFix the guard.\nCLAUDE_CODE_PROMPT>>>\n`;
+
+const FOLDER_NOTE = [
+  "SUMMARY: They say a folder won't delete.",
+  "Their recent activity shows no attempt to delete one.",
+  "ASK THE USER:",
+  "- Which folder was it?",
+  "- What happened when you clicked Delete?",
+  "REPLY: Hi, could you tell us which folder it was?",
+].join("\n");
+
+Deno.test("feedback planner: support note is lifted out and parsed", () => {
+  const { planBody, note } = P.extractSupportNote(
+    withNote("No defect found.", FOLDER_NOTE),
+  );
+  assertEquals(note, {
+    summary:
+      "They say a folder won't delete.\nTheir recent activity shows no attempt to delete one.",
+    ask: "- Which folder was it?\n- What happened when you clicked Delete?",
+    reply: "Hi, could you tell us which folder it was?",
+  });
+  assert(!planBody.includes("SUPPORT_NOTE"), planBody);
+  assert(!planBody.includes("Note for support"), planBody);
+  assert(planBody.includes("## Plan\nReply to them."), planBody);
+  assert(planBody.includes("<<<CLAUDE_CODE_PROMPT"), planBody);
+
+  const bold = P.extractSupportNote(
+    withNote(
+      "x",
+      "**SUMMARY:** Fine.\n**ASK THE USER:** None\n**REPLY:** None.",
+    ),
+  ).note;
+  assertEquals(bold, { summary: "Fine.", ask: undefined, reply: undefined });
+
+  const bare = P.extractSupportNote(withNote("x", "Just a sentence.")).note;
+  assertEquals(bare?.summary, "Just a sentence.");
+
+  const empty = P.extractSupportNote(
+    withNote("x", "SUMMARY: None\nASK THE USER: None\nREPLY: None"),
+  );
+  assertEquals(empty.note, undefined);
+
+  const missing = P.extractSupportNote("TITLE: T\n\n## Verdict\nok");
+  assertEquals(missing, {
+    planBody: "TITLE: T\n\n## Verdict\nok",
+    note: undefined,
+  });
+});
+
+Deno.test("feedback planner: verdict maps to plain words", () => {
+  const cases: [string, string, string | undefined][] = [
+    ["Confirmed defect. Confidence: high.", "a real problem", "high"],
+    ["**Works as designed** (confidence: medium)", "as intended", "medium"],
+    ["Data or configuration, low confidence.", "data or settings", "low"],
+    ["Already fixed (high confidence).", "newer version", "high"],
+    [
+      "No defect found. Confidence: medium. Not a confirmed defect: the guard holds.",
+      "Nothing in the platform's code",
+      "medium",
+    ],
+    ["Cannot tell from the code. Confidence: low.", "couldn't pin down", "low"],
+    ["Worth building. High confidence.", "worth building", "high"],
+    ["Already exists.", "already does this", undefined],
+    ["Not recommended. Confidence: medium", "doesn't recommend", "medium"],
+    ["Needs discussion.", "decision from the team", undefined],
+  ];
+  for (const [line, headline, confidence] of cases) {
+    const v = P.parseVerdict(`## Verdict\n${line}\n\n## Triage\nbug`);
+    assert(
+      v.info?.headline.includes(headline),
+      `${line} -> ${v.info?.headline}`,
+    );
+    assertEquals(v.confidence, confidence, line);
+  }
+  const inline = P.parseVerdict(
+    "## Verdict: No defect found (high confidence)",
+  );
+  assert(inline.info?.headline.startsWith("Nothing"), inline.info?.headline);
+  assertEquals(inline.confidence, "high");
+  assertEquals(P.parseVerdict("## Verdict\nok\n\n## Plan\nConfirmed defect"), {
+    info: undefined,
+    confidence: undefined,
+  });
+  assertEquals(P.parseVerdict("## Plan\nnothing here").info, undefined);
+});
+
+Deno.test("feedback planner: support section reads plainly and safely", () => {
+  const plan = result(
+    withNote(
+      "No defect found. Confidence: high. The guard holds.",
+      FOLDER_NOTE,
+    ),
+  );
+  const one = P.buildSupportSection(BUG_JOB, {
+    kind: "plan",
+    result: plan,
+    notified: ["Nick"],
+  });
+  for (const text of [one.html, one.plainText]) {
+    assert(text.includes("Claude's first look"), text);
+    assert(text.includes("Written by AI"), text);
+    assert(
+      text.includes(
+        "Nothing in the platform's code or this user's recent activity points to a problem. Claude is fairly confident about this.",
+      ),
+      text,
+    );
+    assert(text.includes("email them to clarify what they were doing"), text);
+    assert(text.includes("Which folder was it?"), text);
+    assert(text.includes("could you tell us which folder"), text);
+    assert(
+      text.includes("Nick has been sent a technical plan for this."),
+      text,
+    );
+  }
+
+  const none = P.buildSupportSection(BUG_JOB, {
+    kind: "plan",
+    result: plan,
+    notified: [],
+  });
+  assert(!none.plainText.includes("been sent"), none.plainText);
+  const two = P.buildSupportSection(BUG_JOB, {
+    kind: "plan",
+    result: plan,
+    notified: ["Nick", "Tim"],
+  });
+  assert(
+    two.plainText.includes("Nick and Tim have been sent a technical plan"),
+  );
+  const three = P.buildSupportSection(BUG_JOB, {
+    kind: "plan",
+    result: plan,
+    notified: ["A", "B", "C"],
+  });
+  assert(
+    three.plainText.includes("A, B and C have been sent"),
+    three.plainText,
+  );
+
+  const injected = P.buildSupportSection(BUG_JOB, {
+    kind: "plan",
+    result: result(
+      withNote(
+        "Confirmed defect.",
+        "SUMMARY: <img src=x onerror=alert(1)> broke",
+      ),
+    ),
+    notified: [],
+  });
+  assert(!injected.html.includes("<img"), injected.html);
+  assert(injected.html.includes("&lt;img"), injected.html);
+
+  for (
+    const reply of [
+      "REPLY: Please log in at https://evil.example to fix it.",
+      "REPLY: Send us your password and we'll check.",
+      "REPLY: We will grant you global admin access today.",
+    ]
+  ) {
+    const held = P.buildSupportSection(BUG_JOB, {
+      kind: "plan",
+      result: result(withNote("Works as designed.", `SUMMARY: ok\n${reply}`)),
+      notified: ["Nick"],
+    });
+    assert(!held.plainText.includes("REPLY"), held.plainText);
+    assert(!held.plainText.includes(reply.slice(7, 30)), held.plainText);
+    assert(held.plainText.includes("behaving as intended"), held.plainText);
+    assert(
+      held.plainText.includes(
+        "Claude's written note was held back. Nick has the full plan.",
+      ),
+      held.plainText,
+    );
+  }
+  // An admin decision named as the next step is not an access change.
+  const fine = P.buildSupportSection(BUG_JOB, {
+    kind: "plan",
+    result: result(
+      withNote(
+        "Works as designed.",
+        "SUMMARY: Only some users can do this. Make sure an instance admin decides whether they should.",
+      ),
+    ),
+    notified: [],
+  });
+  assert(
+    fine.plainText.includes("Make sure an instance admin"),
+    fine.plainText,
+  );
+
+  // "Cannot tell" carries no confidence line, and only points at questions
+  // when there are some.
+  const unsure = (inner: string) =>
+    P.buildSupportSection(BUG_JOB, {
+      kind: "plan",
+      result: result(
+        withNote("Cannot tell from the code. Confidence: medium.", inner),
+      ),
+      notified: [],
+    }).plainText;
+  const noAsk = unsure("SUMMARY: It failed on the server.\nASK THE USER: None");
+  assert(noAsk.includes("couldn't pin down the cause"), noAsk);
+  assert(!noAsk.includes("confident"), noAsk);
+  assert(!noAsk.includes("questions below"), noAsk);
+  assert(noAsk.includes("will look into it"), noAsk);
+  const withAsk = unsure("SUMMARY: s\nASK THE USER: Which folder?");
+  assert(withAsk.includes("questions below will help"), withAsk);
+
+  const bare = P.buildSupportSection(BUG_JOB, {
+    kind: "plan",
+    result: result("TITLE: T\n\n## Verdict\nok"),
+    notified: ["Nick"],
+  });
+  assert(bare.plainText.includes("didn't write a note for support"));
+  assert(!bare.plainText.includes("Written by AI"), bare.plainText);
+
+  const failed = P.buildSupportSection(BUG_JOB, {
+    kind: "failed",
+    notified: ["Nick"],
+  });
+  assert(failed.plainText.includes("couldn't check this report automatically"));
+  assert(failed.plainText.includes("Nick has been sent the report."));
+  const late = P.buildSupportSection(BUG_JOB, {
+    kind: "deadline",
+    recipients: ["Nick", "Tim"],
+  });
+  assert(late.plainText.includes("taking longer than usual"));
+  assert(late.plainText.includes("Nick and Tim will be sent its plan."));
+  const restart = P.buildSupportSection(BUG_JOB, { kind: "restart" });
+  assert(restart.html.includes("The server restarted"), restart.html);
+
+  // The plan email shows what support read, without the "who has it" line.
+  const email = P.buildEmail(BUG_JOB, plan, undefined, 1);
+  assert(email.html.includes("What support was told"), email.html);
+  assert(email.plainText.includes("What support was told:"));
+  assert(!email.plainText.includes("been sent a technical plan"));
+  assert(!email.plainText.includes("SUPPORT_NOTE"), email.plainText);
+  assert(email.html.includes("<h3>Claude Code prompt</h3>"), email.html);
+});
+
+Deno.test("feedback planner: support email goes exactly once", async () => {
+  const sent: string[] = [];
+  let gaveUp = 0;
+  let settled = 0;
+  const sender = P.makeSupportSender(async (a) => {
+    sent.push(a.plainText);
+    return true;
+  }, {
+    onGiveUp: async () => {
+      gaveUp++;
+    },
+    onSettled: () => settled++,
+    retryMs: 1,
+  });
+  // The deadline fires first; the plan's own send later is a no-op.
+  await new Promise<void>((resolve) =>
+    setTimeout(() => {
+      void sender.send({ html: "", plainText: "deadline" }).then(resolve);
+    }, 5)
+  );
+  await sender.send({ html: "", plainText: "plan" });
+  assertEquals(sent, ["deadline"]);
+  assertEquals([gaveUp, settled], [0, 1]);
+
+  let attempts = 0;
+  const failing = P.makeSupportSender(async () => {
+    attempts++;
+    if (attempts === 1) throw new Error("network");
+    return false;
+  }, {
+    onGiveUp: async () => {
+      gaveUp++;
+    },
+    retryMs: 1,
+  });
+  await failing.send({ html: "", plainText: "x" });
+  assertEquals([attempts, gaveUp], [2, 1]);
+
+  attempts = 0;
+  const retried = P.makeSupportSender(async () => ++attempts === 2, {
+    onGiveUp: async () => {
+      gaveUp++;
+    },
+    retryMs: 1,
+  });
+  await retried.send({ html: "", plainText: "x" });
+  assertEquals([attempts, gaveUp], [2, 1]);
+});
+
+Deno.test("feedback planner: refused job leaves the support email to the route", () => {
+  // Fill this reporter's daily cap, so the call below is refused whether or
+  // not this checkout's h_users.ts names plan recipients.
+  for (let i = 0; i < 5; i++) P.claimSlot("capped@example.org");
+  const accepted = queueFeedbackPlan(
+    { ...BUG_JOB, userEmail: "capped@example.org" },
+    () => Promise.resolve(true),
+    () => Promise.reject(new Error("must not be called")),
+  );
+  assertEquals(accepted, false);
 });

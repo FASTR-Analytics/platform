@@ -2944,32 +2944,52 @@ schema, the same per-recipient loop): the client attaches the report's paged
 PDF, built in the browser and printed by the server (`buildReportAttachment`),
 and the schema holds the attachment's MIME type to `application/pdf`.
 `sendHelpEmail` (`GUARD.approved`: an account awaiting approval sends no
-mail): one email per `_FEEDBACK_EMAIL_RECIPIENTS` with `replyTo` the user, then
-a confirmation to the user only after at least one internal send succeeded. Zero
-internal deliveries returns `success: false` (the form shows the error instead
-of "Thank you"). For a `bug` or `suggestion` (not `help`), after a delivered
-internal send it also calls `queueFeedbackPlan`
-([server/utils/feedback_planner.ts](server/utils/feedback_planner.ts)), fire
-and forget. The planner downloads the public `main` tarball into a temp dir
+mail): the raw report goes to every `_FEEDBACK_EMAIL_RECIPIENTS` (support) with
+`replyTo` the user, then a confirmation to the user. For a `help` request, or a
+report the planner refuses, the route sends it at once and only confirms after
+at least one internal send succeeded; zero deliveries returns `success: false`
+(the form shows the error instead of "Thank you"). For a `bug` or `suggestion`
+the route first calls `queueFeedbackPlan`
+([server/utils/feedback_planner.ts](server/utils/feedback_planner.ts)), handing
+it the SendGrid `sendEmail` (so this file stays the only SendGrid egress) and a
+`sendToSupport` closure. When it accepts the job (returns true) the support
+email is held and the planner owns it, so the route confirms without knowing it
+was delivered. The planner downloads the public `main` tarball into a temp dir
 (deleted after each job), lets Claude search it with read-only tools confined to
-that dir, and emails the plan through the `sendEmail` it is handed (so this file
-stays the only SendGrid egress) to `_FEEDBACK_PLAN_RECIPIENTS` in the gitignored
-`h_users.ts`, read optionally so a checkout without it boots with the planner
-off. The prompt makes Claude check the report against the code first and open
-with a verdict (confirmed defect, works as designed, data or configuration,
-no defect found, already fixed, cannot tell), so a non-defect gets a suggested
-reply instead of invented code work. The route also hands it server-side facts
-about the reporter, which the report cannot forge: admin flag, permission flags,
-scope access and their own logged requests from the last 24 hours
-(`getRecentUserRequests` in `server/db/instance/user_logs.ts`: endpoint, status
-and route params, never bodies), so "I can't do X" can be checked against
-whether an X request was ever sent. When there is code work the plan ends with a paste-ready Claude
-Code prompt between fixed markers; the server lifts it into its own box, wraps
-it in a fixed header and standing instructions (verify, typecheck, no commits),
-and puts a warning above it if it contains a URL, a network or destructive
-command, secrets or encoded data, since it is model output shaped by an
-untrusted report. Jobs run one at a time, capped at 3 per reporter and 15 per instance per day
-in memory; its tokens are not written to the AI usage log. User-typed text (`message`/`description`/`context`/
+that dir, and emails the plan to `_FEEDBACK_PLAN_RECIPIENTS` in the gitignored
+`h_users.ts` (`{ email, name }` entries, read optionally so a checkout without
+it boots with the planner off). The prompt makes Claude check the report against
+the code first and open with a verdict (confirmed defect, works as designed,
+data or configuration, no defect found, already fixed, cannot tell), so a
+non-defect gets a suggested reply instead of invented code work. The route also
+hands it server-side facts about the reporter, which the report cannot forge:
+admin flag, permission flags, scope access and their own logged requests from
+the last 24 hours (`getRecentUserRequests` in `server/db/instance/user_logs.ts`:
+endpoint, status and route params, never bodies), so "I can't do X" can be
+checked against whether an X request was ever sent. When there is code work the
+plan ends with a paste-ready Claude Code prompt between fixed markers; the
+server lifts it into its own box, wraps it in a fixed header and standing
+instructions (verify, typecheck, no commits), and puts a warning above it if it
+contains a URL, a network or destructive command, secrets or encoded data, since
+it is model output shaped by an untrusted report.
+
+After the plan email, the held support email goes out with a "Claude's first
+look" section for support staff, who know the platform but not its code. The
+headline and next step are server text keyed on the verdict (for no defect
+found: nothing in the code or the user's recent activity points to a problem,
+consider emailing them to clarify), followed by Claude's plain-language note
+(summary, questions to ask, draft reply) from its own marked section, and a line
+naming the plan recipients whose plan email was delivered ("Nick has been sent a
+technical plan for this"). A note containing a link, secrets or an admin-access
+change is held back, leaving only the server text. The plan email carries the
+same section as "What support was told". Every path to the support email goes
+through one once-only sender: the plan, a 15-minute deadline (sends it saying
+the check is still running), a crash in the job (sends it saying the check
+failed) and a SIGTERM hook registered only while one is held (sends it, then
+exits 143; a SIGKILL still loses it). A failed send is retried once after 30s,
+then the plan recipients get a notice to forward the report. Jobs run one at a
+time, capped at 5 per reporter and 100 per instance per day in memory; its
+tokens are not written to the AI usage log. User-typed text (`message`/`description`/`context`/
 `userEmail`) is HTML-escaped before interpolation in every route.
 
 ## Open items

@@ -10,6 +10,7 @@ import {
   queueFeedbackPlan,
   REPORTER_LOG_HOURS,
   REPORTER_LOG_LIMIT,
+  type SupportAddition,
 } from "../../utils/feedback_planner.ts";
 import { getRecentUserRequests } from "../../db/instance/user_logs.ts";
 import { USER_PERMISSIONS } from "lib";
@@ -274,7 +275,10 @@ defineRoute(
     const internalPlainText =
       `New ${typeLabel} from ${userEmail}${contextLine} (Instance: ${_INSTANCE_ID})\n\n${description}`;
 
-    const internalHtml = `
+    // `extraHtml` is the feedback planner's "Claude's first look" section;
+    // without it the email is exactly the raw report.
+    const buildInternalHtml = (extraHtml = "") =>
+      `
 <div style="font-family: sans-serif; color: #333;">
   <p><strong>Type:</strong> ${typeLabel}</p>
   <p><strong>From:</strong> ${escapeHtml(userEmail)}</p>
@@ -282,29 +286,31 @@ defineRoute(
   <p><strong>Instance:</strong> ${_INSTANCE_ID}</p>
   <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
   <p><strong>Description:</strong></p>
-  <p>${escapeHtml(description).replace(/\n/g, "<br>")}</p>
+  <p>${escapeHtml(description).replace(/\n/g, "<br>")}</p>${extraHtml}
 </div>`.trim();
 
-    let deliveredCount = 0;
-    for (const recipient of _FEEDBACK_EMAIL_RECIPIENTS) {
-      const ok = await sendEmail({
-        to: recipient,
-        subject: `[FASTR] New ${typeLabel} from ${userEmail}`,
-        plainText: internalPlainText,
-        html: internalHtml,
-        replyTo: userEmail,
-        attachments: images,
-      });
-      if (ok) deliveredCount++;
-    }
+    const sendToSupport = async (extra?: SupportAddition) => {
+      let deliveredCount = 0;
+      for (const recipient of _FEEDBACK_EMAIL_RECIPIENTS) {
+        const ok = await sendEmail({
+          to: recipient,
+          subject: `[FASTR] New ${typeLabel} from ${userEmail}`,
+          plainText: extra
+            ? `${internalPlainText}\n\n${extra.plainText}`
+            : internalPlainText,
+          html: buildInternalHtml(extra?.html),
+          replyTo: userEmail,
+          attachments: images,
+        });
+        if (ok) deliveredCount++;
+      }
+      return deliveredCount > 0;
+    };
 
-    if (deliveredCount === 0) {
-      return c.json({
-        success: false,
-        err: "Your feedback could not be delivered. Please try again later.",
-      });
-    }
-
+    // A bug or suggestion the planner accepts has its support email held
+    // until the plan is done, so the planner sends it (with Claude's note)
+    // and this route cannot report its delivery. Everything else goes now.
+    let heldForPlan = false;
     if (feedbackType !== "help") {
       const user = c.var.globalUser;
       const recent = await getRecentUserRequests(
@@ -313,22 +319,33 @@ defineRoute(
         new Date(Date.now() - REPORTER_LOG_HOURS * 3_600_000),
         REPORTER_LOG_LIMIT,
       );
-      queueFeedbackPlan({
-        feedbackType,
-        description,
-        userEmail,
-        instanceId: _INSTANCE_ID,
-        serverVersion: _SERVER_VERSION,
-        imageCount: images?.length ?? 0,
-        reporter: {
-          isGlobalAdmin: user.isGlobalAdmin,
-          permissions: USER_PERMISSIONS.filter((k) =>
-            user.thisUserPermissions[k]
-          ),
-          allScopes: user.scopeAccess.all,
-          recentRequests: recent.success ? recent.data : undefined,
+      heldForPlan = queueFeedbackPlan(
+        {
+          feedbackType,
+          description,
+          userEmail,
+          instanceId: _INSTANCE_ID,
+          serverVersion: _SERVER_VERSION,
+          imageCount: images?.length ?? 0,
+          reporter: {
+            isGlobalAdmin: user.isGlobalAdmin,
+            permissions: USER_PERMISSIONS.filter((k) =>
+              user.thisUserPermissions[k]
+            ),
+            allScopes: user.scopeAccess.all,
+            recentRequests: recent.success ? recent.data : undefined,
+          },
         },
-      }, sendEmail);
+        sendEmail,
+        sendToSupport,
+      );
+    }
+
+    if (!heldForPlan && !(await sendToSupport())) {
+      return c.json({
+        success: false,
+        err: "Your feedback could not be delivered. Please try again later.",
+      });
     }
 
     await sendEmail({
