@@ -25,6 +25,10 @@ import {
 import { getModuleDefaultsSnapshot } from "../../runs/mod.ts";
 import { requireStatusKey } from "../../auth/guards.ts";
 
+// Fleet telemetry for the status site, server-cli and peer instances. Every
+// route here carries user emails, activity or query text, so every route
+// requires the shared status-api-key header (requireStatusKey). There is no
+// public route in this file: a new one needs the guard too.
 export const routesHealth = new Hono();
 
 type ImportFamily = "hmis" | "hfa" | "iceh";
@@ -56,7 +60,7 @@ SELECT count(*) AS n FROM runs WHERE status = 'generating'
   };
 }
 
-routesHealth.get("/health_check", async (c) => {
+routesHealth.get("/health_check", requireStatusKey(), async (c) => {
   const currentTime = new Date().toISOString();
   const startTime = new Date(_START_TIME);
   const uptimeMs = Date.now() - startTime.getTime();
@@ -118,7 +122,7 @@ routesHealth.get("/health_check", async (c) => {
   });
 });
 
-routesHealth.get("/user_logs", async (c) => {
+routesHealth.get("/user_logs", requireStatusKey(), async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const logs = await mainDb<
     UserLog[]
@@ -126,7 +130,7 @@ routesHealth.get("/user_logs", async (c) => {
   return c.json({ logs });
 });
 
-routesHealth.get("/user_activity", async (c) => {
+routesHealth.get("/user_activity", requireStatusKey(), async (c) => {
   const email = c.req.query("email");
   if (!email) {
     return c.json({ activeDays: [] });
@@ -141,7 +145,7 @@ ORDER BY day
   return c.json({ activeDays: rows.map((r) => r.day) });
 });
 
-routesHealth.get("/user_logs_all", async (c: Context) => {
+routesHealth.get("/user_logs_all", requireStatusKey(), async (c: Context) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const logs = await mainDb<
     {
@@ -154,77 +158,84 @@ routesHealth.get("/user_logs_all", async (c: Context) => {
   return c.json({ logs });
 });
 
-routesHealth.get("/user_logs_aggregate", async (c: Context) => {
-  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const logs = await mainDb<
-    {
-      id: number;
-      user_email: string;
-      endpoint: string;
-      endpoint_result: string;
-      week_start: string;
-      count: number;
-    }[]
-  >`SELECT id, user_email, endpoint, endpoint_result, week_start::text, count FROM user_logs_aggregate ORDER BY week_start DESC`;
-  return c.json({ logs });
-});
+routesHealth.get(
+  "/user_logs_aggregate",
+  requireStatusKey(),
+  async (c: Context) => {
+    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+    const logs = await mainDb<
+      {
+        id: number;
+        user_email: string;
+        endpoint: string;
+        endpoint_result: string;
+        week_start: string;
+        count: number;
+      }[]
+    >`SELECT id, user_email, endpoint, endpoint_result, week_start::text, count FROM user_logs_aggregate ORDER BY week_start DESC`;
+    return c.json({ logs });
+  },
+);
 
-routesHealth.get("/ai_usage", async (c) => {
+routesHealth.get("/ai_usage", requireStatusKey(), async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const since = c.req.query("since");
   const logs = await GetAiUsageLogs(mainDb, since ?? undefined);
   return c.json({ logs });
 });
 
-routesHealth.get("/ai_weekly_usage", async (c: Context) => {
+routesHealth.get("/ai_weekly_usage", requireStatusKey(), async (c: Context) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const tokensUsedThisWeek = await GetInstanceWeeklyTokenUsage(mainDb);
   return c.json({ tokensUsedThisWeek, weeklyTokenLimit: _WEEKLY_TOKEN_LIMIT });
 });
 
-routesHealth.get("/ai_limit_hits", async (c: Context) => {
+routesHealth.get("/ai_limit_hits", requireStatusKey(), async (c: Context) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const since = c.req.query("since");
   const hits = await GetAiLimitHits(mainDb, since ?? undefined);
   return c.json({ hits });
 });
 
-routesHealth.get("/pg_stat_statements", async (c: Context) => {
-  const orderByRaw = c.req.query("orderBy");
-  const orderBy = orderByRaw === "mean"
-    ? "mean_exec_time"
-    : orderByRaw === "max"
-    ? "max_exec_time"
-    : orderByRaw === "calls"
-    ? "calls"
-    : "total_exec_time";
+routesHealth.get(
+  "/pg_stat_statements",
+  requireStatusKey(),
+  async (c: Context) => {
+    const orderByRaw = c.req.query("orderBy");
+    const orderBy = orderByRaw === "mean"
+      ? "mean_exec_time"
+      : orderByRaw === "max"
+      ? "max_exec_time"
+      : orderByRaw === "calls"
+      ? "calls"
+      : "total_exec_time";
 
-  const limitRaw = Number(c.req.query("limit"));
-  const limit = Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 500
-    ? Math.floor(limitRaw)
-    : 50;
+    const limitRaw = Number(c.req.query("limit"));
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 500
+      ? Math.floor(limitRaw)
+      : 50;
 
-  const minMeanMsRaw = Number(c.req.query("minMeanMs"));
-  const minMeanMs = Number.isFinite(minMeanMsRaw) && minMeanMsRaw >= 0
-    ? minMeanMsRaw
-    : 0;
+    const minMeanMsRaw = Number(c.req.query("minMeanMs"));
+    const minMeanMs = Number.isFinite(minMeanMsRaw) && minMeanMsRaw >= 0
+      ? minMeanMsRaw
+      : 0;
 
-  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const statements = await mainDb<
-    {
-      datname: string | null;
-      usename: string | null;
-      queryid: string;
-      calls: string;
-      total_exec_time_ms: number;
-      mean_exec_time_ms: number;
-      max_exec_time_ms: number;
-      min_exec_time_ms: number;
-      stddev_exec_time_ms: number;
-      rows: string;
-      query: string;
-    }[]
-  >`
+    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+    const statements = await mainDb<
+      {
+        datname: string | null;
+        usename: string | null;
+        queryid: string;
+        calls: string;
+        total_exec_time_ms: number;
+        mean_exec_time_ms: number;
+        max_exec_time_ms: number;
+        min_exec_time_ms: number;
+        stddev_exec_time_ms: number;
+        rows: string;
+        query: string;
+      }[]
+    >`
 SELECT d.datname,
        r.rolname AS usename,
        s.queryid::text AS queryid,
@@ -244,15 +255,16 @@ ORDER BY ${mainDb(orderBy)} DESC
 LIMIT ${limit}
 `;
 
-  return c.json({
-    instanceName: _INSTANCE_NAME,
-    serverTime: new Date().toISOString(),
-    orderBy,
-    limit,
-    minMeanMs,
-    statements,
-  });
-});
+    return c.json({
+      instanceName: _INSTANCE_NAME,
+      serverTime: new Date().toISOString(),
+      orderBy,
+      limit,
+      minMeanMs,
+      statements,
+    });
+  },
+);
 
 // The status site's module-defaults scrape for its fleet matrix. Contract on
 // ModuleDefaultsSnapshot in lib.
@@ -282,25 +294,29 @@ routesHealth.post(
 // Every DHIS2 element in the dictionary with the indicator that holds it.
 // The wire keys (id, label, mappedTo) are read outside this repo (SYSTEM_15),
 // so they stay: id is the element's data id, mappedTo the indicator's own id.
-routesHealth.get("/dhis2-indicators-export", async (c: Context) => {
-  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const elements = await mainDb<
-    {
-      data_id: string;
-      indicator_common_label: string;
-      indicator_common_id: string;
-    }[]
-  >`
+routesHealth.get(
+  "/dhis2-indicators-export",
+  requireStatusKey(),
+  async (c: Context) => {
+    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+    const elements = await mainDb<
+      {
+        data_id: string;
+        indicator_common_label: string;
+        indicator_common_id: string;
+      }[]
+    >`
     SELECT data_id, indicator_common_label, indicator_common_id
     FROM indicators
     WHERE definition_type = 'dhis2_element'
     ORDER BY LOWER(indicator_common_label)
   `;
-  return c.json({
-    indicators: elements.map((e) => ({
-      id: e.data_id,
-      label: e.indicator_common_label,
-      mappedTo: e.indicator_common_id,
-    })),
-  });
-});
+    return c.json({
+      indicators: elements.map((e) => ({
+        id: e.data_id,
+        label: e.indicator_common_label,
+        mappedTo: e.indicator_common_id,
+      })),
+    });
+  },
+);

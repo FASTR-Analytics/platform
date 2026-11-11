@@ -55,7 +55,7 @@ Files where systems genuinely meet inside one file. Rule: ONE owner reviews the 
 | `_shared/file_upload_selector.tsx` · `_shared/uppy_file_upload.ts`      | S4    | S6, S5, S12, S15  | shared upload primitives                                                                                                     |
 | `client/src/components/data/data.tsx`                                   | S6    | S5                | data-tab switchboard mounting S5 managers                                                                                    |
 | `server/db/instance/config.ts`                                          | S5    | S6, S9, S13       | instance config parameterizes ELT, generated SQL and the copilot's `ai_context`                                              |
-| `server/routes/instance/health.ts`                                      | S15   | S17               | unauthenticated endpoints dump the user_logs tables                                                                          |
+| `server/routes/instance/health.ts`                                      | S15   | S17               | status-key endpoints dump the user_logs tables                                                                               |
 | `server/collab/version_capture.ts`                                      | S16   | S17               | onSessionEnd writes edit-session user_logs rows                                                                              |
 
 ## §4.2 Kernel: read but don't own

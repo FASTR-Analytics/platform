@@ -242,10 +242,11 @@ for INSTANCE in "${INSTANCES[@]}"; do
     # No sshx retry here: the heredoc stdin is consumed on the first attempt,
     # and a retried empty stdin would make the remote bash exit 0, a FALSE
     # healthy. A 255 here fails the health gate, which is the safe direction.
-    if ! command ssh "${SSH_OPTS[@]}" "$SSH_HOST" "PORT='$PORT' TIMEOUT='$HEALTH_TIMEOUT_SECONDS' bash -s" <<'REMOTE'
+    if ! command ssh "${SSH_OPTS[@]}" "$SSH_HOST" "INSTANCE='$INSTANCE' PORT='$PORT' TIMEOUT='$HEALTH_TIMEOUT_SECONDS' bash -s" <<'REMOTE'
 deadline=$((SECONDS + TIMEOUT))
 while [ "$SECONDS" -lt "$deadline" ]; do
-    body=$(curl -sfm 5 "http://localhost:$PORT/health_check" || true)
+    [ -n "$key" ] || key=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$INSTANCE" 2>/dev/null | sed -n 's/^STATUS_API_KEY=//p')
+    body=$(curl -sfm 5 -H "status-api-key: $key" "http://localhost:$PORT/health_check" || true)
     case "$body" in
         *'"running":true'*) exit 0 ;;
     esac
