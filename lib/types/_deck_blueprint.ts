@@ -133,6 +133,11 @@ export type DeckBlueprintFigureBlock = z.infer<
 
 export const DECK_BLUEPRINT_MAX_BLOCKS = 6;
 
+// The words a slide built to a blueprint's exact layout may hold: a source
+// slide kept word for word (a methodology page) is often far over the 180
+// an AI-written slide gets, and splitting it changes the deck's shape.
+export const DECK_BLUEPRINT_SLIDE_WORDS_MAX = 600;
+
 const deckBlueprintCellSchema = z.object({
   span: z.number().int().min(1).max(12),
   block: deckBlueprintBlockSchema,

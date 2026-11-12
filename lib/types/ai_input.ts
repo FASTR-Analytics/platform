@@ -8,7 +8,10 @@ import {
   configDStrict,
   relativePeriodFilterSchema,
 } from "./_metric_installed.ts";
-import { DECK_BLUEPRINT_MAX_BLOCKS } from "./_deck_blueprint.ts";
+import {
+  DECK_BLUEPRINT_MAX_BLOCKS,
+  DECK_BLUEPRINT_SLIDE_WORDS_MAX,
+} from "./_deck_blueprint.ts";
 import { presentationObjectConfigTStrict } from "./_presentation_object_config.ts";
 import { ROLLUP_DIMENSIONS } from "../rollup.ts";
 
@@ -71,16 +74,18 @@ export const AiTextBlockSchema = z.object({
   markdown: z
     .string()
     .describe(
-      `The text content in markdown format. Supports standard markdown syntax including headers, bold, italic, lists, and links. WORD COUNT: Target ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words TOTAL across all text blocks per slide (adjust down if slide has charts/figures), absolute maximum ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words TOTAL per slide. IMPORTANT: Tables-in-markdown are NOT ALLOWED. If you need to display tabular data, use a 'from_metric' block with a table preset.`,
+      `The text content in markdown format. Supports standard markdown syntax including headers, bold, italic, lists, and links. WORD COUNT: Target ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words TOTAL across all text blocks per slide (adjust down if slide has charts/figures), absolute maximum ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words TOTAL per slide (${DECK_BLUEPRINT_SLIDE_WORDS_MAX} on a slide built to a blueprint's layoutRows, for text kept word for word). IMPORTANT: Tables-in-markdown are NOT ALLOWED. If you need to display tabular data, use a 'from_metric' block with a table preset.`,
     )
+    // The bound per block is the blueprint slide's; the per-slide totals
+    // (validateSlideTotalWordCount) hold every other slide to the usual one.
     .refine(
       (text) => {
         const wordCount = text.trim().split(/\s+/).length;
-        return wordCount <= SLIDE_TEXT_TOTAL_WORD_COUNT_MAX;
+        return wordCount <= DECK_BLUEPRINT_SLIDE_WORDS_MAX;
       },
       {
         message:
-          `Individual text block exceeds ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words`,
+          `Individual text block exceeds ${DECK_BLUEPRINT_SLIDE_WORDS_MAX} words`,
       },
     ),
 });

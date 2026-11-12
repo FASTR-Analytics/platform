@@ -8,6 +8,7 @@ import {
   type AiSlideInput,
   COPILOT_TOOL_VIEWS,
   DECK_BLUEPRINT_MAX_BLOCKS,
+  DECK_BLUEPRINT_SLIDE_WORDS_MAX,
   getSlideTitle,
   type MetricWithStatus,
   type Slide,
@@ -87,7 +88,10 @@ function validateAiSlideInput(slide: AiSlideInput): void {
     b.type === "text" ? [b.markdown] : []
   );
   for (const text of texts) validateNoMarkdownTables(text);
-  validateSlideTotalWordCount(texts);
+  validateSlideTotalWordCount(
+    texts,
+    slide.layoutRows ? DECK_BLUEPRINT_SLIDE_WORDS_MAX : undefined,
+  );
 }
 
 export function getClientToolsForSlides(

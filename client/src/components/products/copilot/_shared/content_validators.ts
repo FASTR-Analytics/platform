@@ -44,15 +44,18 @@ export function validateMaxContentBlocks(blocksCount: number): void {
   }
 }
 
-export function validateSlideTotalWordCount(textBlocks: string[]): void {
+export function validateSlideTotalWordCount(
+  textBlocks: string[],
+  max: number = SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
+): void {
   const totalWordCount = textBlocks.reduce((sum, text) => {
     const words = text.trim().split(/\s+/).filter((w) => w.length > 0).length;
     return sum + words;
   }, 0);
 
-  if (totalWordCount > SLIDE_TEXT_TOTAL_WORD_COUNT_MAX) {
+  if (totalWordCount > max) {
     throw new AIToolFailure(
-      `Slide exceeds maximum word count (${totalWordCount} words across all text blocks). Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide, absolute maximum: ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words. Please reduce the text length.`,
+      `Slide exceeds maximum word count (${totalWordCount} words across all text blocks). Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide, absolute maximum: ${max} words. Please reduce the text length.`,
     );
   }
 }

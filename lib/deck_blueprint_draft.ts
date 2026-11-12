@@ -83,7 +83,9 @@ export type DeckBlueprintBriefsOutput = z.infer<
 >;
 
 const COMMON =
-  `You help turn a FASTR slide deck made for one country into a BLUEPRINT that another country's deck can be built from. FASTR decks report health-facility data (HMIS service volumes, data quality, coverage, health facility assessments). A blueprint keeps the deck's structure and intent, never its country's facts. NEVER write the source country's name, region, district or facility names, numbers or findings in any field. Write in English. Fields that do not apply are "" (and months 0).`;
+  `You help turn a FASTR slide deck made for one country into a BLUEPRINT that another country's deck can be built from. FASTR decks report health-facility data (HMIS service volumes, data quality, coverage, health facility assessments). A blueprint keeps the deck's structure and intent, never its country's facts. NEVER write the source country's name, region, district or facility names, numbers or findings in any field. Write in English. Fields that do not apply are "" (and months 0).
+
+Every word must hold for ANY country's data. The source's FINDINGS (which way its numbers went, a collapse, a surge, a disruption, a cause, a recommendation that follows from them) belong to that country and must not travel: not in a name, description, purpose, scaling rule, brief, header or caption. Say WHAT to report and HOW, conditional on what the target's data shows. Not "State that reporting completeness collapsed in the reporting quarter" but "State how reporting completeness changed over the period; if it fell sharply, say so and caveat the figures that follow". Not "State that family planning volumes collapsed" but "State the main finding on family planning volumes over the period".`;
 
 export const DECK_BLUEPRINT_TOPICS_SYSTEM = `${COMMON}
 
@@ -95,12 +97,12 @@ This step: from the deck's OUTLINE, decide its topics.
 - footerPattern / watermarkPattern: the deck's footer and watermark text with every country-specific part replaced by the tokens ${
   DECK_BLUEPRINT_PATTERN_TOKENS.join(", ")
 }; "" when the deck has none.
-- name: a short generic name for the blueprint (e.g. "HMIS quarterly summary deck"); description: two sentences on what decks built from it contain.`;
+- name: a short generic name for the blueprint (e.g. "HMIS quarterly summary deck"); description: two sentences on what decks built from it contain, not what the source found.`;
 
 export const DECK_BLUEPRINT_BRIEFS_SYSTEM = `${COMMON}
 
 This step: write the BRIEFS for the slides given in full. Answer for every slide given, and for every block in the order given.
-- Briefs say what to write or show, never what the source wrote. Not "Bo district readiness fell to 61%" but "2 bullets: the readiness level of the region and its main gap, with the change since the last round". A cover's or section's titleBrief says what the title names ("Country name + quarter"); a content slide's headerBrief may keep a generic header as it is ("Methodology"), and says what to state when the source's header is a finding.
+- Briefs say what to write or show, never what the source wrote. Not "Bo district readiness fell to 61%" but "2 bullets: the readiness level of the region and its main gap, with the change since the last round". A cover's or section's titleBrief says what the title names ("Country name + quarter"); a content slide's headerBrief may keep a generic header as it is ("Methodology"); when the source's header states a finding, the brief is "State the main finding on <subject>", never the finding itself.
 - keepVerbatim is true ONLY for text that does not depend on the country's data and must read the same everywhere: a methodology note, a definition, a fixed disclaimer, a description of FASTR.
 - For figures: purpose (what the chart shows and why), vizPresetId chosen from the metric's presets listed at the top (the one whose description and type match the chart best; it must be one of those ids), periodRole for a figure with a FIXED period (one of the period role ids given), filterIntent describing in words which rows it shows ("the region this slide is about", "the indicators that dropped", "all regions"), never the values themselves, and captionBrief for the chart title.
 - Image blocks: a short note of what the picture showed.`;

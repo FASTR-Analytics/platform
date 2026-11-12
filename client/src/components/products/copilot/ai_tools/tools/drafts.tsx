@@ -14,6 +14,7 @@ import {
 import {
   validateMaxContentBlocks,
   validateNoMarkdownTables,
+  validateSlideTotalWordCount,
 } from "../../_shared/mod.ts";
 import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
 import { convertAiInputToSlide } from "../../slide_ai/mod.ts";
@@ -55,6 +56,13 @@ export function getClientToolsForDrafts(
       handler: async (input) => {
         if (input.slide.type === "content") {
           validateMaxContentBlocks(input.slide.blocks.length);
+          // A text block's schema bound is a blueprint slide's; a draft
+          // keeps the usual per-slide total.
+          validateSlideTotalWordCount(
+            input.slide.blocks.flatMap((b) =>
+              b.type === "text" ? [b.markdown] : []
+            ),
+          );
           for (const block of input.slide.blocks) {
             if (block.type === "text") {
               validateNoMarkdownTables(block.markdown);
