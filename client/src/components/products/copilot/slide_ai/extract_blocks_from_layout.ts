@@ -1,4 +1,4 @@
-import type { MetricWithStatus, Slide } from "lib";
+import type { MetricWithStatus, Slide, SlideDeckConfig } from "lib";
 import { getDataFromConfig } from "lib";
 import {
   formatFigureConfigForAI,
@@ -9,6 +9,7 @@ import {
   layoutNodeToStructure,
   type LayoutStructure,
 } from "./layout_structure.ts";
+import { measureSlideOverflow } from "./measure_slide_overflow.ts";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 
 export type SimplifiedSlide =
@@ -25,12 +26,15 @@ export type SimplifiedSlide =
     header?: string;
     blocks: Array<{ id: string; summary: string }>;
     _layout: { description: string; structure: LayoutStructure | null };
+    // Whether the layout overflows its page, as the deck's canvas badges it.
+    overflow: boolean;
   };
 
 export async function simplifySlideForAI(
   env: ClientAIToolEnv,
   slide: Slide,
-  metrics?: MetricWithStatus[],
+  metrics: MetricWithStatus[],
+  deckConfig: SlideDeckConfig,
 ): Promise<SimplifiedSlide> {
   if (slide.type === "cover") {
     return {
@@ -52,8 +56,8 @@ export async function simplifySlideForAI(
 
   // Content slide - extract blocks with IDs and fetch data for figures
   const blocks = extractBlocksFromLayout(slide.layout);
-  const simplifiedBlocks = await Promise.all(
-    blocks.map(async ({ id, block }) => {
+  const [simplifiedBlocks, overflow] = await Promise.all([
+    Promise.all(blocks.map(async ({ id, block }) => {
       if (block.type === "text") {
         return {
           id,
@@ -66,7 +70,7 @@ export async function simplifySlideForAI(
         if (block.bundle) {
           const bundle = block.bundle;
           const { lines, metric, config } = readFigureMetricForAI(
-            metrics ?? [],
+            metrics,
             bundle,
           );
           const metricId = metric?.id ?? bundle.metricId;
@@ -87,7 +91,7 @@ export async function simplifySlideForAI(
             data = await getDataFromConfig(
               env,
               metricId,
-              metrics ?? [],
+              metrics,
               config,
             );
           } catch (err) {
@@ -101,13 +105,15 @@ export async function simplifySlideForAI(
           return { id, summary: "Figure (no data)" };
         }
       }
-    }),
-  );
+    })),
+    measureSlideOverflow(slide, deckConfig),
+  ]);
 
   return {
     type: "content",
     header: slide.header,
     blocks: simplifiedBlocks,
     _layout: layoutNodeToStructure(slide.layout),
+    overflow,
   };
 }

@@ -15,4 +15,5 @@ export type {
   LayoutStructure,
   LayoutStructureCell,
 } from "./layout_structure.ts";
+export { measureSlideOverflow } from "./measure_slide_overflow.ts";
 export { resolveFigureFromMetric } from "./resolve_figure_from_metric.ts";

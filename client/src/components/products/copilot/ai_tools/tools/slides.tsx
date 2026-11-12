@@ -21,7 +21,6 @@ import {
 } from "~/components/instance/copilot/mod.ts";
 import {
   convertAiInputToSlide,
-  extractBlocksFromLayout,
   getDeckSummaryForAI,
 } from "../../slide_ai/mod.ts";
 import {
@@ -39,32 +38,13 @@ import {
   slideTargetOutcome,
   writeSlideTarget,
 } from "./slide_target.ts";
+import { slideWriteResult } from "./slide_write_result.ts";
 
 // A figure is `{ metricId, config }` resolved under the deck's own results
 // package and scope: there is no figure library to point at, so every
 // figure block starts from a metric and one of that metric's presets.
 const FIGURE_SOURCE_NOTE =
   "\n\nContent blocks are either:\n- from_metric: a figure built from a metric + one of its presets. IMPORTANT: always call get_metric_data FIRST to see available disaggregations, filters and time ranges. The figure resolves under the deck's results package and scope.\n- text: markdown content with autofit. IMPORTANT: Markdown tables are NOT allowed. To display tabular data, use a from_metric block with a table-type preset.";
-
-// Text blocks autofit, so a page that overflows overflows on its figures: they
-// are both the cause named and the fix offered.
-function withOverflowNote(
-  result: string,
-  slide: Slide,
-  overflow: boolean,
-): string {
-  if (!overflow) return result;
-  const sentence = "The slide's layout overflows the page.";
-  const figureIds = slide.type === "content"
-    ? extractBlocksFromLayout(slide.layout)
-      .filter(({ block }) => block.type === "figure")
-      .map(({ id }) => id)
-    : [];
-  if (figureIds.length === 0) return `${result} ${sentence}`;
-  return `${result} ${sentence} Figure block(s) ${
-    figureIds.join(", ")
-  }: filter the indicator dimension to the indicators this slide names, or choose a preset with fewer rows, then update_figure.`;
-}
 
 // The content checks a whole new slide must pass before it is converted.
 function validateAiSlideInput(slide: AiSlideInput): void {
@@ -172,7 +152,7 @@ export function getClientToolsForSlides(
         copilotViewController.markAIEdit(`slide:${res.data.slideId}`);
         copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
-        return withOverflowNote(
+        return slideWriteResult(
           `Created slide ${res.data.slideId}: "${
             getSlideTitle(convertedSlide)
           }". Deck has been updated. Call get_deck if you need to review the current deck state.`,
@@ -226,7 +206,7 @@ export function getClientToolsForSlides(
         const target = await readSlideTarget(view, input.slideId);
         await writeSlideTarget(view, target, convertedSlide);
 
-        return withOverflowNote(
+        return slideWriteResult(
           `Replaced slide ${input.slideId}: "${
             getSlideTitle(convertedSlide)
           }". ${slideTargetOutcome(target)}`,

@@ -14,7 +14,7 @@ export function createGetSlidesTool(
     viewRegistry: copilotViews,
     name: "get_slides",
     description:
-      "Retrieve the content and structure of one or more slides in the open deck, in the order asked: the open slide as it stands on the canvas (including edits not yet saved), any other slide as saved. Ask for every slide you need in one call. Each entry carries the slide's ID. For content slides, this returns each content block with its unique ID and a summary (a figure with its full config: metric, type, disaggregations and display slots, replicant and its available values, filters, captions) and the current layout structure (rows/columns with spans). Use the block IDs with update_slide and update_figure. Always call this before changing a slide.",
+      "Retrieve the content and structure of one or more slides in the open deck, in the order asked: the open slide as it stands on the canvas (including edits not yet saved), any other slide as saved. Ask for every slide you need in one call. Each entry carries the slide's ID. For content slides, this returns each content block with its unique ID and a summary (a figure with its full config: metric, type, disaggregations and display slots, replicant and its available values, filters, captions), the current layout structure (rows/columns with spans) and `overflow`: true when the slide's layout overflows its page, which the user sees as a badge on the slide. Use the block IDs with update_slide and update_figure. Always call this before changing a slide.",
     inputSchema: z.object({
       slideIds: z
         .array(z.string())
@@ -33,7 +33,12 @@ export function createGetSlidesTool(
           const target = await readSlideTarget(view, slideId);
           return {
             slideId,
-            ...await simplifySlideForAI(env, target.slide, metrics),
+            ...await simplifySlideForAI(
+              env,
+              target.slide,
+              metrics,
+              view.context.getDeckConfig(),
+            ),
           };
         }),
       );

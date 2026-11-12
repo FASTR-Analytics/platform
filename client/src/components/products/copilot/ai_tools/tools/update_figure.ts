@@ -22,13 +22,17 @@ import {
 } from "~/generate_visualization/mod";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
-import { extractBlocksFromLayout } from "../../slide_ai/mod.ts";
+import {
+  extractBlocksFromLayout,
+  measureSlideOverflow,
+} from "../../slide_ai/mod.ts";
 import { editFigureMetricForAI } from "../../_shared/mod.ts";
 import {
   readSlideTarget,
   slideTargetOutcome,
   writeSlideTarget,
 } from "./slide_target.ts";
+import { slideWriteResult } from "./slide_write_result.ts";
 
 // Replace the bundle of one figure block in a content slide's layout, in place
 // (same blockId). Returns a fresh slide: never mutates the input.
@@ -218,12 +222,20 @@ export function createUpdateFigureTool(
         input.blockId,
         newBundle,
       );
+      const overflow = await measureSlideOverflow(
+        updatedSlide,
+        view.context.getDeckConfig(),
+      );
       await writeSlideTarget(view, target, updatedSlide);
 
       const reportText = report.map((l) => `- ${l}`).join("\n");
-      return `Updated figure ${input.blockId} in slide ${input.slideId}.\n${reportText}\n${
-        slideTargetOutcome(target)
-      }`;
+      return slideWriteResult(
+        `Updated figure ${input.blockId} in slide ${input.slideId}.\n${reportText}\n${
+          slideTargetOutcome(target)
+        }`,
+        updatedSlide,
+        overflow,
+      );
     },
     inProgressLabel: "Updating figure...",
     completionMessage: "Updated figure",

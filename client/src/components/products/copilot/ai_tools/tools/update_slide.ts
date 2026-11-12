@@ -23,6 +23,7 @@ import {
   buildLayoutFromSpec,
   extractBlocksFromLayout,
   getSlideWithUpdatedBlocks,
+  measureSlideOverflow,
   normalizeSpans,
   resolveFigureFromMetric,
 } from "../../slide_ai/mod.ts";
@@ -31,6 +32,7 @@ import {
   slideTargetOutcome,
   writeSlideTarget,
 } from "./slide_target.ts";
+import { slideWriteResult } from "./slide_write_result.ts";
 
 // Mirrors the Slide storage union, so a field aimed at the wrong slide type
 // is unrepresentable in the tool call. The union sits under a key because
@@ -113,15 +115,25 @@ export function createUpdateSlideTool(metrics: MetricWithStatus[]) {
       if (applied.changes.length === 0) {
         return "No changes specified. Make sure you're providing fields appropriate for this slide type.";
       }
+      const overflow = applied.slide.type === "content"
+        ? await measureSlideOverflow(
+          applied.slide,
+          view.context.getDeckConfig(),
+        )
+        : false;
       await writeSlideTarget(view, target, applied.slide);
       const removed = applied.removedBlocks.length === 0
         ? ""
         : ` Removed blocks: ${
           applied.removedBlocks.map((b) => `${b.id} (${b.type})`).join(", ")
         }.`;
-      return `Updated ${
-        applied.changes.join(", ")
-      } in slide ${input.slideId}.${removed} ${slideTargetOutcome(target)}`;
+      return slideWriteResult(
+        `Updated ${
+          applied.changes.join(", ")
+        } in slide ${input.slideId}.${removed} ${slideTargetOutcome(target)}`,
+        applied.slide,
+        overflow,
+      );
     },
     inProgressLabel: (input) => `Updating slide ${input.slideId}...`,
     completionMessage: (input) => `Updated slide ${input.slideId}`,
