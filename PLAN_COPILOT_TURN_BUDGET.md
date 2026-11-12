@@ -1,6 +1,6 @@
 # PLAN: Copilot turn budget
 
-A copilot turn stops with "Stopped: too many tool calls in one turn" once the model has asked for tools in more than 24 replies, and a deck is where users reach it: one call reads one slide, a write's result leaves out what the model needs for its next call, so it reads the slide back, and the brief orders that read. This plan makes a deck's reads and writes take few rounds (one read for any number of slides, write results that state what the write left, a brief that stops ordering read-backs and says calls can share a reply), then raises panther's cap to 100 with a per-consumer override and gives the engine a separate stop for a turn whose calls keep failing.
+A copilot turn stops with "Stopped: too many tool calls in one turn" once the model has asked for tools in more than 24 replies, and a deck is where users reach it: one call reads one slide, a write's result leaves out what the model needs for its next call, so it reads the slide back, and the brief orders that read. This plan makes a deck's reads and writes take few rounds (one read for any number of slides, write results that state what the write left, a brief that stops ordering read-backs and says calls can share a reply), then raises panther's cap to 100 with a per-consumer override.
 
 **Next step: Do 1.**
 
@@ -8,7 +8,7 @@ Branch: `main` in both repos. Repos: this one (steps 1, 2, 3 and 5) and `timrobe
 
 ## §0 How to work this plan
 
-The instruction is "Do the next step of PLAN_COPILOT_TURN_BUDGET.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 5; its close commit deletes this file. Nothing in this plan ships (ruling 16).
+The instruction is "Do the next step of PLAN_COPILOT_TURN_BUDGET.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 5; its close commit deletes this file. Nothing in this plan ships (ruling 15).
 
 Step 4 is worked in `/Users/timroberton/projects/panther/timroberton-panther` on its branch `main`, under that repo's `CLAUDE.md`. Its floor is the six commands of that file's "Commands". Its tree is shared with other panther plans: the agent confirms it is clean before it starts and stages only its own files.
 
@@ -20,7 +20,6 @@ Vocabulary, used throughout:
 - **read-back**: a read whose only purpose is to learn what the model's own write just did.
 - **write result**: the text a write tool returns to the model.
 - **page fit**: whether a content slide's layout fits its page, the flag the deck canvas badges.
-- **failed round**: a round in which every tool result is an error.
 - **the brief**: the deck view's instructions, `getEditingSlideDeckInstructions`.
 
 Rules peculiar to this plan:
@@ -43,7 +42,6 @@ Rules peculiar to this plan:
 - **Page fit is reported by two writes and no read.** `create_slide` and `replace_slide` append the overflow sentence ([slides.tsx:50-66](client/src/components/products/copilot/ai_tools/tools/slides.tsx#L50-L66)), which sends the model to `update_figure`. `update_figure` and `update_slide` say nothing about the page, and `SimplifiedSlide` has no field for it ([extract_blocks_from_layout.ts:42-57](client/src/components/products/copilot/slide_ai/extract_blocks_from_layout.ts#L42-L57)), so the model cannot learn whether its fix worked, or which slides of an existing deck overflow.
 - **The brief orders the read and is silent on sharing a reply.** "Call get_slide before changing any slide" ([build_system_prompt.ts:302](client/src/components/instance/copilot/build_system_prompt.ts#L302)), "Always call this before changing a slide" ([get_slide.ts:17](client/src/components/products/copilot/ai_tools/tools/get_slide.ts#L17)) and "Call get_slide first" in `update_slide`'s description. The chat's own core principles hold one entry, "Ask when uncertain" ([build_system_prompt.ts:55-57](client/src/components/instance/copilot/build_system_prompt.ts#L55-L57)): nothing tells the model that calls which do not depend on each other can share a reply.
 - **Nothing pins the brief.** It lives in a client file that imports `~/` modules, which a Deno test cannot load, while the report's brief lives in `lib/ai_tools/build_system_prompt.ts` and `server/tests/copilot_prompt_test.ts` pins it.
-- **The cap cannot tell a long turn from a stuck one.** A 47-slide build and a model retrying a refused call get the same 24. SYSTEM_13 records the second: a draft refused for its pages was retried until the rounds ran out, and the remedy was a rule in that one tool (`DRAFT_PAGE_REFUSALS`).
 - **At the cap the user is told nothing they can act on.** The reply's calls are answered as cancelled ([\_create_ai_chat.ts:1500-1525](panther/_305_ai/_components/_create_ai_chat.ts#L1500-L1525)) and the notice is one muted line with its details behind a chevron ([system_notice.tsx](panther/_305_ai/_components/_renderers/system_notice.tsx)). Neither says that a new message carries on.
 
 ## §2 The model
@@ -67,7 +65,7 @@ Every write to a content slide (`create_slide`, `replace_slide`, `update_slide`,
 
 **The contract is stated once.** PROTOCOL_APP_AI_TOOLS.md gains "The round budget": a read that can be asked for many takes an array, a write result states what the write left, and no result invites a read-back. SYSTEM_13 points at it.
 
-**The cap is 100, a consumer can override it, and a stuck turn stops by itself.** Panther's default cap is 100 and `AIChatConfig.maxTurnContinuations` overrides it. Separately, a turn whose last six rounds all failed ends with its own notice. Both notices say a new message carries on. The app takes the default.
+**The cap is 100 and a consumer can override it.** Panther's default cap is 100 and `AIChatConfig.maxTurnContinuations` overrides it. The notice at the cap says a new message carries on. The app takes the default.
 
 With the app half done: reading the 47-slide deck is one round, and creating a content slide then changing its figure is two.
 
@@ -85,10 +83,9 @@ With the app half done: reading the 47-slide deck is one round, and creating a c
 10. **Calls that do not depend on each other go in one reply.** A chat-only core principle beside "Ask when uncertain": such calls share a reply, they run in order, each returns its own result, and a call that needs another's result (a new slide's id, a block id) waits for it. It stays out of the shared base, since `/mcp`'s clients run their own loop. _(proposed)_
 11. **The brief and the chat's core principles live in `lib/ai_tools/build_system_prompt.ts`**, beside the report's brief, so `server/tests/copilot_prompt_test.ts` pins them. _(proposed)_
 12. **Panther: the cap's default is 100, and `AIChatConfig.maxTurnContinuations` overrides it.** Optional, a positive integer, one counter for tool rounds and `pause_turn` resumes as today. Ruled.
-13. **Panther: six failed rounds in a row end the turn.** The streak resets on any result that is not an error. The turn ends as the cap ends it, every pending call answered, with notice type `turn_stalled`. The number is the engine's, a constant, twice what the app's one tool-level rule allows (three refusals). With the cap at 100, it is what bounds the one runaway on record. _(proposed)_
-14. **Panther: both notices say what the user can do.** The details of `turn_limit` and `turn_stalled` end by saying that a new message carries on. No button and no engine text to the model: the answered calls already tell the model why they did not run. _(proposed)_
-15. **The app passes no cap.** It takes panther's default, as it takes panther's model defaults. _(proposed)_
-16. **Nothing ships in this plan.** The app's next release carries it.
+13. **Panther: the cap's notice says what the user can do.** The details of `turn_limit`, in both its forms, end by saying that a new message carries on. No button and no engine text to the model: the answered calls already tell the model why they did not run. _(proposed)_
+14. **The app passes no cap.** It takes panther's default, as it takes panther's model defaults. _(proposed)_
+15. **Nothing ships in this plan.** The app's next release carries it.
 
 ## §4 Steps
 
@@ -155,18 +152,17 @@ With the app half done: reading the 47-slide deck is one round, and creating a c
 
 **Ends with.** One commit.
 
-### Step 4: the cap is 100 with an override, and a stuck turn stops (repo: timroberton-panther)
+### Step 4: the cap is 100 with an override (repo: timroberton-panther)
 
 **Surface.** `modules/_305_ai/_core/types.ts`, `modules/_305_ai/_core/validate_config.ts`, `modules/_305_ai/_components/_create_ai_chat.ts`, `modules/_110_ai_types/turn_logic.ts`, `tests/ai_turn_logic_test.ts`, `tests_ai/caps_test.ts`, `tests_ai/config_test.ts`, `DOC_AI_CHAT.md`, `protocols/PROTOCOL_UI_AI_CHAT.md`, and a `deps.ts` or `mod.ts` only where `clean.ts` rewrites one.
 
 **Deliverable.**
 
 - `MAX_TURN_CONTINUATIONS` is 100 and is the default of `AIChatConfig.maxTurnContinuations`, as ruling 12 states. A value that is not a positive integer throws at construction and in `validateAIChatConfig`.
-- The turn loop keeps the count of consecutive failed rounds and hands it to `classifyTurnContinuation`, which stays pure. A reply that asks for tools when the count has reached six ends the turn as `cap-tools` does: every pending call answered with a stopped result that names the reason, and a `turn_stalled` notice. `SystemNoticeType` gains `turn_stalled`.
-- The details of `turn_limit` (both its forms) and of `turn_stalled` end by saying that a new message carries on.
-- `tests/ai_turn_logic_test.ts` pins the classifier: the cap at a configured depth, the stall at six, no stall at five, and the cap winning when both hold.
-- `tests_ai/caps_test.ts` adds scenarios: a configured cap ends the tool loop at that count; six failed rounds end the turn with every call answered and the next send accepted; a success in the middle resets the streak. Its existing cap scenarios run on the default of 100. `tests_ai/config_test.ts` pins the throw.
-- DOC_AI_CHAT.md's "Turn model" states the default of 100, the option, the stall and both notices, and PROTOCOL_UI_AI_CHAT.md names the option where it lists what a consumer configures.
+- The details of `turn_limit`, in both its forms, end by saying that a new message carries on.
+- `tests/ai_turn_logic_test.ts` pins the classifier's cap at a configured depth and the notice's details.
+- `tests_ai/caps_test.ts` adds a scenario: a configured cap ends the tool loop at that count, with every call answered and the next send accepted. Its existing cap scenarios run on the default of 100. `tests_ai/config_test.ts` pins the throw.
+- DOC_AI_CHAT.md's "Turn model" states the default of 100, the option and what the notice tells the user, and PROTOCOL_UI_AI_CHAT.md names the option where it lists what a consumer configures.
 
 **Not in this step.** `callAI`'s own request cap (`MAX_TOOL_RUNNER_REQUESTS`). A Continue button. Any text from the engine to the model.
 
@@ -183,10 +179,10 @@ Starts when `./sync --check wb-fastr`, run in the panther repo, reports nothing 
 **Deliverable.**
 
 - One commit holding the sync and nothing else, made after `./sync wb-fastr` and a green floor. The sync copies panther's whole working tree. If the floor fails for a reason that is not this plan's, the agent restores `panther/` to `HEAD`, commits nothing and reports the gate's output.
-- SYSTEM_13's "The panther engine" states the cap (panther's default of 100, which the app takes), the stall stop and what the two notices tell the user.
+- SYSTEM_13's "The panther engine" states the cap (panther's default of 100, which the app takes) and what its notice tells the user.
 - The close commit deletes this file.
 
-**Not in this step.** A cap of the app's own. A renderer of its own for either notice: panther's card shows both.
+**Not in this step.** A cap of the app's own. A renderer of its own for the notice: panther's card shows it.
 
 **Gates.** After the sync, `rg -q maxTurnContinuations panther/_305_ai/_core/types.ts`. At the close, `deno task test`.
 
@@ -198,6 +194,6 @@ Starts when `./sync --check wb-fastr`, run in the panther repo, reports nothing 
 - **Product features that are not the copilot's.** A gauge or donut figure type, significance testing in the HFA module, and diagram blocks.
 - **`get_metric_data` for several metrics in one call.** Ruling 10 covers it with several calls in one reply.
 - **A cap on what one `get_slides` call returns**, and trimming a figure's data in the read.
-- **Panther: a Continue button, and an engine line asking the model to wrap up.**
+- **Panther: a stop for a turn whose rounds keep failing, a Continue button, and an engine line asking the model to wrap up.**
 
 ## §6 Log
