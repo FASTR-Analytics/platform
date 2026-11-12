@@ -17,6 +17,7 @@ import {
   DECK_BLUEPRINT_KIND,
   DECK_BLUEPRINT_MAX_BLOCKS,
   DECK_BLUEPRINT_PROVENANCE_KIND,
+  DECK_BLUEPRINT_TEXT_MAX,
   type DeckBlueprint,
   type DeckBlueprintBlock,
   type DeckBlueprintCell,
@@ -434,8 +435,9 @@ export type AssembleResult =
 export function assembleBlueprint(
   skeleton: BlueprintSkeleton,
   draft: BlueprintDraftFromAI,
-  // metricId → that metric's preset ids, in the source package.
-  presetsByMetric: Record<string, string[]>,
+  // metricId → that metric's presets (id and chart type), in the source
+  // package.
+  presetsByMetric: Record<string, { id: string; type: string }[]>,
   createdAt: string,
 ): AssembleResult {
   const warnings: string[] = [];
@@ -458,9 +460,14 @@ export function assembleBlueprint(
 
   const drafted = new Map(draft.slides.map((s) => [s.index, s]));
   const patterns = new Map<number, DeckBlueprintSlide>();
+  // Per source slide; only the slides that become patterns report theirs
+  // (a repeat that is not a pattern was never drafted, by design).
+  const slideWarnings = new Map<number, string[]>();
   for (const s of skeleton.slides) {
     const d = drafted.get(s.index);
     const label = `Slide ${s.index + 1}`;
+    const warnings: string[] = [];
+    slideWarnings.set(s.index, warnings);
     if (s.droppedBlocks > 0) {
       warnings.push(
         `${label}: ${s.droppedBlocks} block(s) beyond the blueprint's ${DECK_BLUEPRINT_MAX_BLOCKS}-block limit were left out.`,
@@ -515,18 +522,20 @@ export function assembleBlueprint(
         }
         const presets = presetsByMetric[block.metricId] ?? [];
         let vizPresetId = b.vizPresetId ?? "";
-        if (!presets.includes(vizPresetId)) {
+        if (!presets.some((p) => p.id === vizPresetId)) {
           if (presets.length === 0) {
             warnings.push(
               `${label}: metric "${block.metricId}" has no presets in this package; the figure keeps no preset and will need one chosen.`,
             );
           } else {
+            // The metric's first preset of the source chart's own type, or
+            // its first preset.
+            const fallback = presets.find((p) => p.type === block.chartType) ??
+              presets[0];
             warnings.push(
-              `${label}: no matching preset was picked for metric "${block.metricId}"; using "${
-                presets[0]
-              }".`,
+              `${label}: no valid preset was picked for metric "${block.metricId}"; using "${fallback.id}" (check it).`,
             );
-            vizPresetId = presets[0];
+            vizPresetId = fallback.id;
           }
         }
         let period = block.period;
@@ -617,9 +626,13 @@ export function assembleBlueprint(
   }
   // Deck order: by each topic's first source slide.
   placed.sort((a, b) => a.first - b.first);
+  const used = new Set(placed.flatMap((p) => p.sources));
+  for (const [index, ws] of slideWarnings) {
+    if (used.has(index)) warnings.push(...ws);
+  }
   const topics = placed.map((p, i) => ({ ...p.topic, id: `t${i + 1}` }));
 
-  const parsed = deckBlueprintSchema.safeParse({
+  const parsed = deckBlueprintSchema.safeParse(trimStrings({
     kind: DECK_BLUEPRINT_KIND,
     formatVersion: DECK_BLUEPRINT_FORMAT_VERSION,
     name: draft.name.trim() || skeleton.sourceDeckLabel || "Blueprint",
@@ -638,7 +651,7 @@ export function assembleBlueprint(
     },
     periodRoles: roles,
     topics,
-  });
+  }));
   if (!parsed.success) {
     return {
       success: false,
@@ -651,6 +664,34 @@ export function assembleBlueprint(
     warnings,
     patternSources: placed.map((p) => p.sources),
   };
+}
+
+// Every written field cut to the format's bound rather than the whole
+// draft refused over one long brief; kept text has its own, larger bound.
+const TRIM_BOUNDS: Record<string, number> = {
+  name: 200,
+  description: 2000,
+  sourceDeckLabel: 300,
+  verbatimText: 40_000,
+};
+
+function trimStrings<T>(value: T, key = ""): T {
+  if (typeof value === "string") {
+    const max = TRIM_BOUNDS[key] ?? DECK_BLUEPRINT_TEXT_MAX;
+    return (value.length > max ? value.slice(0, max) : value) as T;
+  }
+  if (key === "targetWords" && typeof value === "number") {
+    return Math.min(value, 5000) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => trimStrings(v)) as T;
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, trimStrings(v, k)]),
+    ) as T;
+  }
+  return value;
 }
 
 function textOfBlock(s: SkeletonSlide, k: number): string | undefined {

@@ -142,8 +142,14 @@ function sourceConfig(): SlideDeckConfig {
 }
 
 const PRESETS = {
-  m_readiness: ["readiness_bar", "readiness_map"],
-  m_trend: ["trend_line"],
+  m_readiness: [
+    { id: "readiness_bar", type: "chart" },
+    { id: "readiness_map", type: "map" },
+  ],
+  m_trend: [{ id: "trend_table", type: "table" }, {
+    id: "trend_line",
+    type: "chart",
+  }],
 };
 
 function draft(): BlueprintDraftFromAI {
@@ -410,4 +416,49 @@ Deno.test("provenance reads only its own kind", () => {
     readDeckBlueprintProvenance(JSON.stringify({ kind: "x" })),
     undefined,
   );
+});
+
+Deno.test("a long source text and an over-long brief do not sink the draft", () => {
+  const long = Array.from({ length: 600 }, (_, i) => `word${i}`).join(" ");
+  const slides: Slide[] = [{
+    type: "content",
+    header: "Methodology",
+    layout: { type: "item", id: "a", data: text(long) },
+  }];
+  const sk = buildBlueprintSkeleton({
+    deckLabel: "Long",
+    config: getStartingConfigForSlideDeck(),
+    slides,
+  });
+  const res = assembleBlueprint(
+    sk,
+    {
+      name: "x".repeat(500),
+      description: "",
+      periodRoles: [],
+      topics: [{
+        name: "Methodology",
+        purpose: "p",
+        scalingRule: "r".repeat(9000),
+        sourceSlideIndexes: [0],
+      }],
+      slides: [{
+        index: 0,
+        headerBrief: "Methodology",
+        blocks: [{ brief: "b".repeat(9000), keepVerbatim: true }],
+      }],
+    },
+    {},
+    "2026-11-12T00:00:00Z",
+  );
+  assert(res.success, res.success ? "" : res.err);
+  const s = res.data.topics[0].slides[0];
+  assert(s.type === "content");
+  const b = s.rows[0][0].block;
+  assert(b.type === "text");
+  assertEquals(b.targetWords, 600);
+  assertEquals(b.verbatimText, long);
+  assertEquals(b.brief.length, 4000);
+  assertEquals(res.data.name.length, 200);
+  assertEquals(res.data.topics[0].scalingRule.length, 4000);
 });

@@ -27,6 +27,11 @@ export const DECK_BLUEPRINT_KIND = "fastr_deck_blueprint";
 export const DECK_BLUEPRINT_FORMAT_VERSION = 1;
 export const DECK_BLUEPRINT_FILE_SUFFIX = ".fastr-blueprint.json";
 
+// The bound on every written field (a brief, a purpose, a rule, a name):
+// generous, since briefs are the model's words, and assembleBlueprint cuts
+// to it rather than refuse a whole draft over one long field.
+export const DECK_BLUEPRINT_TEXT_MAX = 4000;
+
 // The placeholders a footer or watermark pattern may hold. They are filled
 // from the target instance and the chosen period when the look is applied;
 // nothing else in a pattern is ever rewritten.
@@ -45,7 +50,7 @@ export const DECK_BLUEPRINT_PATTERN_TOKENS = [
 
 export const deckBlueprintPeriodRoleSchema = z.object({
   id: z.string().min(1).max(40),
-  label: z.string().max(120),
+  label: z.string().max(DECK_BLUEPRINT_TEXT_MAX),
   kind: z.enum(["reporting", "comparison", "trend"]),
   // The reporting period's usual length, or the trend window's length.
   // Unused for a comparison period, which copies the reporting length.
@@ -62,16 +67,16 @@ const textBlockPatternSchema = z.object({
   type: z.literal("text"),
   // What to write, in words: "3 bullets: the worst region, the size of the
   // drop against last year, the likely cause". Never country A's text.
-  brief: z.string().max(1000),
+  brief: z.string().max(DECK_BLUEPRINT_TEXT_MAX),
   // Roughly how many words the source block held, so the new text keeps
   // the slide's density.
-  targetWords: z.number().int().min(0).max(400).optional(),
+  targetWords: z.number().int().min(0).max(5000).optional(),
   textSize: z.enum(TEXT_SIZE_KEYS).optional(),
   textBackground: z.string().max(40).optional(),
   // Copied as written (translated into the target's language when that
   // differs): a methodology note, a definition, a fixed disclaimer.
   keepVerbatim: z.boolean(),
-  verbatimText: z.string().max(4000).optional(),
+  verbatimText: z.string().max(40_000).optional(),
 });
 
 // How a figure's time range carries over: through a period role, as the
@@ -92,21 +97,21 @@ const figureBlockPatternSchema = z.object({
   // One of the metric's presets: the target rebuilds the chart from it.
   vizPresetId: z.string().min(1),
   // What the chart is there to show, so the target can judge a stand-in.
-  purpose: z.string().max(500),
+  purpose: z.string().max(DECK_BLUEPRINT_TEXT_MAX),
   // The source figure's chart type, for the review panel and the AI's
   // choice of a stand-in. Informational: the preset decides the type.
   chartType: z.string().max(40).optional(),
   period: figurePeriodPatternSchema,
   // Which rows to show, in words ("the region this slide is about", "the
   // indicators that dropped"), never as values.
-  filterIntent: z.string().max(500).optional(),
-  captionBrief: z.string().max(300).optional(),
+  filterIntent: z.string().max(DECK_BLUEPRINT_TEXT_MAX).optional(),
+  captionBrief: z.string().max(DECK_BLUEPRINT_TEXT_MAX).optional(),
 });
 
 const imageSlotPatternSchema = z.object({
   type: z.literal("image_slot"),
   // What the source image showed, for the person who fills the slot.
-  note: z.string().max(300),
+  note: z.string().max(DECK_BLUEPRINT_TEXT_MAX),
 });
 
 export const deckBlueprintBlockSchema = z.discriminatedUnion("type", [
@@ -157,7 +162,7 @@ const splitPatternSchema = z.object({
       ]),
     }),
   ]),
-  imageNote: z.string().max(300).optional(),
+  imageNote: z.string().max(DECK_BLUEPRINT_TEXT_MAX).optional(),
 });
 
 export type DeckBlueprintSplit = z.infer<typeof splitPatternSchema>;
@@ -165,19 +170,19 @@ export type DeckBlueprintSplit = z.infer<typeof splitPatternSchema>;
 export const deckBlueprintSlideSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("cover"),
-    titleBrief: z.string().max(500),
-    subtitleBrief: z.string().max(500).optional(),
-    presenterBrief: z.string().max(300).optional(),
-    dateBrief: z.string().max(300).optional(),
+    titleBrief: z.string().max(DECK_BLUEPRINT_TEXT_MAX),
+    subtitleBrief: z.string().max(DECK_BLUEPRINT_TEXT_MAX).optional(),
+    presenterBrief: z.string().max(DECK_BLUEPRINT_TEXT_MAX).optional(),
+    dateBrief: z.string().max(DECK_BLUEPRINT_TEXT_MAX).optional(),
   }),
   z.object({
     type: z.literal("section"),
-    titleBrief: z.string().max(500),
-    subtitleBrief: z.string().max(500).optional(),
+    titleBrief: z.string().max(DECK_BLUEPRINT_TEXT_MAX),
+    subtitleBrief: z.string().max(DECK_BLUEPRINT_TEXT_MAX).optional(),
   }),
   z.object({
     type: z.literal("content"),
-    headerBrief: z.string().max(500),
+    headerBrief: z.string().max(DECK_BLUEPRINT_TEXT_MAX),
     rows: z.array(z.array(deckBlueprintCellSchema).min(1).max(4)).min(1).max(
       4,
     ),
@@ -195,16 +200,16 @@ export type DeckBlueprintContentSlide = Extract<
 
 export const deckBlueprintTopicSchema = z.object({
   id: z.string().min(1).max(40),
-  name: z.string().min(1).max(200),
+  name: z.string().min(1).max(DECK_BLUEPRINT_TEXT_MAX),
   // Why the topic is in the deck.
-  purpose: z.string().max(1000),
+  purpose: z.string().max(DECK_BLUEPRINT_TEXT_MAX),
   // How many slides it gets in the target, in plain words, judged against
   // the target's data: "One slide per region below 80% coverage; if none,
   // drop the topic and say so."
-  scalingRule: z.string().max(1000),
+  scalingRule: z.string().max(DECK_BLUEPRINT_TEXT_MAX),
   // The source's slides for this topic, as patterns, in order. A topic that
   // repeats (one slide per region) usually holds one pattern.
-  slides: z.array(deckBlueprintSlideSchema).min(1).max(20),
+  slides: z.array(deckBlueprintSlideSchema).min(1).max(150),
 });
 
 export type DeckBlueprintTopic = z.infer<typeof deckBlueprintTopicSchema>;
@@ -224,8 +229,8 @@ export const deckBlueprintLookSchema = z.object({
   useWatermark: z.boolean(),
   // The source's footer and watermark with their country-specific words
   // replaced by DECK_BLUEPRINT_PATTERN_TOKENS. Absent: the source had none.
-  footerPattern: z.string().max(500).optional(),
-  watermarkPattern: z.string().max(200).optional(),
+  footerPattern: z.string().max(DECK_BLUEPRINT_TEXT_MAX).optional(),
+  watermarkPattern: z.string().max(DECK_BLUEPRINT_TEXT_MAX).optional(),
   logoSlots: z.object({
     cover: logoSlotSchema,
     header: logoSlotSchema,
@@ -251,7 +256,7 @@ export const deckBlueprintSchema = z.object({
   language: z.literal("en"),
   look: deckBlueprintLookSchema,
   periodRoles: z.array(deckBlueprintPeriodRoleSchema).max(10),
-  topics: z.array(deckBlueprintTopicSchema).min(1).max(60),
+  topics: z.array(deckBlueprintTopicSchema).min(1).max(300),
 });
 
 export type DeckBlueprint = z.infer<typeof deckBlueprintSchema>;

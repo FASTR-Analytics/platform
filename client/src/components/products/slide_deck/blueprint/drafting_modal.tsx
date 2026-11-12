@@ -20,8 +20,8 @@ type Props = {
   metrics: MetricWithStatus[];
 };
 
-// The wait while the AI drafts a blueprint from the deck (one structured
-// call, up to a minute or two on a long deck). Cancel aborts the call.
+// The wait while the AI drafts a blueprint from the deck (the topics, then
+// the briefs in parts, a few minutes on a long deck). Cancel aborts it.
 export function DraftingModal(
   p: AlertComponentProps<Props, DraftedBlueprint>,
 ) {
@@ -45,6 +45,28 @@ export function DraftingModal(
         slides: p.slides,
         metrics: p.metrics,
         signal: controller.signal,
+        onProgress: (pr) => {
+          if (controller.signal.aborted) return;
+          setState({
+            status: "loading",
+            msg: pr.step === "topics"
+              ? t3({
+                en:
+                  `Reading ${p.slides.length} slides and grouping them into topics…`,
+                fr:
+                  `Lecture de ${p.slides.length} diapositives et regroupement en sujets…`,
+                pt:
+                  `A ler ${p.slides.length} diapositivos e a agrupá-los em temas…`,
+              })
+              : t3({
+                en: `Writing the briefs: part ${pr.done} of ${pr.total} done…`,
+                fr:
+                  `Rédaction des consignes : partie ${pr.done} sur ${pr.total} terminée…`,
+                pt:
+                  `A escrever as instruções: parte ${pr.done} de ${pr.total} concluída…`,
+              }),
+          });
+        },
       });
       if (!controller.signal.aborted) p.close(drafted);
     } catch (e) {

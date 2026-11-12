@@ -1,15 +1,13 @@
 import {
   assembleBlueprint,
-  blueprintDraftFromOutput,
+  type BlueprintDraftProgress,
   buildBlueprintSkeleton,
   collectSourceTerms,
-  DECK_BLUEPRINT_DRAFT_SYSTEM,
   type DeckBlueprint,
-  deckBlueprintDraftOutputSchema,
-  describeDeckForBlueprintDraft,
   findSourceTermHits,
   getCountryLabel,
   type MetricWithStatus,
+  runBlueprintDraft,
   type Slide,
   type SlideDeckConfig,
   type SourceTermHit,
@@ -20,9 +18,10 @@ import { instanceState } from "~/state/instance/t1_store";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 
 // "Make blueprint" from an open deck: every slide read, the deterministic
-// skeleton built in lib (buildBlueprintSkeleton), ONE structured model call
-// for the judgement (topics, briefs, presets, period roles, patterns), merged
-// back by assembleBlueprint, which accepts only words and ids it offered.
+// skeleton built in lib (buildBlueprintSkeleton), the structured model calls
+// for the judgement (runBlueprintDraft: topics, then briefs in batches),
+// merged back by assembleBlueprint, which accepts only words and ids it
+// offered.
 // What the person then reviews is the result, its warnings and the places
 // the source's names were left in the words.
 
@@ -56,6 +55,7 @@ export async function draftBlueprintFromDeck(args: {
   slides: Slide[];
   metrics: MetricWithStatus[];
   signal: AbortSignal;
+  onProgress?: (p: BlueprintDraftProgress) => void;
 }): Promise<DraftedBlueprint> {
   if (args.slides.length === 0) {
     throw new Error("This deck has no slides to make a blueprint from.");
@@ -65,36 +65,32 @@ export async function draftBlueprintFromDeck(args: {
     config: args.config,
     slides: args.slides,
   });
-  const res = await callAIStructured(
-    {
-      sdkClient: createAiProxyClient(),
-      system: () => DECK_BLUEPRINT_DRAFT_SYSTEM,
+  const sdkClient = createAiProxyClient();
+  const draft = await runBlueprintDraft({
+    skeleton,
+    slides: args.slides,
+    metrics: args.metrics,
+    call: async (system, user, schema) => {
+      const res = await callAIStructured(
+        { sdkClient, system: () => system },
+        [{ role: "user", content: user }],
+        schema,
+        { signal: args.signal },
+      );
+      return { data: res.data, stopReason: res.stopReason };
     },
-    [{
-      role: "user",
-      content: describeDeckForBlueprintDraft(
-        skeleton,
-        args.slides,
-        args.metrics,
-      ),
-    }],
-    deckBlueprintDraftOutputSchema,
-    { signal: args.signal },
-  );
-  if (res.data === null) {
-    throw new Error(
-      res.stopReason === "max_tokens"
-        ? "The deck is too long for one draft. Split it into smaller decks and make a blueprint from each."
-        : "The AI's draft could not be read. Please try again.",
-    );
-  }
-  const presetsByMetric: Record<string, string[]> = {};
+    onProgress: args.onProgress,
+  });
+  const presetsByMetric: Record<string, { id: string; type: string }[]> = {};
   for (const m of args.metrics) {
-    presetsByMetric[m.id] = (m.vizPresets ?? []).map((p) => p.id);
+    presetsByMetric[m.id] = (m.vizPresets ?? []).map((p) => ({
+      id: p.id,
+      type: p.config.d.type,
+    }));
   }
   const assembled = assembleBlueprint(
     skeleton,
-    blueprintDraftFromOutput(res.data),
+    draft,
     presetsByMetric,
     new Date().toISOString(),
   );
