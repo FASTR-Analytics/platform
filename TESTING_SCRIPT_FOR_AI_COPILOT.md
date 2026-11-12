@@ -354,8 +354,8 @@ NEW CONVERSATION.
 
 - Do: send "Create a cover slide titled 'Copilot test' with subtitle 'automated run', then a content slide with a short three-bullet text block on the left and a figure of the metric you consider the main primary result on the right, using get_metric_data first. Then tell me what you created."
 - Ground truth: H3 shows `get_metric_data`, then two `create_slide` calls, all `err: false`. The rail shows two slides. Open slide 2 by clicking it in the rail and screenshot the canvas: it must show a text block and a rendered chart or table, not an error tile. Screenshot slide 1 too.
-- Ask the copilot: "Describe slide 2 exactly as it is now, using get_slide: blocks, their ids, and the figure's metric and preset."
-- Ground truth: H3 shows `get_slide`; the block ids in the answer match the tool result; the metric id equals the one in the create_slide input.
+- Ask the copilot: "Describe slides 1 and 2 exactly as they are now, using get_slides: for slide 2 the blocks, their ids, and the figure's metric and preset."
+- Ground truth: H3 shows one `get_slides` call whose `slideIds` holds both slides' ids and whose result is an array of two entries in that order, each with its `slideId`; the block ids in the answer match the tool result; the metric id equals the one in the create_slide input.
 - Pass: both slides render as described in the screenshots.
 
 **F4. Edit text in place.** Keep slide 2 open.
@@ -394,7 +394,7 @@ NEW CONVERSATION.
 **F9. Change the layout.** Keep slide 4 open.
 
 - Do: send "On slide 4 put the figure on the left at span 8 and the text on the right at span 4, keeping both blocks, with update_slide's layoutChange."
-- Ground truth: H3 shows `update_slide` with `err: false` and "layout" in the result. Send "Read slide 4 with get_slide and quote its `_layout` description." The description reads `Row 1: <figure id> (span=8) | <text id> (span=4)`. Screenshot the canvas: the figure is on the left and wider.
+- Ground truth: H3 shows `update_slide` with `err: false` and "layout" in the result. Send "Read slide 4 with get_slides and quote its `_layout` description." The description reads `Row 1: <figure id> (span=8) | <text id> (span=4)`. Screenshot the canvas: the figure is on the left and wider.
 - Pass: both.
 
 **F10. Rebuild a slide with a type change.**
@@ -405,8 +405,8 @@ NEW CONVERSATION.
 
 **F11. Figure edits that validate before they commit.** Open slide 2.
 
-- Do: send "Read slide 2 with get_slide. If the figure has a replicant, change it to the second available value with update_figure; otherwise restrict its period to the latest twelve months of its coverage with update_figure. Report the change lines."
-- Ground truth: H3 shows `get_slide` and `update_figure` with `err: false`, the result listing the changed field and "no change" for the rest. Screenshot the slide: the figure re-rendered with the new replicant or period.
+- Do: send "Read slide 2 with get_slides. If the figure has a replicant, change it to the second available value with update_figure; otherwise restrict its period to the latest twelve months of its coverage with update_figure. Report the change lines."
+- Ground truth: H3 shows `get_slides` and `update_figure` with `err: false`, the result listing the changed field and "no change" for the rest. Screenshot the slide: the figure re-rendered with the new replicant or period.
 - Do: send "Now set a filter on admin_area_2 to the value 'NOT_A_REAL_AREA' with update_figure."
 - Ground truth: H3 shows `update_figure` with `err: true`, the text listing valid values or saying the dimension is unavailable. Screenshot the slide: identical to the previous screenshot.
 - Ask the copilot: "Did the second edit change anything on the slide?"

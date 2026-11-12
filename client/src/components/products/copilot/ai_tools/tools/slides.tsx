@@ -30,10 +30,11 @@ import {
   validateSlideTotalWordCount,
 } from "../../_shared/mod.ts";
 import { assertSlidesNotBusy } from "../validators/mod.ts";
-import { createGetSlideTool } from "./get_slide.ts";
+import { createGetSlidesTool } from "./get_slides.ts";
 import { createUpdateSlideTool } from "./update_slide.ts";
 import { createUpdateFigureTool } from "./update_figure.ts";
 import {
+  assertSlidesInDeck,
   readSlideTarget,
   slideTargetOutcome,
   writeSlideTarget,
@@ -107,7 +108,7 @@ export function getClientToolsForSlides(
       },
     }),
 
-    createGetSlideTool(env, metrics),
+    createGetSlidesTool(env, metrics),
 
     createAITool({
       viewRegistry: copilotViews,
@@ -266,17 +267,7 @@ export function getClientToolsForSlides(
             );
           }
 
-          const deckSlideIds = view.context.getSlideIds();
-          const invalidIds = input.slideIds.filter((id) =>
-            !deckSlideIds.includes(id)
-          );
-          if (invalidIds.length > 0) {
-            throw new AIToolFailure(
-              `Slide ID(s) not found in deck: ${
-                invalidIds.join(", ")
-              }. Use get_deck to see current slide IDs.`,
-            );
-          }
+          assertSlidesInDeck(view, input.slideIds);
 
           const deckId = view.params.deckId;
           const titles = await Promise.all(
@@ -338,17 +329,7 @@ export function getClientToolsForSlides(
           );
         }
 
-        const deckSlideIds = view.context.getSlideIds();
-        const invalidIds = input.slideIds.filter((id) =>
-          !deckSlideIds.includes(id)
-        );
-        if (invalidIds.length > 0) {
-          throw new AIToolFailure(
-            `Slide ID(s) not found in deck: ${
-              invalidIds.join(", ")
-            }. Use get_deck to see current slide IDs.`,
-          );
-        }
+        assertSlidesInDeck(view, input.slideIds);
 
         const res = await serverActions.duplicateSlides({
           product_id: view.params.deckId,

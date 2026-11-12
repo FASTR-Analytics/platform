@@ -25,6 +25,20 @@ export type SlideTarget =
   | { kind: "open"; slideId: string; open: OpenSlide; slide: Slide }
   | { kind: "stored"; slideId: string; slide: Slide; lastUpdated: string };
 
+// A call that names several slides refuses whole when one is not in the deck,
+// before anything is read or written.
+export function assertSlidesInDeck(view: DeckView, slideIds: string[]): void {
+  const deckSlideIds = view.context.getSlideIds();
+  const missingIds = slideIds.filter((id) => !deckSlideIds.includes(id));
+  if (missingIds.length > 0) {
+    throw new AIToolFailure(
+      `Slide ID(s) not found in deck: ${
+        missingIds.join(", ")
+      }. Use get_deck to see current slide IDs.`,
+    );
+  }
+}
+
 // The open slide is read from its draft, so the model sees and builds on the
 // edits the canvas shows, saved or not.
 export async function readSlideTarget(
@@ -75,7 +89,7 @@ export async function writeSlideTarget(
   } else {
     if (open?.slideId === target.slideId) {
       throw new AIToolFailure(
-        "The user opened this slide while the edit was being prepared; nothing was applied. Re-read it with get_slide and retry.",
+        "The user opened this slide while the edit was being prepared; nothing was applied. Re-read it with get_slides and retry.",
       );
     }
     const res = await serverActions.updateSlide({
@@ -87,7 +101,7 @@ export async function writeSlideTarget(
     if (!res.success) {
       throw new AIToolFailure(
         res.err === "CONFLICT"
-          ? "CONFLICT: The slide was modified by someone else while this edit was in progress. Call get_slide to re-read the latest content, then retry based on the updated state."
+          ? "CONFLICT: The slide was modified by someone else while this edit was in progress. Call get_slides to re-read the latest content, then retry based on the updated state."
           : res.err,
       );
     }

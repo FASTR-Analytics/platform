@@ -33,7 +33,7 @@ const GROUPS = {
     "get_module_log",
     "get_module_settings",
   ],
-  deck_reads: ["get_deck", "get_slide"],
+  deck_reads: ["get_deck", "get_slides"],
   deck_writes: [
     "create_slide",
     "update_slide",

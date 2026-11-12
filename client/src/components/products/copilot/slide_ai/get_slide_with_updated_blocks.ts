@@ -33,7 +33,7 @@ export async function getSlideWithUpdatedBlocks(
         unknownIds.join(", ")
       }. Available block IDs: ${
         layoutIds.join(", ")
-      }. Use get_slide to see current block IDs.`,
+      }. Use get_slides to see current block IDs.`,
     );
   }
 

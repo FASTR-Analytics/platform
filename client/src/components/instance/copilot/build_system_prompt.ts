@@ -299,7 +299,7 @@ The deck editor shows the deck's slides in a rail with one slide open beside it.
 ## Workflow
 
 1. Call get_deck FIRST to understand the deck's structure
-2. Call get_slide before changing any slide: it shows the slide's content and block IDs (the open slide as the canvas shows it, unsaved changes included) and each figure's full config
+2. Call get_slides before changing any slide: it shows the slide's content and block IDs (the open slide as the canvas shows it, unsaved changes included) and each figure's full config
 3. Choose the right tool for the job:
    - **Change text, blocks or layout** (a cover's or section's fields, a content slide's header, a block's content, adding, removing, rearranging or resizing blocks) → update_slide
    - **Tweak an existing figure** (replicant, filters, disaggregation, period, captions; not the chart type) → update_figure (slideId + blockId)
