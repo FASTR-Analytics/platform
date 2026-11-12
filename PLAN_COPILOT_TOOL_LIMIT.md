@@ -1,4 +1,4 @@
-# PLAN: Copilot turn budget
+# PLAN: Copilot tool limit
 
 A copilot turn stops with "Stopped: too many tool calls in one turn" once the model has asked for tools in more than 24 replies, and a deck is where users reach it: one call reads one slide, a write's result leaves out what the model needs for its next call, so it reads the slide back, and the brief orders that read. This plan makes a deck's reads and writes take few rounds (one read for any number of slides, write results that state what the write left, a brief that stops ordering read-backs and says calls can share a reply), then raises panther's cap to 100 with a per-consumer override.
 
@@ -8,7 +8,7 @@ Branch: `main` in both repos. Repos: this one (steps 1, 2, 3 and 5) and `timrobe
 
 ## §0 How to work this plan
 
-The instruction is "Do the next step of PLAN_COPILOT_TURN_BUDGET.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 5; its close commit deletes this file. Nothing in this plan ships (ruling 15).
+The instruction is "Do the next step of PLAN_COPILOT_TOOL_LIMIT.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 5; its close commit deletes this file. Nothing in this plan ships (ruling 15).
 
 Step 4 is worked in `/Users/timroberton/projects/panther/timroberton-panther` on its branch `main`, under that repo's `CLAUDE.md`. Its floor is the six commands of that file's "Commands". Its tree is shared with other panther plans: the agent confirms it is clean before it starts and stages only its own files.
 
