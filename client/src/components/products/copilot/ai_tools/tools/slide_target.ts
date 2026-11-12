@@ -28,8 +28,8 @@ export type SlideTarget =
 // A call that names several slides refuses whole when one is not in the deck,
 // before anything is read or written.
 export function assertSlidesInDeck(view: DeckView, slideIds: string[]): void {
-  const deckSlideIds = view.context.getSlideIds();
-  const missingIds = slideIds.filter((id) => !deckSlideIds.includes(id));
+  const deckSlideIds = new Set(view.context.getSlideIds());
+  const missingIds = slideIds.filter((id) => !deckSlideIds.has(id));
   if (missingIds.length > 0) {
     throw new AIToolFailure(
       `Slide ID(s) not found in deck: ${

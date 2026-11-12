@@ -38,7 +38,9 @@ export function createGetSlidesTool(
         }),
       );
     },
-    inProgressLabel: (input) => `Getting ${input.slideIds.length} slide(s)...`,
-    completionMessage: (input) => `Retrieved ${input.slideIds.length} slide(s)`,
+    inProgressLabel: (input) =>
+      `Getting ${new Set(input.slideIds).size} slide(s)...`,
+    completionMessage: (input) =>
+      `Retrieved ${new Set(input.slideIds).size} slide(s)`,
   });
 }

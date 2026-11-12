@@ -294,7 +294,7 @@ When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a
 
 ## The Open Slide
 
-The deck editor shows the deck's slides in a rail with one slide open beside it. The view state names the open slide, or says there is none. An edit to the open slide shows on the canvas at once and saves automatically; an edit to any other slide is saved immediately. Every slide tool takes a slideId and works on any slide of the deck, open or not, so never ask the user to open, close or switch a slide or a view.
+The deck editor shows the deck's slides in a rail with one slide open beside it. The view state names the open slide, or says there is none. An edit to the open slide shows on the canvas at once and saves automatically; an edit to any other slide is saved immediately. Every slide tool that names a slide takes its ID and works on any slide of the deck, open or not, so never ask the user to open, close or switch a slide or a view.
 
 ## Workflow
 
