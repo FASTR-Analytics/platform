@@ -353,22 +353,22 @@ NEW CONVERSATION.
 **F3. Create a cover and a content slide with a figure.**
 
 - Do: send "Create a cover slide titled 'Copilot test' with subtitle 'automated run', then a content slide with a short three-bullet text block on the left and a figure of the metric you consider the main primary result on the right, using get_metric_data first. Then tell me what you created."
-- Ground truth: H3 shows `get_metric_data`, then two `create_slide` calls, all `err: false`. The rail shows two slides. Open slide 2 by clicking it in the rail and screenshot the canvas: it must show a text block and a rendered chart or table, not an error tile. Screenshot slide 1 too.
+- Ground truth: H3 shows `get_metric_data`, then two `create_slide` calls, all `err: false`. The cover's result is one sentence, "Created slide <id>: ...". The content slide's result follows its sentence with a `Blocks:` line (each block's id and type), a `Layout:` line, a `Page:` line saying the layout fits or overflows the page, and `Figure <block id>:` with the figure's config. Neither result names `get_deck`. The rail shows two slides. Open slide 2 by clicking it in the rail and screenshot the canvas: it must show a text block and a rendered chart or table, not an error tile. Screenshot slide 1 too.
 - Ask the copilot: "Describe slides 1 and 2 exactly as they are now, using get_slides: for slide 2 the blocks, their ids, and the figure's metric and preset."
-- Ground truth: H3 shows one `get_slides` call whose `slideIds` holds both slides' ids and whose result is an array of two entries in that order, each with its `slideId`; the block ids in the answer match the tool result; the metric id equals the one in the create_slide input.
+- Ground truth: H3 shows one `get_slides` call whose `slideIds` holds both slides' ids and whose result is an array of two entries in that order, each with its `slideId`, and slide 2's entry has `overflow`, which agrees with the `Page:` line of its create_slide result and with the canvas (a slide that overflows shows a "Layout overflow" badge); the block ids in the answer match the tool result and the `Blocks:` line of the create_slide result; the metric id equals the one in the create_slide input.
 - Pass: both slides render as described in the screenshots.
 
 **F4. Edit text in place.** Keep slide 2 open.
 
 - Do: send "On the slide that is open, replace the text block with two bullets that each cite one number from the figure's data, using update_slide."
-- Ground truth: H3 shows `update_slide` with `err: false` and a result containing "It shows on the open slide at once". The canvas updates without a reload: screenshot it and confirm two bullets with numbers.
+- Ground truth: H3 shows `update_slide` with `err: false` and a result whose first line contains "It shows on the open slide at once", followed by the `Blocks:`, `Layout:` and `Page:` lines and no `Figure` section (no figure was built). The canvas updates without a reload: screenshot it and confirm two bullets with numbers.
 - Ask the copilot: "Did that edit save, and where did it land?"
 - Pass: the screenshot shows the new text; the answer says it landed on the open slide and saved automatically.
 
 **F5. Tweak the figure.**
 
 - Do: send "Set the figure's caption to 'COPILOT CAPTION' and footnote to 'test footnote' with update_figure, nothing else."
-- Ground truth: H3 shows `update_figure` with `err: false` and a result listing the per-field change report ("caption: ..."). Screenshot the slide: the caption reads COPILOT CAPTION.
+- Ground truth: H3 shows `update_figure` with `err: false` and a result listing the per-field change report ("caption: ..."), then the `Blocks:`, `Layout:` and `Page:` lines and `Figure <block id>:` with the config that resulted, its Caption line reading COPILOT CAPTION. Screenshot the slide: the caption reads COPILOT CAPTION.
 - Pass: screenshot confirms.
 
 **F6. User edit is reported back.** Click into the text block on the open slide and type one extra word at the end (the editor's text field), then click away.
@@ -388,25 +388,25 @@ NEW CONVERSATION.
 **F8. Edit a slide that is not open.** Open slide 1 in the rail.
 
 - Do: send "Change the header of slide 4 to 'STORED EDIT' with update_slide."
-- Ground truth: H3 shows `update_slide` with `err: false` and a result ending "The slide is saved." (the stored path, not the draft path). Click slide 4: the header reads STORED EDIT. Screenshot.
+- Ground truth: H3 shows `update_slide` with `err: false` and a result whose first line ends "The slide is saved." (the stored path, not the draft path), followed by the `Blocks:`, `Layout:` and `Page:` lines. Click slide 4: the header reads STORED EDIT. Screenshot.
 - Pass: screenshot confirms.
 
 **F9. Change the layout.** Keep slide 4 open.
 
 - Do: send "On slide 4 put the figure on the left at span 8 and the text on the right at span 4, keeping both blocks, with update_slide's layoutChange."
-- Ground truth: H3 shows `update_slide` with `err: false` and "layout" in the result. Send "Read slide 4 with get_slides and quote its `_layout` description." The description reads `Row 1: <figure id> (span=8) | <text id> (span=4)`. Screenshot the canvas: the figure is on the left and wider.
+- Ground truth: H3 shows `update_slide` with `err: false` and a result that starts "Updated layout" and whose `Layout:` line reads `Row 1: <figure id> (span=8) | <text id> (span=4)`. Send "Read slide 4 with get_slides and quote its `_layout` description." The description reads the same. Screenshot the canvas: the figure is on the left and wider.
 - Pass: both.
 
 **F10. Rebuild a slide with a type change.**
 
 - Do: send "Turn slide 3, the section slide, into a content slide with a single text block reading 'Replaced by replace_slide', using replace_slide."
-- Ground truth: H3 shows `replace_slide` with `err: false`. Slide 3's rail thumbnail and canvas show a content slide with that text. Screenshot.
+- Ground truth: H3 shows `replace_slide` with `err: false` and a result that follows its sentence with the `Blocks:` line (one text block), the `Layout:` line and the `Page:` line. Slide 3's rail thumbnail and canvas show a content slide with that text. Screenshot.
 - Pass: screenshot confirms.
 
 **F11. Figure edits that validate before they commit.** Open slide 2.
 
 - Do: send "Read slide 2 with get_slides. If the figure has a replicant, change it to the second available value with update_figure; otherwise restrict its period to the latest twelve months of its coverage with update_figure. Report the change lines."
-- Ground truth: H3 shows `get_slides` and `update_figure` with `err: false`, the result listing the changed field and "no change" for the rest. Screenshot the slide: the figure re-rendered with the new replicant or period.
+- Ground truth: H3 shows `get_slides` and `update_figure` with `err: false`, the result listing the changed field and "no change" for the rest, then the `Page:` line and `Figure <block id>:` with the config that resulted, which shows the new replicant or period. Screenshot the slide: the figure re-rendered with the new replicant or period.
 - Do: send "Now set a filter on admin_area_2 to the value 'NOT_A_REAL_AREA' with update_figure."
 - Ground truth: H3 shows `update_figure` with `err: true`, the text listing valid values or saying the dimension is unavailable. Screenshot the slide: identical to the previous screenshot.
 - Ask the copilot: "Did the second edit change anything on the slide?"
@@ -415,7 +415,7 @@ NEW CONVERSATION.
 **F12. Structure writes.**
 
 - Do: send "Duplicate slide 2, then move the duplicate to the start, then tell me the order with get_deck."
-- Ground truth: H3 shows `duplicate_slides`, `move_slides`, `get_deck`, all `err: false`. The rail shows seven slides with the duplicate first. Screenshot the rail.
+- Ground truth: H3 shows `duplicate_slides`, `move_slides`, `get_deck`, all `err: false`. The duplicate's result ends at the new slide id and the move's at "Moved 1 slide(s)."; neither names `get_deck`. The rail shows seven slides with the duplicate first. Screenshot the rail.
 - Pass: the order in the rail equals the order in the copilot's answer.
 
 **F13. Delete asks first.**
@@ -439,7 +439,7 @@ NEW CONVERSATION.
 
 - Ground truth: H1 is editing_slide_figure; H5 shows instructions starting "# Current View: Figure editor (slide)".
 - Do: send "Read the figure editor, then change the caption to 'EDITOR CAPTION'."
-- Ground truth: H3 shows `get_figure_editor` and `update_figure_editor`, both `err: false`. The editor's preview shows the new caption before you click anything: screenshot. Click Apply. Back on the slide, screenshot: the caption is EDITOR CAPTION.
+- Ground truth: H3 shows `get_figure_editor` and `update_figure_editor`, both `err: false`. The update's result lists "caption: applied" and ends with "The draft's config:" and the config, its Caption line reading EDITOR CAPTION. The editor's preview shows the new caption before you click anything: screenshot. Click Apply. Back on the slide, screenshot: the caption is EDITOR CAPTION.
 - Pass: both screenshots.
 
 **F16. Covered views refuse.** Open the deck's Settings screen.
@@ -489,7 +489,7 @@ Skip under `read-only`. Go to Products, open the "Copilot tests" folder, click N
 **G5. Figure edit is direct.**
 
 - Do: send "Set the caption of the first figure to 'REPORT FIGURE CAPTION' with update_report_figure."
-- Ground truth: no diff. H3 shows `update_report_figure` with `err: false`. Screenshot the preview: the caption shows.
+- Ground truth: no diff. H3 shows `update_report_figure` with `err: false`, its result the per-field report and then `Figure <id>:` with the config that resulted, the new caption in it. Screenshot the preview: the caption shows.
 - Pass: screenshot confirms.
 
 **G6. Replace a figure.**

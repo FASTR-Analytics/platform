@@ -1,5 +1,21 @@
-import type { ContentSlide, Slide } from "lib";
-import { extractBlocksFromLayout } from "../../slide_ai/mod.ts";
+import type { ContentSlide, FigureBundle, MetricWithStatus, Slide } from "lib";
+import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
+import {
+  formatFigureConfigForAI,
+  readFigureMetricForAI,
+} from "../../_shared/mod.ts";
+import {
+  describeSlideBlocks,
+  extractBlocksFromLayout,
+} from "../../slide_ai/mod.ts";
+
+export function figureBlockIds(slide: Slide): string[] {
+  return slide.type === "content"
+    ? extractBlocksFromLayout(slide.layout)
+      .filter(({ block }) => block.type === "figure")
+      .map(({ id }) => id)
+    : [];
+}
 
 // Text blocks autofit, so a page that overflows overflows on its figures: they
 // are both the cause named and the fix offered. A fit is said as plainly, so a
@@ -7,23 +23,55 @@ import { extractBlocksFromLayout } from "../../slide_ai/mod.ts";
 function describePageFit(slide: ContentSlide, overflow: boolean): string {
   if (!overflow) return "Page: the layout fits the page.";
   const sentence = "Page: the layout overflows the page.";
-  const figureIds = extractBlocksFromLayout(slide.layout)
-    .filter(({ block }) => block.type === "figure")
-    .map(({ id }) => id);
+  const figureIds = figureBlockIds(slide);
   if (figureIds.length === 0) return sentence;
   return `${sentence} Figure block(s) ${
     figureIds.join(", ")
   }: filter the indicator dimension to the indicators this slide names, or choose a preset with fewer rows, then update_figure.`;
 }
 
-// The result of a slide write: `done`, the sentence saying what was done, and
-// for a content slide its page fit. Cover and section results are `done`
-// alone.
-export function slideWriteResult(
-  done: string,
+async function describeBuiltFigure(
+  env: ClientAIToolEnv,
+  metrics: MetricWithStatus[],
+  blockId: string,
+  bundle: FigureBundle,
+): Promise<string> {
+  const { lines, metric, config } = readFigureMetricForAI(metrics, bundle);
+  return [
+    `Figure ${blockId}:`,
+    ...lines,
+    await formatFigureConfigForAI(env, metric, config, bundle.dateRange),
+  ].join("\n");
+}
+
+// The result of a slide write, which states what the write left so the model
+// needs no read to learn it (PROTOCOL_APP_AI_TOOLS.md "The round budget"):
+// the sentence saying what was done, then, for a content slide, its blocks by
+// id and type, its layout, its page fit and the config of each figure the
+// write built or changed. Cover and section results are the sentence alone.
+//
+// Called BEFORE the write, and the function it returns after it, with the
+// sentence: formatting a figure's config reads the package, and a throw once
+// the write has landed would report a landed write as failed.
+export async function prepareSlideWriteResult(
+  env: ClientAIToolEnv,
+  metrics: MetricWithStatus[],
   slide: Slide,
   overflow: boolean,
-): string {
-  if (slide.type !== "content") return done;
-  return [done, describePageFit(slide, overflow)].join("\n");
+  builtFigureIds: readonly string[],
+): Promise<(done: string) => string> {
+  if (slide.type !== "content") return (done) => done;
+  const figures = await Promise.all(
+    extractBlocksFromLayout(slide.layout).flatMap(({ id, block }) =>
+      builtFigureIds.includes(id) && block.type === "figure" && block.bundle
+        ? [describeBuiltFigure(env, metrics, id, block.bundle)]
+        : []
+    ),
+  );
+  const left = [
+    ...describeSlideBlocks(slide.layout),
+    describePageFit(slide, overflow),
+    ...figures,
+  ];
+  return (done) => [done, ...left].join("\n");
 }

@@ -187,10 +187,20 @@ export function getClientToolsForFigureEditor(
           newBundle.items,
         );
 
+        // Formatted before the draft changes, and as get_figure_editor prints
+        // it: the check below and the apply share one tick, and a throw after
+        // the apply would report an applied change as failed.
+        const draft = await formatFigureConfigForAI(
+          env,
+          metric,
+          newConfig,
+          undefined,
+        );
+
         assertFigureEditorStillOpen(view);
         view.context.applyDraftConfig(newConfig);
         const reportText = report.map((l) => `- ${l}`).join("\n");
-        return `Updated the figure editor's draft.\n${reportText}\nThe change shows in the editor; the user keeps it with Apply or discards it with Cancel.`;
+        return `Updated the figure editor's draft.\n${reportText}\nThe change shows in the editor; the user keeps it with Apply or discards it with Cancel.\nThe draft's config:\n${draft}`;
       },
       inProgressLabel: "Updating the figure...",
       completionMessage: "Updated the figure",

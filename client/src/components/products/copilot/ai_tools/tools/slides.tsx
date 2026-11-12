@@ -38,7 +38,10 @@ import {
   slideTargetOutcome,
   writeSlideTarget,
 } from "./slide_target.ts";
-import { slideWriteResult } from "./slide_write_result.ts";
+import {
+  figureBlockIds,
+  prepareSlideWriteResult,
+} from "./slide_write_result.ts";
 
 // A figure is `{ metricId, config }` resolved under the deck's own results
 // package and scope: there is no figure library to point at, so every
@@ -141,6 +144,13 @@ export function getClientToolsForSlides(
           metrics,
           view.context.getDeckConfig(),
         );
+        const result = await prepareSlideWriteResult(
+          env,
+          metrics,
+          convertedSlide,
+          overflow,
+          figureBlockIds(convertedSlide),
+        );
 
         const res = await serverActions.createSlide({
           product_id: view.params.deckId,
@@ -152,12 +162,10 @@ export function getClientToolsForSlides(
         copilotViewController.markAIEdit(`slide:${res.data.slideId}`);
         copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
-        return slideWriteResult(
+        return result(
           `Created slide ${res.data.slideId}: "${
             getSlideTitle(convertedSlide)
-          }". Deck has been updated. Call get_deck if you need to review the current deck state.`,
-          convertedSlide,
-          overflow,
+          }".`,
         );
       },
       inProgressLabel: (input) => `Creating ${input.slide.type} slide...`,
@@ -167,7 +175,7 @@ export function getClientToolsForSlides(
         }"`,
     }),
 
-    createUpdateSlideTool(metrics),
+    createUpdateSlideTool(env, metrics),
 
     createUpdateFigureTool(env, metrics),
 
@@ -201,17 +209,22 @@ export function getClientToolsForSlides(
           metrics,
           view.context.getDeckConfig(),
         );
+        const result = await prepareSlideWriteResult(
+          env,
+          metrics,
+          convertedSlide,
+          overflow,
+          figureBlockIds(convertedSlide),
+        );
         // Read after the conversion, so a stored slide's version is as fresh
         // as it can be when the write is checked against it.
         const target = await readSlideTarget(view, input.slideId);
         await writeSlideTarget(view, target, convertedSlide);
 
-        return slideWriteResult(
+        return result(
           `Replaced slide ${input.slideId}: "${
             getSlideTitle(convertedSlide)
           }". ${slideTargetOutcome(target)}`,
-          convertedSlide,
-          overflow,
         );
       },
       inProgressLabel: (input) => `Replacing slide ${input.slideId}...`,
@@ -278,7 +291,7 @@ export function getClientToolsForSlides(
               }
               copilotViewController.markAIEdit(`product:${deckId}`);
 
-              return `Deleted ${res.data.deletedIds.length} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
+              return `Deleted ${res.data.deletedIds.length} slide(s).`;
             },
           };
         },
@@ -324,7 +337,7 @@ export function getClientToolsForSlides(
 
         return `Duplicated ${input.slideIds.length} slide(s). Created ${res.data.newSlideIds.length} new slide(s) with IDs: ${
           res.data.newSlideIds.join(", ")
-        }. Deck has been updated. Call get_deck if you need to review the current deck state.`;
+        }.`;
       },
       inProgressLabel: (input) =>
         `Duplicating ${input.slideIds.length} slide(s)...`,
@@ -401,7 +414,7 @@ export function getClientToolsForSlides(
         }
         copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
-        return `Moved ${input.slideIds.length} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
+        return `Moved ${input.slideIds.length} slide(s).`;
       },
       inProgressLabel: (input) => `Moving ${input.slideIds.length} slide(s)...`,
       completionMessage: (input) => `Moved ${input.slideIds.length} slide(s)`,

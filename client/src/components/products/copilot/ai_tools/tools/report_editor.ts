@@ -650,6 +650,15 @@ export function getClientToolsForReportEditor(
           newBundle.items,
         );
 
+        // Formatted before the write, and as get_report_figure prints it: a
+        // throw once the figure is saved would report a saved change as failed.
+        const resulting = await formatFigureConfigForAI(
+          env,
+          metric,
+          newConfig,
+          newBundle.dateRange,
+        );
+
         const saved = await ctx.applyFigureUpdate(input.figureId, {
           type: "figure",
           bundle: newBundle,
@@ -664,7 +673,7 @@ export function getClientToolsForReportEditor(
         copilotViewController.markAIEdit(`product:${view.params.reportId}`);
         return `Updated figure ${input.figureId}.\n${
           report.map((l) => `- ${l}`).join("\n")
-        }\nThe preview is updated and saved.`;
+        }\nThe preview is updated and saved.\nFigure ${input.figureId}:\n${resulting}`;
       },
       inProgressLabel: "Updating figure...",
       completionMessage: "Updated figure",

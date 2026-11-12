@@ -32,7 +32,7 @@ import {
   slideTargetOutcome,
   writeSlideTarget,
 } from "./slide_target.ts";
-import { slideWriteResult } from "./slide_write_result.ts";
+import { prepareSlideWriteResult } from "./slide_write_result.ts";
 
 // Replace the bundle of one figure block in a content slide's layout, in place
 // (same blockId). Returns a fresh slide: never mutates the input.
@@ -63,12 +63,14 @@ export function createUpdateFigureTool(
     viewRegistry: copilotViews,
     name: "update_figure",
     description:
-      "Edit an existing FIGURE block in place: THE tool for changing anything about a figure already on a slide (the replicant, filters, disaggregation, period, captions), however it was created. Give the slideId and the figure's blockId (both from get_slides) and only the fields to change (e.g. selectedReplicantValue, filterBy, disaggregateBy, periodFilter, caption); everything else is preserved and the data is re-queried automatically. To CHANGE A REPLICANT, always use this: it validates the value against the available options and errors clearly. The figure's chart type cannot be changed here (replace the block with a new from_metric figure to change it). An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately. To edit a figure embedded in a REPORT, use update_report_figure instead.",
+      "Edit an existing FIGURE block in place: THE tool for changing anything about a figure already on a slide (the replicant, filters, disaggregation, period, captions), however it was created. Give the slideId and the figure's blockId (from get_slides, or from the result of the write that made the block) and only the fields to change (e.g. selectedReplicantValue, filterBy, disaggregateBy, periodFilter, caption); everything else is preserved and the data is re-queried automatically. To CHANGE A REPLICANT, always use this: it validates the value against the available options and errors clearly. The figure's chart type cannot be changed here (replace the block with a new from_metric figure to change it). An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately. To edit a figure embedded in a REPORT, use update_report_figure instead.",
     inputSchema: z.object({
       slideId: z.string().describe(
         "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
       ),
-      blockId: z.string().describe("Figure block ID (from get_slides)."),
+      blockId: z.string().describe(
+        "Figure block ID (from get_slides, or from the result of the write that made the block).",
+      ),
       patch: AiFigureConfigPatchSchema,
     }),
     availableIn: COPILOT_TOOL_VIEWS.update_figure,
@@ -226,15 +228,20 @@ export function createUpdateFigureTool(
         updatedSlide,
         view.context.getDeckConfig(),
       );
+      const result = await prepareSlideWriteResult(
+        env,
+        metrics,
+        updatedSlide,
+        overflow,
+        [input.blockId],
+      );
       await writeSlideTarget(view, target, updatedSlide);
 
       const reportText = report.map((l) => `- ${l}`).join("\n");
-      return slideWriteResult(
+      return result(
         `Updated figure ${input.blockId} in slide ${input.slideId}.\n${reportText}\n${
           slideTargetOutcome(target)
         }`,
-        updatedSlide,
-        overflow,
       );
     },
     inProgressLabel: "Updating figure...",

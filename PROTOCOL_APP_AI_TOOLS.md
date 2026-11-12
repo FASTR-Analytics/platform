@@ -97,6 +97,16 @@ Arrays meaning "items to include" require `.min(1)`, since an empty inclusion li
 | `valuesFilter`      | include no values     | Yes        |
 | `disaggregateBy`    | no grouping           | No         |
 
+## The round budget
+
+A turn is everything from one user message to the reply that calls no tool. A round is one model reply that calls tools, with the results sent back: a reply may hold several calls, and they are one round. The chat engine caps the rounds of a turn (SYSTEM_13 "The panther engine"), so a tool is built to need few of them:
+
+- **A read that can be asked for many takes an array.** One call returns every item the request needs, in the order asked, each with its id. The array is an inclusion list (`.min(1)`): an id that names nothing refuses the whole call before anything is read, naming every such id, and an id given twice is read once.
+- **A write's result states what the write left.** Whatever the write decided that the model did not send comes back in its result: the ids it minted, the layout it chose, a flag it measured, the config a preset resolved to. What the model sent is never echoed (a block's text), nor what it has already read (a figure's data). Everything the result needs is computed before the write, so a throw still means nothing changed.
+- **No result invites a read-back.** A read-back is a read whose only purpose is to learn what the model's own write just did. A write's result never names a read tool. A failure message may name the read that corrects the call.
+
+The reference implementations are the deck's tools. `get_slides({ slideIds })` reads any number of slides in one round. The four slide writes (`create_slide`, `replace_slide`, `update_slide`, `update_figure`) return one result composed by `prepareSlideWriteResult` (`client/src/components/products/copilot/ai_tools/tools/slide_write_result.ts`): the sentence saying what was done, then, for a content slide, its blocks by id and type, its layout, its page fit and the config of each figure the write built or changed. The three figure patch tools (`update_figure`, `update_report_figure`, `update_figure_editor`) return their per-field report and then the config that resulted, as the matching read prints it.
+
 ## Gotchas
 
 - **Never `z.strictObject()`.** It rejects instead of strips unknown properties; Claude sometimes adds underscore-prefixed metadata keys, which then throw on every call. Empty-input tools use `z.object({})`.
@@ -111,3 +121,4 @@ Arrays meaning "items to include" require `.min(1)`, since an empty inclusion li
 5. Data-dependent checks go in `content_validators.ts` (or `report_validators.ts`), called before any mutation.
 6. Handlers throw on failure; never return error strings; never `z.strictObject` / `strict: true`.
 7. If the tool's _output_ prints a schema example, it must match the real schema exactly.
+8. A read that can be asked for many takes an array, and a write's result states what the write left: "The round budget".

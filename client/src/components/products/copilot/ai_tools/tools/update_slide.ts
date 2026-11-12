@@ -12,7 +12,10 @@ import {
 } from "lib";
 import { AIToolFailure, createAITool, type LayoutNode } from "panther";
 import { z } from "zod";
-import { copilotViews } from "~/components/instance/copilot/mod.ts";
+import {
+  type ClientAIToolEnv,
+  copilotViews,
+} from "~/components/instance/copilot/mod.ts";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 import {
   validateMaxContentBlocks,
@@ -32,7 +35,7 @@ import {
   slideTargetOutcome,
   writeSlideTarget,
 } from "./slide_target.ts";
-import { slideWriteResult } from "./slide_write_result.ts";
+import { prepareSlideWriteResult } from "./slide_write_result.ts";
 
 // Mirrors the Slide storage union, so a field aimed at the wrong slide type
 // is unrepresentable in the tool call. The union sits under a key because
@@ -58,7 +61,9 @@ const SlideUpdateSchema = z
       blockUpdates: z
         .array(
           z.object({
-            blockId: z.string().describe("Block ID from get_slides"),
+            blockId: z.string().describe(
+              "Block ID, from get_slides or from the result of the write that made the block",
+            ),
             newContent: AiContentBlockInputSchema,
           }),
         )
@@ -82,14 +87,20 @@ type AppliedUpdate = {
   slide: Slide;
   changes: string[];
   removedBlocks: { id: string; type: string }[];
+  // The figure blocks the update built: the model sent a metric and a preset
+  // for each, so their configs go back in the result.
+  builtFigureIds: string[];
 };
 
-export function createUpdateSlideTool(metrics: MetricWithStatus[]) {
+export function createUpdateSlideTool(
+  env: ClientAIToolEnv,
+  metrics: MetricWithStatus[],
+) {
   return createAITool({
     viewRegistry: copilotViews,
     name: "update_slide",
     description:
-      "Change a slide in place, keeping everything not named: a cover's title, subtitle, presenter or date; a section's title or subtitle; a content slide's header, its blocks (blockUpdates) or its layout (layoutChange). Give the slideId and an `update` whose `type` matches the slide's type, with only the fields to change. Call get_slides first for the slide's type and block IDs. A from_metric block needs get_metric_data first. To tweak an existing figure use update_figure; to rebuild a slide or change its type use replace_slide. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately.",
+      "Change a slide in place, keeping everything not named: a cover's title, subtitle, presenter or date; a section's title or subtitle; a content slide's header, its blocks (blockUpdates) or its layout (layoutChange). Give the slideId and an `update` whose `type` matches the slide's type, with only the fields to change. Call get_slides first for the slide's type. A block ID comes from get_slides or from the result of the write that made the block. A from_metric block needs get_metric_data first. To tweak an existing figure use update_figure; to rebuild a slide or change its type use replace_slide. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately.",
     inputSchema: z.object({
       slideId: z.string().describe(
         "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
@@ -121,18 +132,23 @@ export function createUpdateSlideTool(metrics: MetricWithStatus[]) {
           view.context.getDeckConfig(),
         )
         : false;
+      const result = await prepareSlideWriteResult(
+        env,
+        metrics,
+        applied.slide,
+        overflow,
+        applied.builtFigureIds,
+      );
       await writeSlideTarget(view, target, applied.slide);
       const removed = applied.removedBlocks.length === 0
         ? ""
         : ` Removed blocks: ${
           applied.removedBlocks.map((b) => `${b.id} (${b.type})`).join(", ")
         }.`;
-      return slideWriteResult(
+      return result(
         `Updated ${
           applied.changes.join(", ")
         } in slide ${input.slideId}.${removed} ${slideTargetOutcome(target)}`,
-        applied.slide,
-        overflow,
       );
     },
     inProgressLabel: (input) => `Updating slide ${input.slideId}...`,
@@ -152,6 +168,7 @@ async function applySlideUpdate(
       slide: { ...slide, ...fields },
       changes: Object.keys(fields),
       removedBlocks: [],
+      builtFigureIds: [],
     };
   }
   if (slide.type === "section" && u.type === "section") {
@@ -160,12 +177,14 @@ async function applySlideUpdate(
       slide: { ...slide, ...fields },
       changes: Object.keys(fields),
       removedBlocks: [],
+      builtFigureIds: [],
     };
   }
   if (slide.type === "content" && u.type === "content") {
     let updated: ContentSlide = slide;
     const changes: string[] = [];
     let removedBlocks: AppliedUpdate["removedBlocks"] = [];
+    const builtFigureIds: string[] = [];
     if (u.header !== undefined) {
       updated = { ...updated, header: u.header };
       changes.push("header");
@@ -182,6 +201,11 @@ async function applySlideUpdate(
         u.blockUpdates,
         metrics,
       ) as ContentSlide;
+      builtFigureIds.push(
+        ...u.blockUpdates
+          .filter((bu) => bu.newContent.type !== "text")
+          .map((bu) => bu.blockId),
+      );
       changes.push(`${u.blockUpdates.length} block(s)`);
     }
     if (u.layoutChange) {
@@ -193,6 +217,7 @@ async function applySlideUpdate(
       );
       updated = { ...updated, layout: resolved.layout };
       removedBlocks = resolved.removedBlocks;
+      builtFigureIds.push(...resolved.builtFigureIds);
       changes.push("layout");
     }
     if (changes.some((c) => c !== "header")) {
@@ -202,7 +227,7 @@ async function applySlideUpdate(
         ),
       );
     }
-    return { slide: updated, changes, removedBlocks };
+    return { slide: updated, changes, removedBlocks, builtFigureIds };
   }
   throw new AIToolFailure(
     `This is a "${slide.type}" slide, but the update was for a "${u.type}" slide. No changes were applied. Use get_slides to see the slide's type.`,
@@ -220,6 +245,7 @@ async function resolveLayoutSpec(
 ): Promise<{
   layout: LayoutNode<ContentBlock>;
   removedBlocks: AppliedUpdate["removedBlocks"];
+  builtFigureIds: string[];
 }> {
   const existing = new Map(
     extractBlocksFromLayout(layout).map(({ id, block }) => [id, block]),
@@ -245,6 +271,7 @@ async function resolveLayoutSpec(
 
   const spans = normalizeSpans(spec);
   const generateId = createIdGeneratorForLayout(layout);
+  const builtFigureIds: string[] = [];
   const rows: { id: string; block: ContentBlock; span: number }[][] = [];
   for (const [r, row] of spec.entries()) {
     const resolvedRow: { id: string; block: ContentBlock; span: number }[] = [];
@@ -260,8 +287,10 @@ async function resolveLayoutSpec(
         validateNoMarkdownTables(cell.block.markdown);
         resolvedRow.push({ id: generateId(), block: cell.block, span });
       } else {
+        const id = generateId();
+        builtFigureIds.push(id);
         resolvedRow.push({
-          id: generateId(),
+          id,
           block: await resolveFigureFromMetric(scope, cell.block, metrics),
           span,
         });
@@ -275,5 +304,6 @@ async function resolveLayoutSpec(
     removedBlocks: [...existing]
       .filter(([id]) => !named.has(id))
       .map(([id, block]) => ({ id, type: block.type })),
+    builtFigureIds,
   };
 }
