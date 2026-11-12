@@ -84,7 +84,7 @@ Returns `{ id, label, params }`. The id is one of: products, opening_product, ed
             i,
             result: b.tool_use_id,
             err: b.is_error === true,
-            text: String(b.content).slice(0, 400),
+            text: String(b.content).slice(0, 1500),
           }]
           : []
       )
@@ -353,7 +353,7 @@ NEW CONVERSATION.
 **F3. Create a cover and a content slide with a figure.**
 
 - Do: send "Create a cover slide titled 'Copilot test' with subtitle 'automated run', then a content slide with a short three-bullet text block on the left and a figure of the metric you consider the main primary result on the right, using get_metric_data first. Then tell me what you created."
-- Ground truth: H3 shows `get_metric_data`, then two `create_slide` calls, all `err: false`. The cover's result is one sentence, "Created slide <id>: ...". The content slide's result follows its sentence with a `Blocks:` line (each block's id and type), a `Layout:` line, a `Page:` line saying the layout fits or overflows the page, and `Figure <block id>:` with the figure's config. Neither result names `get_deck`. The rail shows two slides. Open slide 2 by clicking it in the rail and screenshot the canvas: it must show a text block and a rendered chart or table, not an error tile. Screenshot slide 1 too.
+- Ground truth: H3 shows `get_metric_data`, then two `create_slide` calls, all `err: false`. The cover's result is one sentence, "Created slide <id>: ...". The content slide's result follows its sentence with a `Blocks:` line (each block's id and type), a `Layout:` line, a `Page:` line saying the layout fits or overflows the page, and `Figure <block id>:` with the figure's config. Neither result names `get_deck`, and H3 shows no `get_slides` call after either `create_slide`: the copilot describes what it created from the two results. The rail shows two slides. Open slide 2 by clicking it in the rail and screenshot the canvas: it must show a text block and a rendered chart or table, not an error tile. Screenshot slide 1 too.
 - Ask the copilot: "Describe slides 1 and 2 exactly as they are now, using get_slides: for slide 2 the blocks, their ids, and the figure's metric and preset."
 - Ground truth: H3 shows one `get_slides` call whose `slideIds` holds both slides' ids and whose result is an array of two entries in that order, each with its `slideId`, and slide 2's entry has `overflow`, which agrees with the `Page:` line of its create_slide result and with the slide's badge (a slide that overflows shows "Layout overflow" on its rail thumbnail and "Content exceeds available space" on the open canvas); the block ids in the answer match the tool result and the `Blocks:` line of the create_slide result; the metric id equals the one in the create_slide input.
 - Pass: both slides render as described in the screenshots.
@@ -361,14 +361,14 @@ NEW CONVERSATION.
 **F4. Edit text in place.** Keep slide 2 open.
 
 - Do: send "On the slide that is open, replace the text block with two bullets that each cite one number from the figure's data, using update_slide."
-- Ground truth: H3 shows `update_slide` with `err: false` and a result whose first line contains "It shows on the open slide at once", followed by the `Blocks:`, `Layout:` and `Page:` lines and no `Figure` section (no figure was built). The canvas updates without a reload: screenshot it and confirm two bullets with numbers.
+- Ground truth: H3 shows one `get_slides` call for the open slide, the turn's read, then `update_slide` with `err: false` and a result whose first line contains "It shows on the open slide at once", followed by the `Blocks:`, `Layout:` and `Page:` lines and no `Figure` section (no figure was built). No `get_slides` call follows the `update_slide`. The canvas updates without a reload: screenshot it and confirm two bullets with numbers.
 - Ask the copilot: "Did that edit save, and where did it land?"
 - Pass: the screenshot shows the new text; the answer says it landed on the open slide and saved automatically.
 
 **F5. Tweak the figure.**
 
 - Do: send "Set the figure's caption to 'COPILOT CAPTION' and footnote to 'test footnote' with update_figure, nothing else."
-- Ground truth: H3 shows `update_figure` with `err: false` and a result listing the per-field change report ("caption: ..."), then the `Blocks:`, `Layout:` and `Page:` lines and `Figure <block id>:` with the config that resulted, its Caption line reading COPILOT CAPTION. Screenshot the slide: the caption reads COPILOT CAPTION.
+- Ground truth: H3 shows `update_figure` with `err: false` and a result listing the per-field change report ("caption: ..."), then the `Blocks:`, `Layout:` and `Page:` lines and `Figure <block id>:` with the config that resulted, its Caption line reading COPILOT CAPTION. At most one `get_slides` call precedes the `update_figure` and none follows it. Screenshot the slide: the caption reads COPILOT CAPTION.
 - Pass: screenshot confirms.
 
 **F6. User edit is reported back.** Click into the text block on the open slide and type one extra word at the end (the editor's text field), then click away.
@@ -382,7 +382,7 @@ NEW CONVERSATION.
 **F7. Build a six-slide deck.**
 
 - Do: send "Extend this deck to six slides about the same metric: keep the two we have, add a section slide, then two content slides each with one figure of a different preset or disaggregation and a two-bullet text block, then a closing content slide with three key messages and no figure. Call get_metric_data before each figure. Then list the deck with get_deck."
-- Ground truth: H3 shows four `create_slide` calls, all `err: false`, with `get_metric_data` reads before the figures, and a final `get_deck`. The rail shows six slides. Click each slide in turn and screenshot it: every figure renders, no error tile, no empty block. The order in the copilot's list equals the rail's.
+- Ground truth: H3 shows four `create_slide` calls, all `err: false`, with `get_metric_data` reads before the figures, and a final `get_deck`. No `get_slides` call follows a `create_slide`. The rail shows six slides. Click each slide in turn and screenshot it: every figure renders, no error tile, no empty block. The order in the copilot's list equals the rail's.
 - Pass: six screenshots, all rendering.
 
 **F8. Edit a slide that is not open.** Open slide 1 in the rail.
@@ -394,7 +394,7 @@ NEW CONVERSATION.
 **F9. Change the layout.** Keep slide 4 open.
 
 - Do: send "On slide 4 put the figure on the left at span 8 and the text on the right at span 4, keeping both blocks, with update_slide's layoutChange."
-- Ground truth: H3 shows `update_slide` with `err: false` and a result that starts "Updated layout" and whose `Layout:` line reads `Row 1: <figure id> (span=8) | <text id> (span=4)`. Send "Read slide 4 with get_slides and quote its `_layout` description." The description reads the same. Screenshot the canvas: the figure is on the left and wider.
+- Ground truth: H3 shows `update_slide` with `err: false` and a result that starts "Updated layout" and whose `Layout:` line reads `Row 1: <figure id> (span=8) | <text id> (span=4)`. No `get_slides` call follows the `update_slide`. Screenshot the canvas: the figure is on the left and wider.
 - Pass: both.
 
 **F10. Rebuild a slide with a type change.**
@@ -406,7 +406,7 @@ NEW CONVERSATION.
 **F11. Figure edits that validate before they commit.** Open slide 2.
 
 - Do: send "Read slide 2 with get_slides. If the figure has a replicant, change it to the second available value with update_figure; otherwise restrict its period to the latest twelve months of its coverage with update_figure. Report the change lines."
-- Ground truth: H3 shows `get_slides` and `update_figure` with `err: false`, the result listing the changed field and "no change" for the rest, then the `Page:` line and `Figure <block id>:` with the config that resulted, which shows the new replicant or period. Screenshot the slide: the figure re-rendered with the new replicant or period.
+- Ground truth: H3 shows `get_slides` and `update_figure` with `err: false`, the result listing the changed field and "no change" for the rest, then the `Page:` line and `Figure <block id>:` with the config that resulted, which shows the new replicant or period. No `get_slides` call follows the `update_figure`: the copilot reports the change lines from the write's result. Screenshot the slide: the figure re-rendered with the new replicant or period.
 - Do: send "Now set a filter on admin_area_2 to the value 'NOT_A_REAL_AREA' with update_figure."
 - Ground truth: H3 shows `update_figure` with `err: true`, the text listing valid values or saying the dimension is unavailable. Screenshot the slide: identical to the previous screenshot.
 - Ask the copilot: "Did the second edit change anything on the slide?"

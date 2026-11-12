@@ -100,7 +100,7 @@ export function createUpdateSlideTool(
     viewRegistry: copilotViews,
     name: "update_slide",
     description:
-      "Change a slide in place, keeping everything not named: a cover's title, subtitle, presenter or date; a section's title or subtitle; a content slide's header, its blocks (blockUpdates) or its layout (layoutChange). Give the slideId and an `update` whose `type` matches the slide's type, with only the fields to change. Call get_slides first for the slide's type. A block ID comes from get_slides or from the result of the write that made the block. A from_metric block needs get_metric_data first. To tweak an existing figure use update_figure; to rebuild a slide or change its type use replace_slide. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately.",
+      "Change a slide in place, keeping everything not named: a cover's title, subtitle, presenter or date; a section's title or subtitle; a content slide's header, its blocks (blockUpdates) or its layout (layoutChange). Give the slideId and an `update` whose `type` matches the slide's type, with only the fields to change. A block ID comes from get_slides or from the result of the write that made the block. A from_metric block needs get_metric_data first. To tweak an existing figure use update_figure; to rebuild a slide or change its type use replace_slide. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately.",
     inputSchema: z.object({
       slideId: z.string().describe(
         "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",

@@ -4,12 +4,12 @@ import {
   buildInstanceContextSections,
   buildPackageBlock,
   buildSystemPrompt,
+  CHAT_CORE_PRINCIPLES,
   type DatasetType,
   type ExploreViewBinding,
   type ExploreViewTypeId,
   type InstalledModuleSummary,
   type InstanceState,
-  MAX_CONTENT_BLOCKS,
   type PackageScope,
   periodChoiceId,
   type ResolvedView,
@@ -19,8 +19,6 @@ import {
   type RunProgress,
   runProgressSteps,
   runStageLabel,
-  SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
-  SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
   t3,
 } from "lib";
 import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
@@ -52,9 +50,7 @@ export function buildSystemPromptForContext(instance: InstanceState): string {
     contextSection: sections.join("\n"),
     roleAndPurpose:
       "You are an AI assistant helping users explore, analyze and present the health data in this FASTR instance. The user moves through the app while you talk: each message tells you the current view, its state and, where one is in view, the results package and scope every read resolves under. You can query data, draft slides and figures, and help build the slide deck or report the user has open; a tool outside the current view refuses when called, so work with what the view offers.",
-    extraCorePrinciples: [
-      "**Ask when uncertain** - Use the ask_user_questions tool to clarify preferences, choose between approaches, or confirm decisions before proceeding. Don't guess what the user wants when you can ask.",
-    ],
+    extraCorePrinciples: CHAT_CORE_PRINCIPLES,
   });
 }
 
@@ -252,61 +248,6 @@ The user has one HFA indicator open in its code editor. You work on the editor's
 ${guidance}
 
 ${NO_PACKAGE_LINE}`;
-}
-
-// ── Editing mode instructions ──
-
-export function getEditingSlideDeckInstructions(deckLabel: string): string {
-  return `# Current View: Editing slide deck
-
-You're editing the slide deck "${deckLabel}".
-
-Every figure in this deck resolves under the deck's own results package and
-scope; you do not choose the package, and no tool takes one.
-
-## Slide Types
-
-1. **Cover Slide:** title, subtitle, presenter, date
-2. **Section Slide:** sectionTitle, sectionSubtitle
-3. **Content Slide:** heading + blocks array (max ${MAX_CONTENT_BLOCKS} blocks)
-
-## Content Blocks
-
-**Text (markdown):** { "type": "text", "markdown": "..." }
-**From metric:** { "type": "from_metric", "metricId": "...", "vizPresetId": "...", "chartTitle": "..." }
-
-A figure is always a metric plus one of that metric's presets. There is no
-figure library to clone from: to reuse a figure, duplicate the slide that holds
-it.
-
-**IMPORTANT:** Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type preset.
-
-## Text Length Guidelines
-
-**Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide** (adjust down if slide has multiple figures)
-**Absolute maximum: ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words per slide**
-
-Keep text concise and focused. Slides with figures should have less text. Use bullet points, not paragraphs.
-
-## Communication Style
-
-When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a3k', 't2n') — these are meaningless to the user. Instead, refer to slides by their position (e.g. "slide 3"), title (e.g. "the ANC Coverage slide"), or type (e.g. "the cover slide"). Refer to blocks by their content (e.g. "the bar chart showing immunization rates", "the text block on the left"). Use IDs only in tool calls, never in your messages to the user.
-
-## The Open Slide
-
-The deck editor shows the deck's slides in a rail with one slide open beside it. The view state names the open slide, or says there is none. An edit to the open slide shows on the canvas at once and saves automatically; an edit to any other slide is saved immediately. Every slide tool that names a slide takes its ID and works on any slide of the deck, open or not, so never ask the user to open, close or switch a slide or a view.
-
-## Workflow
-
-1. Call get_deck FIRST to understand the deck's structure
-2. Call get_slides before changing any slide: it shows the slide's content and block IDs (the open slide as the canvas shows it, unsaved changes included) and each figure's full config
-3. Choose the right tool for the job:
-   - **Change text, blocks or layout** (a cover's or section's fields, a content slide's header, a block's content, adding, removing, rearranging or resizing blocks) → update_slide
-   - **Tweak an existing figure** (replicant, filters, disaggregation, period, captions; not the chart type) → update_figure (slideId + blockId)
-   - **Rebuild a slide from scratch or change its type** → replace_slide (last resort)
-   - **Change the deck's structure** → create_slide, delete_slides, duplicate_slides, move_slides
-4. Call get_metric_data before creating any from_metric block, to check the data it needs is available
-5. Filter a content slide's from_metric block to the indicators the slide's text names: an unfiltered multi-indicator metric draws one panel per indicator, and the slide's layout overflows the page`;
 }
 
 // The view states of the Results, Explore and Data pages: what the user is

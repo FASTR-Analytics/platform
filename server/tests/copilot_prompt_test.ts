@@ -1,8 +1,9 @@
 // Pins what the chat tells the model under append-only turns: the system
 // prompt is instance level, with no date and no tool catalogue, which only
-// /mcp's one-shot get_overview asks for; the FASTR brief rides
-// rewrite_report's description alone; and the package block names the
-// package, the scope and each family's limits.
+// /mcp's one-shot get_overview asks for; the chat's own principles, which
+// /mcp does not pass; the deck brief's rule for when a slide is read; the
+// FASTR brief rides rewrite_report's description alone; and the package
+// block names the package, the scope and each family's limits.
 //
 //   deno test -A --no-check server/tests/copilot_prompt_test.ts
 
@@ -12,8 +13,10 @@ import {
   buildMapCoverageLines,
   buildPackageBlock,
   buildSystemPrompt,
+  CHAT_CORE_PRINCIPLES,
   FASTR_MD_SYNTAX_DOC,
   getEditingReportInstructions,
+  getEditingSlideDeckInstructions,
 } from "lib";
 
 const PARTS = {
@@ -100,6 +103,58 @@ Deno.test("buildSystemPrompt keeps the date and the catalogue when asked, as get
   assert(
     prompt.endsWith("\n# Available Tools\n\n- get_overview: the overview\n"),
   );
+});
+
+// A turn has a limited number of replies, and the chat's loop runs every call
+// of one reply before it asks the model again. /mcp's clients run their own
+// loop, so the principle is the chat's and not the shared base's.
+Deno.test("the chat's principles put independent calls in one reply, and a prompt given no extra principles does not", () => {
+  const chat = buildSystemPrompt({
+    ...PARTS,
+    extraCorePrinciples: CHAT_CORE_PRINCIPLES,
+  });
+  assertStringIncludes(chat, "6. **Ask when uncertain**");
+  assertStringIncludes(
+    chat,
+    "7. **Put calls that do not depend on each other in one reply** - A reply can hold several tool calls: they run in order and each returns its own result.",
+  );
+  assertStringIncludes(
+    chat,
+    "A call that needs another's result (a new slide's ID, a block ID) waits for that result.",
+  );
+
+  const bare = buildSystemPrompt(PARTS);
+  assert(!bare.includes("in one reply"));
+  assert(!bare.includes("Ask when uncertain"));
+});
+
+// One read per slide per turn: the read at the start of a turn stays, since a
+// collaborator's edit can land between two messages, and every read after a
+// write goes, since the write's result states what it left.
+Deno.test("the deck brief reads a slide once a turn and takes a write's result as the slide's state", () => {
+  const brief = getEditingSlideDeckInstructions("Round 1 report");
+  assert(
+    brief.startsWith(
+      '# Current View: Editing slide deck\n\nYou\'re editing the slide deck "Round 1 report".',
+    ),
+  );
+  assertStringIncludes(
+    brief,
+    "Read a slide with get_slides before your first change to it after a user message, and ask for every slide you need in one call.",
+  );
+  assertStringIncludes(
+    brief,
+    "Until the user's next message, the result of your own write to a slide (creating it included) is its state.",
+  );
+  assertStringIncludes(
+    brief,
+    "Never read a slide to confirm a write or to learn its block IDs",
+  );
+  assertStringIncludes(
+    brief,
+    "A write's result carries what the write left: the slide's block IDs, its layout, its page fit and the config of each figure the write built or changed.",
+  );
+  assert(!brief.includes("before changing any slide"));
 });
 
 Deno.test("the FASTR editing instructions do not carry the syntax doc", () => {
