@@ -2,7 +2,7 @@
 
 A copilot turn stops with "Stopped: too many tool calls in one turn" once the model has asked for tools in more than 24 replies, and a deck is where users reach it: one call reads one slide, a write's result leaves out what the model needs for its next call, so it reads the slide back, and the brief orders that read. This plan makes a deck's reads and writes take few rounds (one read for any number of slides, write results that state what the write left, a brief that stops ordering read-backs and says calls can share a reply), then raises panther's cap to 100 with a per-consumer override.
 
-**Next step: Do 4.**
+**Next step: Do 5.**
 
 Branch: `main` in both repos. Repos: this one (steps 1, 2, 3 and 5) and `timroberton-panther` (step 4). Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Tools, view gating, and approval", "The slide_ai conversion layer", "System prompt, documents, prompt library" and "The panther engine", [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md), and for step 4 the panther repo's `CLAUDE.md` and `DOC_AI_CHAT.md` "Turn model" and "Verification". Start when: this tree is clean.
 
