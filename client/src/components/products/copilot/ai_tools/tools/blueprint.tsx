@@ -129,6 +129,7 @@ function describeRun(
     "   - text: write it fresh from the brief, from this deck's data, at about targetWords words. keepVerbatim → copy verbatimText exactly (translated faithfully when the deck's language differs).",
     "   - image_slot: a text block reading 'Add image: <note>', so the person sees where the source had a picture.",
     "   - Build EXACTLY the approved number of slides per topic. A slide that keeps a source page word for word stays one slide (its layoutRows allows the length). If a create_slide call is refused, fix that slide and retry; never split it or add slides the outline does not have. If it cannot be built, skip it and say why in the summary.",
+    "   - Keep the outline's ORDER. Every slide is appended, so a slide retried after a refusal lands at the end: before the summary, call get_deck, compare the order with the approved outline, and move any slide that is out of place with move_slides.",
     `7. Write every word in ${lang}. Never copy the source country's names, numbers or findings: the briefs say what to report, and this deck's data says what is true. A brief that reads like a finding ("state that X collapsed") is the source's finding; report what THIS data shows about X instead, and never contrast it with the source's story.`,
     "8. Finish with a short summary: slides built per topic, topics dropped and why, stand-ins used, translated word-for-word blocks to check, and what the person still has to add (logos: the blueprint's logo slots; images).",
     "",
@@ -346,7 +347,7 @@ function describeDecision(
   }
   lines.push(
     "",
-    "Now create the slides with create_slide, position { toEnd: true }, one at a time, as the blueprint's patterns say.",
+    "Now create the slides with create_slide, position { toEnd: true }, in the outline's order, as the blueprint's patterns say. When all are built, check the order with get_deck and fix it with move_slides.",
   );
   return lines.join("\n");
 }
