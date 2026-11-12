@@ -368,7 +368,7 @@ NEW CONVERSATION.
 **F5. Tweak the figure.**
 
 - Do: send "Set the figure's caption to 'COPILOT CAPTION' and footnote to 'test footnote' with update_figure, nothing else."
-- Ground truth: H3 shows `update_figure` with `err: false` and a result listing the per-field change report ("caption: ..."), then the `Blocks:`, `Layout:` and `Page:` lines and `Figure <block id>:` with the config that resulted, its Caption line reading COPILOT CAPTION. At most one `get_slides` call precedes the `update_figure` and none follows it. Screenshot the slide: the caption reads COPILOT CAPTION.
+- Ground truth: H3 shows `update_figure` with `err: false` and a result listing the per-field change report ("caption: ..."), then the `Blocks:`, `Layout:` and `Page:` lines and `Figure <block id>:` with the config that resulted, its Caption line reading COPILOT CAPTION. One `get_slides` call for the open slide precedes the `update_figure`, the turn's read, and none follows it. Screenshot the slide: the caption reads COPILOT CAPTION.
 - Pass: screenshot confirms.
 
 **F6. User edit is reported back.** Click into the text block on the open slide and type one extra word at the end (the editor's text field), then click away.
@@ -388,7 +388,7 @@ NEW CONVERSATION.
 **F8. Edit a slide that is not open.** Open slide 1 in the rail.
 
 - Do: send "Change the header of slide 4 to 'STORED EDIT' with update_slide."
-- Ground truth: H3 shows `update_slide` with `err: false` and a result whose first line ends "The slide is saved." (the stored path, not the draft path), followed by the `Blocks:`, `Layout:` and `Page:` lines. Click slide 4: the header reads STORED EDIT. Screenshot.
+- Ground truth: H3 shows `update_slide` with `err: false` and a result whose first line ends "The slide is saved." (the stored path, not the draft path), followed by the `Blocks:`, `Layout:` and `Page:` lines. No `get_slides` call follows the `update_slide`. Click slide 4: the header reads STORED EDIT. Screenshot.
 - Pass: screenshot confirms.
 
 **F9. Change the layout.** Keep slide 4 open.
@@ -400,7 +400,7 @@ NEW CONVERSATION.
 **F10. Rebuild a slide with a type change.**
 
 - Do: send "Turn slide 3, the section slide, into a content slide with a single text block reading 'Replaced by replace_slide', using replace_slide."
-- Ground truth: H3 shows `replace_slide` with `err: false` and a result that follows its sentence with the `Blocks:` line (one text block), the `Layout:` line and the `Page:` line. Slide 3's rail thumbnail and canvas show a content slide with that text. Screenshot.
+- Ground truth: H3 shows `replace_slide` with `err: false` and a result that follows its sentence with the `Blocks:` line (one text block), the `Layout:` line and the `Page:` line. No `get_slides` call follows the `replace_slide`. Slide 3's rail thumbnail and canvas show a content slide with that text. Screenshot.
 - Pass: screenshot confirms.
 
 **F11. Figure edits that validate before they commit.** Open slide 2.

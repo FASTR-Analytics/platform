@@ -152,6 +152,10 @@ Deno.test("the deck brief reads a slide once a turn and takes a write's result a
   );
   assertStringIncludes(
     brief,
+    "The exception is a copy made by duplicate_slides, whose result gives only the new slide IDs: read the copy with get_slides before your first change to it",
+  );
+  assertStringIncludes(
+    brief,
     "A write's result carries what the write left: the slide's block IDs, its layout, its page fit and the config of each figure the write built or changed.",
   );
   assert(!brief.includes("before changing any slide"));
