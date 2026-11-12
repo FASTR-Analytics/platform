@@ -1,43 +1,15 @@
-import type { ContentBlock, MetricWithStatus, Slide } from "lib";
+import type { MetricWithStatus, Slide } from "lib";
 import { getDataFromConfig } from "lib";
-import type { LayoutNode } from "panther";
 import {
   formatFigureConfigForAI,
   readFigureMetricForAI,
 } from "../_shared/mod.ts";
 import {
+  extractBlocksFromLayout,
   layoutNodeToStructure,
   type LayoutStructure,
-} from "./layout_spec_helpers";
+} from "./layout_structure.ts";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
-
-export type BlockWithId = {
-  id: string;
-  block: ContentBlock;
-};
-
-export function extractBlocksFromLayout(
-  layout: LayoutNode<ContentBlock>,
-): BlockWithId[] {
-  const blocks: BlockWithId[] = [];
-
-  function traverse(node: LayoutNode<ContentBlock>) {
-    if (node.type === "item") {
-      blocks.push({
-        id: node.id,
-        block: node.data,
-      });
-    } else {
-      // Rows or cols - recurse
-      for (const child of node.children) {
-        traverse(child);
-      }
-    }
-  }
-
-  traverse(layout);
-  return blocks;
-}
 
 export type SimplifiedSlide =
   | {

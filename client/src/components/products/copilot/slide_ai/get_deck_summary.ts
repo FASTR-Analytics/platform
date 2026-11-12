@@ -1,7 +1,7 @@
 import { getSlideTitle, type Slide } from "lib";
 import type { OpenSlide } from "~/components/instance/copilot/mod.ts";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
-import { extractBlocksFromLayout } from "./extract_blocks_from_layout";
+import { extractBlocksFromLayout } from "./layout_structure.ts";
 
 function getContentSummary(slide: Slide): string {
   if (slide.type !== "content") return "";

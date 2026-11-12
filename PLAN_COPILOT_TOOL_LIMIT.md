@@ -197,3 +197,5 @@ Starts when `./sync --check wb-fastr`, run in the panther repo, reports nothing 
 - **Panther: a stop for a turn whose rounds keep failing, a Continue button, and an engine line asking the model to wrap up.**
 
 ## §6 Log
+
+- Step 2 edited `client/src/components/products/copilot/slide_ai/get_deck_summary.ts`, outside the step's Surface: its import of `extractBlocksFromLayout` follows the function to `layout_structure.ts`, because the move leaves nothing at the old path to import.
