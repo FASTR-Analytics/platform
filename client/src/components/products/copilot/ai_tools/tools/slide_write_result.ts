@@ -44,11 +44,7 @@ async function describeBuiltFigure(
   ].join("\n");
 }
 
-// The result of a slide write, which states what the write left so the model
-// needs no read to learn it (PROTOCOL_APP_AI_TOOLS.md "The round budget"):
-// the sentence saying what was done, then, for a content slide, its blocks by
-// id and type, its layout, its page fit and the config of each figure the
-// write built or changed. Cover and section results are the sentence alone.
+// The contract is PROTOCOL_APP_AI_TOOLS.md "The round budget".
 //
 // Called BEFORE the write, and the function it returns after it, with the
 // sentence: formatting a figure's config reads the package, and a throw once

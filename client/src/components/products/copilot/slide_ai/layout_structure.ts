@@ -22,7 +22,6 @@ export function extractBlocksFromLayout(layout: Layout): BlockWithId[] {
         block: node.data,
       });
     } else {
-      // Rows or cols - recurse
       for (const child of node.children) {
         traverse(child);
       }

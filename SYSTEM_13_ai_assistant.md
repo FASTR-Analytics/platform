@@ -242,3 +242,5 @@ This inventory is also the **spine of a SYSTEM_13 restructuring**: organize this
 **Hygiene**
 
 - Rename the PascalCase DB log functions.
+- `client/src/components/products/copilot/slide_ai/extract_blocks_from_layout.ts` no longer holds `extractBlocksFromLayout` (it is in `layout_structure.ts`): it holds `simplifySlideForAI` and `SimplifiedSlide` alone. Rename it `simplify_slide_for_ai.ts`, with `slide_ai/mod.ts` and the link in "The slide_ai conversion layer".
+- `measureSlideOverflow` (`slide_ai/measure_slide_overflow.ts`) and `convertAiInputToSlide` (`slide_ai/convert_ai_input_to_slide.ts`) each load the deck's fonts and build the page with `convertSlideToPageInputs(slide, undefined, deckConfig)`, throwing on failure. If the two copies drift, `create_slide`'s `Page:` line and `get_slides`' `overflow` disagree. Export one function holding those lines from `measure_slide_overflow.ts`, returning the `PageInputs`, and call it from both.
