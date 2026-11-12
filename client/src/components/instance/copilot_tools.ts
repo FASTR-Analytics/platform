@@ -9,6 +9,7 @@ import {
   SPA_REFERENCE_DOCS,
 } from "./copilot/mod.ts";
 import {
+  getClientToolsForDeckBlueprints,
   getClientToolsForDrafts,
   getClientToolsForFigureEditor,
   getClientToolsForProducts,
@@ -68,6 +69,7 @@ export function buildCopilotTools(): AnyAITool[] {
     [
       ...bindPackageTools(buildPackageTools),
       ...getClientToolsForProducts(),
+      ...getClientToolsForDeckBlueprints(),
       ...buildHfaIndicatorTools(),
       ...getClientToolsForHfaIndicatorEditor(),
       ...getSharedToolsForReferenceDocs(SPA_REFERENCE_DOCS, {

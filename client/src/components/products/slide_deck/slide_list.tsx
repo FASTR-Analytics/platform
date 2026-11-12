@@ -2,6 +2,7 @@ import { HeaderRows, MenuRow } from "report-forge";
 import {
   type PackageScope,
   type ProductSummary,
+  readDeckBlueprintProvenance,
   type RunAuthoringContext,
   type Slide,
   type SlideDeckConfig,
@@ -23,6 +24,7 @@ import {
   createSignal,
   type JSX,
   on,
+  onCleanup,
   Show,
   untrack,
 } from "solid-js";
@@ -35,6 +37,7 @@ import {
   copilotViewController,
   type EditingSlideDeckContext,
   type OpenSlide,
+  registerCopilotMenuAction,
 } from "~/components/instance/copilot/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
@@ -44,6 +47,7 @@ import {
   ProductTitle,
 } from "~/components/products/_shared/mod.ts";
 import { AddSlideMenu, DeckFileMenu, DeckMenu } from "./deck_menu";
+import { openApplyBlueprint, openMakeBlueprint } from "./blueprint/mod.ts";
 import { SlideDeckThemeModal } from "./style_editor/mod.ts";
 import {
   PackageScopeModal,
@@ -95,7 +99,8 @@ type Props = {
   present: () => Promise<void>;
   openVersionHistory: () => Promise<void>;
   deckConfig: SlideDeckConfig;
-  patchDeckConfig: (patch: Partial<SlideDeckConfig>) => Promise<void>;
+  patchDeckConfig: (patch: Partial<SlideDeckConfig>) => Promise<boolean>;
+  deckPlan: string;
   // The list's add-slide, handed up so the open slide's Insert menu (in the
   // editor) adds a slide exactly as the header's Add slide does.
   onAddSlideApi: (add: (slide: Slide) => Promise<void>) => void;
@@ -514,6 +519,36 @@ export function SlideList(p: Props) {
 
   const canEdit = () => canEditProduct(p.productId);
 
+  // Blueprints (./blueprint): make one from this deck (anyone who can read
+  // it), or apply one to it (editors), from the File menu and the AI panel.
+  async function makeBlueprint() {
+    await openMakeBlueprint({
+      deckId: p.productId,
+      deckLabel: p.deckLabel,
+      config: deckConfig(),
+      slideIds: p.slideIds,
+      openSlide: p.openSlide,
+      metrics: p.authoringContext?.metrics ?? [],
+    });
+  }
+  createEffect(() => {
+    const editable = canEdit();
+    if (!editable) return;
+    onCleanup(registerCopilotMenuAction({
+      label: t3({
+        en: "Apply a blueprint to this deck…",
+        fr: "Appliquer un modèle à cette présentation…",
+        pt: "Aplicar um modelo a esta apresentação…",
+      }),
+      icon: "sparkles",
+      run: () =>
+        void openApplyBlueprint({
+          deckId: p.productId,
+          deckLabel: p.deckLabel,
+        }),
+    }));
+  });
+
   // The Deck menu edits the deck's config with no Save button: the deck
   // applies each change at once (rail, open slide and this header alike) and
   // saves it behind (slide_deck.tsx, patchDeckConfig).
@@ -673,6 +708,13 @@ export function SlideList(p: Props) {
               })}
             selectedCount={selectedIds().size}
             onCopyToDeck={() => void copyToDeck()}
+            onMakeBlueprint={() => void makeBlueprint()}
+            onApplyBlueprint={() =>
+              void openApplyBlueprint({
+                deckId: p.productId,
+                deckLabel: p.deckLabel,
+              })}
+            builtFrom={readDeckBlueprintProvenance(p.deckPlan)}
           />
           <Show when={canEdit()}>
             <DeckMenu

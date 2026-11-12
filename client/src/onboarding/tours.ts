@@ -624,9 +624,14 @@ export function buildSlideContentTour(): TourDefinition {
 
 // ---------------------------------------------------- Visualization editor
 
-// The editor a visualization opens in, from a slide or from a report. It
-// covers the product editor behind it without changing the copilot's view,
-// so its page reads a count of open editors (t4_ui, index.ts).
+// The editor a visualization opens in: over a slide or a report, where it
+// covers the product editor without changing the copilot's view, or as a
+// visualization product of its own. Its page reads a count of open editors
+// (t4_ui, index.ts), which both count; the steps that word the way back read
+// the view to tell them apart.
+const inStandaloneVisualization = () =>
+  copilotViewController.current().id === "editing_visualization";
+
 export function buildVizEditorTour(): TourDefinition {
   return {
     id: "viz-editor-intro",
@@ -706,14 +711,24 @@ export function buildVizEditorTour(): TourDefinition {
           fr: "La visualisation",
           pt: "A visualização",
         }),
-        body: t3({
-          en:
-            "This is the visualization as it will appear in your slide or report. It updates each time you change something on the left.",
-          fr:
-            "Voici la visualisation telle qu'elle apparaîtra dans votre diapositive ou votre rapport. Elle se met à jour à chaque modification faite à gauche.",
-          pt:
-            "Esta é a visualização tal como aparecerá no seu diapositivo ou relatório. É atualizada sempre que altera algo à esquerda.",
-        }),
+        body: () =>
+          inStandaloneVisualization()
+            ? t3({
+              en:
+                "This is the visualization as it will appear wherever it is used. It updates each time you change something on the left.",
+              fr:
+                "Voici la visualisation telle qu'elle apparaîtra partout où elle est utilisée. Elle se met à jour à chaque modification faite à gauche.",
+              pt:
+                "Esta é a visualização tal como aparecerá onde quer que seja usada. É atualizada sempre que altera algo à esquerda.",
+            })
+            : t3({
+              en:
+                "This is the visualization as it will appear in your slide or report. It updates each time you change something on the left.",
+              fr:
+                "Voici la visualisation telle qu'elle apparaîtra dans votre diapositive ou votre rapport. Elle se met à jour à chaque modification faite à gauche.",
+              pt:
+                "Esta é a visualização tal como aparecerá no seu diapositivo ou relatório. É atualizada sempre que altera algo à esquerda.",
+            }),
         placement: "left",
         ...SKIP_IF_MISSING,
       },
@@ -725,14 +740,24 @@ export function buildVizEditorTour(): TourDefinition {
           fr: "Quand vous avez terminé",
           pt: "Quando terminar",
         }),
-        body: t3({
-          en:
-            "Use the arrow at the top left to go back to your slide or report. If Apply and Cancel are shown instead, click Apply to keep your changes. Download saves the visualization as a file of its own.",
-          fr:
-            "Utilisez la flèche en haut à gauche pour revenir à votre diapositive ou à votre rapport. Si Appliquer et Annuler s'affichent à la place, cliquez sur Appliquer pour conserver vos modifications. Télécharger enregistre la visualisation dans un fichier à part.",
-          pt:
-            "Utilize a seta no canto superior esquerdo para voltar ao seu diapositivo ou relatório. Se, em vez dela, aparecerem Aplicar e Cancelar, clique em Aplicar para manter as alterações. Transferir guarda a visualização num ficheiro próprio.",
-        }),
+        body: () =>
+          inStandaloneVisualization()
+            ? t3({
+              en:
+                "Changes are saved as you work. Use the arrow at the top left to go back to Products. History keeps the earlier versions of this visualization, and Download saves it as a file of its own.",
+              fr:
+                "Les modifications sont enregistrées au fil du travail. Utilisez la flèche en haut à gauche pour revenir à Produits. Historique conserve les versions précédentes de cette visualisation, et Télécharger l'enregistre dans un fichier à part.",
+              pt:
+                "As alterações são guardadas à medida que trabalha. Utilize a seta no canto superior esquerdo para voltar a Produtos. Histórico guarda as versões anteriores desta visualização, e Transferir guarda-a num ficheiro próprio.",
+            })
+            : t3({
+              en:
+                "Use the arrow at the top left to go back to your slide or report. If Apply and Cancel are shown instead, click Apply to keep your changes. Download saves the visualization as a file of its own.",
+              fr:
+                "Utilisez la flèche en haut à gauche pour revenir à votre diapositive ou à votre rapport. Si Appliquer et Annuler s'affichent à la place, cliquez sur Appliquer pour conserver vos modifications. Télécharger enregistre la visualisation dans un fichier à part.",
+              pt:
+                "Utilize a seta no canto superior esquerdo para voltar ao seu diapositivo ou relatório. Se, em vez dela, aparecerem Aplicar e Cancelar, clique em Aplicar para manter as alterações. Transferir guarda a visualização num ficheiro próprio.",
+            }),
         placement: "bottom",
       },
     ],
@@ -786,11 +811,11 @@ export function buildReportEditorIntroTour(): TourDefinition {
         }),
         body: t3({
           en:
-            "File downloads the report, emails it, renames it or makes a copy. Widgets adds ready-made layouts such as a callout, a statistic, columns, a cover page or a table of contents. Figures adds a visualization or an image. Page sets the theme, the background, the orientation and numbered sections.",
+            "File downloads the report, emails it, renames it or makes a copy. Widgets adds ready-made layouts such as a callout, a statistic, columns, a cover page, a table of contents or a page template, a whole page laid out to a fixed design. Figures adds a visualization or an image. Page sets the theme, the background, the orientation and numbered sections.",
           fr:
-            "Fichier télécharge le rapport, l'envoie par email, le renomme ou en crée une copie. Widgets ajoute des mises en page prêtes à l'emploi, comme un encadré, une statistique, des colonnes, une page de couverture ou une table des matières. Figures ajoute une visualisation ou une image. Page définit le thème, le fond, l'orientation et les sections numérotées.",
+            "Fichier télécharge le rapport, l'envoie par email, le renomme ou en crée une copie. Widgets ajoute des mises en page prêtes à l'emploi, comme un encadré, une statistique, des colonnes, une page de couverture, une table des matières ou un modèle de page, une page entière mise en forme selon un modèle. Figures ajoute une visualisation ou une image. Page définit le thème, le fond, l'orientation et les sections numérotées.",
           pt:
-            "Ficheiro transfere o relatório, envia-o por email, muda-lhe o nome ou cria uma cópia. Widgets adiciona esquemas prontos a usar, como um destaque, uma estatística, colunas, uma página de capa ou um índice. Figuras adiciona uma visualização ou uma imagem. Página define o tema, o fundo, a orientação e as secções numeradas.",
+            "Ficheiro transfere o relatório, envia-o por email, muda-lhe o nome ou cria uma cópia. Widgets adiciona esquemas prontos a usar, como um destaque, uma estatística, colunas, uma página de capa, um índice ou um modelo de página, uma página inteira com um desenho fixo. Figuras adiciona uma visualização ou uma imagem. Página define o tema, o fundo, a orientação e as secções numeradas.",
         }),
         placement: "bottom",
         // A report someone can edit; a reader has no menus.
@@ -1047,11 +1072,11 @@ export function buildProductsIntroTour(): TourDefinition {
         title: t3({ en: "Products", fr: "Produits", pt: "Produtos" }),
         body: t3({
           en:
-            "Everything you build is listed here. A product is a slide deck or a report. Click one to open it.",
+            "Everything you build is listed here. A product is a slide deck, a report or a visualization. Click one to open it.",
           fr:
-            "Tout ce que vous créez est listé ici. Un produit est une présentation ou un rapport. Cliquez sur l'un d'eux pour l'ouvrir.",
+            "Tout ce que vous créez est listé ici. Un produit est une présentation, un rapport ou une visualisation. Cliquez sur l'un d'eux pour l'ouvrir.",
           pt:
-            "Tudo o que cria está listado aqui. Um produto é uma apresentação ou um relatório. Clique num para o abrir.",
+            "Tudo o que cria está listado aqui. Um produto é uma apresentação, um relatório ou uma visualização. Clique num para o abrir.",
         }),
         placement: "bottom",
       },
@@ -1097,11 +1122,11 @@ export function buildProductsIntroTour(): TourDefinition {
         }),
         body: t3({
           en:
-            "Package is the results package a product takes its numbers from. Scope is the part of that data the product may show, for example one region. Click Name or Last updated to change the order.",
+            "Package is the results package a product takes its numbers from. Scope is the part of that data the product may show, for example one region. Click Name or Last updated to change the order. Unless you are an administrator, a badge beside each name says what you can do with it: Owner, Editor (you can change it) or Viewer (you can only look at it).",
           fr:
-            "Paquet est le paquet de résultats dont un produit tire ses chiffres. Portée est la partie de ces données que le produit peut afficher, par exemple une région. Cliquez sur Nom ou Modifié le pour changer l'ordre.",
+            "Paquet est le paquet de résultats dont un produit tire ses chiffres. Portée est la partie de ces données que le produit peut afficher, par exemple une région. Cliquez sur Nom ou Modifié le pour changer l'ordre. Sauf si vous êtes administrateur, un badge à côté de chaque nom indique ce que vous pouvez en faire : Propriétaire, Éditeur (vous pouvez le modifier) ou Lecteur (vous pouvez seulement le consulter).",
           pt:
-            "Pacote é o pacote de resultados de onde um produto vai buscar os seus números. Âmbito é a parte desses dados que o produto pode mostrar, por exemplo uma região. Clique em Nome ou Atualizado para mudar a ordem.",
+            "Pacote é o pacote de resultados de onde um produto vai buscar os seus números. Âmbito é a parte desses dados que o produto pode mostrar, por exemplo uma região. Clique em Nome ou Atualizado para mudar a ordem. Exceto se for administrador, uma etiqueta ao lado de cada nome indica o que pode fazer com ele: Proprietário, Editor (pode alterá-lo) ou Leitor (só o pode consultar).",
         }),
         placement: "top",
       },
@@ -1119,17 +1144,17 @@ export function buildProductsCreateTour(): TourDefinition {
         id: "new",
         target: tourTarget("products-new"),
         title: t3({
-          en: "Create a deck, a report or a folder",
-          fr: "Créer une présentation, un rapport ou un dossier",
-          pt: "Criar uma apresentação, um relatório ou uma pasta",
+          en: "Create a product or a folder",
+          fr: "Créer un produit ou un dossier",
+          pt: "Criar um produto ou uma pasta",
         }),
         body: t3({
           en:
-            "New creates a slide deck, a report or a folder. For a deck or a report you first choose two things: the results package its numbers will come from, and the scope, which is the part of that data it may show. You can change both later. The new deck or report then opens straight away.",
+            "New creates a slide deck, a report, a visualization or a folder. For any of the three products you first choose two things: the results package its numbers will come from, and the scope, which is the part of that data it may show. You can change both later. A visualization then asks what it should show. The new product opens straight away.",
           fr:
-            "Nouveau crée une présentation, un rapport ou un dossier. Pour une présentation ou un rapport, vous choisissez d'abord deux choses : le paquet de résultats d'où viendront ses chiffres, et la portée, c'est-à-dire la partie de ces données qu'il peut afficher. Vous pouvez modifier les deux plus tard. La nouvelle présentation ou le nouveau rapport s'ouvre ensuite immédiatement.",
+            "Nouveau crée une présentation, un rapport, une visualisation ou un dossier. Pour chacun de ces trois produits, vous choisissez d'abord deux choses : le paquet de résultats d'où viendront ses chiffres, et la portée, c'est-à-dire la partie de ces données qu'il peut afficher. Vous pouvez modifier les deux plus tard. Une visualisation vous demande ensuite ce qu'elle doit montrer. Le nouveau produit s'ouvre immédiatement.",
           pt:
-            "Novo cria uma apresentação, um relatório ou uma pasta. Para uma apresentação ou um relatório, escolhe primeiro duas coisas: o pacote de resultados de onde virão os seus números, e o âmbito, que é a parte desses dados que pode mostrar. Pode alterar ambos mais tarde. A nova apresentação ou o novo relatório abre de imediato.",
+            "Novo cria uma apresentação, um relatório, uma visualização ou uma pasta. Para qualquer um destes três produtos, escolhe primeiro duas coisas: o pacote de resultados de onde virão os seus números, e o âmbito, que é a parte desses dados que pode mostrar. Pode alterar ambos mais tarde. Uma visualização pergunta-lhe depois o que deve mostrar. O novo produto abre de imediato.",
         }),
         placement: "bottom",
       },
@@ -1143,11 +1168,11 @@ export function buildProductsCreateTour(): TourDefinition {
         }),
         body: t3({
           en:
-            "A new deck or report is listed under General. Right-click it, or a folder, to move it. Deleting a folder never deletes what is inside it: its contents move up one level.",
+            "A new product is listed under General. Right-click it, or a folder, to move it. Deleting a folder never deletes what is inside it: its contents move up one level.",
           fr:
-            "Une nouvelle présentation ou un nouveau rapport est listé sous Général. Faites un clic droit dessus, ou sur un dossier, pour le déplacer. Supprimer un dossier ne supprime jamais son contenu : celui-ci remonte d'un niveau.",
+            "Un nouveau produit est listé sous Général. Faites un clic droit dessus, ou sur un dossier, pour le déplacer. Supprimer un dossier ne supprime jamais son contenu : celui-ci remonte d'un niveau.",
           pt:
-            "Uma nova apresentação ou um novo relatório aparece em Geral. Clique com o botão direito nele, ou numa pasta, para o mover. Eliminar uma pasta nunca elimina o que está lá dentro: o conteúdo sobe um nível.",
+            "Um novo produto aparece em Geral. Clique com o botão direito nele, ou numa pasta, para o mover. Eliminar uma pasta nunca elimina o que está lá dentro: o conteúdo sobe um nível.",
         }),
         placement: "top",
       },
@@ -1173,11 +1198,11 @@ export function buildProductsCardsTour(): TourDefinition {
         }),
         body: t3({
           en:
-            "Click a product to open it. The Type column says whether it is a deck or a report.",
+            "Click a product to open it. The Type column says whether it is a deck, a report or a visualization.",
           fr:
-            "Cliquez sur un produit pour l'ouvrir. La colonne Type indique s'il s'agit d'une présentation ou d'un rapport.",
+            "Cliquez sur un produit pour l'ouvrir. La colonne Type indique s'il s'agit d'une présentation, d'un rapport ou d'une visualisation.",
           pt:
-            "Clique num produto para o abrir. A coluna Tipo indica se é uma apresentação ou um relatório.",
+            "Clique num produto para o abrir. A coluna Tipo indica se é uma apresentação, um relatório ou uma visualização.",
         }),
         placement: "bottom",
         waitForTargetTimeoutMs: 2000,
@@ -1221,11 +1246,11 @@ export function buildExploreTour(): TourDefinition {
         title: t3({ en: "Explore", fr: "Explorer", pt: "Explorar" }),
         body: t3({
           en:
-            "Explore lets you look through the results directly, without building a slide deck or a report. The first box chooses the results package to read. The second is the scope: leave it on All data to see everything, or choose a scope to see only the part of the data it covers.",
+            "Explore lets you look through the results directly, without building a product. The first box chooses the results package to read. The second is the scope: leave it on All data to see everything, or choose a scope to see only the part of the data it covers.",
           fr:
-            "Explorer vous permet de parcourir directement les résultats, sans créer de présentation ni de rapport. La première liste choisit le paquet de résultats à lire. La seconde est la portée : laissez-la sur « All data » pour tout voir, ou choisissez une portée pour ne voir que la partie des données qu'elle couvre.",
+            "Explorer vous permet de parcourir directement les résultats, sans créer de produit. La première liste choisit le paquet de résultats à lire. La seconde est la portée : laissez-la sur « All data » pour tout voir, ou choisissez une portée pour ne voir que la partie des données qu'elle couvre.",
           pt:
-            "Explorar permite-lhe percorrer diretamente os resultados, sem criar uma apresentação nem um relatório. A primeira caixa escolhe o pacote de resultados a ler. A segunda é o âmbito: deixe-a em «All data» para ver tudo, ou escolha um âmbito para ver apenas a parte dos dados que ele abrange.",
+            "Explorar permite-lhe percorrer diretamente os resultados, sem criar um produto. A primeira caixa escolhe o pacote de resultados a ler. A segunda é o âmbito: deixe-a em «All data» para ver tudo, ou escolha um âmbito para ver apenas a parte dos dados que ele abrange.",
         }),
         placement: "bottom",
       },
@@ -1296,11 +1321,11 @@ export function buildExploreTour(): TourDefinition {
         }),
         body: t3({
           en:
-            "In a table, type here to find a column, and use Download to save the table you see as a CSV file. Nothing you choose in Explore changes any deck or report.",
+            "In a table, type here to find a column, and use Download to save the table you see as a CSV file. Nothing you choose in Explore changes any product.",
           fr:
-            "Dans un tableau, écrivez ici pour chercher une colonne, et utilisez Télécharger pour enregistrer le tableau affiché dans un fichier CSV. Rien de ce que vous choisissez dans Explorer ne modifie une présentation ou un rapport.",
+            "Dans un tableau, écrivez ici pour chercher une colonne, et utilisez Télécharger pour enregistrer le tableau affiché dans un fichier CSV. Rien de ce que vous choisissez dans Explorer ne modifie un produit.",
           pt:
-            "Numa tabela, escreva aqui para procurar uma coluna, e utilize Transferir para guardar a tabela que vê num ficheiro CSV. Nada do que escolher em Explorar altera qualquer apresentação ou relatório.",
+            "Numa tabela, escreva aqui para procurar uma coluna, e utilize Transferir para guardar a tabela que vê num ficheiro CSV. Nada do que escolher em Explorar altera qualquer produto.",
         }),
         placement: "bottom",
         ...SKIP_IF_MISSING,
@@ -1336,11 +1361,11 @@ export function buildInstanceWelcomeTour(): TourDefinition {
         }),
         body: t3({
           en:
-            "These tabs are the main areas of the platform. Products is where you build slide decks and reports, and Explore is for looking through the results directly. Results, Data, Assets and Users are for generating results, uploading data, sharing files and managing who has access. You see only the tabs your account can use.",
+            "These tabs are the main areas of the platform. Products is where you build slide decks, reports and visualizations, and Explore is for looking through the results directly. Results, Scopes, Data, Assets and Users are for generating results, setting which part of the data a product may show, uploading data, sharing files and managing who has access. You see only the tabs your account can use.",
           fr:
-            "Ces onglets sont les principales zones de la plateforme. Produits est l'endroit où vous créez des présentations et des rapports, et Explorer sert à parcourir directement les résultats. Résultats, Données, Ressources et Utilisateurs servent à générer les résultats, importer les données, partager des fichiers et gérer les accès. Vous ne voyez que les onglets que votre compte peut utiliser.",
+            "Ces onglets sont les principales zones de la plateforme. Produits est l'endroit où vous créez des présentations, des rapports et des visualisations, et Explorer sert à parcourir directement les résultats. Résultats, Portées, Données, Ressources et Utilisateurs servent à générer les résultats, définir la partie des données qu'un produit peut afficher, importer les données, partager des fichiers et gérer les accès. Vous ne voyez que les onglets que votre compte peut utiliser.",
           pt:
-            "Estes separadores são as principais áreas da plataforma. Produtos é onde cria apresentações e relatórios, e Explorar serve para percorrer diretamente os resultados. Resultados, Dados, Recursos e Utilizadores servem para gerar resultados, carregar dados, partilhar ficheiros e gerir quem tem acesso. Só vê os separadores que a sua conta pode usar.",
+            "Estes separadores são as principais áreas da plataforma. Produtos é onde cria apresentações, relatórios e visualizações, e Explorar serve para percorrer diretamente os resultados. Resultados, Âmbitos, Dados, Recursos e Utilizadores servem para gerar resultados, definir a parte dos dados que um produto pode mostrar, carregar dados, partilhar ficheiros e gerir quem tem acesso. Só vê os separadores que a sua conta pode usar.",
         }),
         placement: "right",
       },
@@ -1653,11 +1678,11 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
         }),
         body: t3({
           en:
-            "The settings each module runs with, and which data and modules are already ticked when you start a new package. Module settings are changed only here, and they apply to every package generated afterwards.",
+            "The settings each module runs with. Module settings are changed only here, and they apply to every package generated afterwards.",
           fr:
-            "Les paramètres avec lesquels chaque module s'exécute, et les données et modules déjà cochés lorsque vous lancez un nouveau paquet. Les paramètres des modules se modifient uniquement ici, et s'appliquent à tous les paquets générés par la suite.",
+            "Les paramètres avec lesquels chaque module s'exécute. Les paramètres des modules se modifient uniquement ici, et s'appliquent à tous les paquets générés par la suite.",
           pt:
-            "As definições com que cada módulo é executado, e os dados e módulos que já vêm assinalados quando inicia um novo pacote. As definições dos módulos alteram-se apenas aqui, e aplicam-se a todos os pacotes gerados depois.",
+            "As definições com que cada módulo é executado. As definições dos módulos alteram-se apenas aqui, e aplicam-se a todos os pacotes gerados depois.",
         }),
         placement: "bottom",
       },
@@ -1686,11 +1711,11 @@ export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
         }),
         body: t3({
           en:
-            "Every package is listed here, newest first, with who created it, its status and how many products use it. Pinned marks the package that new decks and reports start with. Click a package to open it and continue.",
+            "Every package is listed here, newest first, with who created it, its status and how many products use it. Pinned marks the package that new products start with. Click a package to open it and continue.",
           fr:
-            "Tous les paquets sont listés ici, du plus récent au plus ancien, avec leur créateur, leur statut et le nombre de produits qui les utilisent. Épinglé désigne le paquet avec lequel démarrent les nouvelles présentations et les nouveaux rapports. Cliquez sur un paquet pour l'ouvrir et continuer.",
+            "Tous les paquets sont listés ici, du plus récent au plus ancien, avec leur créateur, leur statut et le nombre de produits qui les utilisent. Épinglé désigne le paquet avec lequel démarrent les nouveaux produits. Cliquez sur un paquet pour l'ouvrir et continuer.",
           pt:
-            "Todos os pacotes estão listados aqui, do mais recente ao mais antigo, com quem os criou, o seu estado e quantos produtos os usam. Fixado assinala o pacote com que começam as novas apresentações e os novos relatórios. Clique num pacote para o abrir e continuar.",
+            "Todos os pacotes estão listados aqui, do mais recente ao mais antigo, com quem os criou, o seu estado e quantos produtos os usam. Fixado assinala o pacote com que começam os novos produtos. Clique num pacote para o abrir e continuar.",
         }),
         placement: "bottom",
         advanceOn: "click",
@@ -1723,11 +1748,11 @@ export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
         }),
         body: t3({
           en:
-            "Pin makes this the package that new decks and reports start with. Decks and reports you already have keep their own package. A package can be deleted only when no deck or report uses it and it is not pinned, and deleting cannot be undone.",
+            "Pin makes this the package that new products start with. Products you already have keep their own package. A package can be deleted only when no product uses it and it is not pinned, and deleting cannot be undone.",
           fr:
-            "Épingler fait de ce paquet celui avec lequel démarrent les nouvelles présentations et les nouveaux rapports. Les présentations et les rapports existants gardent leur propre paquet. Un paquet ne peut être supprimé que si aucune présentation ni aucun rapport ne l'utilise et s'il n'est pas épinglé, et la suppression est irréversible.",
+            "Épingler fait de ce paquet celui avec lequel démarrent les nouveaux produits. Les produits existants gardent leur propre paquet. Un paquet ne peut être supprimé que si aucun produit ne l'utilise et s'il n'est pas épinglé, et la suppression est irréversible.",
           pt:
-            "Fixar faz deste o pacote com que começam as novas apresentações e os novos relatórios. As apresentações e os relatórios que já tem mantêm o seu próprio pacote. Um pacote só pode ser eliminado quando nenhuma apresentação ou relatório o usa e não está fixado, e a eliminação não pode ser anulada.",
+            "Fixar faz deste o pacote com que começam os novos produtos. Os produtos que já tem mantêm o seu próprio pacote. Um pacote só pode ser eliminado quando nenhum produto o usa e não está fixado, e a eliminação não pode ser anulada.",
         }),
         placement: "bottom",
         ...SKIP_IF_MISSING,
@@ -1870,6 +1895,431 @@ export function buildInstanceUsersTour(): TourDefinition {
         }),
         placement: "bottom",
         ...SKIP_IF_MISSING,
+      },
+    ],
+  };
+}
+
+// ------------------------------------------------- Visualization history
+
+// A visualization product's own History button, beside Download in the
+// editor's header. The history view opens over the editor, which stays
+// mounted (and counted), so the run stays on the viz-editor page throughout.
+export function buildVisualizationHistoryTour(): TourDefinition {
+  return {
+    id: "visualization-history",
+    steps: [
+      {
+        id: "open-history",
+        target: "#visualization-history-button",
+        title: t3({
+          en: "Version history",
+          fr: "Historique des versions",
+          pt: "Histórico de versões",
+        }),
+        body: t3({
+          en:
+            "Every visualization keeps its earlier versions. Click History to open them.",
+          fr:
+            "Chaque visualisation conserve ses versions précédentes. Cliquez sur Historique pour les ouvrir.",
+          pt:
+            "Cada visualização guarda as suas versões anteriores. Clique em Histórico para as abrir.",
+        }),
+        placement: "bottom",
+        advanceOn: "click",
+      },
+      {
+        id: "version-list",
+        target: tourTarget("version-history-list"),
+        title: t3({
+          en: "Earlier versions",
+          fr: "Versions précédentes",
+          pt: "Versões anteriores",
+        }),
+        body: t3({
+          en:
+            "Versions are saved automatically as people work. They are grouped by day, with the time and the person who made the changes. Click one to see it.",
+          fr:
+            "Les versions sont enregistrées automatiquement au fil du travail. Elles sont regroupées par jour, avec l'heure et la personne qui a fait les modifications. Cliquez sur l'une d'elles pour la voir.",
+          pt:
+            "As versões são guardadas automaticamente à medida que as pessoas trabalham. Estão agrupadas por dia, com a hora e a pessoa que fez as alterações. Clique numa para a ver.",
+        }),
+        placement: "right",
+        ...SKIP_IF_MISSING_AFTER_LOAD,
+      },
+      {
+        id: "close-history",
+        target: "#version-history-back-button",
+        title: t3({
+          en: "Compare and restore",
+          fr: "Comparer et restaurer",
+          pt: "Comparar e restaurar",
+        }),
+        body: t3({
+          en:
+            "When you select a version you see what changed since the one before it, and you can restore it if you need to go back. Click here to return to the visualization.",
+          fr:
+            "Lorsque vous sélectionnez une version, vous voyez ce qui a changé depuis la précédente, et vous pouvez la restaurer si vous devez revenir en arrière. Cliquez ici pour revenir à la visualisation.",
+          pt:
+            "Ao selecionar uma versão, vê o que mudou desde a anterior, e pode restaurá-la se precisar de voltar atrás. Clique aqui para regressar à visualização.",
+        }),
+        placement: "bottom",
+        advanceOn: "click",
+      },
+    ],
+  };
+}
+
+// ------------------------------------------------- Report page templates
+
+// A page laid out from a template (Widgets > Page template). Report Forge
+// draws one as a `.fm-tpl` section in the editor pane; the template gallery
+// in the menu draws the same class, hence the pane scope. The entry-level
+// gate in index.ts auto-runs this the first time a report holding one is
+// open; from the catalogue it runs on any report, each step shown only when
+// its part is on screen.
+const REPORT_TEMPLATE_PAGE = `${reportPart("page")} .fm-tpl`;
+
+export function buildReportEditorTemplatesTour(): TourDefinition {
+  return {
+    id: "report-editor-templates",
+    steps: [
+      {
+        id: "insert",
+        target: REPORT_MENU_ROW,
+        title: t3({
+          en: "Page templates",
+          fr: "Modèles de page",
+          pt: "Modelos de página",
+        }),
+        body: t3({
+          en:
+            "Widgets > Page template lays out a whole page to a fixed design, such as a chart with its key messages or a page of headline figures. Pick a layout from the gallery and the page is added where the cursor is.",
+          fr:
+            "Widgets > Modèle de page met en forme une page entière selon un modèle, par exemple un graphique avec ses messages clés ou une page de chiffres principaux. Choisissez une mise en page dans la galerie et la page est ajoutée à l'endroit du curseur.",
+          pt:
+            "Widgets > Modelo de página dispõe uma página inteira segundo um desenho fixo, por exemplo um gráfico com as suas mensagens principais ou uma página de números-chave. Escolha um esquema na galeria e a página é adicionada onde está o cursor.",
+        }),
+        placement: "bottom",
+        when: onScreen(REPORT_MENU_ROW),
+      },
+      {
+        id: "page",
+        target: REPORT_TEMPLATE_PAGE,
+        title: t3({
+          en: "A page laid out from a template",
+          fr: "Une page mise en forme selon un modèle",
+          pt: "Uma página disposta segundo um modelo",
+        }),
+        body: t3({
+          en:
+            "This page uses a template. It is divided into areas, each holding one part of the page: click into an area to write in it, or put a visualization or an image there.",
+          fr:
+            "Cette page utilise un modèle. Elle est divisée en zones, chacune contenant une partie de la page : cliquez dans une zone pour y écrire, ou placez-y une visualisation ou une image.",
+          pt:
+            "Esta página usa um modelo. Está dividida em áreas, cada uma com uma parte da página: clique numa área para escrever nela, ou coloque lá uma visualização ou uma imagem.",
+        }),
+        placement: "right",
+        when: onScreen(REPORT_TEMPLATE_PAGE),
+        ...SKIP_IF_MISSING,
+      },
+      {
+        id: "controls",
+        target: reportPart("toolbar"),
+        title: t3({
+          en: "Changing a template page",
+          fr: "Modifier une page de modèle",
+          pt: "Alterar uma página de modelo",
+        }),
+        body: t3({
+          en:
+            "With the cursor inside a template page, this bar shows its Layout. Open it to choose another layout, see any problems with the page (a red number shows how many) and add an area that is missing. The + button beside it adds another item to the area the cursor is in.",
+          fr:
+            "Lorsque le curseur est dans une page de modèle, cette barre affiche sa mise en page. Ouvrez-la pour en choisir une autre, voir les problèmes de la page (un nombre rouge indique combien) et ajouter une zone manquante. Le bouton + à côté ajoute un élément à la zone où se trouve le curseur.",
+          pt:
+            "Com o cursor dentro de uma página de modelo, esta barra mostra o seu esquema. Abra-o para escolher outro, ver os problemas da página (um número vermelho indica quantos) e adicionar uma área em falta. O botão + ao lado adiciona outro item à área onde está o cursor.",
+        }),
+        placement: "bottom",
+        when: onScreen(reportPart("toolbar")),
+        ...SKIP_IF_MISSING,
+      },
+    ],
+  };
+}
+
+// ---------------------------------------------------------------- Scopes
+
+export function buildInstanceScopesTour(): TourDefinition {
+  return {
+    id: "instance-scopes-intro",
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("scopes-all-data"),
+        title: t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" }),
+        body: t3({
+          en:
+            "A scope is the part of the data a product may show, for example one region or certain years. Every slide deck, report and visualization uses one scope. All data is built in: it shows everything and cannot be changed.",
+          fr:
+            "Une portée est la partie des données qu'un produit peut afficher, par exemple une région ou certaines années. Chaque présentation, rapport et visualisation utilise une portée. All data est intégrée : elle montre tout et ne peut pas être modifiée.",
+          pt:
+            "Um âmbito é a parte dos dados que um produto pode mostrar, por exemplo uma região ou certos anos. Cada apresentação, relatório e visualização usa um âmbito. All data está incorporado: mostra tudo e não pode ser alterado.",
+        }),
+        placement: "bottom",
+        ...SKIP_IF_MISSING,
+      },
+      {
+        id: "list",
+        target: tourTarget("scopes-table"),
+        title: t3({
+          en: "Your scopes",
+          fr: "Vos portées",
+          pt: "Os seus âmbitos",
+        }),
+        body: t3({
+          en:
+            "The other scopes are listed here, with what each one shows of the HMIS, HFA and ICEH data and how many products use it. Click a scope to change it. A scope that products use cannot be deleted.",
+          fr:
+            "Les autres portées sont listées ici, avec ce que chacune montre des données HMIS, HFA et ICEH et le nombre de produits qui l'utilisent. Cliquez sur une portée pour la modifier. Une portée utilisée par des produits ne peut pas être supprimée.",
+          pt:
+            "Os outros âmbitos estão listados aqui, com o que cada um mostra dos dados HMIS, HFA e ICEH e quantos produtos o usam. Clique num âmbito para o alterar. Um âmbito usado por produtos não pode ser eliminado.",
+        }),
+        placement: "top",
+        ...SKIP_IF_MISSING,
+      },
+      {
+        id: "new",
+        target: tourTarget("scopes-new"),
+        title: t3({
+          en: "Make a scope",
+          fr: "Créer une portée",
+          pt: "Criar um âmbito",
+        }),
+        body: t3({
+          en:
+            "New scope asks for a name, then, on a tab for each kind of data, whether to include it and what to limit it to: one area, certain years, modules or indicators. A product chooses its scope when it is created, and on the Users tab people can be limited to certain scopes.",
+          fr:
+            "Nouvelle portée demande un nom puis, dans un onglet pour chaque type de données, s'il faut l'inclure et à quoi la limiter : une zone, certaines années, certains modules ou indicateurs. Un produit choisit sa portée lors de sa création, et dans l'onglet Utilisateurs, des personnes peuvent être limitées à certaines portées.",
+          pt:
+            "Novo âmbito pede um nome e depois, num separador para cada tipo de dados, se o deve incluir e a que o limitar: uma área, certos anos, módulos ou indicadores. Um produto escolhe o seu âmbito quando é criado, e no separador Utilizadores as pessoas podem ser limitadas a certos âmbitos.",
+        }),
+        placement: "bottom",
+        ...SKIP_IF_MISSING,
+      },
+    ],
+  };
+}
+
+// ------------------------------------------------------- Module defaults
+
+// Opened from the Results tab's Module defaults button, as a full page of its
+// own (view `module_defaults`).
+export function buildModuleDefaultsTour(): TourDefinition {
+  return {
+    id: "module-defaults-intro",
+    steps: [
+      {
+        id: "list",
+        target: tourTarget("module-defaults-list"),
+        title: t3({
+          en: "Module defaults",
+          fr: "Paramètres par défaut des modules",
+          pt: "Predefinições dos módulos",
+        }),
+        body: t3({
+          en:
+            "Every module that takes settings is listed here, grouped by kind of data. A module whose settings differ from its defaults shows how many are changed. Click a module to see its settings.",
+          fr:
+            "Chaque module qui prend des paramètres est listé ici, regroupé par type de données. Un module dont les paramètres diffèrent des valeurs par défaut indique combien sont modifiés. Cliquez sur un module pour voir ses paramètres.",
+          pt:
+            "Cada módulo com definições está listado aqui, agrupado por tipo de dados. Um módulo cujas definições diferem das predefinições mostra quantas foram alteradas. Clique num módulo para ver as suas definições.",
+        }),
+        placement: "right",
+        ...SKIP_IF_MISSING_AFTER_LOAD,
+      },
+      {
+        id: "params",
+        target: tourTarget("module-defaults-params"),
+        title: t3({
+          en: "A module's settings",
+          fr: "Les paramètres d'un module",
+          pt: "As definições de um módulo",
+        }),
+        body: t3({
+          en:
+            "These are the values the module runs with in every results package generated from now on. A value changed from the module's own default is marked Differs from default, with a button that puts it back.",
+          fr:
+            "Ce sont les valeurs avec lesquelles le module s'exécute dans chaque paquet de résultats généré à partir de maintenant. Une valeur modifiée par rapport à la valeur par défaut du module porte la mention Diffère de la valeur par défaut, avec un bouton qui la rétablit.",
+          pt:
+            "Estes são os valores com que o módulo é executado em cada pacote de resultados gerado a partir de agora. Um valor alterado em relação à predefinição do módulo é assinalado como Difere da predefinição, com um botão que o repõe.",
+        }),
+        placement: "left",
+        ...SKIP_IF_MISSING_AFTER_LOAD,
+      },
+      {
+        id: "apply",
+        target: tourTarget("module-defaults-header"),
+        title: t3({
+          en: "Apply or cancel",
+          fr: "Appliquer ou annuler",
+          pt: "Aplicar ou cancelar",
+        }),
+        body: t3({
+          en:
+            "Nothing changes until you click Apply, which appears here once you have changed something; Cancel leaves everything as it was. Packages already generated keep the settings they were made with.",
+          fr:
+            "Rien ne change tant que vous n'avez pas cliqué sur Appliquer, qui apparaît ici dès que vous avez modifié quelque chose ; Annuler laisse tout tel quel. Les paquets déjà générés gardent les paramètres avec lesquels ils ont été créés.",
+          pt:
+            "Nada muda até clicar em Aplicar, que aparece aqui assim que altera algo; Cancelar deixa tudo como estava. Os pacotes já gerados mantêm as definições com que foram criados.",
+        }),
+        placement: "bottom",
+      },
+    ],
+  };
+}
+
+// --------------------------------------------------------- HFA indicators
+
+// Opened from the Indicators row of the Data tab's HFA section, as a full page
+// of its own (view `hfa_indicators`). Changing anything needs
+// can_configure_data; a reader sees the list only.
+export function buildHfaIndicatorsTour(): TourDefinition {
+  return {
+    id: "hfa-indicators-intro",
+    steps: [
+      {
+        id: "tabs",
+        target: tourTarget("hfa-indicators-tabs"),
+        title: t3({
+          en: "HFA indicators",
+          fr: "Indicateurs HFA",
+          pt: "Indicadores HFA",
+        }),
+        body: t3({
+          en:
+            "HFA indicators are calculated from the answers to the health facility assessment. Indicators lists them; the other tabs hold the categories, service categories and variant groups they are organised by.",
+          fr:
+            "Les indicateurs HFA sont calculés à partir des réponses aux enquêtes auprès des établissements de santé. Indicateurs les liste ; les autres onglets contiennent les catégories, catégories de service et groupes de variantes qui les organisent.",
+          pt:
+            "Os indicadores HFA são calculados a partir das respostas às avaliações das unidades de saúde. Indicadores lista-os; os outros separadores contêm as categorias, categorias de serviço e grupos de variantes que os organizam.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "table",
+        target: tourTarget("hfa-indicators-table"),
+        title: t3({
+          en: "The indicators",
+          fr: "Les indicateurs",
+          pt: "Os indicadores",
+        }),
+        body: () =>
+          can("can_configure_data")
+            ? t3({
+              en:
+                "Each row is one indicator, with its labels, its type and the time points it has code for. Status and Findings show whether its code works on every time point. Click a row to write or change its code.",
+              fr:
+                "Chaque ligne est un indicateur, avec ses libellés, son type et les points temporels pour lesquels il a du code. Statut et Constats indiquent si son code fonctionne sur chaque point temporel. Cliquez sur une ligne pour écrire ou modifier son code.",
+              pt:
+                "Cada linha é um indicador, com os seus rótulos, o seu tipo e os pontos temporais para os quais tem código. Estado e Constatações mostram se o código funciona em todos os pontos temporais. Clique numa linha para escrever ou alterar o código.",
+            })
+            : t3({
+              en:
+                "Each row is one indicator, with its labels, its type and the time points it has code for. Status and Findings show whether its code works on every time point.",
+              fr:
+                "Chaque ligne est un indicateur, avec ses libellés, son type et les points temporels pour lesquels il a du code. Statut et Constats indiquent si son code fonctionne sur chaque point temporel.",
+              pt:
+                "Cada linha é um indicador, com os seus rótulos, o seu tipo e os pontos temporais para os quais tem código. Estado e Constatações mostram se o código funciona em todos os pontos temporais.",
+            }),
+        placement: "top",
+        ...SKIP_IF_MISSING_AFTER_LOAD,
+      },
+      {
+        id: "toolbar",
+        target: tourTarget("hfa-indicators-add"),
+        title: t3({
+          en: "Add, import and check",
+          fr: "Ajouter, importer et vérifier",
+          pt: "Adicionar, importar e verificar",
+        }),
+        body: t3({
+          en:
+            "Add makes a new indicator, and Import default indicators brings in the standard set. Verify checks every indicator's code against the survey data. The menu at the end downloads or imports the indicators as an Excel file and finds survey variables no indicator uses. The AI assistant can also draft indicators here; it shows you what it would add or change before anything is saved.",
+          fr:
+            "Ajouter crée un nouvel indicateur, et Importer les indicateurs par défaut ajoute l'ensemble standard. Vérifier contrôle le code de chaque indicateur sur les données de l'enquête. Le menu au bout télécharge ou importe les indicateurs sous forme de fichier Excel et trouve les variables de l'enquête qu'aucun indicateur n'utilise. L'assistant IA peut aussi rédiger des indicateurs ici ; il vous montre ce qu'il ajouterait ou modifierait avant tout enregistrement.",
+          pt:
+            "Adicionar cria um novo indicador, e Importar indicadores predefinidos traz o conjunto padrão. Verificar confere o código de cada indicador com os dados do inquérito. O menu no fim transfere ou importa os indicadores como ficheiro Excel e encontra variáveis do inquérito que nenhum indicador usa. O assistente de IA também pode redigir indicadores aqui; mostra-lhe o que adicionaria ou alteraria antes de guardar seja o que for.",
+        }),
+        placement: "bottom",
+        when: () => can("can_configure_data"),
+        ...SKIP_IF_MISSING_AFTER_LOAD,
+      },
+    ],
+  };
+}
+
+// An indicator's code editor (view `hfa_indicator_editor`), opened from a row
+// of the HFA indicators list by someone who can configure the data. The code
+// and the variables show once a time point is selected.
+export function buildHfaIndicatorEditorTour(): TourDefinition {
+  return {
+    id: "hfa-indicator-editor",
+    steps: [
+      {
+        id: "code",
+        target: tourTarget("hfa-editor-code"),
+        title: t3({
+          en: "Writing the indicator",
+          fr: "Écrire l'indicateur",
+          pt: "Escrever o indicador",
+        }),
+        body: t3({
+          en:
+            "Write the code that calculates this indicator from a facility's answers, for the time point selected. The list of operators is underneath, and an optional filter limits which facilities count. Apply to other rounds copies the code to the other time points.",
+          fr:
+            "Écrivez le code qui calcule cet indicateur à partir des réponses d'un établissement, pour le point temporel sélectionné. La liste des opérateurs se trouve en dessous, et un filtre facultatif limite les établissements pris en compte. Appliquer aux autres rounds copie le code vers les autres points temporels.",
+          pt:
+            "Escreva o código que calcula este indicador a partir das respostas de uma unidade, para o ponto temporal selecionado. A lista de operadores está por baixo, e um filtro opcional limita as unidades que contam. Aplicar às outras rondas copia o código para os outros pontos temporais.",
+        }),
+        placement: "right",
+        ...SKIP_IF_MISSING_AFTER_LOAD,
+      },
+      {
+        id: "variables",
+        target: tourTarget("hfa-editor-variables"),
+        title: t3({
+          en: "The survey variables",
+          fr: "Les variables de l'enquête",
+          pt: "As variáveis do inquérito",
+        }),
+        body: t3({
+          en:
+            "Every question in the survey for this time point, with its answers. Search for the one you need and use its name in the code.",
+          fr:
+            "Chaque question de l'enquête pour ce point temporel, avec ses réponses. Cherchez celle dont vous avez besoin et utilisez son nom dans le code.",
+          pt:
+            "Cada pergunta do inquérito para este ponto temporal, com as suas respostas. Procure a que precisa e use o seu nome no código.",
+        }),
+        placement: "left",
+        ...SKIP_IF_MISSING,
+      },
+      {
+        id: "check",
+        target: tourTarget("hfa-editor-header"),
+        title: t3({
+          en: "Check and save",
+          fr: "Vérifier et enregistrer",
+          pt: "Verificar e guardar",
+        }),
+        body: t3({
+          en:
+            "Verify runs the code on the survey data and lists anything wrong as findings. Draft a fix asks the AI assistant to correct the code and shows the change before you keep it. Save appears here once you have changed something.",
+          fr:
+            "Vérifier exécute le code sur les données de l'enquête et liste les problèmes sous forme de constats. Proposer une correction demande à l'assistant IA de corriger le code et montre la modification avant que vous la gardiez. Enregistrer apparaît ici dès que vous avez modifié quelque chose.",
+          pt:
+            "Verificar executa o código com os dados do inquérito e lista os problemas como constatações. Propor uma correção pede ao assistente de IA que corrija o código e mostra a alteração antes de a manter. Guardar aparece aqui assim que altera algo.",
+        }),
+        placement: "bottom",
       },
     ],
   };

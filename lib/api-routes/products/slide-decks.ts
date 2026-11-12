@@ -35,6 +35,28 @@ export const productSlideDeckRouteRegistry = {
     response: {} as { lastUpdated: string },
   }),
 
+  // The deck's plan column: the record of the blueprint that built it
+  // (lib/types/_deck_blueprint.ts), as JSON text, or "" for none.
+  updateSlideDeckPlan: route({
+    path: "/products/:product_id/slide-deck/plan",
+    method: "PUT",
+    guard: GUARD.product("edit"),
+    params: productIdParamsSchema,
+    body: z.object({ plan: z.string().max(2_000_000) }),
+    response: {} as { lastUpdated: string },
+  }),
+
+  // A version of the deck as it stands now, in its version history, before
+  // something replaces its slides (applying a blueprint). Skipped when the
+  // newest stored version already holds this state.
+  checkpointSlideDeck: route({
+    path: "/products/:product_id/slide-deck/checkpoint",
+    method: "POST",
+    guard: GUARD.product("edit"),
+    params: productIdParamsSchema,
+    response: {} as { created: boolean },
+  }),
+
   listSlideDeckVersions: route({
     path: "/products/:product_id/slide-deck/versions",
     method: "GET",

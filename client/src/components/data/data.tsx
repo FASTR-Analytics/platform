@@ -12,7 +12,7 @@ import {
   type TableColumn,
   toNum0,
 } from "panther";
-import { type JSX, onCleanup, Show } from "solid-js";
+import { createEffect, type JSX, onCleanup, Show, untrack } from "solid-js";
 import { InstanceDatasetIceh } from "./iceh/mod.ts";
 import { Facilities } from "./facilities/mod.ts";
 import { FamilyConfiguration } from "./family_configuration";
@@ -35,7 +35,11 @@ import {
   structureSchemaForFamily,
 } from "~/state/instance/t1_store";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
-import { openShellEditor } from "~/state/t4_ui";
+import {
+  openShellEditor,
+  pendingSubPageOpen,
+  setPendingSubPageOpen,
+} from "~/state/t4_ui";
 import {
   copilotViewController,
   type DataPageId,
@@ -122,6 +126,24 @@ export function InstanceData(p: Props) {
       if (mounted) restoreCopilotView(covered);
     });
   }
+
+  // A tour replay into the HFA indicators (the page, or its first
+  // indicator's code editor): open the page; it, or the editor it opens,
+  // clears the request once its view is set.
+  createEffect(() => {
+    const request = pendingSubPageOpen();
+    if (request !== "hfa_indicators" && request !== "hfa_indicator_editor") {
+      return;
+    }
+    if (!can("can_view_data")) {
+      setPendingSubPageOpen(null);
+      return;
+    }
+    // Untracked: opening reads (and the page then sets) the copilot view.
+    untrack(() =>
+      openSubPage("hfa_indicators", "hfa", HfaIndicatorsManager, {})
+    );
+  });
 
   const hasData = (dataset: "hmis" | "hfa" | "iceh"): DataRow["status"] =>
     instanceState.datasetsWithData.includes(dataset) ? "ready" : "missing";

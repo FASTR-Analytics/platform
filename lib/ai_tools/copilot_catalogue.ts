@@ -129,6 +129,8 @@ export const COPILOT_TOOL_VIEWS = {
   delete_slides: DECK_VIEWS,
   duplicate_slides: DECK_VIEWS,
   move_slides: DECK_VIEWS,
+  get_blueprint_run: DECK_VIEWS,
+  propose_blueprint_outline: DECK_VIEWS,
   show_draft_slide_to_user: DRAFT_VIEWS,
   get_report_editor: REPORT_VIEWS,
   get_report_figure: REPORT_VIEWS,
@@ -186,6 +188,8 @@ export const COPILOT_TOOL_REQUIREMENTS = {
   delete_slides: "product_edit",
   duplicate_slides: "product_edit",
   move_slides: "product_edit",
+  get_blueprint_run: "none",
+  propose_blueprint_outline: "product_edit",
   show_draft_slide_to_user: "none",
   get_report_editor: "none",
   get_report_figure: "none",
@@ -216,6 +220,8 @@ export const COPILOT_TOOL_REQUIREMENTS = {
 // slides, stored or open in the editor (deleting them asks first), a
 // report's figure by stable id, the open figure editor's draft and the HFA
 // code editor's unsaved state. Every other write asks before it applies.
+// propose_blueprint_outline is its own confirmation: its card writes
+// nothing until the person presses Build on it.
 export const COPILOT_APPROVAL_EXEMPT: CopilotGatedToolName[] = [
   "create_slide",
   "update_slide",
@@ -223,6 +229,7 @@ export const COPILOT_APPROVAL_EXEMPT: CopilotGatedToolName[] = [
   "replace_slide",
   "duplicate_slides",
   "move_slides",
+  "propose_blueprint_outline",
   "update_report_figure",
   "update_figure_editor",
   "update_hfa_indicator_editor",

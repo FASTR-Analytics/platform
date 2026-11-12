@@ -26,6 +26,7 @@ import {
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
+import { buildLayoutFromSpec } from "./layout_spec_helpers";
 
 /**
  * Convert AI input (blocks[]) to storage format (LayoutNode<ContentBlock>).
@@ -82,6 +83,49 @@ export async function convertAiInputToSlide(
   }
 
   const generateId = createIdGeneratorForLayout();
+
+  // An exact layout: the blocks fill the given grid in reading order, and
+  // the optimizer is not consulted. Overflow is not measured on this path,
+  // as on update_slide's layoutChange: the canvas badges it.
+  if (slideInput.layoutRows) {
+    const rows = slideInput.layoutRows;
+    const cells = rows.reduce((n, r) => n + r.length, 0);
+    if (cells !== resolvedBlocks.length) {
+      throw new Error(
+        `layoutRows has ${cells} cell(s) but the slide has ${resolvedBlocks.length} block(s); give one cell per block.`,
+      );
+    }
+    for (const [i, row] of rows.entries()) {
+      const sum = row.reduce((a, b) => a + b, 0);
+      if (sum !== 12) {
+        throw new Error(
+          `layoutRows row ${
+            i + 1
+          } spans sum to ${sum}; each row must sum to 12.`,
+        );
+      }
+    }
+    let k = 0;
+    const layout = buildLayoutFromSpec(
+      rows.map((row) =>
+        row.map((span) => ({
+          id: generateId(),
+          block: resolvedBlocks[k++],
+          span,
+        }))
+      ),
+    );
+    return {
+      slide: slideConfigSchema.parse({
+        type: "content",
+        header: slideInput.header,
+        layout,
+        split: slideInput.split,
+      }) as Slide,
+      overflow: false,
+    };
+  }
+
   const blocksById = new Map(
     resolvedBlocks.map((block) => [generateId(), block] as const),
   );
@@ -127,6 +171,7 @@ export async function convertAiInputToSlide(
       type: "content",
       header: slideInput.header,
       layout: restoreBlocks(result.best.layout, blocksById),
+      split: slideInput.split,
     }) as Slide,
     overflow: result.best.score.overflow === 1,
   };

@@ -43,6 +43,9 @@ const GROUPS = {
     "duplicate_slides",
     "move_slides",
   ],
+  // Applying a deck blueprint: outer tools (no package binding), the outline
+  // card being the run's one confirmation.
+  deck_blueprint: ["get_blueprint_run", "propose_blueprint_outline"],
   drafts: ["show_draft_slide_to_user"],
   report_reads: [
     "get_report_editor",
@@ -103,7 +106,7 @@ const VIEWS: {
   {
     id: "editing_slide_deck",
     hasPackage: true,
-    groups: [...PRODUCT, "deck_reads", "deck_writes"],
+    groups: [...PRODUCT, "deck_reads", "deck_writes", "deck_blueprint"],
   },
   {
     id: "editing_slide_figure",
@@ -235,11 +238,13 @@ Deno.test("a view with no package admits no package tool", () => {
 });
 
 Deno.test("the approval exemptions are exactly the direct-apply editor writes", () => {
-  // Deck writes apply directly, deleting slides asks; the first five report
+  // Deck writes apply directly, deleting slides asks; the blueprint outline
+  // is its own card; the first five report
   // writes take a diff; the figure editor's and the HFA editor's writes are
   // live; HFA writes ask.
   const expected = [
     ...GROUPS.deck_writes.filter((t) => t !== "delete_slides"),
+    "propose_blueprint_outline",
     "update_report_figure",
     "update_figure_editor",
     "update_hfa_indicator_editor",
@@ -256,6 +261,7 @@ const REQUIREMENTS: Record<string, string> = Object.fromEntries([
   ...GROUPS.hfa_writes.map((t) => [t, "can_configure_data"]),
   ["update_hfa_indicator_editor", "can_configure_data"],
   ...GROUPS.deck_writes.map((t) => [t, "product_edit"]),
+  ["propose_blueprint_outline", "product_edit"],
   ...GROUPS.report_writes.map((t) => [t, "product_edit"]),
   ["update_figure_editor", "product_edit"],
 ]);

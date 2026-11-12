@@ -43,6 +43,7 @@ export * from "./run_generation.ts";
 export * from "./run_authoring_context.ts";
 export * from "./run_manifest.ts";
 export * from "./slides.ts";
+export * from "./_deck_blueprint.ts";
 export * from "./visualizations.ts";
 export * from "./sort.ts";
 export * from "./ai_input.ts";

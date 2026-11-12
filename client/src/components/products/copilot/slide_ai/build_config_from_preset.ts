@@ -90,6 +90,23 @@ export function buildConfigFromPreset(
     config.d.valuesFilter = input.valuesFilter;
   }
 
+  if (
+    input.relativePeriod &&
+    (input.startDate != null || input.endDate != null)
+  ) {
+    throw new Error(
+      "Give either relativePeriod or startDate/endDate, not both.",
+    );
+  }
+  if (input.relativePeriod) {
+    if (!resultsValue.mostGranularTimePeriodColumnInResultsFile) {
+      throw new Error(
+        `Cannot apply relativePeriod: metric "${metricId}" has no time period column`,
+      );
+    }
+    config.d.periodFilter = input.relativePeriod;
+  }
+
   if (input.startDate != null && input.endDate != null) {
     const targetPeriodOption =
       resultsValue.mostGranularTimePeriodColumnInResultsFile;

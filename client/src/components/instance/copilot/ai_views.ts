@@ -227,6 +227,10 @@ export type EditingSlideDeckContext = PackageViewContext & {
   deleteSlides: (
     slideIds: string[],
   ) => Promise<APIResponseWithData<{ deletedIds: string[] }>>;
+  // The deck's own settings save, as the Deck menu runs it: applied
+  // optimistically, rolled back with an alert on failure. Resolves whether
+  // it saved.
+  patchDeckConfig: (patch: Partial<SlideDeckConfig>) => Promise<boolean>;
 };
 
 export type EditingReportParams = {

@@ -726,7 +726,24 @@ routes and never open a slide: the deck's own rule (the first slide when none is
 open) is the only thing that moves the editor on the AI's behalf.
 `delete_slides` commits through the deck's `deleteSlides` (S12), the rail's own
 sequence, so a deleted open slide hands the editor to its neighbour before the
-request. The report's writes go through the live view context. The Figure editor
+request. `create_slide`'s content input also takes `layoutRows` (rows of spans
+the blocks fill in reading order, built without the optimizer and so with no
+overflow line, as `layoutChange`; up to `DECK_BLUEPRINT_MAX_BLOCKS` blocks),
+`split` (a plain or pattern side panel) and, per figure, `relativePeriod` (the
+relative members of `periodFilter`, exclusive with `startDate`/`endDate`): what
+a blueprint's patterns need to be rebuilt exactly. **Deck blueprints** (S12
+"Deck blueprints") add two outer tools in the deck view
+([blueprint.tsx](client/src/components/products/copilot/ai_tools/tools/blueprint.tsx)):
+`get_blueprint_run` reads the run the person started from the deck
+(`products/_shared/deck_blueprint_run.ts`, one per tab) with the steps to
+follow and the blueprint; `propose_blueprint_outline` (approval-exempt, since
+its card is the confirmation; `awaitsUserAction`, keyed by tool_use id like
+`ask_user_questions`) shows the outline card, and on Build makes the
+checkpoint, the look, the deletions and the deck's record itself before the
+model writes any slide. A screen outside the chat starts a turn, and offers an
+item in the chat's menu, through
+[prompt_bridge.ts](client/src/components/instance/copilot/prompt_bridge.ts):
+the pane sends a pending prompt once it is mounted and idle. The report's writes go through the live view context. The Figure editor
 group
 ([figure_editor.ts](client/src/components/products/copilot/ai_tools/tools/figure_editor.ts),
 in the inner set, admitted in the four figure views): `get_figure_editor`

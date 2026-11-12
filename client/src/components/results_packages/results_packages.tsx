@@ -10,7 +10,14 @@ import {
   Table,
   type TableColumn,
 } from "panther";
-import { createSignal, onCleanup, onMount, Show } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  onCleanup,
+  onMount,
+  Show,
+  untrack,
+} from "solid-js";
 import { createStore } from "solid-js/store";
 import {
   PinnedBadge,
@@ -30,7 +37,11 @@ import {
   addInstanceRunProgressListener,
 } from "~/state/instance/t1_sse";
 import { instanceState } from "~/state/instance/t1_store";
-import { openShellEditor } from "~/state/t4_ui";
+import {
+  openShellEditor,
+  pendingSubPageOpen,
+  setPendingSubPageOpen,
+} from "~/state/t4_ui";
 import {
   copilotViewController,
   holdCopilotView,
@@ -153,6 +164,18 @@ export function InstanceResultsPackages() {
       props: {},
     });
   }
+
+  // A tour replay into Module defaults: open it; the editor clears the
+  // request once its view is set.
+  createEffect(() => {
+    const request = pendingSubPageOpen();
+    if (request !== "module_defaults") return;
+    if (!can("can_configure_data")) {
+      setPendingSubPageOpen(null);
+      return;
+    }
+    untrack(() => void openModuleDefaults());
+  });
 
   const emptyMessage = () =>
     t3({

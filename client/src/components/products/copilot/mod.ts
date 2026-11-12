@@ -1,4 +1,5 @@
 export {
+  getClientToolsForDeckBlueprints,
   getClientToolsForDrafts,
   getClientToolsForFigureEditor,
   getClientToolsForProducts,

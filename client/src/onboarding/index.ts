@@ -15,21 +15,27 @@ import {
   buildDeckEditorSettingsTour,
   buildDeckEditorSlidesTour,
   buildExploreTour,
+  buildHfaIndicatorEditorTour,
+  buildHfaIndicatorsTour,
   buildInstanceAssetsTour,
   buildInstanceDataTour,
   buildInstanceResultsPackagesCatalogueTour,
   buildInstanceResultsPackagesTour,
+  buildInstanceScopesTour,
   buildInstanceUsersTour,
   buildInstanceWelcomeTour,
+  buildModuleDefaultsTour,
   buildProductsCardsTour,
   buildProductsCreateTour,
   buildProductsIntroTour,
   buildReportEditorFiguresTour,
   buildReportEditorHistoryTour,
   buildReportEditorIntroTour,
+  buildReportEditorTemplatesTour,
   buildSlideContentTour,
   buildSlideCoverTour,
   buildSlideSectionTour,
+  buildVisualizationHistoryTour,
   buildVizEditorTour,
   tourLabels,
 } from "./tours";
@@ -38,6 +44,7 @@ import { canEditProduct } from "~/state/instance/product_access";
 import { copilotViewController } from "~/components/instance/copilot/mod.ts";
 import {
   openVisualizationEditors,
+  pendingSubPageOpen,
   pendingTourReplay,
   productsExpandedFolders,
   setPendingTourReplay,
@@ -87,6 +94,11 @@ export function setupTours(opts: {
     explore: onPage("explore"),
     "instance-data": onPage("data"),
     "instance-results-packages": onPage("results_packages"),
+    "instance-scopes": onPage("scopes"),
+    // Full pages a tab opens over itself, each setting its own view.
+    "module-defaults": onPage("module_defaults"),
+    "hfa-indicators": onPage("hfa_indicators"),
+    "hfa-indicator-editor": onPage("hfa_indicator_editor"),
     "instance-assets": onPage("assets"),
     "instance-users": onPage("users"),
     // Ahead of the product editors: the visualization editor opens over a
@@ -156,9 +168,22 @@ export function setupTours(opts: {
           null,
       tour: buildInstanceResultsPackagesCatalogueTour(),
     },
+    { page: "instance-scopes", tour: buildInstanceScopesTour() },
+    { page: "module-defaults", tour: buildModuleDefaultsTour() },
+    { page: "hfa-indicators", tour: buildHfaIndicatorsTour() },
+    { page: "hfa-indicator-editor", tour: buildHfaIndicatorEditorTour() },
     { page: "instance-assets", tour: buildInstanceAssetsTour() },
     { page: "instance-users", tour: buildInstanceUsersTour() },
     { page: "viz-editor", tour: buildVizEditorTour() },
+    // A visualization product's own history: the editor over a slide or a
+    // report has no History button.
+    {
+      page: "viz-editor",
+      when: () =>
+        currentView().id === "editing_visualization" &&
+        document.querySelector("#visualization-history-button") !== null,
+      tour: buildVisualizationHistoryTour(),
+    },
     // Inside a deck: toolbar, slides, present, history, then open Settings.
     // Array order is merge order, so the two parts that end inside a
     // full-region overlay come last (history hands back via its back button,
@@ -199,6 +224,13 @@ export function setupTours(opts: {
       page: "report-editor",
       when: () => document.querySelector("[data-embed-id]") !== null,
       tour: buildReportEditorFiguresTour(),
+    },
+    // Deferred until the report holds a page laid out from a template.
+    {
+      page: "report-editor",
+      when: () =>
+        document.querySelector('[data-rf-part="page"] .fm-tpl') !== null,
+      tour: buildReportEditorTemplatesTour(),
     },
     { page: "report-editor", tour: buildReportEditorHistoryTour() },
   ];
@@ -252,7 +284,10 @@ export function setupTours(opts: {
   // is dropped if the page is not active (the switch was synchronous, so the
   // tab is denied), and a replay on a product is dropped only once T1 is
   // ready and no longer holds that product (a dead id, the Products page's
-  // own rule for the open request).
+  // own rule for the open request). A replay on a full page a tab opens over
+  // itself (`subPage`) waits while that open request is outstanding: the
+  // page clears it once its view is set, so it is dropped only when the
+  // request is gone and the page still is not active.
   const replayReadyFor = new Map<string, () => boolean>([
     ...tours.map((t) => [t.tour.id, pages[t.page]] as const),
     ...slideTours.map(
@@ -270,6 +305,10 @@ export function setupTours(opts: {
     if (ready()) {
       setPendingTourReplay(null);
       void manager.start(replay.tourId);
+      return;
+    }
+    if (replay.subPage !== undefined) {
+      if (pendingSubPageOpen() !== replay.subPage) setPendingTourReplay(null);
       return;
     }
     if (replay.productId === undefined) {

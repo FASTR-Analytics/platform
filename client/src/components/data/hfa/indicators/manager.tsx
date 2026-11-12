@@ -41,7 +41,15 @@ import {
   TableColumn,
   TabsNavigation,
 } from "panther";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onMount,
+  Show,
+  untrack,
+} from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getHfaDictionaryFromCacheOrFetch } from "~/state/instance/t2_datasets";
@@ -78,6 +86,7 @@ import {
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
 import { can } from "~/state/instance/permissions";
+import { pendingSubPageOpen, setPendingSubPageOpen } from "~/state/t4_ui";
 
 type Props = {
   close: (v: undefined) => void;
@@ -168,6 +177,10 @@ export function HfaIndicatorsManager(p: Props) {
   copilotViewController.setView("hfa_indicators", undefined, {
     getGuidance: getHfaIndicatorsGuidance,
     getTab: () => tab(),
+  });
+  // A tour replay's open request for this page is met once the view is set.
+  onMount(() => {
+    if (pendingSubPageOpen() === "hfa_indicators") setPendingSubPageOpen(null);
   });
   const tabItems: ListItem<Tab>[] = [
     {
@@ -513,6 +526,47 @@ export function HfaIndicatorsManager(p: Props) {
       },
     });
   }
+
+  // A tour replay of the code editor: open the first indicator once
+  // everything the editor needs has loaded. The editor clears the request once
+  // its view is set; with nothing to open, it is cleared here, which drops the
+  // replay.
+  let replayOpened = false;
+  createEffect(() => {
+    const request = pendingSubPageOpen();
+    if (replayOpened || request !== "hfa_indicator_editor") return;
+    if (
+      !can("can_configure_data") || !hfaDataAvailable() ||
+      !instanceState.hfaIndicatorsVersion
+    ) {
+      replayOpened = true;
+      setPendingSubPageOpen(null);
+      return;
+    }
+    const states = [
+      indicators(),
+      dictionary(),
+      categories(),
+      subCategories(),
+      serviceCategories(),
+      variantGroups(),
+      variantItems(),
+      allCode(),
+      allVariantCode(),
+    ];
+    if (states.some((st) => st.status === "loading")) return;
+    replayOpened = true;
+    const indSt = indicators();
+    const first = indSt.status === "ready" ? indSt.data[0] : undefined;
+    if (
+      indSt.status !== "ready" || first === undefined ||
+      states.some((st) => st.status !== "ready")
+    ) {
+      setPendingSubPageOpen(null);
+      return;
+    }
+    untrack(() => void handleOpenCodeEditor(first, indSt.data));
+  });
 
   async function handleOpenCodeEditor(
     indicator: HfaIndicator,
@@ -1260,6 +1314,7 @@ export function HfaIndicatorsManager(p: Props) {
           pad="md"
           panelChildren={
             <TabsNavigation
+              data-tour="hfa-indicators-tabs"
               items={tabItems}
               value={tab()}
               onChange={setTab}
@@ -1291,7 +1346,10 @@ export function HfaIndicatorsManager(p: Props) {
                       {notCheckedMessage()}
                     </div>
                   </Show>
-                  <div class="h-0 w-full flex-1">
+                  <div
+                    class="h-0 w-full flex-1"
+                    data-tour="hfa-indicators-table"
+                  >
                     <Table
                       data={keyedIndicators}
                       columns={columns}
@@ -1391,6 +1449,7 @@ export function HfaIndicatorsManager(p: Props) {
                               iconName="plus"
                               intent="primary"
                               onClick={() => openCreateIndicator()}
+                              data-tour="hfa-indicators-add"
                             >
                               {t3({
                                 en: "Add",

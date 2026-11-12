@@ -33,8 +33,11 @@ tour manager, Clerk-backed seen-flags under `unsafeMetadata.onboarding`). ONE
 manager serves the whole app (`setupTours`, mounted from the instance shell with
 an approved gate): every page is keyed on the copilot's view controller, on
 which every tab page, full-page view and editor sets its view (S13): the
-Products, Explore, Data, Results, Assets and Users pages on `products`,
-`explore`, `data`, `results_packages`, `assets` and `users`, the deck editor on
+Products, Explore, Data, Results, Scopes, Assets and Users pages on
+`products`, `explore`, `data`, `results_packages`, `scopes`, `assets` and
+`users`, the full pages a tab opens over itself on their own views (Module
+defaults on `module_defaults`, the HFA indicators manager on `hfa_indicators`
+and an indicator's code editor on `hfa_indicator_editor`), the deck editor on
 `editing_slide_deck`, whose open slide is its state, and the report editor on
 `editing_report`. A tab page's predicate is therefore false under the editor or
 the full-page view that covers it, which has set its own view, and false while a
@@ -42,12 +45,15 @@ product is still loading (`opening_product`). The one page not keyed on a view
 is the visualization editor's, listed ahead of the product editors: it opens
 over a slide or a report, so its predicate reads `openVisualizationEditors`
 (`t4_ui.ts`), a count `VisualizationEditorInner` (S11) keeps while it is open
-for editing (a read-only view is not counted). The slide tours share the deck's
+for editing (a read-only view is not counted). A visualization product's own
+editor counts too, so it shares that page: the steps that word the way back
+read the view (`editing_visualization`) to tell the two apart, and the
+visualization history tour is gated on that view and its History button. The slide tours share the deck's
 page, each with an entry-level `when` on the open slide's type: the deck's rail
 stays on screen beside an open slide and the manager keeps one page at a time,
 the first whose predicate holds, so a page of their own would never win.
-Deferred parts (a card on screen, a slide in the deck, a figure in the report, a
-ready package for Explore) use entry-level `when` gates plus `watch` triggers
+Deferred parts (a card on screen, a slide in the deck, a figure or a template
+page in the report, a ready package for Explore) use entry-level `when` gates plus `watch` triggers
 over the product and ready-package counts, the Products page's open folders
 (`productsExpandedFolders`), the open view's slide or figure count, the open
 slide's type, and each tour's finish or abort (a re-check made while a run is
@@ -85,8 +91,12 @@ slide-type rows first run a cache-first search of the decks' slide documents,
 `pendingEditorOpen` request (`{ productId }` in `t4_ui.ts`, persisting until the
 Products page mounts and consumes it) and, for the slide tours, a
 `pendingSlideOpen` the deck editor consumes to open the first slide of that
-type, and for the visualization editor tour a `pendingVisualizationOpen` the
-report editor consumes to open its first visualization; once navigate resolves
+type, for the visualization editor tour (when no visualization product the
+user can edit exists to open instead) a `pendingVisualizationOpen` the report
+editor consumes to open its first visualization, and for the tours on a full
+page a tab opens over itself a `pendingSubPageOpen` (`module_defaults`,
+`hfa_indicators`, `hfa_indicator_editor`) the Results or Data tab consumes by
+opening it, and that the page itself clears once its view is set; once navigate resolves
 (the slide tours search first, and a search that finds nothing arms no replay)
 it arms `pendingTourReplay` with the tour id and the product the tour's page
 lives in. The order matters: the manager's replay effect runs synchronously on
@@ -95,7 +105,9 @@ slide of its type is open, which the deck editor does only after the deck has
 opened), drops a tab-page replay whose page is not active (the switch was
 synchronous, so the tab is denied), and drops a product replay only once T1 is
 ready and no longer holds the product (a dead id, the Products page's own rule
-for the open request). It reads nothing transient, so the Products page clearing
+for the open request). A sub-page replay waits while its open request is
+outstanding and is dropped once the request is gone with the page still
+inactive. It reads nothing transient, so the Products page clearing
 the open request just before it mounts the editor does not disturb a waiting
 replay. The manager is created with the shared button labels (`tourLabels()`,
 merged by roadtrip under any per-tour labels) and `onEvent: reportTourEvent`

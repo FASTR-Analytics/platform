@@ -143,7 +143,7 @@ export function InstanceScopes() {
         <AllDataScopePanel
           productCount={counts().get(ALL_DATA_SCOPE_ID) ?? 0}
         />
-        <div class="min-h-0 flex-1">
+        <div class="min-h-0 flex-1" data-tour="scopes-table">
           <Table
             data={rows()}
             columns={columns}
@@ -164,7 +164,11 @@ export function InstanceScopes() {
             toolbar={{
               search: true,
               children: (
-                <Button onClick={() => openEditor(undefined)} iconName="plus">
+                <Button
+                  onClick={() => openEditor(undefined)}
+                  iconName="plus"
+                  data-tour="scopes-new"
+                >
                   {t3({
                     en: "New scope",
                     fr: "Nouvelle portée",
@@ -185,7 +189,10 @@ export function InstanceScopes() {
 // and it stays first whatever the sort or search.
 function AllDataScopePanel(p: { productCount: number }) {
   return (
-    <div class="ui-gap ui-pad-x ui-pad-y-sm bg-base-100 flex flex-none flex-wrap items-center rounded border text-sm">
+    <div
+      class="ui-gap ui-pad-x ui-pad-y-sm bg-base-100 flex flex-none flex-wrap items-center rounded border text-sm"
+      data-tour="scopes-all-data"
+    >
       <span class="font-700">{t3(TC.allData)}</span>
       <Badge intent="primary" variant="solid">
         {t3({ en: "Built in", fr: "Intégrée", pt: "Incorporado" })}

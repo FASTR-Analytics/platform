@@ -148,6 +148,8 @@ export function SlideDeckEditor(p: Props) {
   const [deckConfig, setDeckConfig] = createSignal<SlideDeckConfig>(
     getStartingConfigForSlideDeck(),
   );
+  // The plan column: the record of a blueprint that built the deck, or "".
+  const [deckPlan, setDeckPlan] = createSignal("");
   // The product run's authoring context: immutable T2, keyed by the LIVE
   // runId, so a reattach re-resolves it instead of reusing the old package's.
   const [authoringContext, setAuthoringContext] = createSignal<
@@ -199,7 +201,9 @@ export function SlideDeckEditor(p: Props) {
   // editor and the rail, which is why the optimism does too. A failed save
   // puts back what the server holds.
   let configSavesInFlight = 0;
-  async function patchDeckConfig(patch: Partial<SlideDeckConfig>) {
+  async function patchDeckConfig(
+    patch: Partial<SlideDeckConfig>,
+  ): Promise<boolean> {
     const before = deckConfig();
     const next = { ...before, ...patch };
     setDeckConfig(next);
@@ -212,7 +216,9 @@ export function SlideDeckEditor(p: Props) {
     if (res.success === false) {
       setDeckConfig(before);
       await openAlert({ text: res.err, intent: "danger" });
+      return false;
     }
+    return true;
   }
 
   // ── The open slide (Google Slides: the rail on the left, one slide open
@@ -395,6 +401,7 @@ export function SlideDeckEditor(p: Props) {
     getSelectedSlideIds: () => selectedSlideIds(),
     getOpenSlide: () => openSlide(),
     deleteSlides,
+    patchDeckConfig,
   };
 
   // A read that fails before the first success: the error replaces the
@@ -437,6 +444,7 @@ export function SlideDeckEditor(p: Props) {
       // flick the deck back to an older value.
       batch(() => {
         setSlideIds(res.data.slideIds);
+        setDeckPlan(res.data.plan);
         if (configSavesInFlight === 0) setDeckConfig(res.data.config);
       });
       setIsLoading(false);
@@ -484,6 +492,7 @@ export function SlideDeckEditor(p: Props) {
           deckLabel={deckLabel()}
           deckConfig={deckConfig()}
           patchDeckConfig={patchDeckConfig}
+          deckPlan={deckPlan()}
           slideIds={slideIds()}
           isLoading={isLoading()}
           setSelectedSlideIds={setSelectedSlideIds}
@@ -508,7 +517,8 @@ function SlideDeckEditorInner(p: {
   authoringContext: RunAuthoringContext | undefined;
   deckLabel: string;
   deckConfig: SlideDeckConfig;
-  patchDeckConfig: (patch: Partial<SlideDeckConfig>) => Promise<void>;
+  patchDeckConfig: (patch: Partial<SlideDeckConfig>) => Promise<boolean>;
+  deckPlan: string;
   slideIds: string[];
   isLoading: boolean;
   setSelectedSlideIds: (ids: string[]) => void;
@@ -643,6 +653,7 @@ function SlideDeckEditorInner(p: {
             openVersionHistory={openVersionHistory}
             deckConfig={p.deckConfig}
             patchDeckConfig={p.patchDeckConfig}
+            deckPlan={p.deckPlan}
             onToolbarHost={setToolbarHost}
             onMenuRowHost={setMenuRowHost}
             onStatusHost={setStatusHost}

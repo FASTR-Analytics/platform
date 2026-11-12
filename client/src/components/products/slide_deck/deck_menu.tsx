@@ -13,7 +13,13 @@ import {
   PopoverRow,
   ToolbarPopover,
 } from "report-forge";
-import { type Slide, type SlideDeckConfig, t3 } from "lib";
+import {
+  type DeckBlueprintProvenance,
+  formatPeriodRange,
+  type Slide,
+  type SlideDeckConfig,
+  t3,
+} from "lib";
 import {
   Button,
   Checkbox,
@@ -159,6 +165,10 @@ export function DeckFileMenu(p: {
   /** How many slides the rail has selected: none means nothing to copy. */
   selectedCount: number;
   onCopyToDeck: () => void;
+  onMakeBlueprint: () => void;
+  onApplyBlueprint: () => void;
+  /** The blueprint that built this deck, from its plan column. */
+  builtFrom: DeckBlueprintProvenance | undefined;
 }) {
   const selectedSlideCount = () =>
     `${p.selectedCount} ${
@@ -240,6 +250,49 @@ export function DeckFileMenu(p: {
                 pt: "Copiar para apresentação…",
               })}
           </PopoverRow>
+          <MenuDivider />
+          <PopoverRow
+            active={false}
+            onClick={() => {
+              close();
+              p.onMakeBlueprint();
+            }}
+          >
+            {t3({
+              en: "Make blueprint…",
+              fr: "Créer un modèle…",
+              pt: "Criar modelo…",
+            })}
+          </PopoverRow>
+          <Show when={p.canEdit}>
+            <PopoverRow
+              active={false}
+              onClick={() => {
+                close();
+                p.onApplyBlueprint();
+              }}
+            >
+              {t3({
+                en: "Apply blueprint…",
+                fr: "Appliquer un modèle…",
+                pt: "Aplicar modelo…",
+              })}
+            </PopoverRow>
+          </Show>
+          <Show when={p.builtFrom}>
+            {(b) => (
+              <div class="ui-text-caption px-3 py-1">
+                {t3({
+                  en: `Built from blueprint "${b().blueprintName}"`,
+                  fr: `Créée à partir du modèle « ${b().blueprintName} »`,
+                  pt: `Criada a partir do modelo "${b().blueprintName}"`,
+                })}
+                <Show when={b().periods[0]}>
+                  {(per) => <span>{` · ${formatPeriodRange(per())}`}</span>}
+                </Show>
+              </div>
+            )}
+          </Show>
         </div>
       )}
     </ToolbarPopover>

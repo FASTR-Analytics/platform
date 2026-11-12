@@ -108,8 +108,8 @@ const boundedFilterBase = z.object({
   max: z.number().int(),
 });
 
-const periodFilterUnion = z.discriminatedUnion("filterType", [
-  // Relative filters (resolved at query time)
+// Relative filters (resolved at query time)
+const relativePeriodFilters = [
   z.object({
     filterType: z.literal("last_n_months"),
     nMonths: z.number().int().min(1),
@@ -128,6 +128,17 @@ const periodFilterUnion = z.discriminatedUnion("filterType", [
     filterType: z.literal("last_n_calendar_quarters"),
     nQuarters: z.number().int().min(1),
   }),
+] as const;
+
+// The relative members alone: a period that names no dates, so it means the
+// same thing in any package (a deck blueprint carries one as is).
+export const relativePeriodFilterSchema = z.discriminatedUnion(
+  "filterType",
+  relativePeriodFilters,
+);
+
+const periodFilterUnion = z.discriminatedUnion("filterType", [
+  ...relativePeriodFilters,
   // Bounded filters (explicit min/max)
   boundedFilterBase.extend({
     filterType: z.literal("custom"),

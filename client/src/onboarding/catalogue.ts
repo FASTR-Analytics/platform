@@ -4,8 +4,10 @@ import type { ProductSummary, SlideType } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 import { productSummaryLevel } from "~/state/instance/product_access";
 import {
+  type PendingSubPageOpen,
   setPendingEditorOpen,
   setPendingSlideOpen,
+  setPendingSubPageOpen,
   setPendingVisualizationOpen,
   setShowAi,
 } from "~/state/t4_ui";
@@ -56,7 +58,10 @@ export type TourCatalogueEntry = {
   ) => Promise<TourReplayTarget | null>;
 };
 
-export type TourReplayTarget = { productId?: string };
+export type TourReplayTarget = {
+  productId?: string;
+  subPage?: PendingSubPageOpen;
+};
 
 const decks = () =>
   instanceState.products.filter((p) => p.type === "slide_deck");
@@ -65,6 +70,13 @@ const decks = () =>
 const editableDecks = () =>
   decks().filter((d) => productLevelAtLeast(productSummaryLevel(d), "edit"));
 const reports = () => instanceState.products.filter((p) => p.type === "report");
+// The visualization tours walk the editor, which counts as open for editing
+// (the viz-editor page) only for a user who can edit the visualization.
+const editableVisualizations = () =>
+  instanceState.products.filter((p) =>
+    p.type === "visualization" &&
+    productLevelAtLeast(productSummaryLevel(p), "edit")
+  );
 const hasPackage = () => instanceState.readyPackages.length > 0;
 const hasProducts = () => instanceState.products.length > 0;
 const firstDeckHasSlides = () => {
@@ -96,9 +108,21 @@ const reasonNeedPackage = () =>
   });
 const reasonNeedProduct = () =>
   t3({
-    en: "Create a slide deck or a report first",
-    fr: "Créez d'abord une présentation ou un rapport",
-    pt: "Crie primeiro uma apresentação ou um relatório",
+    en: "Create a slide deck, a report or a visualization first",
+    fr: "Créez d'abord une présentation, un rapport ou une visualisation",
+    pt: "Crie primeiro uma apresentação, um relatório ou uma visualização",
+  });
+const reasonNeedHfaData = () =>
+  t3({
+    en: "Import health facility assessment data first",
+    fr: "Importez d'abord les données d'enquête auprès des établissements",
+    pt: "Importe primeiro os dados das avaliações das unidades de saúde",
+  });
+const reasonNeedVisualization = () =>
+  t3({
+    en: "Create a visualization you can edit first",
+    fr: "Créez d'abord une visualisation que vous pouvez modifier",
+    pt: "Crie primeiro uma visualização que possa editar",
   });
 const reasonNeedDeck = () =>
   t3({
@@ -191,13 +215,28 @@ const openFirstDeck = (openTab: (tab: InstanceTab) => void) =>
   openProduct(openTab, decks()[0]);
 const openFirstReport = (openTab: (tab: InstanceTab) => void) =>
   openProduct(openTab, reports()[0]);
-// The visualization editor tour: the report editor opens its first
-// visualization once it has loaded (`pendingVisualizationOpen`).
-const openFirstReportVisualization = (
+// The visualization editor tour: a visualization product when there is one
+// to edit, which opens straight into the editor; otherwise the report editor
+// opens its first visualization once it has loaded
+// (`pendingVisualizationOpen`).
+const openFirstVisualization = (
   openTab: (tab: InstanceTab) => void,
 ): Promise<TourReplayTarget | null> => {
+  const visualization = editableVisualizations()[0];
+  if (visualization !== undefined) return openProduct(openTab, visualization);
   if (reports()[0] !== undefined) setPendingVisualizationOpen(true);
   return openFirstReport(openTab);
+};
+// A full-page view a tab opens over itself: the tab opens it from
+// `pendingSubPageOpen`, and the replay waits on that request.
+const openSubPage = (
+  tab: InstanceTab,
+  subPage: PendingSubPageOpen,
+): TourCatalogueEntry["navigate"] =>
+(openTab) => {
+  setPendingSubPageOpen(subPage);
+  openTab(tab);
+  return Promise.resolve({ subPage });
 };
 const openFirstDeckSlide = async (
   openTab: (tab: InstanceTab) => void,
@@ -543,6 +582,26 @@ export function getTourCatalogue(
       navigate: openFirstReport,
     },
     {
+      id: "report-editor-templates",
+      area: "reports",
+      label: t3({
+        en: "Page templates",
+        fr: "Modèles de page",
+        pt: "Modelos de página",
+      }),
+      description: t3({
+        en:
+          "Laying out a whole page to a ready-made design, and filling its areas. Opens your first report.",
+        fr:
+          "Mettre en forme une page entière selon un modèle prêt à l'emploi, et remplir ses zones. Ouvre votre premier rapport.",
+        pt:
+          "Dispor uma página inteira segundo um desenho pronto a usar, e preencher as suas áreas. Abre o seu primeiro relatório.",
+      }),
+      available: () => reports().length > 0,
+      unavailableReason: reasonNeedReport,
+      navigate: openFirstReport,
+    },
+    {
       id: "report-editor-history",
       area: "reports",
       label: t3({
@@ -572,16 +631,38 @@ export function getTourCatalogue(
       }),
       description: t3({
         en:
-          "Choosing what a visualization shows, how it looks and its text. Opens the first visualization in your first report.",
+          "Choosing what a visualization shows, how it looks and its text. Opens your first visualization, or the first one in your first report.",
         fr:
-          "Choisir ce qu'une visualisation montre, son apparence et son texte. Ouvre la première visualisation de votre premier rapport.",
+          "Choisir ce qu'une visualisation montre, son apparence et son texte. Ouvre votre première visualisation, ou la première de votre premier rapport.",
         pt:
-          "Escolher o que uma visualização mostra, o seu aspeto e o seu texto. Abre a primeira visualização do seu primeiro relatório.",
+          "Escolher o que uma visualização mostra, o seu aspeto e o seu texto. Abre a sua primeira visualização, ou a primeira do seu primeiro relatório.",
       }),
-      available: () => reports().length > 0 && firstReportHasEmbeds(),
+      available: () =>
+        editableVisualizations().length > 0 ||
+        (reports().length > 0 && firstReportHasEmbeds()),
       unavailableReason: () =>
         reports().length === 0 ? reasonNeedReport() : reasonNeedReportFigure(),
-      navigate: openFirstReportVisualization,
+      navigate: openFirstVisualization,
+    },
+    {
+      id: "visualization-history",
+      area: "visualizations",
+      label: t3({
+        en: "Visualization version history",
+        fr: "Historique des versions de visualisation",
+        pt: "Histórico de versões da visualização",
+      }),
+      description: t3({
+        en:
+          "Browsing and restoring earlier versions of a visualization. Opens your first visualization.",
+        fr:
+          "Parcourir et restaurer des versions antérieures d'une visualisation. Ouvre votre première visualisation.",
+        pt:
+          "Consultar e restaurar versões anteriores de uma visualização. Abre a sua primeira visualização.",
+      }),
+      available: () => editableVisualizations().length > 0,
+      unavailableReason: reasonNeedVisualization,
+      navigate: (openTab) => openProduct(openTab, editableVisualizations()[0]),
     },
     // ── The platform ─────────────────────────────────────────────────────
     {
@@ -687,6 +768,42 @@ export function getTourCatalogue(
       navigate: openTabOnly("results_packages"),
     },
     {
+      id: "module-defaults-intro",
+      area: "instance",
+      label: t3({
+        en: "Module defaults",
+        fr: "Paramètres par défaut des modules",
+        pt: "Predefinições dos módulos",
+      }),
+      description: t3({
+        en:
+          "The settings every module runs with, and how to change or reset them. Opens Module defaults on the Results tab.",
+        fr:
+          "Les paramètres avec lesquels chaque module s'exécute, et comment les modifier ou les réinitialiser. Ouvre les paramètres par défaut des modules dans l'onglet Résultats.",
+        pt:
+          "As definições com que cada módulo é executado, e como as alterar ou repor. Abre as predefinições dos módulos no separador Resultados.",
+      }),
+      available: () => can("can_configure_data"),
+      unavailableReason: reasonNoPageAccess,
+      navigate: openSubPage("results_packages", "module_defaults"),
+    },
+    {
+      id: "instance-scopes-intro",
+      area: "instance",
+      label: t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" }),
+      description: t3({
+        en:
+          "Setting which part of the data a product may show: the built-in All data, and scopes of your own.",
+        fr:
+          "Définir la partie des données qu'un produit peut afficher : All data, intégrée, et vos propres portées.",
+        pt:
+          "Definir a parte dos dados que um produto pode mostrar: All data, incorporado, e os seus próprios âmbitos.",
+      }),
+      available: () => can("can_configure_data"),
+      unavailableReason: reasonNoPageAccess,
+      navigate: openTabOnly("scopes"),
+    },
+    {
       id: "instance-data-intro",
       area: "instance",
       label: t3({
@@ -705,6 +822,49 @@ export function getTourCatalogue(
       available: () => can("can_view_data"),
       unavailableReason: reasonNoPageAccess,
       navigate: openTabOnly("data"),
+    },
+    {
+      id: "hfa-indicators-intro",
+      area: "instance",
+      label: t3({
+        en: "HFA indicators",
+        fr: "Indicateurs HFA",
+        pt: "Indicadores HFA",
+      }),
+      description: t3({
+        en:
+          "The indicators calculated from the health facility assessment answers, and how they are checked. Opens HFA indicators on the Data tab.",
+        fr:
+          "Les indicateurs calculés à partir des réponses aux enquêtes auprès des établissements, et comment ils sont vérifiés. Ouvre les indicateurs HFA dans l'onglet Données.",
+        pt:
+          "Os indicadores calculados a partir das respostas às avaliações das unidades de saúde, e como são verificados. Abre os indicadores HFA no separador Dados.",
+      }),
+      available: () => can("can_view_data"),
+      unavailableReason: reasonNoPageAccess,
+      navigate: openSubPage("data", "hfa_indicators"),
+    },
+    {
+      id: "hfa-indicator-editor",
+      area: "instance",
+      label: t3({
+        en: "Writing an HFA indicator",
+        fr: "Écrire un indicateur HFA",
+        pt: "Escrever um indicador HFA",
+      }),
+      description: t3({
+        en:
+          "Writing an indicator's code, finding the survey variables and checking the result. Opens your first HFA indicator.",
+        fr:
+          "Écrire le code d'un indicateur, trouver les variables de l'enquête et vérifier le résultat. Ouvre votre premier indicateur HFA.",
+        pt:
+          "Escrever o código de um indicador, encontrar as variáveis do inquérito e verificar o resultado. Abre o seu primeiro indicador HFA.",
+      }),
+      available: () =>
+        can("can_configure_data") &&
+        !!instanceState.hfaCacheHash,
+      unavailableReason: () =>
+        can("can_configure_data") ? reasonNeedHfaData() : reasonNoPageAccess(),
+      navigate: openSubPage("data", "hfa_indicator_editor"),
     },
     {
       id: "instance-assets-intro",

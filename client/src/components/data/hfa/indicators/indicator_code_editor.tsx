@@ -54,9 +54,11 @@ import {
   For,
   Match,
   onCleanup,
+  onMount,
   Show,
   Switch,
 } from "solid-js";
+import { pendingSubPageOpen, setPendingSubPageOpen } from "~/state/t4_ui";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import {
@@ -253,6 +255,7 @@ export function HfaIndicatorCodeEditor(
       panelChildren={
         <HeadingBar
           tonal
+          data-tour="hfa-editor-header"
           leftChildren={
             <div class="ui-gap flex items-center">
               <Show
@@ -781,6 +784,12 @@ function EditorInner(p: {
     />
   );
 
+  // A tour replay's open request for this view is met once it is set.
+  onMount(() => {
+    if (pendingSubPageOpen() === "hfa_indicator_editor") {
+      setPendingSubPageOpen(null);
+    }
+  });
   copilotViewController.setView(
     "hfa_indicator_editor",
     { indicatorId: p.indicator.indicatorId },
@@ -1247,7 +1256,7 @@ function EditorInner(p: {
             }
           >
             <div class="ui-pad ui-gap flex h-full">
-              <div class="ui-spy w-1/2 flex-none">
+              <div class="ui-spy w-1/2 flex-none" data-tour="hfa-editor-code">
                 <div>
                   <TextArea
                     label={t3({
@@ -1417,7 +1426,10 @@ function EditorInner(p: {
                   </div>
                 </div>
               </div>
-              <div class="flex h-full w-0 flex-1 flex-col">
+              <div
+                class="flex h-full w-0 flex-1 flex-col"
+                data-tour="hfa-editor-variables"
+              >
                 <div class="ui-gap-sm mb-2 flex items-center">
                   <div class="font-700 flex-none text-sm">
                     {t3({

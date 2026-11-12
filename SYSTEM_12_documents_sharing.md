@@ -23,6 +23,9 @@ globs:
   - lib/types/_slide_config.ts
   - lib/types/_slide_deck_config.ts
   - lib/types/_slide_deck_themes.ts
+  - lib/types/_deck_blueprint.ts
+  - lib/deck_blueprint.ts
+  - lib/deck_blueprint_draft.ts
   - lib/types/products.ts
   - lib/types/reports.ts
   - lib/types/report_styles.ts
@@ -49,6 +52,7 @@ globs:
   - server/tests/report_format_conversion_test.ts
   - server/tests/report_format_helpers_test.ts
   - server/tests/slide_text_offsets_test.ts
+  - server/tests/deck_blueprint_test.ts
   - server/utils/id_generation.ts
   - server/utils/feedback_planner.ts
   - server/tests/feedback_planner_test.ts
@@ -513,8 +517,10 @@ bundle's area, else "An earlier scope definition". `packageScopeCaption` and
 
 ## Slide decks
 
-**Data model.** A `slide_decks` detail row keyed by the product id (free-text
-`plan`, which no route writes and a duplicate copies, JSON `config` = deck style
+**Data model.** A `slide_decks` detail row keyed by the product id (`plan`,
+text that is either "" or the JSON record of the blueprint that built the deck,
+written only by `updateSlideDeckPlan` and copied by a duplicate; see "Deck
+blueprints" below), JSON `config` = deck style
 and nothing else; the name lives on `products`, and `updateSlideDeckConfig`
 stamps without a label so a config write can never rename the deck) + one row
 per slide (JSON `config` = one `Slide`, integer `sort_order`; FK cascade on
@@ -530,6 +536,35 @@ create/delete/duplicate transactions; `moveSlides`
 ([db/products/move_slides.ts](server/db/products/move_slides.ts)) is
 **within-deck reorder only**; `copySlidesToSlideDeck` is the cross-deck reuse
 path.
+
+**Deck blueprints.** A blueprint is a portable file describing a deck so that
+another country's deck can be built "like this one" without copying it 1:1
+(format and its rules: `lib/types/_deck_blueprint.ts`; the pure functions:
+`lib/deck_blueprint.ts`, pinned by `server/tests/deck_blueprint_test.ts`). It
+holds topics (purpose + a plain-language scaling rule judged on the target's
+data), slide patterns (a 12-column grid of text briefs, figure metric + preset +
+period role or relative period + a filter intent in words, image slots), period
+roles in place of fixed dates, and the look (theme, header size, page numbers,
+watermark, footer/watermark patterns with `{Country}`/`{Period}`/`{Year}`, logo
+slot counts). It never holds figure rows, filter values, run/project ids, fixed
+dates or asset names. **Make** (File › Make blueprint…, view level;
+`slide_deck/blueprint/`): the deck's slides go through `buildBlueprintSkeleton`
+(everything that needs no judgement), one structured model call adds topics,
+briefs and preset choices, and `assembleBlueprint` merges them, accepting only
+words and preset ids the metric has; the review panel lists any source filter
+value or country name left in the words (`findSourceTermHits`) and downloads
+the file. **Apply** (File › Apply blueprint… or the AI panel's menu, edit
+level): the file is checked (`parseDeckBlueprintFile`), reviewed, a reporting
+period chosen (or "latest"), and a copilot run starts in this deck (S13's
+`get_blueprint_run` / `propose_blueprint_outline`). The outline card's Build
+writes, in order: a version checkpoint when existing slides are replaced
+(`checkpointSlideDeck`, the restore route's own safety-version helper,
+`writeDeckSafetyVersion`), the look (`deckConfigWithLook`, the deck's logos
+kept), the deletions (read back from the server after the look, since a never
+answered theme question gets its default cover with the first theme), then the
+deck's record in `plan` (`DeckBlueprintProvenance`, read by
+`readDeckBlueprintProvenance`; anything else in `plan` reads as none), shown in
+the File menu as "Built from blueprint …".
 
 **The deck-touch rule.** Every slide mutation bumps the owning `products` row
 (`touchProduct`, which also asserts the row's type) with the same timestamp in

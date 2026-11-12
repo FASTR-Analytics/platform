@@ -7,6 +7,7 @@ import {
   AiSectionSlideSchema,
   type AiSlideInput,
   COPILOT_TOOL_VIEWS,
+  DECK_BLUEPRINT_MAX_BLOCKS,
   getSlideTitle,
   type MetricWithStatus,
   type Slide,
@@ -71,7 +72,17 @@ function validateAiSlideInput(slide: AiSlideInput): void {
   if (slide.blocks.length === 0) {
     throw new AIToolFailure("Content slide must have at least 1 block.");
   }
-  validateMaxContentBlocks(slide.blocks.length);
+  // An exact layout (a blueprint's grid) skips the optimizer, whose block
+  // limit is what MAX_CONTENT_BLOCKS guards; the grid has its own.
+  if (slide.layoutRows) {
+    if (slide.blocks.length > DECK_BLUEPRINT_MAX_BLOCKS) {
+      throw new AIToolFailure(
+        `A slide with layoutRows holds at most ${DECK_BLUEPRINT_MAX_BLOCKS} blocks.`,
+      );
+    }
+  } else {
+    validateMaxContentBlocks(slide.blocks.length);
+  }
   const texts = slide.blocks.flatMap((b) =>
     b.type === "text" ? [b.markdown] : []
   );

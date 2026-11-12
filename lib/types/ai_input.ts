@@ -4,7 +4,11 @@ import {
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
 } from "../consts.ts";
-import { configDStrict } from "./_metric_installed.ts";
+import {
+  configDStrict,
+  relativePeriodFilterSchema,
+} from "./_metric_installed.ts";
+import { DECK_BLUEPRINT_MAX_BLOCKS } from "./_deck_blueprint.ts";
 import { presentationObjectConfigTStrict } from "./_presentation_object_config.ts";
 import { ROLLUP_DIMENSIONS } from "../rollup.ts";
 
@@ -125,6 +129,12 @@ export const AiFigureFromMetricSchema = z.object({
     .describe(
       "Optional: End of time range. Must be used together with startDate.",
     ),
+  // DERIVED from storage (the relative members of configDStrict's
+  // periodFilter): a period that names no dates and keeps moving with the
+  // data. Mutually exclusive with startDate/endDate.
+  relativePeriod: relativePeriodFilterSchema.optional().describe(
+    "Optional: a relative time range that moves with the data (e.g. { filterType: 'last_n_months', nMonths: 12 }). Use instead of startDate/endDate, never with them.",
+  ),
 });
 
 // ============================================================================
@@ -321,7 +331,44 @@ export const AiContentSlideSchema = z.object({
   blocks: z
     .array(AiContentBlockInputSchema)
     .describe(
-      `Required: Array of content blocks (text and/or figures) to display on this slide. A block is either text (markdown) or a figure built from a metric plus one of its presets. The layout will be automatically optimized. Maximum ${MAX_CONTENT_BLOCKS} blocks per slide.`,
+      `Required: Array of content blocks (text and/or figures) to display on this slide. A block is either text (markdown) or a figure built from a metric plus one of its presets. The layout will be automatically optimized unless layoutRows is given. Maximum ${MAX_CONTENT_BLOCKS} blocks per slide (${DECK_BLUEPRINT_MAX_BLOCKS} with layoutRows).`,
+    ),
+  // EXCEPTION: a simpler form than a LayoutNode. The blocks fill the grid in
+  // reading order (row by row, left to right), so the cells need no ids.
+  // Converted in one place: convert_ai_input_to_slide.ts.
+  layoutRows: z
+    .array(z.array(z.number().int().min(1).max(12)).min(1).max(4))
+    .min(1)
+    .max(4)
+    .optional()
+    .describe(
+      "Optional: an exact layout instead of the automatic one, as rows of column spans; each row's spans sum to 12, and the blocks fill the cells in order, row by row. E.g. [[8, 4]] puts block 1 at 8/12 and block 2 at 4/12 side by side; [[12], [6, 6]] puts block 1 across the top and blocks 2 and 3 below. The number of cells must equal the number of blocks. Use it when told to match a given layout (a blueprint); otherwise omit it.",
+    ),
+  split: z
+    .object({
+      placement: z.enum(["left", "right"]),
+      sizeAsPct: z.number().min(1).max(90),
+      fill: z.discriminatedUnion("type", [
+        z.object({ type: z.literal("plain") }),
+        z.object({
+          type: z.literal("pattern"),
+          patternType: z.enum([
+            "ovals",
+            "circles",
+            "dots",
+            "lines",
+            "grid",
+            "chevrons",
+            "waves",
+            "noise",
+            "none",
+          ]),
+        }),
+      ]),
+    })
+    .optional()
+    .describe(
+      "Optional: a coloured panel down one side of the slide, as a blueprint's slide pattern gives it. Omit unless told to use one.",
     ),
 });
 

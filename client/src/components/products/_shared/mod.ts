@@ -63,3 +63,9 @@ export type {
   FigureSource,
   InsertFigureResult,
 } from "./insert_figure/mod.ts";
+export {
+  deckBlueprintRunFor,
+  endDeckBlueprintRun,
+  startDeckBlueprintRun,
+} from "./deck_blueprint_run.ts";
+export type { DeckBlueprintRun } from "./deck_blueprint_run.ts";

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { Sql } from "postgres";
 import {
   listSlideConfigTextElements,
   type Slide,
@@ -6,6 +7,7 @@ import {
   type SlideDeckConfig,
   slideDeckConfigSchema,
   type SlideDeckVersionSlide,
+  type VersionEditor,
 } from "lib";
 import {
   copySlideDeckFromVersion,
@@ -19,6 +21,7 @@ import {
   restoreSlideDeckStructure,
   updateSlide,
   updateSlideDeckConfig,
+  updateSlideDeckPlan,
 } from "../../db/products/mod.ts";
 import {
   compactSlideElementTombstones,
@@ -41,6 +44,7 @@ import {
   isoStrictlyAfter,
   loadSlideDeckVersionData,
   recordVersionEdit,
+  type SlideDeckVersionData,
 } from "../../collab/version_capture.ts";
 import { log } from "../../middleware/logging.ts";
 import {
@@ -99,6 +103,44 @@ defineRoute(
     }
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
     return respond(c, { success: true, data: { lastUpdated } });
+  },
+);
+
+defineRoute(
+  routesProductSlideDecks,
+  "updateSlideDeckPlan",
+  log("updateSlideDeckPlan"),
+  async (c, { params, body }) => {
+    const res = await updateSlideDeckPlan(
+      c.var.mainDb,
+      params.product_id,
+      body.plan,
+    );
+    if (!res.success) {
+      return respond(c, res);
+    }
+    await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
+    return respond(c, res);
+  },
+);
+
+defineRoute(
+  routesProductSlideDecks,
+  "checkpointSlideDeck",
+  log("checkpointSlideDeck"),
+  async (c, { params }) => {
+    const res = await writeDeckSafetyVersion(
+      c.var.mainDb,
+      params.product_id,
+      editorFromGlobalUser(c.var.globalUser),
+    );
+    if (!res.success) {
+      return respond(c, res);
+    }
+    return respond(c, {
+      success: true as const,
+      data: { created: res.created },
+    });
   },
 );
 
@@ -173,96 +215,11 @@ defineRoute(
       });
     }
 
-    // Persist any un-checkpointed live-room edits FIRST: the safety snapshot
-    // below reads the DB, and live slide rooms can be up to 1.5s ahead of it.
-    // A FAILED flush means that slide's row is stale, so the "safety" version
-    // would not contain the current state: abort rather than overwrite the
-    // deck while promising a rollback point we do not have.
-    const idsRes = await getSlideDeckDetail(mainDb, productId);
-    if (!idsRes.success) {
-      return respond(c, idsRes);
+    const safety = await writeDeckSafetyVersion(mainDb, productId, restorer);
+    if (!safety.success) {
+      return respond(c, safety);
     }
-    for (const slideId of idsRes.data.slideIds) {
-      if (!await flushSlideRoom(productId, slideId)) {
-        return respond(c, {
-          success: false as const,
-          err:
-            "This deck has unsaved live edits that could not be saved yet, so a safety version cannot be created. Please retry once saving recovers.",
-        });
-      }
-    }
-
-    // Absorb the open editing session's attribution into the safety version;
-    // left in the tracker it would hash-dedup against the restored state
-    // later and those editors would never appear in any version. The
-    // per-slide ledger travels with it.
-    const drained = drainVersionEditors("deck", productId);
-    const drainedSlideEditors = drainDeckLedger(productId);
-    const reinjectDrained = () => {
-      for (const e of drained) {
-        recordVersionEdit("deck", productId, e);
-      }
-      restoreDeckLedger(productId, drainedSlideEditors);
-    };
-
-    // Safety version: the current state is preserved before anything is
-    // overwritten (skipped when it is already the newest stored version).
-    let current;
-    try {
-      current = await loadSlideDeckVersionData(productId);
-    } catch (error) {
-      reinjectDrained();
-      return respond(c, {
-        success: false as const,
-        err: error instanceof Error ? error.message : "Load failed",
-      });
-    }
-    if (!current) {
-      return respond(c, {
-        success: false as const,
-        err: "Slide deck not found",
-      });
-    }
-    // Freeze the drained session's per-character element authorship into the
-    // safety version, exactly like the tracker's writeVersion does: without
-    // this, the pre-restore session's exact text attribution is lost and its
-    // uncaptured tombstones would leak into the NEXT session's version.
-    if (drainedSlideEditors) {
-      for (const s of current.slides) {
-        const sl = drainedSlideEditors.slides[s.id];
-        if (!sl) continue;
-        const authors = snapshotSlideElementAuthors(
-          s.id,
-          listSlideConfigTextElements(s.config),
-        );
-        if (Object.keys(authors).length > 0) sl.elementAuthors = authors;
-      }
-    }
-    const safetyCreatedAt = new Date().toISOString();
-    const currentHash = hashVersionData(current);
-    const latestRes = await latestSlideDeckVersionHash(mainDb, productId);
-    if (currentHash !== (latestRes.success ? latestRes.data.hash : null)) {
-      const safetyRes = await insertSlideDeckVersion(mainDb, {
-        productId,
-        createdAt: safetyCreatedAt,
-        label: current.label,
-        deckConfig: current.deckConfig,
-        slides: current.slides,
-        editors: drained.length > 0 ? drained : [restorer],
-        contentHash: currentHash,
-        slideEditors: drainedSlideEditors,
-      });
-      if (!safetyRes.success) {
-        reinjectDrained();
-        return respond(c, safetyRes);
-      }
-      // The safety version captured these tombstones: start the next window
-      // for exactly the elements it captured (mirrors writeVersion).
-      for (const s of current.slides) {
-        const captured = drainedSlideEditors?.slides[s.id]?.elementAuthors;
-        compactSlideElementTombstones(s.id, Object.keys(captured ?? {}));
-      }
-    }
+    const { current, safetyCreatedAt, reinjectDrained } = safety;
 
     // Snapshot slide ids may have been reused by slides in other decks since
     // the snapshot was taken (uniqueness is checked against live rows only):
@@ -430,3 +387,112 @@ defineRoute(
     return respond(c, res);
   },
 );
+
+// The deck as it stands, written to its version history before something
+// overwrites it: the restore route's safety version and the checkpoint a
+// blueprint takes before replacing slides. Live-room edits are flushed into
+// the rows first (a room can be up to 1.5s ahead of the database), and a
+// failed flush refuses, since the version would not hold the current state.
+// The open editing session's attribution is drained into it; on any failure
+// here it is put back. On success the caller gets `reinjectDrained` for a
+// failure of its own later on. No version is written when the newest stored
+// one already holds this state (`created: false`).
+async function writeDeckSafetyVersion(
+  mainDb: Sql,
+  productId: string,
+  actor: VersionEditor,
+): Promise<
+  | {
+    success: true;
+    current: SlideDeckVersionData;
+    safetyCreatedAt: string;
+    created: boolean;
+    reinjectDrained: () => void;
+  }
+  | { success: false; err: string }
+> {
+  const idsRes = await getSlideDeckDetail(mainDb, productId);
+  if (!idsRes.success) {
+    return idsRes;
+  }
+  for (const slideId of idsRes.data.slideIds) {
+    if (!await flushSlideRoom(productId, slideId)) {
+      return {
+        success: false,
+        err:
+          "This deck has unsaved live edits that could not be saved yet, so a safety version cannot be created. Please retry once saving recovers.",
+      };
+    }
+  }
+
+  // Absorb the open editing session's attribution into the safety version;
+  // left in the tracker it would hash-dedup against the restored state
+  // later and those editors would never appear in any version. The
+  // per-slide ledger travels with it.
+  const drained = drainVersionEditors("deck", productId);
+  const drainedSlideEditors = drainDeckLedger(productId);
+  const reinjectDrained = () => {
+    for (const e of drained) {
+      recordVersionEdit("deck", productId, e);
+    }
+    restoreDeckLedger(productId, drainedSlideEditors);
+  };
+
+  let current;
+  try {
+    current = await loadSlideDeckVersionData(productId);
+  } catch (error) {
+    reinjectDrained();
+    return {
+      success: false,
+      err: error instanceof Error ? error.message : "Load failed",
+    };
+  }
+  if (!current) {
+    reinjectDrained();
+    return { success: false, err: "Slide deck not found" };
+  }
+  // Freeze the drained session's per-character element authorship into the
+  // safety version, exactly like the tracker's writeVersion does: without
+  // this, the session's exact text attribution is lost and its uncaptured
+  // tombstones would leak into the NEXT session's version.
+  if (drainedSlideEditors) {
+    for (const s of current.slides) {
+      const sl = drainedSlideEditors.slides[s.id];
+      if (!sl) continue;
+      const authors = snapshotSlideElementAuthors(
+        s.id,
+        listSlideConfigTextElements(s.config),
+      );
+      if (Object.keys(authors).length > 0) sl.elementAuthors = authors;
+    }
+  }
+  const safetyCreatedAt = new Date().toISOString();
+  const currentHash = hashVersionData(current);
+  const latestRes = await latestSlideDeckVersionHash(mainDb, productId);
+  let created = false;
+  if (currentHash !== (latestRes.success ? latestRes.data.hash : null)) {
+    const safetyRes = await insertSlideDeckVersion(mainDb, {
+      productId,
+      createdAt: safetyCreatedAt,
+      label: current.label,
+      deckConfig: current.deckConfig,
+      slides: current.slides,
+      editors: drained.length > 0 ? drained : [actor],
+      contentHash: currentHash,
+      slideEditors: drainedSlideEditors,
+    });
+    if (!safetyRes.success) {
+      reinjectDrained();
+      return safetyRes;
+    }
+    created = true;
+    // The safety version captured these tombstones: start the next window
+    // for exactly the elements it captured (mirrors writeVersion).
+    for (const s of current.slides) {
+      const captured = drainedSlideEditors?.slides[s.id]?.elementAuthors;
+      compactSlideElementTombstones(s.id, Object.keys(captured ?? {}));
+    }
+  }
+  return { success: true, current, safetyCreatedAt, created, reinjectDrained };
+}

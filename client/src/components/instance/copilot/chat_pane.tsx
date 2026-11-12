@@ -28,6 +28,11 @@ import {
 } from "solid-js";
 import { copilotViewController, packageViewContext } from "./ai_views";
 import { setTurnRunning } from "./turn_guard";
+import {
+  copilotMenuAction,
+  pendingCopilotPrompt,
+  takeCopilotPrompt,
+} from "./prompt_bridge";
 import { setShowAi } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
 import { AIDocumentList, useAIDocuments } from "./ai_documents/mod.ts";
@@ -209,6 +214,15 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     }, 200);
   };
 
+  // A turn another screen asked for (prompt_bridge.ts): sent once this pane
+  // is idle, then cleared so it runs once.
+  createEffect(() => {
+    const request = pendingCopilotPrompt();
+    if (request === undefined || isLoading()) return;
+    takeCopilotPrompt(request.id);
+    void handlePromptRun(request.text, request.newConversation);
+  });
+
   const { openPromptLibrary } = usePromptLibrary({
     onRunPrompt: handlePromptRun,
   });
@@ -271,7 +285,17 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   const menuItems = (): MenuItem[] => {
     const pair = viewPair();
+    const screenAction = copilotMenuAction();
     return [
+      ...(screenAction === undefined ? [] : [
+        {
+          label: screenAction.label,
+          icon: screenAction.icon,
+          onClick: screenAction.run,
+          disabled: isLoading(),
+        } satisfies MenuItem,
+        { type: "divider" } satisfies MenuItem,
+      ]),
       {
         label: t3({
           en: "New conversation",

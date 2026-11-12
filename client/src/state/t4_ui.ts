@@ -292,6 +292,22 @@ export const [pendingSlideOpen, setPendingSlideOpen] = createSignal<
 export const [pendingVisualizationOpen, setPendingVisualizationOpen] =
   createSignal(false);
 
+// The same pattern for the full-page views a tab opens over itself, which a
+// tour replay has to reach: module defaults (from the Results tab), and the
+// HFA indicators manager and its first indicator's code editor (from the Data
+// tab). The tab consumes the request by opening the view; the view itself
+// clears it once its copilot view is set, so the manager's replay wait
+// (onboarding/index.ts) never sees the request gone before the page is
+// active. A request the tab cannot honour (no indicators to open) is cleared
+// by whoever finds that out, which drops the replay.
+export type PendingSubPageOpen =
+  | "module_defaults"
+  | "hfa_indicators"
+  | "hfa_indicator_editor";
+export const [pendingSubPageOpen, setPendingSubPageOpen] = createSignal<
+  PendingSubPageOpen | null
+>(null);
+
 // Top level of the chain: a tour replay requested from the catalogue modal,
 // armed AFTER the entry's navigate() has switched tab and requested any
 // product open (the manager's effect runs synchronously on this write, so
@@ -302,7 +318,14 @@ export const [pendingVisualizationOpen, setPendingVisualizationOpen] =
 // request itself. A replay with no product is dropped as soon as its page is
 // not active: a tab switch is synchronous, and the catalogue cannot be opened
 // while a full-page view covers the shell.
-export type PendingTourReplay = { tourId: string; productId?: string };
+// `subPage` is the full-page view the tour lives in, when that is not a tab
+// page: the replay waits while that open request (pendingSubPageOpen) is
+// still outstanding, and is dropped once it is gone with the page inactive.
+export type PendingTourReplay = {
+  tourId: string;
+  productId?: string;
+  subPage?: PendingSubPageOpen;
+};
 export const [pendingTourReplay, setPendingTourReplay] = createSignal<
   PendingTourReplay | null
 >(null);

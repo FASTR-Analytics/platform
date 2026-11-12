@@ -23,13 +23,21 @@ import {
   StateHolderFormError,
   StateHolderWrapper,
 } from "panther";
-import { batch, createMemo, createSignal, type JSX, Show } from "solid-js";
+import {
+  batch,
+  createMemo,
+  createSignal,
+  type JSX,
+  onMount,
+  Show,
+} from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import {
   getModuleParameterInvalidMsg,
   ModuleParameterInputs,
 } from "./_shared/mod.ts";
 import { serverActions } from "~/server_actions";
+import { pendingSubPageOpen, setPendingSubPageOpen } from "~/state/t4_ui";
 import {
   copilotViewController,
   holdCopilotView,
@@ -66,6 +74,10 @@ type Props = EditorComponentProps<Record<never, never>, undefined>;
 export function ModuleDefaultsEditor(p: Props) {
   holdCopilotView();
   copilotViewController.setView("module_defaults");
+  // A tour replay's open request for this view is met once it is set.
+  onMount(() => {
+    if (pendingSubPageOpen() === "module_defaults") setPendingSubPageOpen(null);
+  });
 
   const query = createQuery(
     async () => {
@@ -130,6 +142,7 @@ function ModuleDefaultsFrame(p: {
       panelChildren={
         <HeadingBar
           tonal
+          data-tour="module-defaults-header"
           onBack={p.leftChildren === undefined
             ? () => p.close(undefined)
             : undefined}
@@ -392,47 +405,49 @@ function ModuleDefaultsInner(p: {
         pad="md"
         spy="md"
         panelChildren={
-          <SelectList
-            items={items()}
-            value={selectedId()}
-            onChange={setSelectedId}
-            fullWidth
-            emptyMessage={t3({
-              en: "No module takes parameters",
-              fr: "Aucun module ne prend de paramètres",
-              pt: "Nenhum módulo tem parâmetros",
-            })}
-            renderItem={(item) => {
-              const option = editable.find((o) => o.id === item.id)!;
-              return (
-                <div class="ui-gap-sm flex items-center justify-between">
-                  <span class="truncate">{item.label}</span>
-                  <Show
-                    when={!hasInvalid(option)}
-                    fallback={
-                      <span class="text-danger shrink-0 text-xs">
-                        {t3({
-                          en: "Invalid",
-                          fr: "Non valide",
-                          pt: "Inválido",
-                        })}
-                      </span>
-                    }
-                  >
-                    <Show when={differingIn(option) > 0}>
-                      <span class="ui-text-caption shrink-0">
-                        {differingIn(option)} {t3({
-                          en: "changed",
-                          fr: "modifié(s)",
-                          pt: "alterado(s)",
-                        })}
-                      </span>
+          <div data-tour="module-defaults-list">
+            <SelectList
+              items={items()}
+              value={selectedId()}
+              onChange={setSelectedId}
+              fullWidth
+              emptyMessage={t3({
+                en: "No module takes parameters",
+                fr: "Aucun module ne prend de paramètres",
+                pt: "Nenhum módulo tem parâmetros",
+              })}
+              renderItem={(item) => {
+                const option = editable.find((o) => o.id === item.id)!;
+                return (
+                  <div class="ui-gap-sm flex items-center justify-between">
+                    <span class="truncate">{item.label}</span>
+                    <Show
+                      when={!hasInvalid(option)}
+                      fallback={
+                        <span class="text-danger shrink-0 text-xs">
+                          {t3({
+                            en: "Invalid",
+                            fr: "Non valide",
+                            pt: "Inválido",
+                          })}
+                        </span>
+                      }
+                    >
+                      <Show when={differingIn(option) > 0}>
+                        <span class="ui-text-caption shrink-0">
+                          {differingIn(option)} {t3({
+                            en: "changed",
+                            fr: "modifié(s)",
+                            pt: "alterado(s)",
+                          })}
+                        </span>
+                      </Show>
                     </Show>
-                  </Show>
-                </div>
-              );
-            }}
-          />
+                  </div>
+                );
+              }}
+            />
+          </div>
         }
       >
         <div class="text-base-content-muted max-w-2xl text-sm">
@@ -450,7 +465,7 @@ function ModuleDefaultsInner(p: {
 
         <Show when={selected()} keyed>
           {(option) => (
-            <div class="ui-spy">
+            <div class="ui-spy" data-tour="module-defaults-params">
               <div class="ui-gap flex items-center">
                 <h3 class="ui-text-heading flex-1">{option.label}</h3>
                 <Button

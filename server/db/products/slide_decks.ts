@@ -128,6 +128,31 @@ export async function updateSlideDeckConfig(
   });
 }
 
+// The plan column holds the record of the blueprint that built the deck
+// (lib/types/_deck_blueprint.ts) or "". The text is stored as given: the
+// client validates it against the record's schema before sending it, and
+// readDeckBlueprintProvenance reads anything else as no record.
+export async function updateSlideDeckPlan(
+  mainDb: Sql,
+  productId: string,
+  plan: string,
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    const found = await mainDb.begin(async (sql) => {
+      const rows = await sql`
+        UPDATE slide_decks SET plan = ${plan} WHERE id = ${productId}
+        RETURNING id
+      `;
+      if (rows.length === 0) return false;
+      await touchProduct(sql, productId, "slide_deck", lastUpdated);
+      return true;
+    });
+    if (!found) throw new Error(SLIDE_DECK_NOT_FOUND);
+    return { success: true, data: { lastUpdated } };
+  });
+}
+
 // The deck half of createProduct: runs INSIDE its transaction, after the new
 // `products` row exists.
 export async function insertNewSlideDeckDetail(
