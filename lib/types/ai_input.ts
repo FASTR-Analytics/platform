@@ -230,7 +230,7 @@ export const AiContentBlockInputSchema = z.union([
 export const LayoutCellSchema = z.object({
   block: z.union([
     z.string().describe(
-      "Existing block ID (from get_slides) to keep unchanged",
+      "Existing block ID (from get_slides or from the result of the write that made the block) to keep unchanged",
     ),
     AiContentBlockInputSchema.describe("New block content to create"),
   ]),

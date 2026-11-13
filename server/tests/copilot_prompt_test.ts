@@ -279,3 +279,11 @@ Deno.test("the map coverage line names each registry's levels, or says there are
     "- This results package has no boundary map files, so no map figure can render: use tables.",
   ]);
 });
+
+Deno.test("the report's starting brief does not name the turn cap", () => {
+  const brief = getEditingReportInstructions("Q3", { untouched: true });
+  assertStringIncludes(
+    brief,
+    "A turn has a limited number of replies (counting the user's answers to your questions)",
+  );
+});

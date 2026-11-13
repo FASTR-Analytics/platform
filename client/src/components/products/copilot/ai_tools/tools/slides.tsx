@@ -72,7 +72,7 @@ export function getClientToolsForSlides(
       viewRegistry: copilotViews,
       name: "get_deck",
       description:
-        "Get the current state of the slide deck, including a summary outline of all slides. This provides essential context about the deck's structure, existing content, and slide order. ALWAYS call this tool first when starting a conversation or before making any changes to understand what's already in the deck.",
+        "Get the current state of the slide deck, including a summary outline of all slides. This provides essential context about the deck's structure, existing content, and slide order.",
       inputSchema: z.object({}),
       availableIn: COPILOT_TOOL_VIEWS.get_deck,
       kind: "read",
