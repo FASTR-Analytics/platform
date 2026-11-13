@@ -450,6 +450,16 @@ NEW CONVERSATION.
 - Ask the copilot: "What should I do so you can make that edit?"
 - Pass: it tells the user to close Settings with its back button and names no other route. Close Settings.
 
+**F17. Image blocks.** Skip when the Assets page lists no image.
+
+- Do: send "Add a content slide with one image block of the first image asset, imgFit cover, using get_image_assets first."
+- Ground truth: H3 shows `get_image_assets` then `create_slide`, both `err: false`. The `get_image_assets` result lists the image file names the Assets page shows. The `create_slide` result's `Blocks:` line names one block of type image. Open the slide and screenshot: the image fills its cell.
+- Do: send "Read that slide with get_slides and tell me the image's file and style."
+- Ground truth: the entry's block reads `Image: {"imgFile":"<file>","style":{"imgFit":"cover"}}`.
+- Do: send "Change that image block's file to 'not_an_asset.png' with update_slide."
+- Ground truth: H3 shows `update_slide` with `err: true`, text naming "not_an_asset.png" as not one of the instance's image assets. Screenshot the slide: unchanged.
+- Pass: all three.
+
 ### G. Report (WRITE)
 
 Skip under `read-only`. Go to Products, open the "Copilot tests" folder, click New, choose report, name it `COPILOT TEST REPORT <YYYYMMDD-HHMM>`, same package and scope, Create. The report editor opens. NEW CONVERSATION.

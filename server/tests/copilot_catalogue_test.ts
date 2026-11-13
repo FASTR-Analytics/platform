@@ -34,6 +34,7 @@ const GROUPS = {
     "get_module_settings",
   ],
   deck_reads: ["get_deck", "get_slides"],
+  image_assets: ["get_image_assets"],
   deck_writes: [
     "create_slide",
     "update_slide",
@@ -103,7 +104,7 @@ const VIEWS: {
   {
     id: "editing_slide_deck",
     hasPackage: true,
-    groups: [...PRODUCT, "deck_reads", "deck_writes"],
+    groups: [...PRODUCT, "deck_reads", "deck_writes", "image_assets"],
   },
   {
     id: "editing_slide_figure",

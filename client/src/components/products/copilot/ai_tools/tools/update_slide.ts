@@ -18,6 +18,7 @@ import {
 } from "~/components/instance/copilot/mod.ts";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 import {
+  assertImageAsset,
   validateMaxContentBlocks,
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
@@ -203,7 +204,7 @@ async function applySlideUpdate(
       ) as ContentSlide;
       builtFigureIds.push(
         ...u.blockUpdates
-          .filter((bu) => bu.newContent.type !== "text")
+          .filter((bu) => bu.newContent.type === "from_metric")
           .map((bu) => bu.blockId),
       );
       changes.push(`${u.blockUpdates.length} block(s)`);
@@ -285,6 +286,9 @@ async function resolveLayoutSpec(
         });
       } else if (cell.block.type === "text") {
         validateNoMarkdownTables(cell.block.markdown);
+        resolvedRow.push({ id: generateId(), block: cell.block, span });
+      } else if (cell.block.type === "image") {
+        assertImageAsset(cell.block.imgFile);
         resolvedRow.push({ id: generateId(), block: cell.block, span });
       } else {
         const id = generateId();

@@ -7,6 +7,7 @@ import type {
 } from "lib";
 import type { LayoutNode } from "panther";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
+import { assertImageAsset } from "../_shared/mod.ts";
 
 export async function getSlideWithUpdatedBlocks(
   scope: PackageScope,
@@ -62,6 +63,9 @@ export async function getSlideWithUpdatedBlocks(
         update.blockId,
         style ? { ...update.newContent, style } : update.newContent,
       );
+    } else if (update.newContent.type === "image") {
+      assertImageAsset(update.newContent.imgFile);
+      updateMap.set(update.blockId, update.newContent);
     } else {
       try {
         const figureBlock = await resolveFigureFromMetric(

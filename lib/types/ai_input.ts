@@ -7,6 +7,7 @@ import {
 import { configDStrict } from "./_metric_installed.ts";
 import { presentationObjectConfigTStrict } from "./_presentation_object_config.ts";
 import { ROLLUP_DIMENSIONS } from "../rollup.ts";
+import { imageBlockSchema } from "./_slide_config.ts";
 
 // ============================================================================
 // Shared filter schema - DERIVED from storage schema (configDStrict.filterBy)
@@ -220,9 +221,19 @@ export type AiVizConfigUpdate = z.infer<typeof AiVizConfigUpdateSchema>;
 
 // Union schemas
 
+export const AiImageBlockSchema = imageBlockSchema.extend({
+  imgFile: imageBlockSchema.shape.imgFile.describe(
+    "File name of one of the instance's image assets, exactly as get_image_assets lists it.",
+  ),
+  style: imageBlockSchema.shape.style.describe(
+    "Optional: imgFit 'contain' (the default) shows the whole image inside its cell; 'cover' fills the cell and crops the overflow. imgAlign ('center', the default, 'top', 'bottom', 'left', 'right') places the image within its cell.",
+  ),
+});
+
 export const AiContentBlockInputSchema = z.union([
   AiTextBlockSchema,
   AiFigureFromMetricSchema,
+  AiImageBlockSchema,
 ]);
 
 // Layout spec schemas (for AI layout control)
@@ -323,7 +334,7 @@ export const AiContentSlideSchema = z.object({
   blocks: z
     .array(AiContentBlockInputSchema)
     .describe(
-      `Required: Array of content blocks (text and/or figures) to display on this slide. A block is either text (markdown) or a figure built from a metric plus one of its presets. The layout will be automatically optimized. Maximum ${MAX_CONTENT_BLOCKS} blocks per slide.`,
+      `Required: Array of content blocks to display on this slide. A block is text (markdown), a figure built from a metric plus one of its presets, or an image asset. The layout will be automatically optimized. Maximum ${MAX_CONTENT_BLOCKS} blocks per slide.`,
     ),
 });
 

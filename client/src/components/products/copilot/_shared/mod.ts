@@ -1,4 +1,5 @@
 export {
+  assertImageAsset,
   validateMaxContentBlocks,
   validateNoMarkdownTables,
   validatePresetOverrides,

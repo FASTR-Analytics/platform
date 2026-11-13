@@ -19,6 +19,7 @@ import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU, slideConfigSchema } from "lib";
 import { buildSlidePage } from "./measure_slide_overflow.ts";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
+import { assertImageAsset } from "../_shared/mod.ts";
 
 /**
  * Convert AI input (blocks[]) to storage format (LayoutNode<ContentBlock>).
@@ -59,6 +60,11 @@ export async function convertAiInputToSlide(
 
   for (const block of slideInput.blocks) {
     if (block.type === "text") {
+      resolvedBlocks.push(block);
+      continue;
+    }
+    if (block.type === "image") {
+      assertImageAsset(block.imgFile);
       resolvedBlocks.push(block);
       continue;
     }

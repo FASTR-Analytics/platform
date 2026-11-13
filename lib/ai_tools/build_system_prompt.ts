@@ -557,6 +557,7 @@ scope; you do not choose the package, and no tool takes one.
 
 **Text (markdown):** { "type": "text", "markdown": "..." }
 **From metric:** { "type": "from_metric", "metricId": "...", "vizPresetId": "...", "chartTitle": "..." }
+**Image:** { "type": "image", "imgFile": "...", "style": { "imgFit": "contain", "imgAlign": "center" } }, where imgFile is one of the instance's image assets, listed by get_image_assets
 
 A figure is always a metric plus one of that metric's presets. There is no
 figure library to clone from: to reuse a figure, duplicate the slide that holds

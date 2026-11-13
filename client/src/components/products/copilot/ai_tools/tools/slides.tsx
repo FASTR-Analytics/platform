@@ -46,8 +46,8 @@ import {
 // A figure is `{ metricId, config }` resolved under the deck's own results
 // package and scope: there is no figure library to point at, so every
 // figure block starts from a metric and one of that metric's presets.
-const FIGURE_SOURCE_NOTE =
-  "\n\nContent blocks are either:\n- from_metric: a figure built from a metric + one of its presets. IMPORTANT: always call get_metric_data FIRST to see available disaggregations, filters and time ranges. The figure resolves under the deck's results package and scope.\n- text: markdown content with autofit. IMPORTANT: Markdown tables are NOT allowed. To display tabular data, use a from_metric block with a table-type preset.";
+const CONTENT_BLOCKS_NOTE =
+  "\n\nA content block is one of:\n- from_metric: a figure built from a metric + one of its presets. IMPORTANT: always call get_metric_data FIRST to see available disaggregations, filters and time ranges. The figure resolves under the deck's results package and scope.\n- text: markdown content with autofit. IMPORTANT: Markdown tables are NOT allowed. To display tabular data, use a from_metric block with a table-type preset.\n- image: one of the instance's image assets, named by its file as get_image_assets lists it.";
 
 // The content checks a whole new slide must pass before it is converted.
 function validateAiSlideInput(slide: AiSlideInput): void {
@@ -97,8 +97,8 @@ export function getClientToolsForSlides(
       viewRegistry: copilotViews,
       name: "create_slide",
       description:
-        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text and/or figures)." +
-        FIGURE_SOURCE_NOTE,
+        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text, figures and images)." +
+        CONTENT_BLOCKS_NOTE,
       inputSchema: z.object({
         position: z
           .union([
@@ -131,7 +131,7 @@ export function getClientToolsForSlides(
             AiContentSlideSchema,
           ])
           .describe(
-            "The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with optional header and blocks array containing text and/or figures).",
+            "The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with optional header and blocks array of text, figures and images).",
           ),
       }),
       availableIn: COPILOT_TOOL_VIEWS.create_slide,
@@ -184,7 +184,7 @@ export function getClientToolsForSlides(
       name: "replace_slide",
       description:
         "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n\nFor any other change to text, blocks or layout, use update_slide, which keeps what it is not told to change. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately." +
-        FIGURE_SOURCE_NOTE,
+        CONTENT_BLOCKS_NOTE,
       inputSchema: z.object({
         slideId: z.string().describe(
           "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",

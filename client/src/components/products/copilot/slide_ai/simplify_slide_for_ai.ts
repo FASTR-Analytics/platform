@@ -64,7 +64,12 @@ export async function simplifySlideForAI(
           summary: `Text: ${block.markdown}`,
         };
       } else if (block.type === "image") {
-        return { id, summary: `Image: ${block.imgFile}` };
+        return {
+          id,
+          summary: `Image: ${
+            JSON.stringify({ imgFile: block.imgFile, style: block.style })
+          }`,
+        };
       } else {
         // Figure block
         if (block.bundle) {

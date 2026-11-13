@@ -150,3 +150,6 @@ Starts when `./sync --check wb-fastr`, run in the panther repo, reports nothing 
 - **Panther: the image in the transcript, MCP image results, and Files API references.**
 
 ## §6 Log
+
+- Step 1: built the image tool's registration in `client/src/components/products/copilot/mod.ts` and `client/src/components/instance/copilot_tools.ts` instead of inside the Surface alone, because `get_image_assets` reads no package, so it is an outer tool registered where `list_products` is, and no file in the Surface assembles the outer set.
+- Step 1: exported `textBlockSchema`, `coverSlideSchema`, `sectionSlideSchema` and `contentSlideSchema` in `lib/types/_slide_config.ts`, outside the Surface, because ruling 3 derives the write schemas through `.shape` and `slideConfigSchema`'s members are not reachable as typed objects otherwise.

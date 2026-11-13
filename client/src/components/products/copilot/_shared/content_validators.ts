@@ -8,6 +8,7 @@ import {
   validateDateRange,
   validateFilters,
 } from "lib";
+import { instanceState } from "~/state/instance/t1_store";
 
 // Slide/report content validators: SPA-only (the copilot's authoring tools).
 // The metric-query validators both surfaces run stay in lib/ai_tools
@@ -32,6 +33,18 @@ export function validateNoMarkdownTables(markdown: string): void {
   if (containsMarkdownTable(markdown)) {
     throw new AIToolFailure(
       "Markdown tables are not allowed. To display tabular data, use a 'from_metric' block with a table preset.",
+    );
+  }
+}
+
+// The files the slide toolbar's image picker offers.
+export function assertImageAsset(imgFile: string): void {
+  const isAsset = instanceState.assets.some((a) =>
+    a.isImage && a.fileName === imgFile
+  );
+  if (!isAsset) {
+    throw new AIToolFailure(
+      `"${imgFile}" is not one of the instance's image assets. Call get_image_assets for the file names.`,
     );
   }
 }

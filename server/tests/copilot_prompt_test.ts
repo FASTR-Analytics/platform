@@ -131,6 +131,16 @@ Deno.test("the chat's principles put independent calls in one reply, and a promp
 // One read per slide per turn: the read at the start of a turn stays, since a
 // collaborator's edit can land between two messages, and every read after a
 // write goes, since the write's result states what it left.
+Deno.test("the deck brief lists the image block beside text and from_metric", () => {
+  const brief = getEditingSlideDeckInstructions("Round 1 report");
+  assertStringIncludes(brief, '**Text (markdown):** { "type": "text"');
+  assertStringIncludes(brief, '**From metric:** { "type": "from_metric"');
+  assertStringIncludes(
+    brief,
+    '**Image:** { "type": "image", "imgFile": "...", "style": { "imgFit": "contain", "imgAlign": "center" } }, where imgFile is one of the instance\'s image assets, listed by get_image_assets',
+  );
+});
+
 Deno.test("the deck brief reads a slide once a turn and takes a write's result as the slide's state", () => {
   const brief = getEditingSlideDeckInstructions("Round 1 report");
   assert(
