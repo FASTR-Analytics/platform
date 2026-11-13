@@ -1,12 +1,12 @@
 # PLAN: Copilot tool limit
 
-Status: steps 1 to 4 are DONE. Step 5, the last, WAITS on panther: it starts once a sync of panther has landed in this app, and that sync is panther's to make ("Why step 5 waits").
+Status: steps 1 to 4 are DONE. Step 5 (review fixes and defects) is next and not blocked. Step 6, the last, cannot start until a sync of panther has landed in this app, and that sync is panther's to make ("Why step 6 cannot start yet").
 
 A copilot turn stopped with "Stopped: too many tool calls in one turn" once the model had asked for tools in more than 24 replies, and a deck was where users reached it. This plan made a deck's reads and writes take few rounds (one read for any number of slides, write results that state what the write left, a brief that stops ordering read-backs and says calls can share a reply), and raised panther's cap to 100 with a per-consumer override. The app's own half is built and in use. The cap of 100 is built in panther and is not in this app yet: this app's copy of panther still caps a turn at 24.
 
 **Next step: Do 5.**
 
-Branch: `main`. Repo: this one. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md) and [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "The panther engine". Start when: `rg -q maxTurnContinuations panther/_305_ai/_core/types.ts` exits 0 in this repo, and this tree is clean.
+Branch: `main`. Repo: this one. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "The slide_ai conversion layer", "The panther engine" and Open items "Client copilot" and "Hygiene", and [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md). Start when: this tree is clean. Step 6 also needs `rg -q maxTurnContinuations panther/_305_ai/_core/types.ts` to exit 0 in this repo.
 
 ## Where the plan stands
 
@@ -23,9 +23,10 @@ What steps 1 to 3 built is described in the standing docs: SYSTEM_13 "Tools, vie
 
 ### Remaining
 
-Step 5 (§4): once this app's copy of panther holds the cap, SYSTEM_13's "The panther engine" states it, and the close commit deletes this file. Nothing else of this plan is open.
+- **Step 5 (§4), not blocked:** the five review fixes, the defect that a figure edit on the open slide is not saved, and the testing script's tool count.
+- **Step 6 (§4), cannot start yet:** once this app's copy of panther holds the cap, SYSTEM_13's "The panther engine" states it, and the close commit deletes this file.
 
-### Why step 5 waits
+### Why step 6 cannot start yet
 
 - The sync copies panther's whole working tree, never one change. Panther's tree also holds its figure renames (the panther repo's `TERMINOLOGY.md`, "Reaching these names", step 1: `yScaleAxis` to `yValueAxis`, `val` to `value`, `showGrid` to `showGridLines`, `seriesHeader` and the rest), which this app's code does not follow yet.
 - Tried on 2026-11-12: `./sync wb-fastr --no-commit` copied panther at `4577a951`. `deno fmt --check` and the server check passed. The client check failed with 85 errors in 18 files under `client/src/`, every one a renamed figure name, none in the AI chat. Nothing of it was committed.
@@ -33,7 +34,7 @@ Step 5 (§4): once this app's copy of panther holds the cap, SYSTEM_13's "The pa
 
 ## §0 How to work this plan
 
-The instruction is "Do the next step of PLAN_COPILOT_TOOL_LIMIT.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 5; its close commit deletes this file. Nothing in this plan ships (ruling 15).
+The instruction is "Do the next step of PLAN_COPILOT_TOOL_LIMIT.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 6; its close commit deletes this file. Nothing in this plan ships (ruling 15).
 
 Vocabulary:
 
@@ -52,18 +53,38 @@ Vocabulary:
 
 ## §3 Rulings
 
-Rulings 1 to 11 are built (steps 1 to 3) and the standing docs describe them. The four that step 5 rests on:
+Rulings 1 to 11 are built (steps 1 to 3) and the standing docs describe them. Rulings 12 to 15 rest on step 4 and step 6; rulings 16 to 23 are step 5's.
 
 12. **Panther: the cap's default is 100, and `AIChatConfig.maxTurnContinuations` overrides it.** Optional, a positive integer, one counter for tool rounds and `pause_turn` resumes. Ruled, and built in step 4.
 13. **Panther: the cap's notice says what the user can do.** The details of `turn_limit`, in both its forms, end by saying that a new message carries on. No button and no engine text to the model: the answered calls already tell the model why they did not run. Built in step 4.
 14. **The app passes no cap.** It takes panther's default, as it takes panther's model defaults.
 15. **Nothing ships in this plan.** The app's next release carries it.
+16. **`extract_blocks_from_layout.ts` becomes `simplify_slide_for_ai.ts`.** It no longer holds the function it is named for.
+17. **One function builds the page for both measurements.** `measureSlideOverflow` and `convertAiInputToSlide` share it (load the deck's fonts, `convertSlideToPageInputs(slide, undefined, deckConfig)`, throw on failure, return the `PageInputs`), so the `Page:` line of a write and `get_slides`' `overflow` cannot disagree.
+18. **`get_deck`'s description loses "ALWAYS call this tool first when starting a conversation or before making any changes…".** The brief holds "Call get_deck FIRST".
+19. **`LayoutCellSchema`'s block id description names both sources:** "Existing block ID (from get_slides or from the result of the write that made the block) to keep unchanged".
+20. **The report's starting brief no longer names the turn cap.** "24, " goes from the parenthesis; the number is panther's.
+21. **A figure edit on the open slide is saved.** `writeSlideTarget`'s open branch, after the reconcile, sets by path the bundle of each figure block the tool built, so the collab push sees a fresh object and not the one it last synced.
+22. **The testing script holds no tool count.** Both hard-coded counts (44 and 45) go; H8 already checks the tools array is unchanged between requests.
+23. **The two stray `deno run … main.ts` processes (58701, 91817) are killed.** Not part of the code; done in step 5's work.
 
 ## §4 Steps
 
-### Step 5: the app's docs state the cap (this repo)
+### Step 5: the review fixes and defects (this repo)
 
-Starts when the header's `Start when` holds: this repo's `panther/_305_ai/_core/types.ts` contains `maxTurnContinuations`, which means a sync of panther made after 2026-11-12 has landed here and its floor was green.
+**Surface.** `client/src/components/products/copilot/slide_ai/` (`extract_blocks_from_layout.ts` renamed, `mod.ts`, `measure_slide_overflow.ts`, `convert_ai_input_to_slide.ts`), `client/src/components/products/copilot/ai_tools/tools/` (`slides.tsx`, `slide_target.ts`), `lib/types/ai_input.ts`, `lib/ai_tools/build_system_prompt.ts`, `server/tests/copilot_prompt_test.ts`, `TESTING_SCRIPT_FOR_AI_COPILOT.md`, `SYSTEM_13_ai_assistant.md`, this file.
+
+**Deliverable.** Rulings 16 to 22 in the code and docs. SYSTEM_13's Open items lose the eight entries these rulings resolve, and the slide_ai paragraph names the renamed file. A test pins what a test can: the brief no longer holds "24, ".
+
+**Not in this step.** The sync and the cap prose (step 6).
+
+**Gates.** `deno task test:files server/tests/copilot_prompt_test.ts server/tests/slide_layout_structure_test.ts`. `git grep -n extract_blocks_from_layout -- . ':!panther' ':!CHANGELOG_AUTO.txt' ':!PLAN_*.md'` prints nothing. The defect of ruling 21 is shown fixed by running `update_figure` on the open slide in the dev app and reading the stored slide.
+
+**Ends with.** Several commits, each green: the rename and the shared page builder; the three text fixes; the figure-edit defect; the testing script and the docs.
+
+### Step 6: the app's docs state the cap (this repo)
+
+Starts when `rg -q maxTurnContinuations panther/_305_ai/_core/types.ts` exits 0 in this repo, which means a sync of panther made after 2026-11-12 has landed here and its floor was green.
 
 **Surface.** `SYSTEM_13_ai_assistant.md`, this file.
 
@@ -85,10 +106,9 @@ Starts when the header's `Start when` holds: this repo's `panther/_305_ai/_core/
 - **`get_metric_data` for several metrics in one call.** The chat's "one reply" principle covers it with several calls in one reply.
 - **A cap on what one `get_slides` call returns**, and trimming a figure's data in the read.
 - **Panther: a stop for a turn whose rounds keep failing, a Continue button, and an engine line asking the model to wrap up.**
-- **The findings the reviews of steps 1 to 3 could not apply**, each for a file outside its step's Surface, and the defect step 2's run found. They are in SYSTEM_13's Open items, under "Client copilot" and "Hygiene", and each waits for a ruling.
 
 ## §6 Log
 
 - Step 2 edited `client/src/components/products/copilot/slide_ai/get_deck_summary.ts`, outside the step's Surface: its import of `extractBlocksFromLayout` follows the function to `layout_structure.ts`, because the move leaves nothing at the old path to import.
 - Step 3's brief excepts a copy made by `duplicate_slides` from "never read a slide to learn its block IDs", because that tool's result gives only the new slide ids. The review of step 3 asked for it.
-- Step 5 was written as a sync made by this plan (`./sync wb-fastr`, then the SYSTEM_13 prose). The sync cannot land before this app follows panther's figure renames, so on Tim's word step 5 waits for the sync panther's `TERMINOLOGY.md` step 3 makes, and keeps the prose and the close.
+- Step 5 was written as a sync made by this plan (`./sync wb-fastr`, then the SYSTEM_13 prose). The sync cannot land before this app follows panther's figure renames, so on Tim's word the sync is the one `TERMINOLOGY.md` step 3 makes, and that step is now step 6, which keeps the prose and the close. A new step 5 holds the review fixes and defects of rulings 16 to 22, decided by Tim on 2026-11-13.
