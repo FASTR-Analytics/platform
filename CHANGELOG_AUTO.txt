@@ -1,3 +1,7 @@
+[TBD] [user] [fixed] - Status messages now use correct plural forms (e.g., "1 slide" vs "2 slides")
+[TBD] [user] [changed] - Reference document progress messages now show document titles instead of IDs
+[TBD] [admin] [fixed] - AI status messages now show proper plural forms instead of parenthesized suffixes
+[TBD] [admin] [changed] - Reference document names shown instead of IDs in AI progress messages
 [TBD] [user] [added] - AI assistant can now look at slides, figures, and charts as images to judge readability
 [TBD] [user] [added] - AI assistant can now add image assets to slides and reports
 [TBD] [user] [added] - AI assistant can now view and change deck settings like logos, footer text, and watermarks
