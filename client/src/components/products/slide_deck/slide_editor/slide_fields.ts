@@ -1,11 +1,12 @@
 import type { SlideType } from "lib";
 import { t3 } from "lib";
+import type { PageHitTargetText } from "panther";
 
 // The title-level text of each slide type: the panther text primitive that
 // draws it, the slide field it shows, and (for cover and section fields) the
 // per-field size / bold / italic keys with their defaults.
 export type SlideTextField = {
-  primitiveId: string;
+  primitiveId: PageHitTargetText["type"];
   field: string;
   slideType: SlideType;
   label: () => string;
@@ -69,7 +70,7 @@ export const SLIDE_TEXT_FIELDS: SlideTextField[] = [
     },
   },
   {
-    primitiveId: "coverSubTitle",
+    primitiveId: "coverSubtitle",
     field: "subtitle",
     slideType: "cover",
     label: () => t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" }),
@@ -139,7 +140,7 @@ export const SLIDE_TEXT_FIELDS: SlideTextField[] = [
     },
   },
   {
-    primitiveId: "sectionSubTitle",
+    primitiveId: "sectionSubtitle",
     field: "sectionSubtitle",
     slideType: "section",
     label: () => t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" }),
