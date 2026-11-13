@@ -1,4 +1,9 @@
-import { runContextOf } from "@timroberton/panther";
+import {
+  AIToolOutput,
+  buildToolResultContent,
+  parseToolResultContent,
+  runAIToolWithView,
+} from "@timroberton/panther";
 import type {
   AIToolCallContext,
   AnyAITool,
@@ -30,40 +35,35 @@ export function formatSourceHeader(args: {
   return `Source: results package "${args.packageLabel}"${generated}${scope}`;
 }
 
-// Prepends the header to every successful result on each execution path the
-// engines call (`run`, `runWithView`, `runStructured`). The header is read
-// at call time, so a wrapper built once over a moving pair names the pair of
-// each call.
+// Puts the header before the text of every successful output on each
+// execution path the engines call (`run`, `runWithView`), and keeps the
+// output's images. The header is read at call time, so a wrapper built once
+// over a moving pair names the pair of each call.
 export function withSourceHeader<T extends AnyAITool>(
   tool: T,
   header: () => string,
 ): T {
-  const prepend = (body: string) => `${header()}\n\n${body}`;
+  const headed = (output: AIToolOutput) =>
+    new AIToolOutput({
+      text: `${header()}\n\n${output.text}`,
+      images: output.images,
+    });
   const inner = tool.sdkTool;
-  const runStructured = inner.runStructured;
   return {
     metadata: tool.metadata,
     sdkTool: {
       ...inner,
       run: async (input: unknown, context?: SDKToolRunContext) =>
-        prepend(await inner.run(input, context)),
+        buildToolResultContent(
+          headed(parseToolResultContent(await inner.run(input, context))),
+        ),
       runWithView: async (
         input: unknown,
         getView: (() => unknown) | undefined,
         ctx: AIToolCallContext,
-      ) =>
-        prepend(
-          inner.runWithView
-            ? await inner.runWithView(input, getView, ctx)
-            : await inner.run(input, runContextOf(ctx)),
-        ),
-      runStructured: runStructured === undefined ? undefined : async (
-        input: unknown,
-        getView: (() => unknown) | undefined,
-        ctx: AIToolCallContext,
       ) => {
-        const result = await runStructured(input, getView, ctx);
-        return { ...result, text: prepend(result.text) };
+        const ran = await runAIToolWithView(inner, input, getView, ctx);
+        return { ...ran, output: headed(ran.output) };
       },
     },
   } as T;

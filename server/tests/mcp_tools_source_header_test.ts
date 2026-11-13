@@ -5,7 +5,11 @@
 //   deno test -A --env-file server/tests/mcp_tools_source_header_test.ts
 
 import { assertEquals, assertRejects, assertStrictEquals } from "@std/assert";
-import { AIToolFailure, createAITool } from "@timroberton/panther";
+import {
+  AIToolFailure,
+  AIToolOutput,
+  createAITool,
+} from "@timroberton/panther";
 import type {
   AIToolCallContext,
   AnyAITool,
@@ -33,6 +37,9 @@ const CTX = { toolUseId: "tool-use-1", signal: new AbortController().signal };
 const HEADER =
   'Source: results package "National package 2026-Q2" (generated 2026-08-19T10:00:00.000Z), scope "All data"';
 
+const PNG_1X1 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
+
 function stubTool(handler: () => Promise<string>) {
   return createAITool({
     name: "stub_tool",
@@ -50,15 +57,39 @@ Deno.test("withSourceHeader: success text starts with the Source line, then the 
 
   assertEquals(buildSourceHeader(RUN), HEADER);
   assertEquals(await wrapped.sdkTool.run({}), `${HEADER}\n\nbody`);
-  assertEquals(
-    await wrapped.sdkTool.runWithView!({}, undefined, CTX),
-    `${HEADER}\n\nbody`,
-  );
+  const ran = await wrapped.sdkTool.runWithView!({}, undefined, CTX);
+  assertEquals(ran.output.text, `${HEADER}\n\nbody`);
+  assertEquals(ran.output.images, []);
+  assertEquals(ran.structured, undefined);
   assertStrictEquals(wrapped.sdkTool.name, "stub_tool");
   assertStrictEquals(wrapped.metadata, tool.metadata);
 });
 
-Deno.test("withSourceHeader: runStructured carries the Source line", async () => {
+Deno.test("withSourceHeader: the Source line goes before an output's text and its images are kept", async () => {
+  const image = { mediaType: "image/png", data: PNG_1X1 } as const;
+  const tool = createAITool({
+    name: "stub_tool",
+    description: "stub",
+    inputSchema: z.object({}),
+    handler: async () => new AIToolOutput({ text: "body", images: [image] }),
+    kind: "read",
+    headless: true,
+  });
+  const wrapped = withSourceHeader(tool, () => HEADER);
+
+  assertEquals(await wrapped.sdkTool.run({}), [
+    { type: "text", text: `${HEADER}\n\nbody` },
+    {
+      type: "image",
+      source: { type: "base64", media_type: "image/png", data: PNG_1X1 },
+    },
+  ]);
+  const ran = await wrapped.sdkTool.runWithView!({}, undefined, CTX);
+  assertEquals(ran.output.text, `${HEADER}\n\nbody`);
+  assertEquals(ran.output.images, [image]);
+});
+
+Deno.test("withSourceHeader: a structured return keeps its value beside the headed text", async () => {
   const tool = createAITool({
     name: "stub_tool",
     description: "stub",
@@ -70,10 +101,9 @@ Deno.test("withSourceHeader: runStructured carries the Source line", async () =>
   });
   const wrapped = withSourceHeader(tool, () => HEADER);
 
-  assertEquals(await wrapped.sdkTool.runStructured!({}, undefined, CTX), {
-    text: `${HEADER}\n\n{"n":1}`,
-    structured: { n: 1 },
-  });
+  const ran = await wrapped.sdkTool.runWithView!({}, undefined, CTX);
+  assertEquals(ran.output.text, `${HEADER}\n\n{"n":1}`);
+  assertEquals(ran.structured, { n: 1 });
 });
 
 Deno.test("withSourceHeader: the call's context reaches the handler on every path", async () => {
@@ -93,13 +123,12 @@ Deno.test("withSourceHeader: the call's context reaches the handler on every pat
   const wrapped = withSourceHeader(tool, () => HEADER);
 
   await wrapped.sdkTool.runWithView!({}, undefined, CTX);
-  await wrapped.sdkTool.runStructured!({}, undefined, CTX);
   await wrapped.sdkTool.run({}, {
     toolUse: { id: CTX.toolUseId },
     signal: CTX.signal,
   });
 
-  assertEquals(seen.length, 3);
+  assertEquals(seen.length, 2);
   for (const ctx of seen) {
     assertEquals(ctx.toolUseId, CTX.toolUseId);
     assertStrictEquals(ctx.signal, CTX.signal);
@@ -122,10 +151,8 @@ Deno.test("withSourceHeader: a tool with only run() gets the call's id and signa
   } as unknown as AnyAITool;
   const wrapped = withSourceHeader(runOnly, () => HEADER);
 
-  assertEquals(
-    await wrapped.sdkTool.runWithView!({}, undefined, CTX),
-    `${HEADER}\n\nbody`,
-  );
+  const ran = await wrapped.sdkTool.runWithView!({}, undefined, CTX);
+  assertEquals(ran.output.text, `${HEADER}\n\nbody`);
   assertEquals(got, {
     toolUse: { id: CTX.toolUseId },
     signal: CTX.signal,
@@ -162,11 +189,6 @@ Deno.test("withSourceHeader: an AIToolFailure propagates unchanged on every path
   await assertRejects(() => wrapped.sdkTool.run({}), AIToolFailure, "nope");
   await assertRejects(
     () => wrapped.sdkTool.runWithView!({}, undefined, CTX),
-    AIToolFailure,
-    "nope",
-  );
-  await assertRejects(
-    () => wrapped.sdkTool.runStructured!({}, undefined, CTX),
     AIToolFailure,
     "nope",
   );
