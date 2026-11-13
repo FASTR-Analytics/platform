@@ -7,7 +7,19 @@ import {
 import { configDStrict } from "./_metric_installed.ts";
 import { presentationObjectConfigTStrict } from "./_presentation_object_config.ts";
 import { ROLLUP_DIMENSIONS } from "../rollup.ts";
-import { imageBlockSchema } from "./_slide_config.ts";
+import {
+  contentSlideSchema,
+  coverSlideSchema,
+  imageBlockSchema,
+  sectionSlideSchema,
+} from "./_slide_config.ts";
+import {
+  COVER_TEXT_STYLES,
+  SECTION_TEXT_STYLES,
+  type SlideTextStyle,
+  SPLIT_SIZES_PCT,
+  TEXT_BACKGROUND_KEYS,
+} from "./slides.ts";
 
 // ============================================================================
 // Shared filter schema - DERIVED from storage schema (configDStrict.filterBy)
@@ -79,6 +91,19 @@ export const AiTextBlockSchema = z.object({
         message:
           `Individual text block exceeds ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words`,
       },
+    ),
+  style: z
+    .object({
+      textBackground: z
+        .enum(TEXT_BACKGROUND_KEYS)
+        .optional()
+        .describe(
+          "Optional: a panel behind the text. 'none' (the default), 'grey', 'primary' (the theme's colour), 'success' (green) or 'danger' (red).",
+        ),
+    })
+    .optional()
+    .describe(
+      "Optional: the block's style. Leaving it out keeps the style a replaced block had.",
     ),
 });
 
@@ -265,66 +290,200 @@ export const LayoutSpecSchema = z
 export type LayoutCell = z.infer<typeof LayoutCellSchema>;
 export type LayoutSpec = z.infer<typeof LayoutSpecSchema>;
 
-// Slide schemas
+// Slide schemas: every stored field of a slide type but its layout, each
+// derived from the stored schema. server/tests/ai_slide_schema_test.ts fails
+// when a stored field is in neither these nor its list of exclusions.
+
+const cover = coverSlideSchema.shape;
+const section = sectionSlideSchema.shape;
+const content = contentSlideSchema.shape;
+const split = content.split.unwrap().shape;
+
+type TextStyleRange = Pick<
+  SlideTextStyle<unknown>,
+  "sizeDefault" | "min" | "max" | "boldDefault"
+>;
+
+function relFontSizeField(
+  field: z.ZodOptional<z.ZodNumber>,
+  style: TextStyleRange,
+  label: string,
+) {
+  return field.unwrap().min(style.min).max(style.max).optional().describe(
+    `Optional: the ${label}'s size, ${style.min} to ${style.max}; ${style.sizeDefault} when unset.`,
+  );
+}
+
+function boldField(
+  field: z.ZodOptional<z.ZodBoolean>,
+  style: TextStyleRange,
+  label: string,
+) {
+  return field.describe(
+    `Optional: whether the ${label} is bold; ${
+      style.boldDefault ? "bold" : "not bold"
+    } when unset.`,
+  );
+}
+
+function italicField(field: z.ZodOptional<z.ZodBoolean>, label: string) {
+  return field.describe(
+    `Optional: whether the ${label} is italic; not italic when unset.`,
+  );
+}
+
+function logoVisibilityField(
+  field: typeof cover.showLogos,
+  logos: string,
+) {
+  return field.describe(
+    `Optional: 'show' or 'hide' the deck's ${logos} on this slide. 'inherit', like leaving it unset, follows the deck's settings.`,
+  );
+}
+
+const AiSplitSchema = z
+  .object({
+    placement: split.placement.describe(
+      "The side of the page the panel sits on.",
+    ),
+    sizeAsPct: split.sizeAsPct
+      .refine((v) => SPLIT_SIZES_PCT.some((s) => s === v), {
+        message: `sizeAsPct must be one of ${SPLIT_SIZES_PCT.join(", ")}`,
+      })
+      .describe(
+        `The panel's width in percent of the page: one of ${
+          SPLIT_SIZES_PCT.join(", ")
+        }.`,
+      ),
+    fill: split.fill.describe(
+      "{ type: 'plain' } fills the panel with the theme's colour; { type: 'pattern', patternType } draws a pattern: ovals, circles, dots, lines, grid, chevrons, waves or noise; { type: 'image', imgFile } shows one of the instance's image assets, named as get_image_assets lists it.",
+    ),
+  })
+  .describe(
+    "Optional: a panel down one side of the slide, beside the header and the blocks.",
+  );
+
+const AI_COVER_SETTINGS = {
+  showLogos: logoVisibilityField(cover.showLogos, "cover logos"),
+  titleTextRelFontSize: relFontSizeField(
+    cover.titleTextRelFontSize,
+    COVER_TEXT_STYLES.title,
+    "title",
+  ),
+  titleBold: boldField(cover.titleBold, COVER_TEXT_STYLES.title, "title"),
+  titleItalic: italicField(cover.titleItalic, "title"),
+  subTitleTextRelFontSize: relFontSizeField(
+    cover.subTitleTextRelFontSize,
+    COVER_TEXT_STYLES.subtitle,
+    "subtitle",
+  ),
+  subTitleBold: boldField(
+    cover.subTitleBold,
+    COVER_TEXT_STYLES.subtitle,
+    "subtitle",
+  ),
+  subTitleItalic: italicField(cover.subTitleItalic, "subtitle"),
+  presenterTextRelFontSize: relFontSizeField(
+    cover.presenterTextRelFontSize,
+    COVER_TEXT_STYLES.presenter,
+    "presenter",
+  ),
+  presenterBold: boldField(
+    cover.presenterBold,
+    COVER_TEXT_STYLES.presenter,
+    "presenter",
+  ),
+  presenterItalic: italicField(cover.presenterItalic, "presenter"),
+  dateTextRelFontSize: relFontSizeField(
+    cover.dateTextRelFontSize,
+    COVER_TEXT_STYLES.date,
+    "date",
+  ),
+  dateBold: boldField(cover.dateBold, COVER_TEXT_STYLES.date, "date"),
+  dateItalic: italicField(cover.dateItalic, "date"),
+};
+
+const AI_SECTION_SETTINGS = {
+  sectionTextRelFontSize: relFontSizeField(
+    section.sectionTextRelFontSize,
+    SECTION_TEXT_STYLES.sectionTitle,
+    "section title",
+  ),
+  sectionTitleBold: boldField(
+    section.sectionTitleBold,
+    SECTION_TEXT_STYLES.sectionTitle,
+    "section title",
+  ),
+  sectionTitleItalic: italicField(section.sectionTitleItalic, "section title"),
+  smallerSectionTextRelFontSize: relFontSizeField(
+    section.smallerSectionTextRelFontSize,
+    SECTION_TEXT_STYLES.sectionSubtitle,
+    "section subtitle",
+  ),
+  sectionSubTitleBold: boldField(
+    section.sectionSubTitleBold,
+    SECTION_TEXT_STYLES.sectionSubtitle,
+    "section subtitle",
+  ),
+  sectionSubTitleItalic: italicField(
+    section.sectionSubTitleItalic,
+    "section subtitle",
+  ),
+};
+
+const AI_CONTENT_SETTINGS = {
+  subHeader: content.subHeader.unwrap().max(300).optional().describe(
+    "Optional: a line under the header. Maximum 300 characters.",
+  ),
+  date: content.date.unwrap().max(100).optional().describe(
+    "Optional: a date or period shown on the slide. Maximum 100 characters.",
+  ),
+  footer: content.footer.unwrap().max(200).optional().describe(
+    "Optional: the slide's footer text, shown only when the deck sets no footer text of its own. Maximum 200 characters.",
+  ),
+  showHeaderLogos: logoVisibilityField(content.showHeaderLogos, "header logos"),
+  showFooterLogos: logoVisibilityField(content.showFooterLogos, "footer logos"),
+  split: AiSplitSchema.optional(),
+};
 
 export const AiCoverSlideSchema = z.object({
-  type: z.literal("cover"),
-  title: z
-    .string()
-    .max(200)
-    .describe(
-      "The main title of the presentation, displayed prominently on the cover slide. Maximum 200 characters.",
-    ),
-  subtitle: z
-    .string()
-    .max(500)
-    .optional()
-    .describe(
-      "Optional: A subtitle or tagline that provides additional context about the presentation. Maximum 500 characters.",
-    ),
-  presenter: z
-    .string()
-    .max(200)
-    .optional()
-    .describe(
-      "Optional: The name(s) of the presenter(s) or author(s), e.g., 'Dr. Jane Smith' or 'Health Analytics Team'. Maximum 200 characters.",
-    ),
-  date: z
-    .string()
-    .max(100)
-    .optional()
-    .describe(
-      "Optional: The presentation date or time period, e.g., 'January 2024' or 'Q4 2023'. Maximum 100 characters.",
-    ),
+  type: cover.type,
+  title: cover.title.max(200).describe(
+    "The main title of the presentation, displayed prominently on the cover slide. Maximum 200 characters.",
+  ),
+  subtitle: cover.subtitle.unwrap().max(500).optional().describe(
+    "Optional: A subtitle or tagline that provides additional context about the presentation. Maximum 500 characters.",
+  ),
+  presenter: cover.presenter.unwrap().max(200).optional().describe(
+    "Optional: The name(s) of the presenter(s) or author(s), e.g., 'Dr. Jane Smith' or 'Health Analytics Team'. Maximum 200 characters.",
+  ),
+  date: cover.date.unwrap().max(100).optional().describe(
+    "Optional: The presentation date or time period, e.g., 'January 2024' or 'Q4 2023'. Maximum 100 characters.",
+  ),
+  ...AI_COVER_SETTINGS,
 });
 
 export const AiSectionSlideSchema = z.object({
-  type: z.literal("section"),
-  sectionTitle: z
-    .string()
-    .min(1)
-    .max(200)
-    .describe(
-      "Required: The section title that will be displayed prominently. Use this to mark major transitions in the presentation, e.g., 'Introduction', 'Key Findings', 'Recommendations'. Minimum 1 character, maximum 200 characters.",
-    ),
-  sectionSubtitle: z
-    .string()
-    .max(500)
-    .optional()
+  type: section.type,
+  sectionTitle: section.sectionTitle.min(1).max(200).describe(
+    "Required: The section title that will be displayed prominently. Use this to mark major transitions in the presentation, e.g., 'Introduction', 'Key Findings', 'Recommendations'. Minimum 1 character, maximum 200 characters.",
+  ),
+  sectionSubtitle: section.sectionSubtitle.unwrap().max(500).optional()
     .describe(
       "Optional: Additional context or description for this section. Maximum 500 characters.",
     ),
+  ...AI_SECTION_SETTINGS,
 });
 
+const contentHeaderField = content.header.unwrap().max(200).optional()
+  .describe(
+    "Optional: The slide header/title that appears at the top of the slide. Should clearly describe what this slide is about. Maximum 200 characters.",
+  );
+
 export const AiContentSlideSchema = z.object({
-  type: z.literal("content"),
-  header: z
-    .string()
-    .max(200)
-    .optional()
-    .describe(
-      "Optional: The slide header/title that appears at the top of the slide. Should clearly describe what this slide is about. Maximum 200 characters.",
-    ),
+  type: content.type,
+  header: contentHeaderField,
+  ...AI_CONTENT_SETTINGS,
   layoutPreference: z
     .enum(["cols", "rows"])
     .optional()
@@ -338,6 +497,44 @@ export const AiContentSlideSchema = z.object({
     ),
 });
 
+// Mirrors the Slide storage union, so a field aimed at the wrong slide type
+// is unrepresentable in the tool call.
+export const AiSlideUpdateSchema = z
+  .discriminatedUnion("type", [
+    AiCoverSlideSchema.partial().required({ type: true }),
+    AiSectionSlideSchema.partial().required({ type: true }),
+    z.object({
+      type: content.type,
+      header: contentHeaderField,
+      ...AI_CONTENT_SETTINGS,
+      split: AiSplitSchema.nullable().optional().describe(
+        "Optional: a panel down one side of the slide, beside the header and the blocks. null removes the panel.",
+      ),
+      blockUpdates: z
+        .array(
+          z.object({
+            blockId: z.string().describe(
+              "Block ID, from get_slides or from the result of the write that made the block",
+            ),
+            newContent: AiContentBlockInputSchema,
+          }),
+        )
+        .optional()
+        .describe(
+          `REPLACE specific blocks by ID with new content. Max ${MAX_CONTENT_BLOCKS} blocks. Use this to swap a block for a DIFFERENT figure (a different metric or a different chart type) or to change a text block. To merely TWEAK an existing figure (e.g. its replicant, filters, captions), use update_figure instead: replacing a figure block here REBUILDS it from scratch and DISCARDS any prior edits. No markdown tables: use a from_metric block with a table-type preset (vizPresetId) instead. Mutually exclusive with layoutChange.`,
+        ),
+      layoutChange: z
+        .object({ layout: LayoutSpecSchema })
+        .optional()
+        .describe(
+          "Restructure the layout: add, remove or rearrange blocks, or change their spans. The layout names ALL blocks that will be on the slide: an existing block it does not name is REMOVED. Name existing blocks by ID to keep them; give inline content for new ones. Prefer balanced spans (e.g. 6+6 or 8+4) unless the user asks for specific proportions. Mutually exclusive with blockUpdates.",
+        ),
+    }),
+  ])
+  .describe(
+    "Per-type update. `type` must match the slide's type. Name only the fields to change.",
+  );
+
 // Inferred types (single source of truth)
 
 export type AiTextBlock = z.infer<typeof AiTextBlockSchema>;
@@ -349,3 +546,4 @@ export type AiSlideInput =
   | z.infer<typeof AiCoverSlideSchema>
   | z.infer<typeof AiSectionSlideSchema>
   | AiContentSlideInput;
+export type AiSlideUpdate = z.infer<typeof AiSlideUpdateSchema>;

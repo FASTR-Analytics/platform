@@ -1,4 +1,11 @@
-import type { MetricWithStatus, Slide, SlideDeckConfig } from "lib";
+import type {
+  ContentSlide,
+  CoverSlide,
+  MetricWithStatus,
+  SectionSlide,
+  Slide,
+  SlideDeckConfig,
+} from "lib";
 import { getDataFromConfig } from "lib";
 import {
   formatFigureConfigForAI,
@@ -12,18 +19,12 @@ import {
 import { measureSlideOverflow } from "./measure_slide_overflow.ts";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 
+// A slide's own settings as stored; a content slide's layout is replaced by
+// its blocks and their arrangement.
 export type SimplifiedSlide =
-  | {
-    type: "cover";
-    title?: string;
-    subtitle?: string;
-    presenter?: string;
-    date?: string;
-  }
-  | { type: "section"; sectionTitle: string; sectionSubtitle?: string }
-  | {
-    type: "content";
-    header?: string;
+  | CoverSlide
+  | SectionSlide
+  | Omit<ContentSlide, "layout"> & {
     blocks: Array<{ id: string; summary: string }>;
     _layout: { description: string; structure: LayoutStructure | null };
     // Whether the layout overflows its page, as the deck's canvas badges it.
@@ -36,32 +37,19 @@ export async function simplifySlideForAI(
   metrics: MetricWithStatus[],
   deckConfig: SlideDeckConfig,
 ): Promise<SimplifiedSlide> {
-  if (slide.type === "cover") {
-    return {
-      type: "cover",
-      title: slide.title,
-      subtitle: slide.subtitle,
-      presenter: slide.presenter,
-      date: slide.date,
-    };
-  }
+  if (slide.type === "cover" || slide.type === "section") return slide;
 
-  if (slide.type === "section") {
-    return {
-      type: "section",
-      sectionTitle: slide.sectionTitle,
-      sectionSubtitle: slide.sectionSubtitle,
-    };
-  }
-
-  // Content slide - extract blocks with IDs and fetch data for figures
-  const blocks = extractBlocksFromLayout(slide.layout);
+  const { layout, ...settings } = slide;
+  const blocks = extractBlocksFromLayout(layout);
   const [simplifiedBlocks, overflow] = await Promise.all([
     Promise.all(blocks.map(async ({ id, block }) => {
       if (block.type === "text") {
+        const background = block.style?.textBackground;
         return {
           id,
-          summary: `Text: ${block.markdown}`,
+          summary: background
+            ? `Text (textBackground: ${background}): ${block.markdown}`
+            : `Text: ${block.markdown}`,
         };
       } else if (block.type === "image") {
         return {
@@ -115,10 +103,9 @@ export async function simplifySlideForAI(
   ]);
 
   return {
-    type: "content",
-    header: slide.header,
+    ...settings,
     blocks: simplifiedBlocks,
-    _layout: layoutNodeToStructure(slide.layout),
+    _layout: layoutNodeToStructure(layout),
     overflow,
   };
 }

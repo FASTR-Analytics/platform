@@ -1,11 +1,10 @@
 import {
-  AiContentBlockInputSchema,
+  type AiSlideUpdate,
+  AiSlideUpdateSchema,
   type ContentBlock,
   type ContentSlide,
   COPILOT_TOOL_VIEWS,
   type LayoutSpec,
-  LayoutSpecSchema,
-  MAX_CONTENT_BLOCKS,
   type MetricWithStatus,
   type PackageScope,
   type Slide,
@@ -19,6 +18,7 @@ import {
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 import {
   assertImageAsset,
+  assertSplitImageAsset,
   validateMaxContentBlocks,
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
@@ -38,52 +38,6 @@ import {
 } from "./slide_target.ts";
 import { prepareSlideWriteResult } from "./slide_write_result.ts";
 
-// Mirrors the Slide storage union, so a field aimed at the wrong slide type
-// is unrepresentable in the tool call. The union sits under a key because
-// panther's createAITool (and Anthropic's input_schema contract) requires the
-// top-level schema to be an object.
-const SlideUpdateSchema = z
-  .discriminatedUnion("type", [
-    z.object({
-      type: z.literal("cover"),
-      title: z.string().optional().describe("Main title"),
-      subtitle: z.string().optional().describe("Subtitle"),
-      presenter: z.string().optional().describe("Presenter name"),
-      date: z.string().optional().describe("Date text"),
-    }),
-    z.object({
-      type: z.literal("section"),
-      sectionTitle: z.string().optional().describe("Section title"),
-      sectionSubtitle: z.string().optional().describe("Section subtitle"),
-    }),
-    z.object({
-      type: z.literal("content"),
-      header: z.string().optional().describe("Header text at top of slide"),
-      blockUpdates: z
-        .array(
-          z.object({
-            blockId: z.string().describe(
-              "Block ID, from get_slides or from the result of the write that made the block",
-            ),
-            newContent: AiContentBlockInputSchema,
-          }),
-        )
-        .optional()
-        .describe(
-          `REPLACE specific blocks by ID with new content. Max ${MAX_CONTENT_BLOCKS} blocks. Use this to swap a block for a DIFFERENT figure (a different metric or a different chart type) or to change a text block. To merely TWEAK an existing figure (e.g. its replicant, filters, captions), use update_figure instead: replacing a figure block here REBUILDS it from scratch and DISCARDS any prior edits. No markdown tables: use a from_metric block with a table-type preset (vizPresetId) instead. Mutually exclusive with layoutChange.`,
-        ),
-      layoutChange: z
-        .object({ layout: LayoutSpecSchema })
-        .optional()
-        .describe(
-          "Restructure the layout: add, remove or rearrange blocks, or change their spans. The layout names ALL blocks that will be on the slide: an existing block it does not name is REMOVED. Name existing blocks by ID to keep them; give inline content for new ones. Prefer balanced spans (e.g. 6+6 or 8+4) unless the user asks for specific proportions. Mutually exclusive with blockUpdates.",
-        ),
-    }),
-  ])
-  .describe("Per-type update. `type` must match the slide's type.");
-
-type SlideUpdate = z.infer<typeof SlideUpdateSchema>;
-
 type AppliedUpdate = {
   slide: Slide;
   changes: string[];
@@ -101,12 +55,14 @@ export function createUpdateSlideTool(
     viewRegistry: copilotViews,
     name: "update_slide",
     description:
-      "Change a slide in place, keeping everything not named: a cover's title, subtitle, presenter or date; a section's title or subtitle; a content slide's header, its blocks (blockUpdates) or its layout (layoutChange). Give the slideId and an `update` whose `type` matches the slide's type, with only the fields to change. A block ID comes from get_slides or from the result of the write that made the block. A from_metric block needs get_metric_data first. To tweak an existing figure use update_figure; to rebuild a slide or change its type use replace_slide. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately.",
+      "Change a slide in place, keeping everything not named: a cover's title, subtitle, presenter or date, each one's size, bold and italic, and its logos; a section's title or subtitle, and each one's size, bold and italic; a content slide's header, sub-header, date, footer, header and footer logos, side panel (split), its blocks (blockUpdates) or its layout (layoutChange). get_slides shows a slide's settings as stored. Give the slideId and an `update` whose `type` matches the slide's type, with only the fields to change. A block ID comes from get_slides or from the result of the write that made the block. A from_metric block needs get_metric_data first. To tweak an existing figure use update_figure; to rebuild a slide or change its type use replace_slide. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately.",
     inputSchema: z.object({
       slideId: z.string().describe(
         "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
       ),
-      update: SlideUpdateSchema,
+      // Under a key: panther's createAITool (and Anthropic's input_schema
+      // contract) requires the top-level schema to be an object.
+      update: AiSlideUpdateSchema,
     }),
     availableIn: COPILOT_TOOL_VIEWS.update_slide,
     kind: "write",
@@ -160,7 +116,7 @@ export function createUpdateSlideTool(
 async function applySlideUpdate(
   scope: PackageScope,
   slide: Slide,
-  u: SlideUpdate,
+  u: AiSlideUpdate,
   metrics: MetricWithStatus[],
 ): Promise<AppliedUpdate> {
   if (slide.type === "cover" && u.type === "cover") {
@@ -182,16 +138,22 @@ async function applySlideUpdate(
     };
   }
   if (slide.type === "content" && u.type === "content") {
-    let updated: ContentSlide = slide;
-    const changes: string[] = [];
+    const { type: _type, blockUpdates, layoutChange, split, ...fields } = u;
+    let updated: ContentSlide = { ...slide, ...fields };
+    const changes = Object.keys(fields);
     let removedBlocks: AppliedUpdate["removedBlocks"] = [];
     const builtFigureIds: string[] = [];
-    if (u.header !== undefined) {
-      updated = { ...updated, header: u.header };
-      changes.push("header");
+    if (split === null) {
+      const { split: _removed, ...rest } = updated;
+      updated = rest;
+      changes.push("split");
+    } else if (split !== undefined) {
+      assertSplitImageAsset(split);
+      updated = { ...updated, split };
+      changes.push("split");
     }
-    if (u.blockUpdates && u.blockUpdates.length > 0) {
-      for (const bu of u.blockUpdates) {
+    if (blockUpdates && blockUpdates.length > 0) {
+      for (const bu of blockUpdates) {
         if (bu.newContent.type === "text") {
           validateNoMarkdownTables(bu.newContent.markdown);
         }
@@ -199,21 +161,21 @@ async function applySlideUpdate(
       updated = await getSlideWithUpdatedBlocks(
         scope,
         updated,
-        u.blockUpdates,
+        blockUpdates,
         metrics,
       ) as ContentSlide;
       builtFigureIds.push(
-        ...u.blockUpdates
+        ...blockUpdates
           .filter((bu) => bu.newContent.type === "from_metric")
           .map((bu) => bu.blockId),
       );
-      changes.push(`${u.blockUpdates.length} block(s)`);
+      changes.push(`${blockUpdates.length} block(s)`);
     }
-    if (u.layoutChange) {
+    if (layoutChange) {
       const resolved = await resolveLayoutSpec(
         scope,
         updated.layout,
-        u.layoutChange.layout,
+        layoutChange.layout,
         metrics,
       );
       updated = { ...updated, layout: resolved.layout };
@@ -221,7 +183,7 @@ async function applySlideUpdate(
       builtFigureIds.push(...resolved.builtFigureIds);
       changes.push("layout");
     }
-    if (changes.some((c) => c !== "header")) {
+    if (blockUpdates || layoutChange) {
       validateSlideTotalWordCount(
         extractBlocksFromLayout(updated.layout).flatMap(({ block }) =>
           block.type === "text" ? [block.markdown] : []

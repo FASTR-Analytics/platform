@@ -55,7 +55,7 @@ const contentSlideSplitSchema = z.object({
 
 // ── Content Blocks ──────────────────────────────────────────────────────────
 
-const textBlockSchema = z.object({
+export const textBlockSchema = z.object({
   type: z.literal("text"),
   markdown: z.string(),
   style: textBlockStyleSchema.optional(),
@@ -109,7 +109,7 @@ const layoutNodeSchema: z.ZodTypeAny = z.lazy(() =>
 
 const logoVisibilitySchema = z.enum(["show", "hide", "inherit"]);
 
-const coverSlideSchema = z.object({
+export const coverSlideSchema = z.object({
   type: z.literal("cover"),
   title: z.string(),
   subtitle: z.string().optional(),
@@ -130,7 +130,7 @@ const coverSlideSchema = z.object({
   dateItalic: z.boolean().optional(),
 });
 
-const sectionSlideSchema = z.object({
+export const sectionSlideSchema = z.object({
   type: z.literal("section"),
   sectionTitle: z.string(),
   sectionSubtitle: z.string().optional(),
@@ -142,7 +142,7 @@ const sectionSlideSchema = z.object({
   sectionSubTitleItalic: z.boolean().optional(),
 });
 
-const contentSlideSchema = z.object({
+export const contentSlideSchema = z.object({
   type: z.literal("content"),
   header: z.string().optional(),
   subHeader: z.string().optional(),

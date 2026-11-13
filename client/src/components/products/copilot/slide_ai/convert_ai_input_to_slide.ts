@@ -19,7 +19,7 @@ import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU, slideConfigSchema } from "lib";
 import { buildSlidePage } from "./measure_slide_overflow.ts";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
-import { assertImageAsset } from "../_shared/mod.ts";
+import { assertImageAsset, assertSplitImageAsset } from "../_shared/mod.ts";
 
 /**
  * Convert AI input (blocks[]) to storage format (LayoutNode<ContentBlock>).
@@ -56,9 +56,11 @@ export async function convertAiInputToSlide(
     );
   }
 
+  const { blocks, layoutPreference, ...settings } = slideInput;
+  assertSplitImageAsset(settings.split);
   const resolvedBlocks: ContentBlock[] = [];
 
-  for (const block of slideInput.blocks) {
+  for (const block of blocks) {
     if (block.type === "text") {
       resolvedBlocks.push(block);
       continue;
@@ -85,8 +87,7 @@ export async function convertAiInputToSlide(
     resolvedBlocks.map((block) => [generateId(), block] as const),
   );
   const provisional = slideConfigSchema.parse({
-    type: "content",
-    header: slideInput.header,
+    ...settings,
     layout: {
       type: "rows",
       id: generateId(),
@@ -109,13 +110,12 @@ export async function convertAiInputToSlide(
     leafItems(page.content),
     page,
     page.style,
-    getOptimizerConfig(slideInput.layoutPreference, resolvedBlocks.length),
+    getOptimizerConfig(layoutPreference, resolvedBlocks.length),
   );
 
   return {
     slide: slideConfigSchema.parse({
-      type: "content",
-      header: slideInput.header,
+      ...settings,
       layout: restoreBlocks(result.best.layout, blocksById),
     }) as Slide,
     overflow: result.best.score.overflow === 1,

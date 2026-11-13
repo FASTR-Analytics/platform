@@ -38,10 +38,9 @@ export async function getSlideWithUpdatedBlocks(
     );
   }
 
-  // Existing blocks by id, so an edit preserves fields the AI's input schema
-  // cannot express, e.g. a text block's user-set style. Without this, the
-  // whole-block replace below silently drops textSize/textBackground on every
-  // text edit.
+  // Existing blocks by id, so a text edit keeps the style fields it does not
+  // name: the whole-block replace below would otherwise drop a textBackground
+  // the edit leaves out.
   const existingById = new Map<string, ContentBlock>();
   function collectBlocks(node: LayoutNode<ContentBlock>): void {
     if (node.type === "item") {
@@ -58,10 +57,15 @@ export async function getSlideWithUpdatedBlocks(
   for (const update of updates) {
     if (update.newContent.type === "text") {
       const existing = existingById.get(update.blockId);
-      const style = existing?.type === "text" ? existing.style : undefined;
+      const existingStyle = existing?.type === "text"
+        ? existing.style
+        : undefined;
+      const { style: newStyle, ...content } = update.newContent;
       updateMap.set(
         update.blockId,
-        style ? { ...update.newContent, style } : update.newContent,
+        existingStyle || newStyle
+          ? { ...content, style: { ...existingStyle, ...newStyle } }
+          : content,
       );
     } else if (update.newContent.type === "image") {
       assertImageAsset(update.newContent.imgFile);

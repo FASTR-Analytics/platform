@@ -128,9 +128,6 @@ Deno.test("the chat's principles put independent calls in one reply, and a promp
   assert(!bare.includes("Ask when uncertain"));
 });
 
-// One read per slide per turn: the read at the start of a turn stays, since a
-// collaborator's edit can land between two messages, and every read after a
-// write goes, since the write's result states what it left.
 Deno.test("the deck brief lists the image block beside text and from_metric", () => {
   const brief = getEditingSlideDeckInstructions("Round 1 report");
   assertStringIncludes(brief, '**Text (markdown):** { "type": "text"');
@@ -141,6 +138,21 @@ Deno.test("the deck brief lists the image block beside text and from_metric", ()
   );
 });
 
+Deno.test("the deck brief names a slide's settings, where they are read and how they are set", () => {
+  const brief = getEditingSlideDeckInstructions("Round 1 report");
+  assertStringIncludes(
+    brief,
+    "Each slide also has its own settings: a cover's and a section's text sizes, bold and italic, a cover's logos, and a content slide's sub-header, date, footer, header and footer logos and side panel (split). get_slides shows them as stored, and update_slide sets them.",
+  );
+  assertStringIncludes(
+    brief,
+    "**Change text, settings, blocks or layout** (a cover's or section's fields, a content slide's header, a slide's settings,",
+  );
+});
+
+// One read per slide per turn: the read at the start of a turn stays, since a
+// collaborator's edit can land between two messages, and every read after a
+// write goes, since the write's result states what it left.
 Deno.test("the deck brief reads a slide once a turn and takes a write's result as the slide's state", () => {
   const brief = getEditingSlideDeckInstructions("Round 1 report");
   assert(

@@ -1,5 +1,6 @@
 import { AIToolFailure } from "panther";
 import {
+  type ContentSlideSplit,
   type DisaggregationOption,
   MAX_CONTENT_BLOCKS,
   type MetricWithStatus,
@@ -47,6 +48,12 @@ export function assertImageAsset(imgFile: string): void {
       `"${imgFile}" is not one of the instance's image assets. Call get_image_assets for the file names.`,
     );
   }
+}
+
+export function assertSplitImageAsset(
+  split: ContentSlideSplit | undefined,
+): void {
+  if (split?.fill.type === "image") assertImageAsset(split.fill.imgFile);
 }
 
 export function validateMaxContentBlocks(blocksCount: number): void {

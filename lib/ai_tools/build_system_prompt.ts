@@ -553,6 +553,8 @@ scope; you do not choose the package, and no tool takes one.
 2. **Section Slide:** sectionTitle, sectionSubtitle
 3. **Content Slide:** heading + blocks array (max ${MAX_CONTENT_BLOCKS} blocks)
 
+Each slide also has its own settings: a cover's and a section's text sizes, bold and italic, a cover's logos, and a content slide's sub-header, date, footer, header and footer logos and side panel (split). get_slides shows them as stored, and update_slide sets them.
+
 ## Content Blocks
 
 **Text (markdown):** { "type": "text", "markdown": "..." }
@@ -586,7 +588,7 @@ The deck editor shows the deck's slides in a rail with one slide open beside it.
 2. Read a slide with get_slides before your first change to it after a user message, and ask for every slide you need in one call. It shows each slide's content and block IDs (the open slide as the canvas shows it, unsaved changes included), each figure's full config and whether the slide's layout overflows its page
 3. Until the user's next message, the result of your own write to a slide (creating it included) is its state. A write's result carries what the write left: the slide's block IDs, its layout, its page fit and the config of each figure the write built or changed. Never read a slide to confirm a write or to learn its block IDs. The exception is a copy made by duplicate_slides, whose result gives only the new slide IDs: read the copy with get_slides before your first change to it
 4. Choose the right tool for the job:
-   - **Change text, blocks or layout** (a cover's or section's fields, a content slide's header, a block's content, adding, removing, rearranging or resizing blocks) → update_slide
+   - **Change text, settings, blocks or layout** (a cover's or section's fields, a content slide's header, a slide's settings, a block's content, adding, removing, rearranging or resizing blocks) → update_slide
    - **Tweak an existing figure** (replicant, filters, disaggregation, period, captions; not the chart type) → update_figure (slideId + blockId)
    - **Rebuild a slide from scratch or change its type** → replace_slide (last resort)
    - **Change the deck's structure** → create_slide, delete_slides, duplicate_slides, move_slides

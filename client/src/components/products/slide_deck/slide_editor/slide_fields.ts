@@ -1,10 +1,10 @@
-import type { SlideType } from "lib";
-import { t3 } from "lib";
+import type { CoverSlide, SectionSlide, SlideTextStyle, SlideType } from "lib";
+import { COVER_TEXT_STYLES, SECTION_TEXT_STYLES, t3 } from "lib";
 import type { PageHitTargetText } from "panther";
 
 // The title-level text of each slide type: the panther text primitive that
-// draws it, the slide field it shows, and (for cover and section fields) the
-// per-field size / bold / italic keys with their defaults.
+// draws it, the slide field it shows, and (for cover and section fields) its
+// size and emphasis keys.
 export type SlideTextField = {
   primitiveId: PageHitTargetText["type"];
   field: string;
@@ -12,15 +12,7 @@ export type SlideTextField = {
   label: () => string;
   /** Cleared (undefined) when emptied; required fields keep "". */
   optional: boolean;
-  style?: {
-    size: string;
-    sizeDefault: number;
-    min: number;
-    max: number;
-    bold: string;
-    boldDefault: boolean;
-    italic: string;
-  };
+  style?: SlideTextStyle<CoverSlide> | SlideTextStyle<SectionSlide>;
 };
 
 export const SLIDE_TEXT_FIELDS: SlideTextField[] = [
@@ -59,15 +51,7 @@ export const SLIDE_TEXT_FIELDS: SlideTextField[] = [
     slideType: "cover",
     label: () => t3({ en: "Title", fr: "Titre", pt: "Título" }),
     optional: false,
-    style: {
-      size: "titleTextRelFontSize",
-      sizeDefault: 10,
-      min: 5,
-      max: 20,
-      bold: "titleBold",
-      boldDefault: true,
-      italic: "titleItalic",
-    },
+    style: COVER_TEXT_STYLES.title,
   },
   {
     primitiveId: "coverSubtitle",
@@ -75,15 +59,7 @@ export const SLIDE_TEXT_FIELDS: SlideTextField[] = [
     slideType: "cover",
     label: () => t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" }),
     optional: true,
-    style: {
-      size: "subTitleTextRelFontSize",
-      sizeDefault: 6,
-      min: 3,
-      max: 12,
-      bold: "subTitleBold",
-      boldDefault: false,
-      italic: "subTitleItalic",
-    },
+    style: COVER_TEXT_STYLES.subtitle,
   },
   {
     primitiveId: "coverAuthor",
@@ -92,15 +68,7 @@ export const SLIDE_TEXT_FIELDS: SlideTextField[] = [
     label: () =>
       t3({ en: "Presenter", fr: "Présentateur", pt: "Apresentador" }),
     optional: true,
-    style: {
-      size: "presenterTextRelFontSize",
-      sizeDefault: 4,
-      min: 2,
-      max: 12,
-      bold: "presenterBold",
-      boldDefault: false,
-      italic: "presenterItalic",
-    },
+    style: COVER_TEXT_STYLES.presenter,
   },
   {
     primitiveId: "coverDate",
@@ -108,15 +76,7 @@ export const SLIDE_TEXT_FIELDS: SlideTextField[] = [
     slideType: "cover",
     label: () => t3({ en: "Date", fr: "Date", pt: "Data" }),
     optional: true,
-    style: {
-      size: "dateTextRelFontSize",
-      sizeDefault: 3,
-      min: 2,
-      max: 10,
-      bold: "dateBold",
-      boldDefault: false,
-      italic: "dateItalic",
-    },
+    style: COVER_TEXT_STYLES.date,
   },
   {
     primitiveId: "sectionTitle",
@@ -129,15 +89,7 @@ export const SLIDE_TEXT_FIELDS: SlideTextField[] = [
         pt: "Título da secção",
       }),
     optional: false,
-    style: {
-      size: "sectionTextRelFontSize",
-      sizeDefault: 8,
-      min: 4,
-      max: 16,
-      bold: "sectionTitleBold",
-      boldDefault: true,
-      italic: "sectionTitleItalic",
-    },
+    style: SECTION_TEXT_STYLES.sectionTitle,
   },
   {
     primitiveId: "sectionSubtitle",
@@ -145,15 +97,7 @@ export const SLIDE_TEXT_FIELDS: SlideTextField[] = [
     slideType: "section",
     label: () => t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" }),
     optional: true,
-    style: {
-      size: "smallerSectionTextRelFontSize",
-      sizeDefault: 5,
-      min: 2,
-      max: 10,
-      bold: "sectionSubTitleBold",
-      boldDefault: false,
-      italic: "sectionSubTitleItalic",
-    },
+    style: SECTION_TEXT_STYLES.sectionSubtitle,
   },
 ];
 

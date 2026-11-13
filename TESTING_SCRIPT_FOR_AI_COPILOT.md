@@ -460,6 +460,20 @@ NEW CONVERSATION.
 - Ground truth: H3 shows `update_slide` with `err: true`, text naming "not_an_asset.png" as not one of the instance's image assets. Screenshot the slide: unchanged.
 - Pass: all three.
 
+**F18. Slide settings.**
+
+- Do: send "On the cover slide, make the title not bold at size 12 and hide the logos, with update_slide."
+- Ground truth: H3 shows `update_slide` with `err: false`, its result naming titleBold, titleTextRelFontSize and showLogos. Open the cover and screenshot: the title is larger and not bold, and no logos show.
+- Do: send "On slide 2, set the sub-header to 'SUB HEADER' and add a panel on the right at 20% with the dots pattern, with update_slide."
+- Ground truth: H3 shows `update_slide` with `err: false`. Open slide 2 and screenshot: the sub-header and a dotted panel on the right.
+- Do: send "Make that panel 12% wide."
+- Ground truth: H3 shows `update_slide` with `err: true`, text listing the allowed sizes 5 to 50 in steps of 5. Slide 2 is unchanged.
+- Do: send "Read slide 2 with get_slides and tell me its sub-header and panel."
+- Ground truth: the entry holds `subHeader: "SUB HEADER"` and `split` with placement right, sizeAsPct 20 and the dots pattern.
+- Do: send "Remove slide 2's panel, then give slide 3's text block a grey background, then change that text to 'Background kept'."
+- Ground truth: H3 shows three `update_slide` calls with `err: false`. Slide 2 has no panel. Open slide 3 and screenshot: the text reads "Background kept" on a grey background.
+- Pass: all five.
+
 ### G. Report (WRITE)
 
 Skip under `read-only`. Go to Products, open the "Copilot tests" folder, click New, choose report, name it `COPILOT TEST REPORT <YYYYMMDD-HHMM>`, same package and scope, Create. The report editor opens. NEW CONVERSATION.

@@ -310,6 +310,92 @@ export type ContentSlide = {
 // Union type
 export type Slide = CoverSlide | SectionSlide | ContentSlide;
 
+// A title-level text's size and emphasis keys: the size range the slide
+// editor offers, and the size and weight the renderer draws when unset.
+export type SlideTextStyle<S> = {
+  size: keyof S & string;
+  sizeDefault: number;
+  min: number;
+  max: number;
+  bold: keyof S & string;
+  boldDefault: boolean;
+  italic: keyof S & string;
+};
+
+export const COVER_TEXT_STYLES = {
+  title: {
+    size: "titleTextRelFontSize",
+    sizeDefault: 10,
+    min: 5,
+    max: 20,
+    bold: "titleBold",
+    boldDefault: true,
+    italic: "titleItalic",
+  },
+  subtitle: {
+    size: "subTitleTextRelFontSize",
+    sizeDefault: 6,
+    min: 3,
+    max: 12,
+    bold: "subTitleBold",
+    boldDefault: false,
+    italic: "subTitleItalic",
+  },
+  presenter: {
+    size: "presenterTextRelFontSize",
+    sizeDefault: 4,
+    min: 2,
+    max: 12,
+    bold: "presenterBold",
+    boldDefault: false,
+    italic: "presenterItalic",
+  },
+  date: {
+    size: "dateTextRelFontSize",
+    sizeDefault: 3,
+    min: 2,
+    max: 10,
+    bold: "dateBold",
+    boldDefault: false,
+    italic: "dateItalic",
+  },
+} as const satisfies Record<string, SlideTextStyle<CoverSlide>>;
+
+export const SECTION_TEXT_STYLES = {
+  sectionTitle: {
+    size: "sectionTextRelFontSize",
+    sizeDefault: 8,
+    min: 4,
+    max: 16,
+    bold: "sectionTitleBold",
+    boldDefault: true,
+    italic: "sectionTitleItalic",
+  },
+  sectionSubtitle: {
+    size: "smallerSectionTextRelFontSize",
+    sizeDefault: 5,
+    min: 2,
+    max: 10,
+    bold: "sectionSubTitleBold",
+    boldDefault: false,
+    italic: "sectionSubTitleItalic",
+  },
+} as const satisfies Record<string, SlideTextStyle<SectionSlide>>;
+
+// The split panel sizes the slide editor offers, in percent of the page.
+export const SPLIT_SIZES_PCT = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50] as const;
+export const SPLIT_SIZE_PCT_DEFAULT = 15;
+
+// The text backgrounds the renderer draws; any other value draws none.
+export const TEXT_BACKGROUND_KEYS = [
+  "none",
+  "grey",
+  "primary",
+  "success",
+  "danger",
+] as const;
+export type TextBackgroundKey = (typeof TEXT_BACKGROUND_KEYS)[number];
+
 // Position for inserting/moving slides
 export type SlidePosition =
   | { after: string }

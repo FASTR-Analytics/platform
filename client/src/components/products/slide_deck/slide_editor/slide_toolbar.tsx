@@ -24,9 +24,10 @@ import type {
   PackageScope,
   RunAuthoringContext,
   Slide,
+  TextBackgroundKey,
   TextBlock,
 } from "lib";
-import { t3 } from "lib";
+import { SPLIT_SIZE_PCT_DEFAULT, SPLIT_SIZES_PCT, t3 } from "lib";
 import type { PatternType } from "panther";
 import { findById, Icon } from "panther";
 import {
@@ -95,7 +96,7 @@ type Props = {
   onCreateVisualization: (source: FigureSource) => void;
 };
 
-const TEXT_BACKGROUNDS = [
+const TEXT_BACKGROUNDS: { value: TextBackgroundKey; label: () => string }[] = [
   { value: "none", label: () => t3({ en: "None", fr: "Aucun", pt: "Nenhum" }) },
   {
     value: "primary",
@@ -653,7 +654,7 @@ export function SlideToolbar(p: Props) {
                           "split",
                           {
                             placement: side,
-                            sizeAsPct: 15,
+                            sizeAsPct: SPLIT_SIZE_PCT_DEFAULT,
                             fill: { type: "plain" },
                           } satisfies ContentSlideSplit,
                         )}
@@ -672,7 +673,7 @@ export function SlideToolbar(p: Props) {
                       {t3({ en: "Size", fr: "Taille", pt: "Tamanho" })}
                     </Caption>
                     <div class="grid grid-cols-5 gap-0.5 px-1">
-                      <For each={[5, 10, 15, 20, 25, 30, 35, 40, 45, 50]}>
+                      <For each={SPLIT_SIZES_PCT}>
                         {(pct) => (
                           <PopoverRow
                             active={sp().sizeAsPct === pct}
