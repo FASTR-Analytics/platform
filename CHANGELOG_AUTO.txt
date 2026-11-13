@@ -1,45 +1,47 @@
-[TBD] [user] [added] - Draft slide previews now indicate if content overflows the page
-[TBD] [user] [added] - Deck overview now shows which slides overflow the page
-[TBD] [user] [changed] - Copilot gives clearer warnings when slide content is cut off at the bottom
-[TBD] [admin] [changed] - Copilot now reports when slide content overflows the page across all tools
-[TBD] [admin] [improved] - Consistent overflow warnings help Copilot fix broken slides more reliably
-[TBD] [admin] [added] - Draft slide previews now indicate if content overflows the page
-[TBD] [admin] [added] - Deck summary now shows overflow status for each content slide
-[TBD] [user] [fixed] - Status messages now use correct plural forms (e.g., "1 slide" vs "2 slides")
-[TBD] [user] [changed] - Reference document progress messages now show document titles instead of IDs
-[TBD] [admin] [fixed] - AI status messages now show proper plural forms instead of parenthesized suffixes
-[TBD] [admin] [changed] - Reference document names shown instead of IDs in AI progress messages
-[TBD] [user] [added] - AI assistant can now look at slides, figures, and charts as images to judge readability
-[TBD] [user] [added] - AI assistant can now add image assets to slides and reports
-[TBD] [user] [added] - AI assistant can now view and change deck settings like logos, footer text, and watermarks
-[TBD] [user] [added] - AI assistant can now set text background colors on slide text blocks
-[TBD] [user] [added] - AI assistant can now adjust text size, bold, and italic on cover and section slides
-[TBD] [user] [added] - AI assistant can now add and configure side panels on content slides
-[TBD] [user] [changed] - Replacing a slide now preserves its existing settings like logos, sub-header, and side panel
-[TBD] [user] [changed] - Deck overview now includes logo, footer, and watermark settings alongside the slide outline
-[TBD] [user] [changed] - AI assistant now shows more detail about image blocks and text styling when reading slides
-[TBD] [admin] [added] - Copilot can now look at slides, report figures, and figure editor previews as images to judge readability
-[TBD] [admin] [added] - Copilot can manage deck settings: logos, footer text, and watermark
-[TBD] [admin] [added] - Copilot can use instance image assets in slides and content blocks
-[TBD] [admin] [added] - Image blocks now supported in slide content alongside text and figures
-[TBD] [admin] [added] - Copilot can set text background colors and text styling on slide blocks
-[TBD] [admin] [changed] - Replacing a slide now preserves existing settings like side panels, logos, and sub-headers when the slide type stays the same
-[TBD] [admin] [changed] - Deck outline from copilot now includes deck settings alongside slide summary
-[TBD] [admin] [internal] - Refactored figure editor preview logic for improved reliability and copilot integration
-[TBD] [user] [changed] - AI assistant can now read multiple slides at once, speeding up deck editing
-[TBD] [user] [improved] - AI assistant now reports page overflow status after slide changes
-[TBD] [user] [improved] - AI assistant shows updated figure details after editing slides
-[TBD] [user] [fixed] - AI assistant no longer re-reads slides unnecessarily after making changes
-[TBD] [admin] [changed] - AI copilot can now read multiple slides in a single request
-[TBD] [admin] [changed] - AI copilot returns slide overflow status after every write
-[TBD] [admin] [changed] - AI copilot includes updated figure configuration in write results
-[TBD] [admin] [fixed] - AI-edited figures on open slides now sync correctly to collaborators
-[TBD] [admin] [changed] - AI copilot batches independent tool calls in one reply for faster editing
-[TBD] [user] [added] - Bug reports and suggestions now get an AI-generated first look added to the support email
-[TBD] [admin] [added] - Bug reports and suggestions now get an AI-generated initial assessment emailed to developers
-[TBD] [admin] [added] - Support team emails now include a plain-language summary from Claude's review of the report
-[TBD] [admin] [changed] - Fleet health and telemetry endpoints now require authentication instead of being publicly accessible
-[TBD] [admin] [internal] - Feedback planning has daily caps per reporter and per instance to control costs
+[2.12.0] [user] [fixed] - AI assistant no longer fails on all slides when one slide can't be measured
+[2.12.0] [admin] [fixed] - AI slide assistant no longer fails entirely when one slide can't be measured
+[2.12.0] [user] [added] - Draft slide previews now indicate if content overflows the page
+[2.12.0] [user] [added] - Deck overview now shows which slides overflow the page
+[2.12.0] [user] [changed] - Copilot gives clearer warnings when slide content is cut off at the bottom
+[2.12.0] [admin] [changed] - Copilot now reports when slide content overflows the page across all tools
+[2.12.0] [admin] [improved] - Consistent overflow warnings help Copilot fix broken slides more reliably
+[2.12.0] [admin] [added] - Draft slide previews now indicate if content overflows the page
+[2.12.0] [admin] [added] - Deck summary now shows overflow status for each content slide
+[2.12.0] [user] [fixed] - Status messages now use correct plural forms (e.g., "1 slide" vs "2 slides")
+[2.12.0] [user] [changed] - Reference document progress messages now show document titles instead of IDs
+[2.12.0] [admin] [fixed] - AI status messages now show proper plural forms instead of parenthesized suffixes
+[2.12.0] [admin] [changed] - Reference document names shown instead of IDs in AI progress messages
+[2.12.0] [user] [added] - AI assistant can now look at slides, figures, and charts as images to judge readability
+[2.12.0] [user] [added] - AI assistant can now add image assets to slides and reports
+[2.12.0] [user] [added] - AI assistant can now view and change deck settings like logos, footer text, and watermarks
+[2.12.0] [user] [added] - AI assistant can now set text background colors on slide text blocks
+[2.12.0] [user] [added] - AI assistant can now adjust text size, bold, and italic on cover and section slides
+[2.12.0] [user] [added] - AI assistant can now add and configure side panels on content slides
+[2.12.0] [user] [changed] - Replacing a slide now preserves its existing settings like logos, sub-header, and side panel
+[2.12.0] [user] [changed] - Deck overview now includes logo, footer, and watermark settings alongside the slide outline
+[2.12.0] [user] [changed] - AI assistant now shows more detail about image blocks and text styling when reading slides
+[2.12.0] [admin] [added] - Copilot can now look at slides, report figures, and figure editor previews as images to judge readability
+[2.12.0] [admin] [added] - Copilot can manage deck settings: logos, footer text, and watermark
+[2.12.0] [admin] [added] - Copilot can use instance image assets in slides and content blocks
+[2.12.0] [admin] [added] - Image blocks now supported in slide content alongside text and figures
+[2.12.0] [admin] [added] - Copilot can set text background colors and text styling on slide blocks
+[2.12.0] [admin] [changed] - Replacing a slide now preserves existing settings like side panels, logos, and sub-headers when the slide type stays the same
+[2.12.0] [admin] [changed] - Deck outline from copilot now includes deck settings alongside slide summary
+[2.12.0] [admin] [internal] - Refactored figure editor preview logic for improved reliability and copilot integration
+[2.12.0] [user] [changed] - AI assistant can now read multiple slides at once, speeding up deck editing
+[2.12.0] [user] [improved] - AI assistant now reports page overflow status after slide changes
+[2.12.0] [user] [improved] - AI assistant shows updated figure details after editing slides
+[2.12.0] [user] [fixed] - AI assistant no longer re-reads slides unnecessarily after making changes
+[2.12.0] [admin] [changed] - AI copilot can now read multiple slides in a single request
+[2.12.0] [admin] [changed] - AI copilot returns slide overflow status after every write
+[2.12.0] [admin] [changed] - AI copilot includes updated figure configuration in write results
+[2.12.0] [admin] [fixed] - AI-edited figures on open slides now sync correctly to collaborators
+[2.12.0] [admin] [changed] - AI copilot batches independent tool calls in one reply for faster editing
+[2.12.0] [user] [added] - Bug reports and suggestions now get an AI-generated first look added to the support email
+[2.12.0] [admin] [added] - Bug reports and suggestions now get an AI-generated initial assessment emailed to developers
+[2.12.0] [admin] [added] - Support team emails now include a plain-language summary from Claude's review of the report
+[2.12.0] [admin] [changed] - Fleet health and telemetry endpoints now require authentication instead of being publicly accessible
+[2.12.0] [admin] [internal] - Feedback planning has daily caps per reporter and per instance to control costs
 [2.11.0] [user] [changed] - Users table now always shows "Last active" column
 [2.11.0] [user] [changed] - Users table sorts by last active time by default
 [2.11.0] [user] [fixed] - "Last active" column loads instantly instead of showing "..."
