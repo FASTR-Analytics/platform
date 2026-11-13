@@ -9,8 +9,9 @@ export const MAX_LOOK_SUBJECTS = 10;
 // tokens of 1568 px (measured 2026-11-13).
 const WIDTH_PX = 1024;
 const JPEG_QUALITY = 0.85;
-// A taller drawing is drawn again narrower, so a long table is shrunk and the
-// result's size line says so.
+// A taller drawing is drawn once more at the width that brings it to the
+// bound, then scaled to it, so a long table is shrunk and the result's size
+// line says so.
 const MAX_HEIGHT_PX = 2048;
 
 export type ToolImage = {
@@ -27,15 +28,19 @@ export function encodeToolImage(
   ground: string,
 ): ToolImage {
   let drawn = draw(WIDTH_PX);
-  while (drawn.height > MAX_HEIGHT_PX) {
+  if (drawn.height > MAX_HEIGHT_PX) {
     drawn = draw(Math.floor(drawn.width * MAX_HEIGHT_PX / drawn.height));
   }
-  const canvas = createCanvasBrowser(drawn.width, drawn.height);
+  const scale = Math.min(1, MAX_HEIGHT_PX / drawn.height);
+  const canvas = createCanvasBrowser(
+    Math.round(drawn.width * scale),
+    Math.round(drawn.height * scale),
+  );
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Failed to get 2D canvas context");
   ctx.fillStyle = ground;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(drawn, 0, 0);
+  ctx.drawImage(drawn, 0, 0, canvas.width, canvas.height);
   return {
     image: {
       mediaType: "image/jpeg",
