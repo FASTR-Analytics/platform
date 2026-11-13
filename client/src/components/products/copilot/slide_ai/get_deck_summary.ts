@@ -41,12 +41,11 @@ async function slideLines(
     getSlideTitle(slide)
   }"${getContentSummary(slide)}`;
   if (slide.type !== "content") return line;
-  return `${line}\n    ${
-    describeSlideOverflow(
-      slideId,
-      await measureSlideOverflow(slide, deckConfig),
-    )
-  }`;
+  // One slide that cannot be measured must not hide the rest of the deck.
+  const overflow = await measureSlideOverflow(slide, deckConfig).catch(
+    (err: unknown) => err instanceof Error ? err : new Error(String(err)),
+  );
+  return `${line}\n    ${describeSlideOverflow(slideId, overflow)}`;
 }
 
 // The open slide's line is read from its draft, so it matches the canvas,

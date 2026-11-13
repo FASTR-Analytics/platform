@@ -43,12 +43,16 @@ export async function measureSlideOverflow(
 
 // The one sentence every tool gives the model about whether a content slide
 // overflows the page. It names no fix: the model decides what to change.
-// `slideId` is null for a draft, which has none.
+// `slideId` is null for a draft, which has none. `overflow` is an Error when
+// the slide's page could not be measured.
 export function describeSlideOverflow(
   slideId: string | null,
-  overflow: boolean,
+  overflow: boolean | Error,
 ): string {
   const subject = slideId === null ? "Draft slide" : `Slide ${slideId}`;
+  if (overflow instanceof Error) {
+    return `${subject}: could not be measured: ${overflow.message}`;
+  }
   return overflow
     ? `${subject}: OVERFLOWS THE PAGE. Its content does not fit and is cut off at the bottom edge. The slide is broken until it fits.`
     : `${subject}: fits the page.`;
