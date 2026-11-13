@@ -2,10 +2,9 @@ import { createAITool } from "panther";
 import { z } from "zod";
 import { COPILOT_TOOL_VIEWS } from "lib";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
-import { instanceState } from "~/state/instance/t1_store";
+import { imageAssetFileNames } from "../../_shared/mod.ts";
 
-// The instance's image assets, the list the slide toolbar's image picker
-// offers. It reads no package, so it is an outer tool and its result carries
+// The instance's image assets. It reads no package, so it is an outer tool and its result carries
 // no Source line.
 export function getClientToolsForImageAssets() {
   return [
@@ -18,9 +17,7 @@ export function getClientToolsForImageAssets() {
       inputSchema: z.object({}),
       kind: "read",
       handler: () => {
-        const files = instanceState.assets
-          .filter((a) => a.isImage)
-          .map((a) => a.fileName);
+        const files = imageAssetFileNames();
         return Promise.resolve(
           files.length === 0
             ? "The instance has no image assets. A user can upload one on the Assets page."

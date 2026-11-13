@@ -7,6 +7,7 @@ import type {
   Slide,
   SlideDeckConfig,
   SlideFontFamily,
+  TextBackgroundKey,
 } from "lib";
 import {
   _CF_RED,
@@ -22,6 +23,7 @@ import {
   resolveLogoSizing,
   SECTION_TEXT_STYLES,
   slideRenderMarkdown,
+  TEXT_BACKGROUND_KEYS,
   TEXT_SIZE_REL,
 } from "lib";
 import type {
@@ -427,49 +429,42 @@ type ResolvedTextBackground = {
   textColor: string;
 };
 
+const TEXT_BACKGROUND_PADDING = [15, 20];
+
+const TEXT_BACKGROUNDS: Record<
+  Exclude<TextBackgroundKey, "none">,
+  (primaryColor: string) => ResolvedTextBackground
+> = {
+  grey: () => ({
+    containerStyle: {
+      backgroundColor: { key: "base200" },
+      padding: TEXT_BACKGROUND_PADDING,
+    },
+    textColor: "#1E1E1E",
+  }),
+  primary: (primaryColor) => solidTextBackground(primaryColor),
+  success: () => solidTextBackground(_SLIDE_BACKGROUND_COLOR),
+  danger: () => solidTextBackground(_CF_RED),
+};
+
+function solidTextBackground(color: string): ResolvedTextBackground {
+  return {
+    containerStyle: {
+      backgroundColor: color,
+      padding: TEXT_BACKGROUND_PADDING,
+    },
+    textColor: getTextColorForBackground(color),
+  };
+}
+
 function resolveTextBackground(
   bg: string | undefined,
   primaryColor: string,
 ): ResolvedTextBackground | undefined {
-  const TEXT_BACKGROUND_PADDING = [15, 20];
-  if (!bg || bg === "none") return undefined;
-  if (bg === "grey") {
-    return {
-      containerStyle: {
-        backgroundColor: { key: "base200" },
-        padding: TEXT_BACKGROUND_PADDING,
-      },
-      textColor: "#1E1E1E",
-    };
-  }
-  if (bg === "primary") {
-    return {
-      containerStyle: {
-        backgroundColor: primaryColor,
-        padding: TEXT_BACKGROUND_PADDING,
-      },
-      textColor: getTextColorForBackground(primaryColor),
-    };
-  }
-  if (bg === "success") {
-    return {
-      containerStyle: {
-        backgroundColor: _SLIDE_BACKGROUND_COLOR,
-        padding: TEXT_BACKGROUND_PADDING,
-      },
-      textColor: getTextColorForBackground(_SLIDE_BACKGROUND_COLOR),
-    };
-  }
-  if (bg === "danger") {
-    return {
-      containerStyle: {
-        backgroundColor: _CF_RED,
-        padding: TEXT_BACKGROUND_PADDING,
-      },
-      textColor: getTextColorForBackground(_CF_RED),
-    };
-  }
-  return undefined;
+  const key = TEXT_BACKGROUND_KEYS.find((k) => k === bg);
+  return key === undefined || key === "none"
+    ? undefined
+    : TEXT_BACKGROUNDS[key](primaryColor);
 }
 
 async function convertLayoutNode(

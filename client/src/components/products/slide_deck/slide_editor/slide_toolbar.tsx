@@ -27,7 +27,7 @@ import type {
   TextBackgroundKey,
   TextBlock,
 } from "lib";
-import { SPLIT_SIZE_PCT_DEFAULT, SPLIT_SIZES_PCT, t3 } from "lib";
+import { SPLIT_SIZES_PCT, t3 } from "lib";
 import type { PatternType } from "panther";
 import { findById, Icon } from "panther";
 import {
@@ -654,7 +654,7 @@ export function SlideToolbar(p: Props) {
                           "split",
                           {
                             placement: side,
-                            sizeAsPct: SPLIT_SIZE_PCT_DEFAULT,
+                            sizeAsPct: 15,
                             fill: { type: "plain" },
                           } satisfies ContentSlideSplit,
                         )}

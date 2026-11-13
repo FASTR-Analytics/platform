@@ -25,6 +25,7 @@ import {
   getDeckSummaryForAI,
 } from "../../slide_ai/mod.ts";
 import {
+  assertSplitImageAsset,
   validateMaxContentBlocks,
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
@@ -53,6 +54,7 @@ const CONTENT_BLOCKS_NOTE =
 // The content checks a whole new slide must pass before it is converted.
 function validateAiSlideInput(slide: AiSlideInput): void {
   if (slide.type !== "content") return;
+  assertSplitImageAsset(slide.split);
   if (slide.blocks.length === 0) {
     throw new AIToolFailure("Content slide must have at least 1 block.");
   }

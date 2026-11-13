@@ -384,7 +384,6 @@ export const SECTION_TEXT_STYLES = {
 
 // The split panel sizes the slide editor offers, in percent of the page.
 export const SPLIT_SIZES_PCT = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50] as const;
-export const SPLIT_SIZE_PCT_DEFAULT = 15;
 
 // The text backgrounds the renderer draws; any other value draws none.
 export const TEXT_BACKGROUND_KEYS = [

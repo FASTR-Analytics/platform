@@ -1,6 +1,7 @@
 export {
   assertImageAsset,
   assertSplitImageAsset,
+  imageAssetFileNames,
   validateMaxContentBlocks,
   validateNoMarkdownTables,
   validatePresetOverrides,

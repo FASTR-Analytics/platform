@@ -104,7 +104,7 @@ export const AiTextBlockSchema = z.object({
     })
     .optional()
     .describe(
-      "Optional: the block's style. Leaving it out keeps the style a replaced block had.",
+      "Optional: the block's style. In update_slide's blockUpdates, a style left out keeps the replaced text block's style.",
     ),
 });
 

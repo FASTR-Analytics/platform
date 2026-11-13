@@ -39,11 +39,12 @@ export function validateNoMarkdownTables(markdown: string): void {
 }
 
 // The files the slide toolbar's image picker offers.
+export function imageAssetFileNames(): string[] {
+  return instanceState.assets.filter((a) => a.isImage).map((a) => a.fileName);
+}
+
 export function assertImageAsset(imgFile: string): void {
-  const isAsset = instanceState.assets.some((a) =>
-    a.isImage && a.fileName === imgFile
-  );
-  if (!isAsset) {
+  if (!imageAssetFileNames().includes(imgFile)) {
     throw new AIToolFailure(
       `"${imgFile}" is not one of the instance's image assets. Call get_image_assets for the file names.`,
     );

@@ -12,6 +12,7 @@ import {
   type PackageScope,
 } from "lib";
 import {
+  assertSplitImageAsset,
   validateMaxContentBlocks,
   validateNoMarkdownTables,
 } from "../../_shared/mod.ts";
@@ -54,6 +55,7 @@ export function getClientToolsForDrafts(
       kind: "read",
       handler: async (input) => {
         if (input.slide.type === "content") {
+          assertSplitImageAsset(input.slide.split);
           validateMaxContentBlocks(input.slide.blocks.length);
           for (const block of input.slide.blocks) {
             if (block.type === "text") {
