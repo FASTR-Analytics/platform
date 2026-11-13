@@ -12,3 +12,9 @@ export {
   editFigureMetricForAI,
   readFigureMetricForAI,
 } from "./figure_metric_for_ai.ts";
+export {
+  describeToolImage,
+  encodeToolImage,
+  MAX_LOOK_SUBJECTS,
+} from "./tool_image.ts";
+export type { ToolImage } from "./tool_image.ts";
