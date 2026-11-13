@@ -47,6 +47,7 @@ import {
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
 import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_detail";
 import { describeReportPages } from "./report_page_map";
+import { createGetReportFigureImagesTool } from "./get_report_figure_images.ts";
 import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
 import {
   copilotViewController,
@@ -92,7 +93,7 @@ function liveFiguresOf(
   return reportLiveFigures(ctx.getBody(), ctx.getFigures());
 }
 
-function liveFigureOrRefuse(
+export function liveFigureOrRefuse(
   ctx: EditingReportContext,
   figureId: string,
 ): FigureBlock {
@@ -507,6 +508,8 @@ export function getClientToolsForReportEditor(
       inProgressLabel: "Reading figure...",
       completionMessage: "Read figure",
     }),
+
+    createGetReportFigureImagesTool(),
 
     createAITool({
       viewRegistry: copilotViews,

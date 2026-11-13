@@ -584,6 +584,16 @@ Skip under `read-only`. Go to Products, open the "Copilot tests" folder, click N
 - Ground truth: H3's result text for `rewrite_section` starts "User navigated away from "editing_report"". Reopen the report: the body has no new paragraph. Screenshot.
 - Pass: both.
 
+**G11. Looking at a report figure.** The report from G10 is open.
+
+- Do: send "Look at the first figure with get_report_figure_images and tell me its caption, its chart type and the colour of its first series."
+- Ground truth: H3 shows one `get_report_figure_images` call with `err: false` whose result text starts with the `Source:` line and ends "Images of figures, in this order: <the figure's id> (<width>×<height> px)", the width 1024 unless the height is 2048. The reply's caption, type and colour agree with a screenshot of the figure in the report.
+- Do: send "Look at the figure 'not-a-figure' with get_report_figure_images."
+- Ground truth: H3 shows `get_report_figure_images` with `err: true`, its text starting `No figure with id "not-a-figure" in this report's body.`
+- Do: send "Look at eleven figures at once with get_report_figure_images, repeating ids if the report has fewer."
+- Ground truth: H3 shows `get_report_figure_images` with `err: true`, a schema refusal naming the limit of ten, or no call and a reply saying a call takes at most ten.
+- Pass: all three.
+
 ### H. Package figure viewer
 
 **H1. The viewer's draft is not persisted.** Open the pinned package's page and open one preset figure in the figure viewer.

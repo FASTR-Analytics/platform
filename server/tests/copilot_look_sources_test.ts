@@ -30,6 +30,14 @@ function functionBody(text: string, name: string): string {
   return text.slice(start, end < 0 ? undefined : end);
 }
 
+// The text from a marker to the first `end` after it.
+function segment(text: string, marker: string, end: string): string {
+  const start = text.indexOf(marker);
+  assert(start >= 0, `no ${marker}`);
+  const stop = text.indexOf(end, start + marker.length);
+  return text.slice(start, stop < 0 ? undefined : stop);
+}
+
 function assertCalls(path: string, text: string, fn: string): void {
   assert(calls(text, fn), `${path} no longer calls ${fn}`);
 }
@@ -56,4 +64,33 @@ Deno.test("the slide look draws the page the editor canvas and the PDF draw", ()
   const canvasPath =
     "client/src/components/products/slide_deck/slide_editor/slide_editor.tsx";
   assertCalls(canvasPath, source(canvasPath), "convertSlideToPageInputs");
+});
+
+Deno.test("get_report_figure and get_report_figure_images find a figure through the same function", () => {
+  const editorPath = TOOLS + "report_editor.ts";
+  assertCalls(
+    `get_report_figure in ${editorPath}`,
+    segment(source(editorPath), 'name: "get_report_figure",', "createAITool("),
+    "liveFigureOrRefuse",
+  );
+  const lookPath = TOOLS + "get_report_figure_images.ts";
+  const look = source(lookPath);
+  assertCalls(lookPath, look, "liveFigureOrRefuse");
+  assertCalls(lookPath, look, "getFigureLook");
+});
+
+Deno.test("the report's embed and its view context draw a figure through one builder", () => {
+  const embedPath =
+    "client/src/components/products/_shared/report_figure_embed.tsx";
+  assertCalls(
+    `ReportFigureEmbed in ${embedPath}`,
+    functionBody(source(embedPath), "ReportFigureEmbed"),
+    "buildReportFigureInputs",
+  );
+  const reportPath = "client/src/components/products/report/report.tsx";
+  assertCalls(
+    `getFigureLook in ${reportPath}`,
+    segment(source(reportPath), "getFigureLook:", "\n        },"),
+    "buildReportFigureInputs",
+  );
 });

@@ -200,6 +200,18 @@ Deno.test("the deck brief says when to look at a slide and that an image lasts o
   assert(!brief.includes("never look at every slide of a deck"));
 });
 
+Deno.test("the report brief says when to look at a figure and that an image lasts one turn", () => {
+  const brief = getEditingReportInstructions("Round 1 report");
+  assertStringIncludes(
+    brief,
+    "Look at a figure with get_report_figure_images after inserting or changing one whose legibility its configuration cannot tell (a dense table, many series, long labels)",
+  );
+  assertStringIncludes(
+    brief,
+    `You see an image for the rest of the turn and not after: say in your reply what it showed, look again with one call to see the figure as it is then, and take at most ${IMAGE_LIMITS.MAX_PER_TURN} images in a turn.`,
+  );
+});
+
 Deno.test("the FASTR editing instructions do not carry the syntax doc", () => {
   const instructions = getEditingReportInstructions("Quarterly review");
   assert(!instructions.includes(FASTR_MD_SYNTAX_DOC));

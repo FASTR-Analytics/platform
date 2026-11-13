@@ -49,6 +49,7 @@ const GROUPS = {
   report_reads: [
     "get_report_editor",
     "get_report_figure",
+    "get_report_figure_images",
     "get_report_pages",
     "get_page_template",
   ],

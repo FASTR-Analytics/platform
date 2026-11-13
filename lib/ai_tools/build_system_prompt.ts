@@ -668,7 +668,8 @@ export function getEditingReportInstructions(
 - Prefer **rewrite_section** for targeted changes; use **replace_text** for small/sentence-level edits; use **rewrite_report** only for whole-document restructures.
 - ALWAYS call get_report_editor first: it returns the current body, the format, and a headings index (each heading's 1-based line, level, and the exact line range of its section).
 - You may only reference figure/image ids that already exist; do not invent embed ids. To add figures, either declare them in rewrite_report's \`newFigures\` (a whole draft and its figures in one change: the way to write a report) or use **insert_figure** to add one figure to a report that already exists.
-- Every figure in this report resolves under the report's own results package and scope; you do not choose the package, and no tool takes one.`;
+- Every figure in this report resolves under the report's own results package and scope; you do not choose the package, and no tool takes one.
+- Look at a figure with get_report_figure_images after inserting or changing one whose legibility its configuration cannot tell (a dense table, many series, long labels): the configuration says what the figure shows, and only the image shows whether it can be read. You see an image for the rest of the turn and not after: say in your reply what it showed, look again with one call to see the figure as it is then, and take at most ${IMAGE_LIMITS.MAX_PER_TURN} images in a turn.`;
   // The design already exists as a real stylesheet the user picked, so the
   // model's job is to reach for the right BLOCK. Every instinct to write CSS
   // has to be shut down explicitly: the report has no <style> for it to land
