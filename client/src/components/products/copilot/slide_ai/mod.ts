@@ -16,7 +16,6 @@ export type {
   LayoutStructureCell,
 } from "./layout_structure.ts";
 export {
-  describeMeasuredSlideOverflow,
   describeSlideOverflow,
   measureSlideOverflow,
 } from "./measure_slide_overflow.ts";

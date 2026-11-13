@@ -1,7 +1,7 @@
 import { AIToolOutput, createAITool, IMAGE_LIMITS } from "panther";
 import { z } from "zod";
 import { COPILOT_TOOL_VIEWS } from "lib";
-import { renderSlideImage } from "../../slide_ai/mod.ts";
+import { describeSlideOverflow, renderSlideImage } from "../../slide_ai/mod.ts";
 import { describeToolImage, MAX_LOOK_SUBJECTS } from "../../_shared/mod.ts";
 import { slidesLabel } from "./tool_labels.ts";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
@@ -29,13 +29,19 @@ export function createGetSlideImagesTool() {
       assertSlidesInDeck(view, slideIds);
       const deckConfig = view.context.getDeckConfig();
       const looks = await Promise.all(
-        slideIds.map(async (slideId) =>
-          renderSlideImage(
-            slideId,
-            (await readSlideTarget(view, slideId)).slide,
+        slideIds.map(async (slideId) => {
+          const { slide } = await readSlideTarget(view, slideId);
+          const { toolImage, overflow } = await renderSlideImage(
+            slide,
             deckConfig,
-          )
-        ),
+          );
+          return {
+            toolImage,
+            overflowLine: slide.type === "content"
+              ? describeSlideOverflow(slideId, overflow)
+              : undefined,
+          };
+        }),
       );
       return new AIToolOutput({
         text: [

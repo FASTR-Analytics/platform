@@ -66,6 +66,22 @@ Deno.test("the slide look draws the page the editor canvas and the PDF draw", ()
   assertCalls(canvasPath, source(canvasPath), "convertSlideToPageInputs");
 });
 
+// The model is told a slide overflows the page in one sentence whichever tool
+// reports the slide, so no tool may word it itself.
+Deno.test("every slide tool states page overflow through describeSlideOverflow", () => {
+  for (
+    const path of [
+      TOOLS + "slide_write_result.ts",
+      TOOLS + "drafts.tsx",
+      TOOLS + "get_slide_images.ts",
+      SLIDE_AI + "get_deck_summary.ts",
+      SLIDE_AI + "simplify_slide_for_ai.ts",
+    ]
+  ) {
+    assertCalls(path, source(path), "describeSlideOverflow");
+  }
+});
+
 Deno.test("get_report_figure and get_report_figure_images find a figure through the same function", () => {
   const editorPath = TOOLS + "report_editor.ts";
   assertCalls(

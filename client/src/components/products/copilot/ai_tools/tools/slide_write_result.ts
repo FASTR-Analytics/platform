@@ -58,7 +58,7 @@ export async function prepareSlideWriteResult(
     [
       done,
       ...blocks,
-      describeSlideOverflow(`Slide ${slideId}`, overflow),
+      describeSlideOverflow(slideId, overflow),
       ...figures,
     ].join("\n");
 }

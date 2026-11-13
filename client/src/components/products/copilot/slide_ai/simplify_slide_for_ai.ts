@@ -16,7 +16,10 @@ import {
   layoutNodeToStructure,
   type LayoutStructure,
 } from "./layout_structure.ts";
-import { describeMeasuredSlideOverflow } from "./measure_slide_overflow.ts";
+import {
+  describeSlideOverflow,
+  measureSlideOverflow,
+} from "./measure_slide_overflow.ts";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 
 // A slide's own settings as stored; a content slide's layout is replaced by
@@ -41,7 +44,7 @@ export async function simplifySlideForAI(
 
   const { layout, ...settings } = slide;
   const blocks = extractBlocksFromLayout(layout);
-  const [simplifiedBlocks, page] = await Promise.all([
+  const [simplifiedBlocks, overflow] = await Promise.all([
     Promise.all(blocks.map(async ({ id, block }) => {
       if (block.type === "text") {
         const background = block.style?.textBackground;
@@ -99,11 +102,11 @@ export async function simplifySlideForAI(
         }
       }
     })),
-    describeMeasuredSlideOverflow(`Slide ${slideId}`, slide, deckConfig),
+    measureSlideOverflow(slide, deckConfig),
   ]);
 
   return {
-    page,
+    page: describeSlideOverflow(slideId, overflow),
     ...settings,
     blocks: simplifiedBlocks,
     _layout: layoutNodeToStructure(layout),

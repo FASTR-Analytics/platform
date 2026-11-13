@@ -1,4 +1,4 @@
-import { AIToolFailure, createAITool } from "panther";
+import { createAITool } from "panther";
 import type { AIViewSnapshot } from "panther";
 import { z } from "zod";
 import {
@@ -16,12 +16,10 @@ import {
   validateMaxContentBlocks,
   validateNoMarkdownTables,
 } from "../../_shared/mod.ts";
-import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
 import {
   convertAiInputToSlide,
   describeSlideOverflow,
 } from "../../slide_ai/mod.ts";
-import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import {
   copilotViewController,
   copilotViews,
@@ -63,15 +61,6 @@ export function getClientToolsForDrafts(
           for (const block of input.slide.blocks) {
             if (block.type === "text") {
               validateNoMarkdownTables(block.markdown);
-            } else if (block.type === "from_metric") {
-              try {
-                await resolveFigureFromMetric(scope, block, metrics);
-              } catch (err) {
-                const errMsg = err instanceof Error ? err.message : String(err);
-                throw new AIToolFailure(
-                  `Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`,
-                );
-              }
             }
           }
         }
@@ -85,17 +74,9 @@ export function getClientToolsForDrafts(
           metrics,
           deckConfig,
         );
-        const renderRes = await convertSlideToPageInputs(
-          convertedSlide,
-          undefined,
-          deckConfig,
-        );
-        if (!renderRes.success) {
-          throw new AIToolFailure(`Failed to render slide: ${renderRes.err}`);
-        }
         const shown = "Slide preview displayed to user.";
         return convertedSlide.type === "content"
-          ? `${shown}\n${describeSlideOverflow("Draft slide", overflow)}`
+          ? `${shown}\n${describeSlideOverflow(null, overflow)}`
           : shown;
       },
       displayComponent: (props: {

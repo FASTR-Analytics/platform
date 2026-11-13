@@ -2,7 +2,10 @@ import { getSlideTitle, type Slide, type SlideDeckConfig } from "lib";
 import type { OpenSlide } from "~/components/instance/copilot/mod.ts";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import { extractBlocksFromLayout } from "./layout_structure.ts";
-import { describeMeasuredSlideOverflow } from "./measure_slide_overflow.ts";
+import {
+  describeSlideOverflow,
+  measureSlideOverflow,
+} from "./measure_slide_overflow.ts";
 
 function getContentSummary(slide: Slide): string {
   if (slide.type !== "content") return "";
@@ -38,11 +41,12 @@ async function slideLines(
     getSlideTitle(slide)
   }"${getContentSummary(slide)}`;
   if (slide.type !== "content") return line;
-  return `${line}\n    ${await describeMeasuredSlideOverflow(
-    `Slide ${slideId}`,
-    slide,
-    deckConfig,
-  )}`;
+  return `${line}\n    ${
+    describeSlideOverflow(
+      slideId,
+      await measureSlideOverflow(slide, deckConfig),
+    )
+  }`;
 }
 
 // The open slide's line is read from its draft, so it matches the canvas,

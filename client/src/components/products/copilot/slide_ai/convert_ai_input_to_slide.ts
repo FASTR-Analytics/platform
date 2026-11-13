@@ -1,4 +1,5 @@
 import {
+  AIToolFailure,
   createCanvasRenderContextBrowser,
   type ItemLayoutNode,
   type LayoutNode,
@@ -30,8 +31,8 @@ import { assertImageAsset } from "../_shared/mod.ts";
  * The optimizer is fed through the renderer's own path: the provisional slide
  * goes through convertSlideToPageInputs, and the optimizer gets that page's
  * chrome, style and items. `overflow` is therefore the flag the deck's canvas
- * badges, which a caller that writes the slide for the model reports: the
- * model cannot see the badge.
+ * badges, which every caller reports to the model: the model cannot see the
+ * badge.
  */
 export async function convertAiInputToSlide(
   scope: PackageScope,
@@ -75,7 +76,7 @@ export async function convertAiInputToSlide(
       resolvedBlocks.push(figureBlock);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      throw new Error(
+      throw new AIToolFailure(
         `Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`,
       );
     }

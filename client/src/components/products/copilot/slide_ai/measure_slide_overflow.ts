@@ -34,35 +34,22 @@ export async function measureSlideOverflow(
   slide: ContentSlide,
   deckConfig: SlideDeckConfig,
 ): Promise<boolean> {
-  return measurePageOverflow(await buildSlidePage(slide, deckConfig));
-}
-
-export function measurePageOverflow(page: PageInputs): boolean {
   return PageRenderer.measure(
     createCanvasRenderContextBrowser(),
     new RectCoordsDims([0, 0, PAGE_WIDTH_DU, PAGE_HEIGHT_DU]),
-    page,
+    await buildSlidePage(slide, deckConfig),
   ).overflow;
 }
 
 // The one sentence every tool gives the model about whether a content slide
 // overflows the page. It names no fix: the model decides what to change.
+// `slideId` is null for a draft, which has none.
 export function describeSlideOverflow(
-  subject: string,
+  slideId: string | null,
   overflow: boolean,
 ): string {
+  const subject = slideId === null ? "Draft slide" : `Slide ${slideId}`;
   return overflow
     ? `${subject}: OVERFLOWS THE PAGE. Its content does not fit and is cut off at the bottom edge. The slide is broken until it fits.`
     : `${subject}: fits the page.`;
-}
-
-export async function describeMeasuredSlideOverflow(
-  subject: string,
-  slide: ContentSlide,
-  deckConfig: SlideDeckConfig,
-): Promise<string> {
-  return describeSlideOverflow(
-    subject,
-    await measureSlideOverflow(slide, deckConfig),
-  );
 }
