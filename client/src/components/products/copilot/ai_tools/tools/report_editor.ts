@@ -259,8 +259,8 @@ type HeldReportDraft = {
 
 // A draft refused this many times for its pages is proposed with what is
 // left, for the user to judge, rather than refused again: a model that could
-// not fix a page kept trying until the turn hit its 24-call cap and ended
-// with nothing proposed (2026-11-05).
+// not fix a page kept trying until the turn hit its round cap and ended
+// with nothing proposed.
 const DRAFT_PAGE_REFUSALS = 3;
 
 const heldReportDrafts = new Map<string, HeldReportDraft>();
@@ -789,8 +789,8 @@ export function getClientToolsForReportEditor(
       viewRegistry: copilotViews,
       name: "get_page_template",
       description: FASTR_PAGE_TEMPLATE_TOOL_DESCRIPTION,
-      // Every layout in one call: one call per layout spent eight to ten of
-      // the turn's 24 model round trips on lookups (2026-11-05).
+      // Every layout in one call: a call per layout spends a round per layout,
+      // and a turn's rounds are capped.
       inputSchema: z.object({
         layouts: z.array(z.string()).optional().describe(
           'Every layout the report will use, e.g. ["exec", "summary", "findings"].',

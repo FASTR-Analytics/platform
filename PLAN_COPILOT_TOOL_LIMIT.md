@@ -79,7 +79,7 @@ Rulings 1 to 11 are built (steps 1 to 3), 12 and 13 in step 4, 16 to 23 in step 
 
 Starts when `rg -q maxTurnContinuations panther/_305_ai/_core/types.ts` exits 0 in this repo, which means a sync of panther made after 2026-11-12 has landed here and its floor was green.
 
-**Surface.** `SYSTEM_13_ai_assistant.md`, this file.
+**Surface.** `SYSTEM_13_ai_assistant.md`, `client/src/components/products/copilot/ai_tools/tools/report_editor.ts` (its two comments that state the cap, added on Tim's word after the review), this file.
 
 **Deliverable.**
 
