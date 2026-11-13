@@ -183,6 +183,20 @@ Deno.test("the deck brief reads a slide once a turn and takes a write's result a
   assert(!brief.includes("before changing any slide"));
 });
 
+// An image costs every later request of its conversation, so the brief says
+// when a look earns that.
+Deno.test("the deck brief says when to look at a slide and never at every slide", () => {
+  const brief = getEditingSlideDeckInstructions("Round 1 report");
+  assertStringIncludes(
+    brief,
+    "Look at a slide with get_slide_images after building or restructuring one that holds a dense table or several blocks",
+  );
+  assertStringIncludes(
+    brief,
+    "An image stays in the conversation and is sent again with every later request, so never look at every slide of a deck",
+  );
+});
+
 Deno.test("the FASTR editing instructions do not carry the syntax doc", () => {
   const instructions = getEditingReportInstructions("Quarterly review");
   assert(!instructions.includes(FASTR_MD_SYNTAX_DOC));

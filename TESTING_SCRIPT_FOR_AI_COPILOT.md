@@ -488,6 +488,16 @@ NEW CONVERSATION.
 - Ground truth: H3 shows `update_deck_settings` with `err: false`, its result reading `globalFooterText: not set` and `useWatermark: false`. Slide 2 shows no watermark and its own footer.
 - Pass: all three.
 
+**F20. Looking at a slide.**
+
+- Do: send "Look at slide 2 with get_slide_images and tell me its title, how many blocks it shows and what colour its header is."
+- Ground truth: H3 shows one `get_slide_images` call with `err: false` whose result text starts with the `Source:` line and ends "Images of slides, in this order: <slide 2's id>". The reply's title, block count and colour agree with a screenshot of slide 2.
+- Do: with slide 2 open, change its title on the canvas without leaving the slide, then send "Look at slide 2 again and read me its title."
+- Ground truth: the reply gives the title as typed, since the open slide is drawn from its draft.
+- Do: send "Look at five slides at once with get_slide_images."
+- Ground truth: H3 shows `get_slide_images` with `err: true`, a schema refusal naming the limit of four, or no call and a reply saying a call takes at most four.
+- Pass: all three.
+
 ### G. Report (WRITE)
 
 Skip under `read-only`. Go to Products, open the "Copilot tests" folder, click New, choose report, name it `COPILOT TEST REPORT <YYYYMMDD-HHMM>`, same package and scope, Create. The report editor opens. NEW CONVERSATION.

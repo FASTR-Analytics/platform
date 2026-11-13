@@ -36,6 +36,7 @@ import {
   formatDeckSettings,
 } from "./deck_settings.ts";
 import { createGetSlidesTool } from "./get_slides.ts";
+import { createGetSlideImagesTool } from "./get_slide_images.ts";
 import { createUpdateSlideTool } from "./update_slide.ts";
 import { createUpdateFigureTool } from "./update_figure.ts";
 import {
@@ -102,6 +103,8 @@ export function getClientToolsForSlides(
     }),
 
     createGetSlidesTool(env, metrics),
+
+    createGetSlideImagesTool(),
 
     createAITool({
       viewRegistry: copilotViews,
