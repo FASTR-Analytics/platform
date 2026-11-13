@@ -1,3 +1,10 @@
+[TBD] [user] [added] - Draft slide previews now indicate if content overflows the page
+[TBD] [user] [added] - Deck overview now shows which slides overflow the page
+[TBD] [user] [changed] - Copilot gives clearer warnings when slide content is cut off at the bottom
+[TBD] [admin] [changed] - Copilot now reports when slide content overflows the page across all tools
+[TBD] [admin] [improved] - Consistent overflow warnings help Copilot fix broken slides more reliably
+[TBD] [admin] [added] - Draft slide previews now indicate if content overflows the page
+[TBD] [admin] [added] - Deck summary now shows overflow status for each content slide
 [TBD] [user] [fixed] - Status messages now use correct plural forms (e.g., "1 slide" vs "2 slides")
 [TBD] [user] [changed] - Reference document progress messages now show document titles instead of IDs
 [TBD] [admin] [fixed] - AI status messages now show proper plural forms instead of parenthesized suffixes
