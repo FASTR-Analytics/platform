@@ -15,8 +15,8 @@ export type AIToolImage = {
 
 type ImageSize = { width: number; height: number };
 
-// An image the API refuses fails the request that carries it, and a stored
-// conversation carries its images in every later request. So this throws for
+// An image the API refuses fails the request that carries it, and every
+// later request of its turn. So this throws for
 // everything the API checks that can be read without decoding the picture:
 // the media type, the encoding, the size, the file being of its stated type,
 // and its sides.
