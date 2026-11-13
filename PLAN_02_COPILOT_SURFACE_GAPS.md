@@ -2,7 +2,7 @@
 
 Status: QUEUED behind PLAN_COPILOT_TOOL_LIMIT.md. On 2026-11-12 the copilot told a user rebuilding a report as a deck what it could not do. Three of its answers were about its own reach in a deck and not about figures, and the deck holds each of those things done by hand: image blocks, a slide's own settings and the deck's logos, and a person looking at the page. This plan gives the copilot the same reach: image blocks, a slide's own settings, the deck's logos and footer, and a rendered image of a slide to look at. How the copilot creates, edits and reads a figure is PLAN_03_COPILOT_FIGURES.md's, and this plan changes none of it.
 
-**Next step: Do 3.**
+**Next step: Do 4.**
 
 Branch: `main` in both repos. Repos: this one (steps 1, 2 and 4) and `timroberton-panther` (step 3). Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Tools, view gating, and approval", "Tool input schemas", "The slide_ai conversion layer" and Open items "Surface gaps", [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md), [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) Open items, [SYSTEM_12_documents_sharing.md](SYSTEM_12_documents_sharing.md) "The deck editor", and for step 3 the panther repo's `CLAUDE.md`, `DOC_TESTING.md`, and `DOC_AI_CHAT.md` "Tools", "Approval", "Headless tools and the MCP server" and "Verification". Start when: `test ! -e PLAN_COPILOT_TOOL_LIMIT.md && echo ok` prints `ok` on `main`, and this tree is clean.
 
