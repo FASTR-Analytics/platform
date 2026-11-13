@@ -10,24 +10,34 @@ import {
   SERVER_TOOL_LABELS,
 } from "../deps.ts";
 import type { DisplayItem } from "./types.ts";
-import { toolThrowToResultParts } from "../deps.ts";
+import {
+  buildToolResultContent,
+  runAIToolWithView,
+  toolThrowToResultParts,
+} from "../deps.ts";
 import type {
+  AIToolOutput,
   AIToolWithMetadata,
   ApprovalPolicy,
+  ToolResultContent,
   ToolUIMetadata,
 } from "../deps.ts";
 
 export type ToolResult = {
   type: "tool_result";
   tool_use_id: string;
-  content: string;
+  content: ToolResultContent;
   is_error?: boolean;
 };
 
-type ToolResultInternal = ToolResult & {
-  _fullError?: string;
-  _expected?: boolean;
-};
+type ToolUseBlock = ContentBlock & { type: "tool_use" };
+
+type ToolCallOutcome =
+  | { block: ToolUseBlock; output: AIToolOutput }
+  | {
+    block: ToolUseBlock;
+    error: { content: string; fullError: string; expected: boolean };
+  };
 
 export class ToolRegistry {
   private tools = new Map<string, AIToolWithMetadata>();
@@ -304,114 +314,102 @@ export async function processToolUses(
   successItems: DisplayItem[];
 }> {
   const toolUseBlocks = content.filter(
-    (block): block is ContentBlock & { type: "tool_use" } =>
-      block.type === "tool_use",
+    (block): block is ToolUseBlock => block.type === "tool_use",
   );
 
-  const toolPromises = toolUseBlocks.map(
-    async (block): Promise<ToolResultInternal> => {
+  const outcomes = await Promise.all(
+    toolUseBlocks.map(async (block): Promise<ToolCallOutcome> => {
       const toolWithMetadata = toolRegistry.get(block.name);
 
       if (!toolWithMetadata) {
         console.error(`Unknown tool: ${block.name}`);
         const errorMsg = `Unknown tool "${block.name}"`;
         return {
-          type: "tool_result" as const,
-          tool_use_id: block.id,
-          content: errorMsg,
-          is_error: true,
-          _fullError: errorMsg,
+          block,
+          error: { content: errorMsg, fullError: errorMsg, expected: false },
         };
       }
 
       try {
-        // SDK tools have a run() method that executes the handler
-        // Prefer the engine entry point (carries the live view); a
-        // hand-constructed consumer tool that only has run() still works.
-        const sdk = toolWithMetadata.sdkTool;
-        const result = sdk.runWithView
-          ? await sdk.runWithView(block.input, getView, {
-            toolUseId: block.id,
-            signal,
-          })
-          : await sdk.run(block.input, { toolUse: { id: block.id }, signal });
-        return {
-          type: "tool_result" as const,
-          tool_use_id: block.id,
-          content: result, // SDK tool already returns string
-        };
+        const { output } = await runAIToolWithView(
+          toolWithMetadata.sdkTool,
+          block.input,
+          getView,
+          { toolUseId: block.id, signal },
+        );
+        return { block, output };
       } catch (error) {
-        const parts = toolThrowToResultParts(error);
-        return {
-          type: "tool_result" as const,
-          tool_use_id: block.id,
-          content: parts.content,
-          is_error: true,
-          _fullError: parts.fullError,
-          _expected: parts.expected || undefined,
-        };
+        return { block, error: toolThrowToResultParts(error) };
       }
-    },
+    }),
   );
 
-  const resultsInternal = await Promise.all(toolPromises);
-
-  // Strip _fullError/_expected before returning to API
-  const results: ToolResult[] = resultsInternal.map(
-    ({ _fullError, _expected, ...rest }) => rest,
+  const results: ToolResult[] = outcomes.map((outcome) =>
+    "output" in outcome
+      ? {
+        type: "tool_result",
+        tool_use_id: outcome.block.id,
+        content: buildToolResultContent(outcome.output),
+      }
+      : {
+        type: "tool_result",
+        tool_use_id: outcome.block.id,
+        content: outcome.error.content,
+        is_error: true,
+      }
   );
 
-  const errorItems: DisplayItem[] = resultsInternal
-    .filter((r) => r.is_error)
-    .map((result) => {
-      const toolBlock = toolUseBlocks.find((b) => b.id === result.tool_use_id)!;
-      const metadata = toolRegistry.getMetadata(toolBlock.name);
+  const errorItems: DisplayItem[] = outcomes.flatMap((outcome) => {
+    if ("output" in outcome) {
+      return [];
+    }
+    const { block, error } = outcome;
+    const metadata = toolRegistry.getMetadata(block.name);
 
-      const errorLabel = safeLabel(
-        metadata?.errorMessage,
-        toolBlock.input,
-        `Tool feedback: ${toolBlock.name}`,
-      )!;
+    const errorLabel = safeLabel(
+      metadata?.errorMessage,
+      block.input,
+      `Tool feedback: ${block.name}`,
+    )!;
 
-      return {
-        type: "tool_error" as const,
-        toolName: toolBlock.name,
-        errorMessage: errorLabel,
-        errorDetails: result.content,
-        errorStack: result._fullError !== result.content
-          ? result._fullError
-          : undefined,
-        expected: result._expected,
-        toolInput: toolBlock.input,
-      };
-    });
+    return [{
+      type: "tool_error" as const,
+      toolName: block.name,
+      errorMessage: errorLabel,
+      errorDetails: error.content,
+      errorStack: error.fullError !== error.content
+        ? error.fullError
+        : undefined,
+      expected: error.expected || undefined,
+      toolInput: block.input,
+    }];
+  });
 
-  const successItems: DisplayItem[] = resultsInternal
-    .filter((r) => !r.is_error)
-    .filter((r) => {
-      const toolBlock = toolUseBlocks.find((b) => b.id === r.tool_use_id)!;
-      const metadata = toolRegistry.getMetadata(toolBlock.name);
-      return !metadata?.displayComponent;
-    })
-    .map((result) => {
-      const toolBlock = toolUseBlocks.find((b) => b.id === result.tool_use_id)!;
-      const metadata = toolRegistry.getMetadata(toolBlock.name);
+  const successItems: DisplayItem[] = outcomes.flatMap((outcome) => {
+    if (!("output" in outcome)) {
+      return [];
+    }
+    const { block, output } = outcome;
+    const metadata = toolRegistry.getMetadata(block.name);
+    if (metadata?.displayComponent) {
+      return [];
+    }
 
-      // Use successMessage if provided, fall back to completionMessage (backwards compat), then default
-      const message = safeLabel(
-        metadata?.successMessage ?? metadata?.completionMessage,
-        toolBlock.input,
-        `Tool success: ${toolBlock.name}`,
-      )!;
+    // Use successMessage if provided, fall back to completionMessage (backwards compat), then default
+    const message = safeLabel(
+      metadata?.successMessage ?? metadata?.completionMessage,
+      block.input,
+      `Tool success: ${block.name}`,
+    )!;
 
-      return {
-        type: "tool_success" as const,
-        toolName: toolBlock.name,
-        toolInput: toolBlock.input,
-        message,
-        result: result.content,
-      };
-    });
+    return [{
+      type: "tool_success" as const,
+      toolName: block.name,
+      toolInput: block.input,
+      message,
+      result: output.text,
+    }];
+  });
 
   return {
     results,

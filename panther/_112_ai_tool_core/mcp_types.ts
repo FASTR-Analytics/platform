@@ -21,6 +21,7 @@ import type {
   ApprovalPolicy,
   ObjectJsonSchema,
 } from "./tool_helpers.ts";
+import type { AIToolImage } from "./tool_image.ts";
 
 export type MCPApprovalMode = "elicit" | "delegate";
 
@@ -148,6 +149,8 @@ export type MCPCallOutcome =
     type: "complete";
     text: string;
     isError: boolean;
+    // The images of the tool's output, sent after the text as image content.
+    images?: readonly AIToolImage[];
     // The structured twin of text, already wrapped { result: … } — adapters
     // serialize it as the result's structuredContent verbatim.
     structuredContent?: Record<string, unknown>;
@@ -162,6 +165,26 @@ export type MCPCallOutcome =
     };
     requestState: string;
   };
+
+export type MCPContent =
+  | { type: "text"; text: string }
+  | { type: "image"; data: string; mimeType: string };
+
+// A complete outcome's content, in both adapters: the text, then each image.
+// A blank text beside images is left out, as in the chat's tool result; with
+// no image the text block is always sent.
+export function buildMCPContent(
+  outcome: Extract<MCPCallOutcome, { type: "complete" }>,
+): MCPContent[] {
+  const images = (outcome.images ?? []).map((image): MCPContent => ({
+    type: "image",
+    data: image.data,
+    mimeType: image.mediaType,
+  }));
+  return images.length > 0 && outcome.text.trim() === ""
+    ? images
+    : [{ type: "text", text: outcome.text }, ...images];
+}
 
 // Protocol-shaped failures the adapter maps to JSON-RPC errors (unknown
 // tool/prompt/resource, malformed params) — distinct from tool-execution

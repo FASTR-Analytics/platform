@@ -179,8 +179,8 @@ export function buildMapLabelEntries(
   return entries;
 }
 
-// The cell's silhouette at unit scale: content half-extents from the FITTING
-// features (what the cell frames), the silhouette bbox (the content extent as
+// The map's silhouette at unit scale: content half-extents from the
+// FITTING features (what the map frames), the silhouette bbox (the content extent as
 // fallback) and coastline rings from the SHOWN features (what labels stack against and hug).
 export type MapUnitGeometry = {
   contentHalfW: number;
@@ -188,7 +188,7 @@ export type MapUnitGeometry = {
   silhouetteBbox: { minX: number; minY: number; maxX: number; maxY: number };
   rings: ScreenRings;
   // The signed distance field of the shown silhouette, built lazily and at most
-  // ONCE per cell (the EDT is ~50ms; extracting a level set from it is ~18ms).
+  // ONCE per sub-chart (the EDT is ~50ms; extracting a level set from it is ~18ms).
   //
   // Deliberately NOT at unit scale, despite everything else here being: unit
   // coordinates span a fraction of a DU, so a 1 DU raster pitch there would
@@ -315,7 +315,7 @@ function mapEdgeAtYUnit(
 }
 
 // The driver-geometry hooks at content scale s centred on (cx, cy). centerX
-// is the CONTENT centre: a cell-centre split would let labels flip
+// is the CONTENT centre: a sub-chart-centre split would let labels flip
 // sides as padding moved the content; on the content centre the split is
 // s-invariant, so the solve and the draw agree.
 function labelGeometryPartsAt(
@@ -349,7 +349,7 @@ function labelGeometryPartsAt(
 const MAP_UNTANGLES_LEADERS = true;
 
 // Map's driver-geometry hooks, with the nearest-point track attached when that
-// is the policy for this cell. outsideEdgeAtY stays wired either way — it is
+// is the policy for this sub-chart. outsideEdgeAtY stays wired either way — it is
 // the FLANK path's coastline ray-cast, and flank is the fallback.
 export function buildMapLabelGeometry(
   geom: MapUnitGeometry,
@@ -379,7 +379,7 @@ export function buildMapLabelGeometry(
   };
 }
 
-// Everything a nearest-point map placement needs that varies per cell rather
+// Everything a nearest-point map placement needs that varies per sub-chart rather
 // than per trial scale: the field's reference scale and how far it stays valid.
 export type MapTrackContext = {
   refScale: number;
@@ -517,7 +517,7 @@ export function mapExtentsAt(
   return { left, right, top, bottom };
 }
 
-// Emits the cell's label primitives at the solved (s, cx, cy), honouring the
+// Emits the sub-chart's label primitives at the solved (s, cx, cy), honouring the
 // frozen s0 placement split carried by id.
 export function generateResolvedMapLabelPrimitives(
   entries: MapLabelEntry[],
@@ -572,8 +572,8 @@ export function generateResolvedMapLabelPrimitives(
 
 // The label terms of the autofit floor, measured UNWRAPPED
 // (maxWidth Infinity) so the floor is exactly proportional to the font scale
-// (monotone) and has no cell dependence (no circularity). Budgets every shown
-// label as outside: with no cell in existence there is nothing to resolve
+// (monotone) and has no sub-chart dependence (no circularity). Budgets every
+// shown label as outside: with no sub-chart in existence there is nothing to resolve
 // `auto` against, and the conservative side is the only safe one; the draw
 // freezes at s0, so floor ≥ draw. Sides split on the unit-anchor x sign,
 // which is s-invariant.
@@ -582,15 +582,16 @@ export type MapLabelFloorBudget = {
   horizontal: number;
   // Extra height. What this MEANS differs by placer, and so does how the
   // consumer combines it: under flank it is the tallest single-flank
-  // stack, which the cell must be at least as tall as; under nearest labels sit
+  // stack, which the sub-chart must be at least as tall as; under nearest labels sit
   // above and below the content too, so the demand is ADDITIVE.
   vertical: number;
 };
 
 export function calculateMapLabelFloorBudget(
   rc: RenderContext,
-  // unitFitted is per cell: under fit "only-map-areas-in-data" each cell's
-  // content centre (and so each label's flank) depends on that cell's data.
+  // unitFitted is per sub-chart: under fit "only-map-areas-in-data" each
+  // sub-chart's content centre (and so each label's flank) depends on that
+  // sub-chart's data.
   shownPerSubChart: {
     shown: ShownMapArea[];
     indices: SubChartIndices;
@@ -612,7 +613,7 @@ export function calculateMapLabelFloorBudget(
   let tallestStack = 0;
   // Nearest-point labels can land on any side, so the floor is side-blind: the
   // widest and the tallest label, budgeted on both sides. Still unwrapped,
-  // still monotone in the font scale, still free of any cell dependence.
+  // still monotone in the font scale, still free of any sub-chart dependence.
   let maxW = 0;
   let maxH = 0;
   for (const { shown, indices, members, unitFitted } of shownPerSubChart) {
@@ -657,10 +658,10 @@ export function calculateMapLabelFloorBudget(
     (maxRightW > 0 ? calloutMargin + maxRightW : 0);
   if (!nearest || maxW === 0) return { horizontal, vertical: tallestStack };
 
-  // Under nearest the floor must cover BOTH placers, because any cell may fall
-  // back to flank and the floor is what autofit shrinks the type against.
+  // Under nearest the floor must cover BOTH placers, because any map may
+  // fall back to flank and the floor is what autofit shrinks the type against.
   // Budgeting nearest alone is how a 47-label map starved: the floor asked for
-  // 94 DU of height, nothing was shrunk, the cell then fell back to flank and
+  // 94 DU of height, nothing was shrunk, the map then fell back to flank and
   // needed 612 with full-size type. "Floor >= draw" is the property that makes
   // a floor a floor, and a fallback is part of the draw.
   return {

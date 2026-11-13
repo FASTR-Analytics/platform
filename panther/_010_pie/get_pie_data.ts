@@ -141,10 +141,10 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
 const OTHER_SERIES_ID = "--other";
 
 // Collapses every named series whose share of the GLOBAL sum (across every
-// cell) is below threshold into one summed series, placed after the kept named
+// pie) is below threshold into one summed series, placed after the kept named
 // series and before the blank one, which is never grouped: an unknown category
-// is not a small known one. Global, never per-cell: the series dimension is global,
-// so a series is grouped everywhere or nowhere — a cell may still show a
+// is not a small known one. Global, never per-pie: the series dimension is global,
+// so a series is grouped everywhere or nowhere — a pie may still show a
 // locally small slice whose global share clears the threshold, and that is the
 // correct trade.
 function applyGroupSmallSlices(

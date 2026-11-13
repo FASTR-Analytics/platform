@@ -143,6 +143,26 @@ const tool = createAITool({
 
 Malformed tool input (failing the zod schema) is converted to `AIToolFailure` automatically, with a prettified per-field message.
 
+**Showing the model an image:** a handler, or an approval's `commit`, returns an `AIToolOutput`. Each image is the file's bytes as base64 with no `data:` URL prefix, and the model sees them after the text, in the chat, through `callAI` and over MCP. An image stays in the conversation and is sent again with every later request, and a conversation holds at most 100. Full contract: DOC_AI_CHAT.md "Output and images".
+
+```typescript
+import { AIToolOutput, createAITool } from "@timroberton/panther";
+
+const tool = createAITool({
+  name: "get_slide_image",
+  description: "Shows a slide as it is drawn",
+  inputSchema: z.object({ slideId: z.string() }),
+  handler: async (input) =>
+    new AIToolOutput({
+      text: `Slide ${input.slideId}`,
+      images: [{
+        mediaType: "image/jpeg",
+        data: await renderSlideJpegBase64(input.slideId),
+      }],
+    }),
+});
+```
+
 ## Views, Interactions, Approval, Navigation
 
 The engine's organizing concept for "where the user is" and everything built on it. Full contracts in DOC_AI_CHAT.md; the shapes:
@@ -364,6 +384,7 @@ builtInTools: {
 - `createSDKClient()` - Configure SDK
 - `createAIChat()` - One engine instance; pass it to `AIChat` as `chat` when the pane needs it too
 - `createAITool()` - Define custom tools; add `viewRegistry` for view-typed tools (compile-checked `availableIn`, narrowed handler view state)
+- `AIToolOutput` - What a handler or a `commit` returns to send images with its text
 - `aiToolFactory(registry)` - Binds one registry once; the recommended form for an app with a single view registry
 - `bindAIToolToView(registry, template, resolve, options?)` - Resolves a tool's inner implementation per call from the view the call runs in
 - `callAI()` - One-shot requests

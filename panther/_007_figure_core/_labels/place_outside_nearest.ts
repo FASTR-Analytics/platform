@@ -56,7 +56,7 @@ export type NearestPlacedBox = {
   // separately so "labels only move when a neighbour forces them" stays a
   // checkable claim rather than being quietly diluted by coastline geometry.
   //
-  // Measured from the slot the label was SEEKING, which is its own nearest
+  // Measured from the track position the label was SEEKING, which is its own nearest
   // point until an untangle swap hands it a neighbour's (see
   // `untangleLeaders`). That keeps this the shape's share alone; the swap's
   // share stays where it belongs, in `displacement`.
@@ -74,7 +74,7 @@ export type NearestPlacementOptions = {
   // Direction at which text alignment flips from centred to edge-aligned
   // (labelAlignmentSwitchAngle; plan-ruled default 45).
   alignmentSwitchAngleDeg: number;
-  // May two labels exchange track slots to uncross their leaders? MAP ONLY,
+  // May two labels exchange track positions to uncross their leaders? MAP ONLY,
   // and not a style option: on a pie the angular order is not a seed to be
   // improved, it IS the meaning — a slice's label has to sit
   // beside its own slice, and swapping two of them would move a label away
@@ -108,8 +108,8 @@ const RELAX_PASSES = 2;
 // contributes the arc it was short by (`repairArc`) to both its labels'
 // footprints, and the whole relaxation re-runs from the seated positions. This
 // terminates either way: it converges on a layout with room, or the added arc
-// carries the exact feasibility test past the track length and the cell falls
-// back to flank, the honest answer for a track that cannot hold its
+// carries the exact feasibility test past the track length and the pie or map
+// falls back to flank, the honest answer for a track that cannot hold its
 // labels.
 //
 // A layout with no overlaps — every pie, and any map whose track is smooth
@@ -229,7 +229,7 @@ function boxClearance(
     // `max(clearance - tolerance, stopBelow)`, which at a tie collapses to
     // `clearance` exactly, so `min(ends) - length/2 >= clearance` needs
     // length = 0 and every span on that edge subdivides forever — 4 GB of Span
-    // objects in about ten seconds. Measured on a two-label slot fixture.
+    // objects in about ten seconds. Measured on a two-label notch fixture.
     if (length <= EDGE_SEARCH_TOLERANCE_DU) continue;
     const lowestPossible = Math.min(span.da, span.db) - length / 2;
     if (
@@ -319,7 +319,7 @@ const SEEK_REACH_FOOTPRINTS = 3;
 type Seat = { t: number; box: Box };
 
 // One component's settled placement, indexed by label. Produced whole from a
-// vector of slots so the untangle sweep can try an alternative and keep the
+// vector of track positions so the untangle sweep can try an alternative and keep the
 // better of the two.
 type ComponentLayout = {
   placedT: number[];
@@ -335,7 +335,7 @@ type ComponentLayout = {
 // not: the nearest point to an interior map area can face more land, and the box
 // has nowhere to go. Measured on East Africa, 5 of 19 labels had no seat at
 // their nearest point — and because relaxation only moves a label when a
-// NEIGHBOUR forces it, a single refusal used to fail the entire cell to flank.
+// NEIGHBOUR forces it, a single refusal used to fail the entire map to flank.
 //
 // So the shape gets to force a displacement too, along the same axis a
 // neighbour would: arc length. The objective is unchanged — be as close to the
@@ -419,7 +419,7 @@ function rayHitsBox(
 // coastline it can under-report badly, which is what `repairArc` measures and
 // corrects — taking the outermost hit instead was tried and over-reports just as
 // badly in the other direction (a distant headland aims its rays at the box),
-// which turned a 16-label Kenya that places cleanly into a whole-cell fallback.
+// which turned a 16-label Kenya that places cleanly into a whole-map fallback.
 function shadowFootprint(
   component: TrackComponent,
   t: number,
@@ -527,7 +527,7 @@ export function placeNearestBoxes(
   // Where each label WOULD sit with no neighbours: its nearest point, or the
   // nearest point that can seat it when the shape refuses that one.
   const seatedT = natural.map((n) => n!.t);
-  // The slot each label is seeking. Its own nearest point, until the untangle
+  // The track position each label is seeking. Its own nearest point, until the untangle
   // sweep hands it a neighbour's.
   const seedT = natural.map((n) => n!.t);
 
@@ -538,14 +538,14 @@ export function placeNearestBoxes(
       return seatBox(track, component, t, w / 2, h / 2, opts);
     };
 
-    // One whole placement, from a vector of slots to the boxes that would be
-    // drawn. `ordering` is the sequence the labels are handed to the relaxation
-    // in, which is its tie-break when two slots coincide — so it is half of what
+    // One whole placement, from a vector of track positions to the boxes that
+    // would be drawn. `ordering` is the sequence the labels are handed to the
+    // relaxation in, which is its tie-break when two positions coincide — so it is half of what
     // an untangle swap has to exchange (see swapCrossingNeighbours).
     //
     // Undefined where this used to return "infeasible" outright: with the
     // untangle sweep above it, a seed vector that cannot be placed is a swap to
-    // reject, not necessarily a cell to fail.
+    // reject, not necessarily a map to fail.
     const layoutFrom = (
       seeds: number[],
       ordering: number[],
@@ -673,7 +673,7 @@ export function placeNearestBoxes(
     };
 
     // One pass of the untangle sweep: work out which label should own which of
-    // the slots this layout produced, then hand that permutation back for a real
+    // the positions this layout produced, then hand that permutation back for a real
     // re-placement.
     //
     // The search runs on a FORECAST — the placed boxes are held still and only
@@ -687,12 +687,12 @@ export function placeNearestBoxes(
     // sizes, so the re-placement moves the boxes and the real crossing count is
     // its own question — which is why the outer loop measures rather than
     // assumes. Doing it the other way round, one exchange per re-placement, was
-    // measured: on the 26-label Kenya `auto` cell it needed 14 full re-placements
+    // measured: on the 26-label Kenya `auto` map it needed 14 full re-placements
     // to get from 26 crossings to 1, and cost 6.8s against 0.8s.
     //
     // Both halves of the hand-back are needed. The seed is what reorders labels
-    // whose slots differ; their place in `ordering` is what reorders labels whose
-    // slots are EQUAL, which on a map is the ordinary case — two map areas sharing
+    // whose positions differ; their place in `ordering` is what reorders labels
+    // whose positions are EQUAL, which on a map is the ordinary case — two map areas sharing
     // one nearest track point tie, and the relaxation breaks the tie on the
     // sequence it was handed. Measured on Kenya adm1: the one crossing pair on
     // the 16-label map is exactly such a tie, so a seed-only swap came back
@@ -706,8 +706,8 @@ export function placeNearestBoxes(
         layout.placedT[a] - layout.placedT[b] || a - b
       );
       const n = byTrack.length;
-      // Slot k is where byTrack[k]'s box sits; owner[k] is who holds it now.
-      const slotAt = byTrack.map((m) => ({
+      // Position k is where byTrack[k]'s box sits; owner[k] is who holds it now.
+      const positionAt = byTrack.map((m) => ({
         x: layout.boxes[m].cx,
         y: layout.boxes[m].cy,
       }));
@@ -721,9 +721,9 @@ export function placeNearestBoxes(
             if (
               !segmentsCross(
                 inputs[owner[a]].anchor,
-                slotAt[a],
+                positionAt[a],
                 inputs[owner[b]].anchor,
-                slotAt[b],
+                positionAt[b],
               )
             ) {
               continue;
@@ -783,7 +783,7 @@ export function placeNearestBoxes(
         const swapped = untanglePass(seeds, ordering, layout);
         if (!swapped) break;
         const next = layoutFrom(swapped.seeds, swapped.ordering);
-        // A swap with no placement is a swap to reject, not a cell to fail.
+        // A swap with no placement is a swap to reject, not a map to fail.
         if (!next) break;
         seeds = swapped.seeds;
         ordering = swapped.ordering;

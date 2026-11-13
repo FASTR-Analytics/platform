@@ -17,6 +17,7 @@
 // semantics are the reference behavior the HTTP adapter mirrors.
 
 import {
+  buildMCPContent,
   type MCPCallOutcome,
   type MCPConnection,
   type MCPElicitDecision,
@@ -218,7 +219,7 @@ export function createMCPConnection(
       return;
     }
     sendResult(id, {
-      content: [{ type: "text", text: outcome.text }],
+      content: buildMCPContent(outcome),
       isError: outcome.isError,
       ...(outcome.structuredContent !== undefined
         ? { structuredContent: outcome.structuredContent }

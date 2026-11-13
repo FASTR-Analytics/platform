@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 // The label-budget solver: the largest content scale s at which content plus
-// its outside labels fit the cell. `fits` is injected — each figure derives it
+// its outside labels fit a pie's slot or a map's sub-chart. `fits` is injected — each figure derives it
 // from its own outside placer's extents — so the solver stays pure and
 // canvas-free.
 //
@@ -13,7 +13,7 @@
 // a union of intervals. The solver scans downward from sMax before bisecting;
 // any feasible interval wider than the scan step is never stepped over. Sized so
 // the step stays comfortably below the content legibility floor (~21 DU pie
-// radius) for realistic cells.
+// radius) for realistic pies and maps.
 export const SOLVE_SCAN_STEPS = 64;
 
 // Bracket width at which bisection stops. Matches the codebase's convergence
@@ -88,8 +88,8 @@ export function solveContentScale(
   // one. The floor is NOT assumed to fit: under nearest-point placement
   // shrinking `s` shortens the track while the label footprints stay fixed in
   // DU, so the feasible set can be an interval that excludes the floor entirely — a
-  // cell can be placeable at radius 190 and unplaceable at 21. Bailing on
-  // `!fits(sFloor)` (as this did) reported such a cell infeasible without ever
+  // pie can be placeable at radius 190 and unplaceable at 21. Bailing on
+  // `!fits(sFloor)` (as this did) reported such a pie infeasible without ever
   // looking at the interval, which sent every one of them to the fallback placer.
   const step = (sMax - sFloor) / SOLVE_SCAN_STEPS;
   let found: number | undefined;

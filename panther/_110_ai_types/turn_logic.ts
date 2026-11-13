@@ -3,10 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { IMAGE_LIMITS } from "./anthropic_consts.ts";
 import type {
   ContentBlock,
   EphemeralSection,
+  ImageContentBlock,
   MessageParam,
+  ToolResultContent,
   UserMessageParam,
 } from "./types.ts";
 import type { SystemParam } from "./request_shaping.ts";
@@ -164,6 +167,11 @@ export function releaseUnansweredCarriers(
 // (a refusal before any output, an end_turn after a tool result) is stored as
 // this text, which is never displayed.
 export const EMPTY_REPLY_PLACEHOLDER = "[No response]";
+
+// The reply the engine stores when a turn is stopped on a user message, so
+// that the list never ends unanswered. It is the one assistant message no
+// request produced: the request before it may never have been read.
+export const STOPPED_REPLY_PLACEHOLDER = "[Stopped]";
 
 // Input by reference when no assistant message is empty.
 export function fillEmptyReplies(messages: MessageParam[]): MessageParam[] {
@@ -385,6 +393,175 @@ export function repairStrandedToolUse(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// A CONVERSATION'S IMAGES
+////////////////////////////////////////////////////////////////////////////////
+//
+// An image never leaves its conversation: every later request carries it.
+// The limits the API puts on the images of one request are therefore limits
+// on the conversation, and a request past one is refused whatever the turn
+// does next. So, before a round's results are stored, a result whose images
+// would take the conversation past a limit keeps its text and loses its
+// images, with a notice the model reads. The call is not answered as an
+// error: a commit has already written by the time its result is read.
+
+type ImageTotals = { count: number; base64Chars: number };
+
+export function limitToolResultImages(
+  history: MessageParam[],
+  results: ToolResultBlock[],
+): ToolResultBlock[] {
+  let held = heldImages(history);
+  return results.map((result) => {
+    const images = imagesOf(result.content);
+    if (images.length === 0) {
+      return result;
+    }
+    const withResult = addImages(held, images);
+    if (
+      withResult.count > IMAGE_LIMITS.MAX_PER_REQUEST ||
+      withResult.base64Chars > IMAGE_LIMITS.MAX_BASE64_CHARS_PER_REQUEST
+    ) {
+      return {
+        ...result,
+        content: withImagesLeftOut(result.content, images.length),
+      };
+    }
+    held = withResult;
+    return result;
+  });
+}
+
+function imagesOf(content: ToolResultContent): ImageContentBlock[] {
+  return typeof content === "string" ? [] : content.filter(
+    (block): block is ImageContentBlock => block.type === "image",
+  );
+}
+
+function addImages(
+  totals: ImageTotals,
+  images: ImageContentBlock[],
+): ImageTotals {
+  return images.reduce(
+    (sum, image) => ({
+      count: sum.count + 1,
+      base64Chars: sum.base64Chars + image.source.data.length,
+    }),
+    totals,
+  );
+}
+
+function heldImages(history: MessageParam[]): ImageTotals {
+  return history.reduce<ImageTotals>(
+    (totals, message) =>
+      typeof message.content === "string" ? totals : message.content.reduce(
+        (sum, block) =>
+          block.type === "tool_result"
+            ? addImages(sum, imagesOf(block.content))
+            : sum,
+        totals,
+      ),
+    { count: 0, base64Chars: 0 },
+  );
+}
+
+// The header check an image passes when its output is made cannot see a
+// corrupt body, and a host in front of a proxy can hold a request to a size
+// the API does not. So when the API refuses a request, the images it has
+// never accepted leave the conversation: otherwise the refusal repeats on
+// every later send. The API has accepted an image once a model's reply
+// follows it. The stopped reply is the engine's and proves nothing, so the
+// images before it go too. Each result says what it lost. Input by reference
+// when there is no such image.
+export function removeUnacceptedImages(
+  messages: MessageParam[],
+): MessageParam[] {
+  const firstUnaccepted = indexAfterLastModelReply(messages);
+  const kept = messages.map((message, i) =>
+    i < firstUnaccepted ? message : withoutToolResultImages(message)
+  );
+  return kept.some((message, i) => message !== messages[i]) ? kept : messages;
+}
+
+// What the turn's error notice ends with when the refusal cost the
+// conversation its unaccepted images.
+export const IMAGES_REMOVED_DETAILS =
+  "The images that tools returned since the model's last reply were removed from the conversation, in case one of them caused this. Send a new message to carry on.";
+
+function indexAfterLastModelReply(messages: MessageParam[]): number {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (
+      message.role === "assistant" &&
+      message.content !== STOPPED_REPLY_PLACEHOLDER
+    ) {
+      return i + 1;
+    }
+  }
+  return 0;
+}
+
+function withoutToolResultImages(message: MessageParam): MessageParam {
+  if (
+    typeof message.content === "string" ||
+    !message.content.some(holdsImages)
+  ) {
+    return message;
+  }
+  return {
+    ...message,
+    content: message.content.map((block) =>
+      holdsImages(block)
+        ? {
+          ...block,
+          content: withNotice(
+            block.content,
+            refusedImagesNotice(imagesOf(block.content).length),
+          ),
+        }
+        : block
+    ),
+  };
+}
+
+function holdsImages(block: ContentBlock): block is ToolResultBlock {
+  return block.type === "tool_result" && imagesOf(block.content).length > 0;
+}
+
+const BASE64_CHARS_PER_MB = 1_000_000;
+
+function withImagesLeftOut(content: ToolResultContent, count: number): string {
+  return withNotice(
+    content,
+    `[${
+      imagesWere(count)
+    } left out of this result: with them, the conversation would hold more images than one request to the API can carry (${IMAGE_LIMITS.MAX_PER_REQUEST} images, or ${
+      IMAGE_LIMITS.MAX_BASE64_CHARS_PER_REQUEST / BASE64_CHARS_PER_MB
+    } MB of them as base64), and every image stays in the conversation. A call that returns fewer or smaller images may still fit. Otherwise, looking at more needs a new conversation.]`,
+  );
+}
+
+function refusedImagesNotice(count: number): string {
+  return `[${
+    imagesWere(count)
+  } removed from this result: the API refused a request that carried this result, and ${
+    count === 1 ? "the image" : "the images"
+  } may be why. Calling the tool again may be refused the same way.]`;
+}
+
+function imagesWere(count: number): string {
+  return `${count} ${count === 1 ? "image was" : "images were"}`;
+}
+
+// A result's text with its images gone and a notice in their place.
+function withNotice(content: ToolResultContent, notice: string): string {
+  const text = typeof content === "string"
+    ? content
+    : content.flatMap((block) => block.type === "text" ? [block.text] : [])
+      .join("\n\n");
+  return text.trim() === "" ? notice : `${text}\n\n${notice}`;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // TURN CONTINUATION
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -527,6 +704,26 @@ export type AIErrorInfo = {
 function isContextOverflow(lower: string): boolean {
   return (lower.includes("context") && lower.includes("exceed")) ||
     lower.includes("prompt is too long");
+}
+
+const REQUEST_REFUSAL_TYPES = ["invalid_request_error", "request_too_large"];
+const REQUEST_REFUSAL_STATUSES = [400, 413];
+
+// Whether the API refused the request for what it holds, so that the same
+// request sent again is refused again. Every other error (the credential,
+// the rate, the model's name, the API's own fault, the network) says nothing
+// about the content, and nor does an empty credit balance, which the API
+// answers as an invalid request. An error the SDK's classes do not recognize
+// carries its type in its message alone.
+export function isRequestRefusal(info: AIErrorInfo): boolean {
+  if (info.isConnectionError || info.message.toLowerCase().includes("credit")) {
+    return false;
+  }
+  if (info.isApiError) {
+    return REQUEST_REFUSAL_TYPES.some((type) => info.type === type) ||
+      REQUEST_REFUSAL_STATUSES.some((status) => info.status === status);
+  }
+  return REQUEST_REFUSAL_TYPES.some((type) => info.message.includes(type));
 }
 
 export function getUserFacingAIErrorMessage(info: AIErrorInfo): string {

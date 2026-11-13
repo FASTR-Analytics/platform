@@ -28,11 +28,15 @@ export {
   getSupportedEffortLevels,
   getUserFacingAIErrorMessage,
   hashRequestPrefix,
+  IMAGES_REMOVED_DETAILS,
+  isRequestRefusal,
   legacyStripEphemeralMarkers,
+  limitToolResultImages,
   MAX_OUTPUT_TOKENS,
   MODEL_OPTIONS,
   reconcileRequestPrefix,
   releaseUnansweredCarriers,
+  removeUnacceptedImages,
   renderOutgoingMessages,
   repairStrandedToolUse,
   resolveBetas,
@@ -45,9 +49,11 @@ export {
   selectTurnSections,
   SERVER_TOOL_LABELS,
   shapeCachedPayload,
+  STOPPED_REPLY_PLACEHOLDER,
   trimDanglingServerToolUse,
 } from "../_110_ai_types/mod.ts";
 export type {
+  AIErrorInfo,
   AIInteractionDefLike,
   AnthropicModel,
   AnthropicModelConfig,
@@ -62,15 +68,20 @@ export type {
   MessageParam,
   SystemNoticeType,
   SystemParam,
+  ToolResultContent,
   Usage,
   UserMessageParam,
 } from "../_110_ai_types/mod.ts";
 export {
   AIToolFailure,
+  AIToolOutput,
   buildAITool,
+  buildToolResultContent,
   createAITool,
   getHeadlessCapability,
+  resolveAIToolReturn,
   resolveViewLabel,
+  runAIToolWithView,
   toolThrowToResultParts,
 } from "../_112_ai_tool_core/mod.ts";
 export type {

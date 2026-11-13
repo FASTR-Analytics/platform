@@ -76,7 +76,7 @@ export function projectCentroid(
 }
 
 // Every ring of a geometry projected to screen coordinates. Built once per
-// cell at unit scale and cached: scaling a projection is affine, so anchors,
+// sub-chart at unit scale and cached: scaling a projection is affine, so anchors,
 // bboxes and raycasts at any content scale s are the unit values × s — the
 // budget solver can call the placer dozens of times without re-projecting.
 export type ScreenRings = [number, number][][];

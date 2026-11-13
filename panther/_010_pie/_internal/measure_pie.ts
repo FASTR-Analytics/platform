@@ -265,7 +265,7 @@ type SolvedPie = {
   // Which placer this pie solved under. The final choice is re-made at the
   // harmonised scale in emitOnePie; this is the solve's own answer.
   placement: OutsideLabelPlacement;
-  // This pie's own solved content scale; emission uses the grid minimum. May
+  // This pie's own solved content scale; emission uses the figure minimum. May
   // EXCEED the slot (the legibility floor lifted it: legibility beats frame).
   s: number;
   // This pie's own legibility floor (per-slot, so heterogeneous when
@@ -491,7 +491,7 @@ function emitOnePie(
   const silhouette = resolvePieSilhouette(mergedStyle);
 
   // N10: the final nearest-vs-flank choice is made ONCE, here, at the
-  // harmonised grid-minimum scale — a track feasible at this pie's own solved
+  // harmonised figure-minimum scale — a track feasible at this pie's own solved
   // s can be infeasible at a smaller one, and the centring extents and the
   // emitted primitives must not disagree about which placer ran.
   let placement = solvedPie.placement;

@@ -308,7 +308,7 @@ function marchingSquares(
         // exact centre value 132, always-join 119. Every disagreement was a
         // deep-notched star, where the raster itself pinches. Over-joining is
         // also the safer error here: a spurious extra component splits the
-        // relaxation and costs the whole cell a flank fallback, while a
+        // relaxation and costs the whole pie or map a flank fallback, while a
         // spurious join still leaves one closed curve at the right level.
         case 5:
         case 10: {
@@ -495,7 +495,7 @@ function refineOntoLevel(
 // sags by at most L²/(8·clearance), so the spacing below buys the tolerance
 // exactly. On Kenya that is 2500 vertices down to ~630, and the whole track
 // build from 36ms to 18ms — which matters because it is rebuilt at every trial
-// content scale, tens of times per cell.
+// content scale, tens of times per pie or map.
 //
 // Measured cost of the tolerance itself, as worst |clearance − 12| over the
 // track (Kenya / East Africa): 0.70 / 1.31 DU undecimated, 0.81 / 1.47 at 0.1,

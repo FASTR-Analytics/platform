@@ -81,15 +81,15 @@ function defaultLabelPlacement() {
     //   east africa callout, 10     125.5 -> 78.2
     //   east africa auto, 19        117.5 -> 76.1   inside 4 -> 6
     //   kenya auto, 26 outside      140.1 -> 123.7
-    //   kenya callout, 47           identical: that cell is genuinely
+    //   kenya callout, 47           identical: that map is genuinely
     //                               saturated and falls back to flank, which
     //                               is the design
     //
     // Zero overlaps, zero escapes and zero crossing leaders throughout, except
-    // two near-saturated cells that keep 2 and 1 (budgeted in
+    // two near-saturated maps that keep 2 and 1 (budgeted in
     // map_figure_check.ts). The bar is "beats flank on leader length AND
     // inside retention"; the closest case, Kenya adm1 `auto`, is 14% better.
-    // The flank placer remains: it is the per-cell fallback when a track
+    // The flank placer remains: it is each pie's or map's fallback when a track
     // cannot hold its labels, and the opt-out via this key.
     outsideLabelPlacement: typed<"nearest" | "flank">("nearest"),
     // How close a padded label box may come to the silhouette at directions
@@ -107,7 +107,8 @@ function defaultLabelPlacement() {
     // The share of the room at its anchor a label's text must fit within to
     // stay inside. Below 1 so "fits" means comfortably, not exactly.
     insideFitFraction: 0.9,
-    // The width an OUTSIDE label's text wraps at, as a fraction of the cell.
+    // The width an OUTSIDE label's text wraps at, as a fraction of a pie's slot
+    // or a map's sub-chart.
     labelWrapFraction: 0.4,
   };
 }

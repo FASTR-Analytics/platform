@@ -22,6 +22,7 @@ How to build an AI chat surface on panther's `_305_ai` engine: views, tools, gat
 14. **Declare `headless: true` on tools that operate on persisted data**: such tools take explicit ids as input; view `context` is reserved for tools that genuinely operate on live unsaved state (chat-only, correctly). Absent flag = chat-only. Never combine `headless` with `availableIn`, `kind: "nav"`, or view-typed approval (construction throws); plain-shape approval is allowed and drives the MCP approval flow
 15. **The MCP surface is `createMCPServer` over the same tools array**: declare the same `approvalPolicy` as the chat (an unapproved write in the exposed subset fails boot, not the allowlist's problem); grounding is a ≤2KB `instructions` pointer plus a `groundingResource` thunk (served as a resource AND the `get_overview` tool); slow hydration goes behind `ready`, never blocks serving. Run `validateMCPServerConfig(config)` in the consumer's browser smoke test: it needs no Deno graph
 16. **Keep the headless subset's module graph browser-free at source**: the typecheck will NOT catch browser APIs (app graphs carry the `dom` lib) and only `window`/`document`/`indexedDB` crash at import; `localStorage` and `navigator` run silently under Deno with wrong semantics. Guard those at source (`typeof` checks or injection) and probe the built host by constructing every factory under plain Deno
+17. **Return an image only when the model must look**: a handler or a `commit` returns `new AIToolOutput({ text, images })` when the model has to see a render (a slide, a page, a figure) to judge something text cannot tell it, such as whether a dense table can be read. Every image stays in the conversation and is sent again with every later request, so return as few as the judgement needs, no larger than is legible (about 1,000 px wide), and say in the tool's description when to call it. `data` is the file's bytes as base64 with no `data:` URL prefix. Panther throws for an image the API would refuse: a type other than JPEG, PNG, GIF or WebP, a file that is not of its stated type, more than 10 MB of base64, or a side over 3,000 px. A conversation holds at most 100 images and 100 MB of them as base64, which is what one request carries: a call past either keeps its text and loses its images, with a line telling the model so. When the API refuses a request, the results the model has not yet answered lose their images the same way, so that the conversation can be sent again. Either way the text is what remains, so it names what each image showed
 
 ## Ops-projected surfaces
 
@@ -70,6 +71,26 @@ if (block.type === undefined) throw new Error("unreachable: unsized block"); // 
 ```
 
 **Why:** the wire content to the model is identical; the classification controls timeline rendering (clean row vs stack trace), and a stack for an anticipated failure points at the throw site, not the cause.
+
+### Images
+
+```tsx
+// ❌ DON'T: a data: URL as the data, or text that does not say what the image shows
+const data = canvas.toDataURL("image/jpeg");
+return new AIToolOutput({
+  text: "Done",
+  images: [{ mediaType: "image/jpeg", data }],
+});
+
+// ✅ DO: the file's bytes alone, beside text that names what each image is
+const data = canvas.toDataURL("image/jpeg").split(",")[1];
+return new AIToolOutput({
+  text: "Slide 3 as drawn.",
+  images: [{ mediaType: "image/jpeg", data }],
+});
+```
+
+**Why:** the API takes base64 without the prefix, so panther refuses the first form before it reaches a request, and the model reads an image better when the text beside it says what it shows.
 
 ### Session mode and presentation
 
@@ -248,6 +269,7 @@ The host itself is a plain-Deno stdio entry with zero protocol code and zero cli
 - [ ] No in-handler mode guards that test only the view id (use `availableIn`); remaining in-handler guards are family guards or deliberate, documented omissions
 - [ ] Every view whose tools act on one entity or package declares `identity` (the entity, and any package and scope around it)
 - [ ] No `throw new Error` in tool handlers except invariant/bug detectors; anticipated failures are `AIToolFailure`
+- [ ] A tool that returns images says in its description when to call it, and returns few, at a legible size, as bare base64
 - [ ] `approvalPolicy: { requireForKind: "write", requireKind: true }` set; every tool declares `kind`; unapproved write tools are in `exempt`
 - [ ] No `markAIEdit` inside `propose`; persist-path writes mark payload-bearing keys that match interaction `echoKey`s
 - [ ] `clearInteractionLog()` called at each scope root if scopes are switchable within one SPA session; a conversation hears only actions after its activation

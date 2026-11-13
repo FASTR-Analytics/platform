@@ -168,7 +168,7 @@ function flankLeadersCross(
 // input order.
 //
 // `untangleLeaders` is MAP ONLY (DOC_FIGURE_ARCHITECTURE, "Outside placement")
-// and defaults off, so a pie — which reaches this placer whenever a cell falls
+// and defaults off, so a pie — which reaches this placer whenever it falls
 // back to it, or the style asks for "flank" — is bit-for-bit unchanged. A pie
 // has nothing to gain here anyway: its anchors sit on one arc, so stacking by y
 // is already the visual order.
@@ -243,22 +243,22 @@ export function placeOutsideBoxes(
       const endXOf = (columnEdgeX: number) =>
         side === "left" ? columnEdgeX - clearance : columnEdgeX + clearance;
 
-      // Which label owns which of the stack's y slots. Same forecast the
-      // nearest placer uses: hold the slots still, exchange owners until no
+      // Which label owns which of the stack's y positions. Same forecast the
+      // nearest placer uses: hold the positions still, exchange owners until no
       // pair crosses, then re-stack and measure for real.
       const uncross = (layout: ReturnType<typeof stack>) => {
         const endX = endXOf(layout.columnEdgeX);
         // Centres for the crossing test, tops for the hand-back: the stacker
         // works in top edges.
-        const slotY = layout.labels.map((l) => l.y + l.height / 2);
-        const slotTop = layout.labels.map((l) => l.y);
+        const positionY = layout.labels.map((l) => l.y + l.height / 2);
+        const positionTop = layout.labels.map((l) => l.y);
         const owner = layout.labels.map((l) => l.inputIndex);
         const crosses = (a: number, b: number, i: number, j: number) =>
           flankLeadersCross(
             { x: inputs[a].anchorX, y: inputs[a].anchorY },
-            { x: endX, y: slotY[i] },
+            { x: endX, y: positionY[i] },
             { x: inputs[b].anchorX, y: inputs[b].anchorY },
-            { x: endX, y: slotY[j] },
+            { x: endX, y: positionY[j] },
           );
         const count = () => {
           let n = 0;
@@ -285,7 +285,7 @@ export function placeOutsideBoxes(
           }
           if (!any) break;
         }
-        return { before, owner, slotTop, exchanged };
+        return { before, owner, positionTop, exchanged };
       };
 
       let best = placed;
@@ -300,13 +300,13 @@ export function placeOutsideBoxes(
       ) {
         const step = uncross(placed);
         if (!step.exchanged) break;
-        // Hand each label the slot the forecast gave it. Seeding the desired y
+        // Hand each label the position the forecast gave it. Seeding the desired y
         // from the PREVIOUS stack's own tops is what makes the re-stack land
         // back on positions that already fit — the column neither grows nor
         // drifts, only its owners change.
         const nextKeys = new Map<number, number>();
         for (let k = 0; k < step.owner.length; k++) {
-          nextKeys.set(step.owner[k], step.slotTop[k]);
+          nextKeys.set(step.owner[k], step.positionTop[k]);
         }
         const next = stack(nextKeys);
         const crossings = uncross(next).before;
@@ -384,7 +384,7 @@ function placeInside(
 // Nearest-point placement: each label at its own nearest point on
 // the track, anchored where the ray exits its box, slid along the track only as
 // far as the shape or a neighbour forces. Undefined when the track cannot hold
-// them — the figure decides the policy per cell at the harmonised scale, so in
+// them — the figure decides the policy per pie or map at the harmonised scale, so in
 // practice that has already been ruled out and this is the belt to that braces.
 function placeOutsideNearest(
   candidates: LabelCandidate[],

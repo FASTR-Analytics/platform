@@ -12,6 +12,7 @@ import {
 } from "solid-js";
 import { Anthropic } from "../deps.ts";
 import type {
+  AIErrorInfo,
   AnthropicModel,
   AnthropicModelConfig,
   ContentBlock,
@@ -34,9 +35,13 @@ import {
   EMPTY_REPLY_PLACEHOLDER,
   getUserFacingAIErrorMessage,
   hashRequestPrefix,
+  IMAGES_REMOVED_DETAILS,
+  isRequestRefusal,
+  limitToolResultImages,
   openConfirm,
   reconcileRequestPrefix,
   releaseUnansweredCarriers,
+  removeUnacceptedImages,
   renderOutgoingMessages,
   repairStrandedToolUse,
   resolveBetas,
@@ -48,6 +53,7 @@ import {
   sanitizePersistedSettings,
   selectTurnSections,
   shapeCachedPayload,
+  STOPPED_REPLY_PLACEHOLDER,
   trimDanglingServerToolUse,
 } from "../deps.ts";
 import {
@@ -75,10 +81,16 @@ import {
   ToolRegistry,
   type ToolResult,
 } from "../_core/tool_engine.ts";
-import { AIToolFailure, toolThrowToResultParts } from "../deps.ts";
+import {
+  AIToolFailure,
+  buildToolResultContent,
+  resolveAIToolReturn,
+  toolThrowToResultParts,
+} from "../deps.ts";
 import type {
   AIToolWithMetadata,
   ProposalResult,
+  ToolResultContent,
   ToolUIMetadata,
 } from "../deps.ts";
 import { ProposalPreviewBody } from "./_renderers/approval.tsx";
@@ -759,7 +771,18 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     } catch (err) {
       if (!turn.abort.signal.aborted) {
         const errorDetails = err instanceof Error ? err.message : String(err);
+        const errorInfo = errorInfoOf(err);
+        // A request the API refused for what it holds is refused on every
+        // later send while it holds the same, so the images the API never
+        // accepted leave the conversation here.
+        const withoutImages = isRequestRefusal(errorInfo)
+          ? removeUnacceptedImages(tMessages())
+          : tMessages();
+        const imagesRemoved = withoutImages !== tMessages();
         batch(() => {
+          if (imagesRemoved) {
+            setTMessages(withoutImages);
+          }
           ts.error[1](errorDetails);
           ts.isStreaming[1](false);
           ts.streamingItems[1]([]);
@@ -767,8 +790,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
             {
               type: "system_notice",
               noticeType: "turn_error",
-              message: getUserFacingErrorMessage(err),
-              details: errorDetails,
+              message: getUserFacingAIErrorMessage(errorInfo),
+              details: imagesRemoved
+                ? `${errorDetails}\n\n${IMAGES_REMOVED_DETAILS}`
+                : errorDetails,
             },
           ]);
         });
@@ -790,7 +815,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         if (lastMsg?.role === "user") {
           setTMessages([
             ...msgs,
-            { role: "assistant", content: "[Stopped]" },
+            { role: "assistant", content: STOPPED_REPLY_PLACEHOLDER },
           ]);
         }
       }
@@ -953,7 +978,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // auto-decline messages, not the view they arrived in.
     const viewAtStart = vc ? vc._snapshot() : undefined;
 
-    const normalResult = (content: string): ToolResult => ({
+    const normalResult = (content: ToolResultContent): ToolResult => ({
       type: "tool_result",
       tool_use_id: block.id,
       content,
@@ -1094,10 +1119,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
       const runCommit = async (): Promise<ApprovalLifecycleOutput> => {
         try {
-          const value = await commit();
-          const content = typeof value === "string"
-            ? value
-            : JSON.stringify(value);
+          const { output } = resolveAIToolReturn(
+            await commit(),
+            metadata.outputSchema !== undefined,
+          );
           if (metadata.displayComponent) {
             addDisplayItemsTo(ts, [{
               type: "tool_display",
@@ -1106,7 +1131,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
               view: viewSnapshotOf(viewAtStart?.view),
             }]);
           }
-          return { result: normalResult(content) };
+          return { result: normalResult(buildToolResultContent(output)) };
         } catch (err) {
           // Approved-then-failed: the timeline keeps the recorded approval
           // plus the standard tool_error — the honest record.
@@ -1736,7 +1761,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // promises resolve when this turn finishes.
       const queueEntries = ts.queuedMessages[0]();
       const queuedTexts = queueEntries.map((q) => q.text);
-      const toolResultMsg = buildToolResultUserMessage(allResults, queuedTexts);
+      const toolResultMsg = buildToolResultUserMessage(
+        limitToolResultImages(updatedMessages, allResults),
+        queuedTexts,
+      );
       // A message typed mid-turn rides the tool-result message with its own
       // sections, so the model learns where the user is now and the gate's
       // reference moves with it; a bare tool-result message carries none.
@@ -1932,31 +1960,28 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 export type AIChatInstance = ReturnType<typeof createAIChat>;
 
 // Thin instanceof adapter over the SDK error classes — all classification
-// logic is pure in turn_logic.ts (getUserFacingAIErrorMessage). err.type is
-// the API error body's type field; mid-stream errors (e.g. an
-// overloaded_error SSE event) arrive with status undefined but a populated
-// type. The pure classifier's status checks and string fallback also cover
-// consumer apps bundling a second SDK copy, where instanceof fails.
-function getUserFacingErrorMessage(err: unknown): string {
+// logic is pure in turn_logic.ts (getUserFacingAIErrorMessage,
+// isRequestRefusal). err.type is the API error body's type field; mid-stream
+// errors (e.g. an overloaded_error SSE event) arrive with status undefined
+// but a populated type. The pure classifiers' status checks and string
+// fallback also cover consumer apps bundling a second SDK copy, where
+// instanceof fails.
+function errorInfoOf(err: unknown): AIErrorInfo {
   if (err instanceof Anthropic.APIConnectionError) {
-    return getUserFacingAIErrorMessage({
-      isConnectionError: true,
-      isApiError: true,
-      message: err.message,
-    });
+    return { isConnectionError: true, isApiError: true, message: err.message };
   }
   if (err instanceof Anthropic.APIError) {
-    return getUserFacingAIErrorMessage({
+    return {
       isConnectionError: false,
       isApiError: true,
       type: err.type,
       status: err.status,
       message: String(err.message),
-    });
+    };
   }
-  return getUserFacingAIErrorMessage({
+  return {
     isConnectionError: false,
     isApiError: false,
     message: err instanceof Error ? err.message : String(err),
-  });
+  };
 }

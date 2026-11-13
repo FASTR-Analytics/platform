@@ -62,7 +62,7 @@ export function resolveMapLabelText(
   return info.value !== undefined ? String(info.value) : info.featureId;
 }
 
-// The wrap width is a fraction of the CELL, and it is the same fraction for the
+// The wrap width is a fraction of the SUB-CHART, and it is the same fraction for the
 // gutter-reservation pass and the label pass, so what is reserved is what is
 // drawn (map.labelWrapFraction).
 export function measureMapLabel(

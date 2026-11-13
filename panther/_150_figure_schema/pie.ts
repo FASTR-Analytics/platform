@@ -18,7 +18,7 @@ import {
   zValues5D,
 } from "./shared.ts";
 
-// The denominator: "sum" normalises by the cell's own total, a number declares
+// The denominator: "sum" normalises by the pie's own total, a number declares
 // a fixed envelope.
 const zPieTotal = z.union([z.number(), z.literal("sum")]);
 

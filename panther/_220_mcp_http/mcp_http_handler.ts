@@ -28,6 +28,7 @@
 // different principal's credentials is answered 404, never routed.
 
 import {
+  buildMCPContent,
   buildMCPServerCore,
   createMcpHandler,
   inputRequired,
@@ -180,13 +181,13 @@ function textResult(text: string, isError: boolean): CallToolResult {
   return { content: [{ type: "text", text }], isError };
 }
 
-// A complete outcome mapped whole: the text block always, plus the core's
+// A complete outcome mapped whole: its text and images, plus the core's
 // pre-wrapped structuredContent when the tool declares an output schema.
 function completeResult(
   outcome: Extract<MCPCallOutcome, { type: "complete" }>,
 ): CallToolResult {
   return {
-    content: [{ type: "text", text: outcome.text }],
+    content: buildMCPContent(outcome),
     isError: outcome.isError,
     ...(outcome.structuredContent !== undefined
       ? { structuredContent: outcome.structuredContent }

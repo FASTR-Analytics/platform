@@ -25,7 +25,7 @@ import type { FittedProjection } from "./fit_projection.ts";
 import { geoToPathSegments } from "./geo_to_path_segments.ts";
 import { getFeatureMatchKey } from "./label_shared.ts";
 
-// A feature the cell will actually draw, with its style resolved ONCE (with
+// A feature the map will actually draw, with its style resolved ONCE (with
 // the real value range) — the same resolution the label pass reads, so the
 // two can never disagree.
 export type ShownMapArea = {

@@ -88,7 +88,7 @@ export const MODEL_OPTIONS: { value: AnthropicModel; label: string }[] = [
 // and the capability lists — on every model bump.
 
 export const DEFAULT_MODEL_CONFIG: AnthropicModelConfig = {
-  model: "claude-sonnet-5",
+  model: "claude-sonnet-5-5",
   max_tokens: 32_000,
   output_config: { effort: "high" },
 };
@@ -142,6 +142,28 @@ export function clampMaxOutputTokens(
     getMaxOutputTokens(model),
   );
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// IMAGE LIMITS
+////////////////////////////////////////////////////////////////////////////////
+
+// What the API takes of images. An image stays in its conversation and rides
+// every later request, so one past a limit would fail every send from then
+// on.
+export const IMAGE_LIMITS = {
+  // The base64 of one image.
+  MAX_BASE64_CHARS: 10_000_000,
+  // Either side of an image: the API holds every image of a request to this
+  // once the request carries more than 20.
+  MAX_SIDE_PX: 3000,
+  // The images of one request on a model with a 200K-token context window,
+  // the lowest limit of any model in MODEL_OPTIONS: a conversation can switch
+  // to one.
+  MAX_PER_REQUEST: 100,
+  // The base64 of every image of one request: the API's 128 MB request
+  // limit, less room for the rest of the request.
+  MAX_BASE64_CHARS_PER_REQUEST: 100_000_000,
+} as const;
 
 ////////////////////////////////////////////////////////////////////////////////
 // MODEL CAPABILITY CHECKS

@@ -99,7 +99,7 @@ export function getMapComponentSizes(
   // the style scale. Outside labels add width (the flank gutters) and can add
   // height (a flank stack taller than the map) — both label terms are
   // unwrapped, so each floor stays proportional to the scale (monotone) and
-  // free of any cell dependence.
+  // free of any sub-chart dependence.
   const minLabelSubChartExtent = calculateMinLabelSubChartExtent(
     rc,
     mergedStyle.text.dataLabels,
@@ -122,7 +122,7 @@ export function getMapComponentSizes(
     nPanes: getDimensionMembers(transformedData.pane).length,
     minSubChartWidth: minLabelSubChartExtent + labelBudget.horizontal,
     // The vertical demand COMBINES differently by placer: under
-    // flank it is a stack the cell must be tall enough for; under nearest the
+    // flank it is a stack the sub-chart must be tall enough for; under nearest the
     // labels sit above and below the content, so it is additive.
     minSubChartHeight: mergedStyle.map.outsideLabelPlacement === "nearest"
       ? minLabelSubChartExtent + labelBudget.vertical
@@ -145,7 +145,8 @@ function calculateMapFloorBudget(
   mergedStyle: MergedMapStyle,
 ): MapLabelFloorBudget {
   const projectionFn = getProjectionFn(mergedStyle.map.projection);
-  const cells: Parameters<typeof calculateMapLabelFloorBudget>[1] = [];
+  const shownPerSubChart: Parameters<typeof calculateMapLabelFloorBudget>[1] =
+    [];
   const nPanes = getDimensionMembers(data.pane).length;
   const nTiers = getDimensionMembers(data.tier).length;
   const nLanes = getDimensionMembers(data.lane).length;
@@ -164,7 +165,7 @@ function calculateMapFloorBudget(
           data.mapArea.matchProp,
           mergedStyle.map.fit,
         );
-        cells.push({
+        shownPerSubChart.push({
           shown: resolveShownMapAreas(
             data.geoFeatures,
             valueMap,
@@ -183,7 +184,7 @@ function calculateMapFloorBudget(
       }
     }
   }
-  return calculateMapLabelFloorBudget(rc, cells, mergedStyle);
+  return calculateMapLabelFloorBudget(rc, shownPerSubChart, mergedStyle);
 }
 
 // The content ASPECT is the projection's, so the ideal height derives the
@@ -201,8 +202,9 @@ function getMapIdealHeight(
   const mergedStyle = new CustomFigureStyle(inputs.style).getMergedMapStyle();
   const projectionFn = getProjectionFn(mergedStyle.map.projection);
 
-  // Aspect from the union of every cell's fitting features, so
-  // "only-map-areas-in-data" shapes the ideal height the way it shapes cells.
+  // Aspect from the union of every map's fitting features, so
+  // "only-map-areas-in-data" shapes the ideal height the way it shapes each
+  // map.
   const fittingUnion = mergedStyle.map.fit === "only-map-areas-in-data"
     ? transformedData.geoFeatures.filter((f) => {
       const key = getFeatureMatchKey(f, transformedData.mapArea.matchProp);
@@ -237,7 +239,7 @@ function getMapIdealHeight(
     mergedStyle.text.dataLabels,
   );
 
-  // The content gets what is left of the cell after the label gutters and is
+  // The content gets what is left of the sub-chart after the label gutters and is
   // never squeezed below the legibility floor. The height then combines by
   // placer, exactly as minSubChartHeight does above.
   const contentW = Math.max(

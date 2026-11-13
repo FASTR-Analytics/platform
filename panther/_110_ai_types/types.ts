@@ -58,8 +58,30 @@ export type DocumentContentBlock = {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+// IMAGE TYPES
+////////////////////////////////////////////////////////////////////////////////
+
+export type ImageMediaType =
+  | "image/jpeg"
+  | "image/png"
+  | "image/gif"
+  | "image/webp";
+
+export type ImageContentBlock = {
+  type: "image";
+  source: { type: "base64"; media_type: ImageMediaType; data: string };
+};
+
+////////////////////////////////////////////////////////////////////////////////
 // CONTENT BLOCKS
 ////////////////////////////////////////////////////////////////////////////////
+
+// What a tool result holds: its text alone, or blocks when it carries
+// images. The SDK's tool runner takes the same two shapes from a tool's
+// run().
+export type ToolResultContent =
+  | string
+  | Array<{ type: "text"; text: string } | ImageContentBlock>;
 
 export type ContentBlock =
   | { type: "text"; text: string; cache_control?: CacheControl }
@@ -73,7 +95,7 @@ export type ContentBlock =
   | {
     type: "tool_result";
     tool_use_id: string;
-    content: string;
+    content: ToolResultContent;
     is_error?: boolean;
     cache_control?: CacheControl;
   }

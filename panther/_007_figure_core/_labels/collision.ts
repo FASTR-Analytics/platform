@@ -21,9 +21,9 @@ export type CollisionLabel = {
   // guarantees non-crossing leaders when the anchors share an x — true of a
   // pie's slices, false of a map's map areas (DOC_FIGURE_ARCHITECTURE, "Outside
   // placement"). It has to displace the natural Y rather than merely re-sort
-  // against it: leaving `naturalY` as
-  // the greedy's floor means a label handed a slot ABOVE its own anchor cannot
-  // take it, so the column grows taller than the one it replaced and the
+  // against it: leaving `naturalY` as the greedy's floor means a label handed a
+  // position ABOVE its own anchor cannot take it, so the column grows taller
+  // than the one it replaced and the
   // content shrinks to make room. Measured on Kenya adm1 at 47 labels: the map
   // lost 5% of its width to a re-order that was supposed to be free.
   stackY?: number;

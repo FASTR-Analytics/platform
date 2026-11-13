@@ -4,8 +4,14 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { buildAvailabilityHint, z } from "./deps.ts";
-import type { Component, zType } from "./deps.ts";
+import type { Component, ToolResultContent, zType } from "./deps.ts";
 import { AIToolFailure } from "./tool_failure.ts";
+import {
+  type AIToolRun,
+  buildToolResultContent,
+  parseToolResultContent,
+  resolveAIToolReturn,
+} from "./tool_output.ts";
 import type {
   AIViewRegistry,
   AIViewSnapshot,
@@ -256,45 +262,63 @@ export type SDKToolRunContext = {
   signal?: AbortSignal | null;
 };
 
+// A run-only tool reads the call's context where the SDK's tool runner puts
+// it.
+function runContextOf(ctx: AIToolCallContext): SDKToolRunContext {
+  return { toolUse: { id: ctx.toolUseId }, signal: ctx.signal };
+}
+
 export type SDKTool<TInput = unknown> = {
   name: string;
   description: string;
   input_schema: ObjectJsonSchema;
   // SDK-shaped, and it stays that way: run()'s SECOND parameter belongs to
-  // the SDK's tool runner. run() reads the call's id and signal from it and
-  // never puts anything of panther's there: an earlier revision put the view
-  // accessor in that slot, and every callAI tool call died on `getView is not
-  // a function` because the SDK's object is truthy. View state gets its own
-  // method below instead of competing for this one.
-  run: (input: TInput, context?: SDKToolRunContext) => Promise<string>;
-  // Engine-only execution path: same work as run(), plus the live view
-  // accessor the chat loop injects and the call's context. Handlers receive
-  // a view SNAPSHOT (getView() is called once, at handler entry), which is
-  // what the gate guarantees: the check and the call are the same microtask.
-  // ctx is required so a wrapper that forwards the call cannot drop it.
-  // Optional because hand-constructed consumer tools only have run();
-  // processToolUses falls back to run() when it is absent. Never given to
+  // the SDK's tool runner, and its return is what that runner takes as the
+  // tool_result's content. run() reads the call's id and signal from the
+  // context and never puts anything of panther's there: an earlier revision
+  // put the view accessor in that slot, and every callAI tool call died on
+  // `getView is not a function` because the SDK's object is truthy. View
+  // state gets its own method below instead of competing for this one.
+  run: (
+    input: TInput,
+    context?: SDKToolRunContext,
+  ) => Promise<ToolResultContent>;
+  // The engines' execution path (runAIToolWithView): same work as run(),
+  // plus the live view accessor the chat loop injects and the call's
+  // context, returning the output itself with the handler's raw return
+  // beside it for the MCP surface. Handlers receive a view SNAPSHOT
+  // (getView() is called once, at handler entry), which is what the gate
+  // guarantees: the check and the call are the same microtask. ctx is
+  // required so a wrapper that forwards the call cannot drop it. Optional
+  // because hand-constructed consumer tools only have run(). Never given to
   // the SDK.
   runWithView?: (
     input: TInput,
     getView: (() => unknown) | undefined,
     ctx: AIToolCallContext,
-  ) => Promise<string>;
+  ) => Promise<AIToolRun>;
   // Matches the SDK's BetaRunnableTool contract — the tool runner calls
   // parse() (when present) before run(). Optional so hand-constructed tools
   // in consumer apps keep compiling; createAITool always provides it.
   parse?: (content: unknown) => TInput;
-  // Same execution as run()/runWithView(), preserving the handler's RAW
-  // return beside its text serialization: `structured` is set exactly when
-  // the tool declares an outputSchema and the handler returned a value —
-  // the MCP surface wraps it as structuredContent. Optional so
-  // hand-constructed tools keep compiling; createAITool always provides it.
-  runStructured?: (
-    input: TInput,
-    getView: (() => unknown) | undefined,
-    ctx: AIToolCallContext,
-  ) => Promise<{ text: string; structured?: unknown }>;
 };
+
+// Runs a tool as the engines do. A tool built by hand has only run(), whose
+// content is read back into an output.
+export async function runAIToolWithView<TInput>(
+  sdkTool: SDKTool<TInput>,
+  input: TInput,
+  getView: (() => unknown) | undefined,
+  ctx: AIToolCallContext,
+): Promise<AIToolRun> {
+  return sdkTool.runWithView
+    ? await sdkTool.runWithView(input, getView, ctx)
+    : {
+      output: parseToolResultContent(
+        await sdkTool.run(input, runContextOf(ctx)),
+      ),
+    };
+}
 
 export type AIToolWithMetadata<TInput = unknown> = {
   sdkTool: SDKTool<TInput>;
@@ -727,15 +751,14 @@ export function buildAITool<TInput>(
     ? `${config.description}\n\n${buildAvailabilityHint(availableIn)}`
     : config.description;
 
-  // One implementation, three entry points: run() for the SDK's tool runner,
-  // runWithView() for the chat loop (input, the live view accessor and the
-  // call's context), and runStructured(), which keeps the handler's raw
-  // return for the MCP surface.
+  // One implementation, two entry points: run() for the SDK's tool runner,
+  // and runWithView() for the chat loop and the MCP surface (input, the live
+  // view accessor and the call's context).
   const execute = async (
     input: TInput,
     getView: (() => unknown) | undefined,
     ctx: AIToolCallContext,
-  ): Promise<{ text: string; structured?: unknown }> => {
+  ): Promise<AIToolRun> => {
     // An approval tool never executes here: every sanctioned lifecycle
     // (createAIChat's chat loop, createMCPServer's approval driver) branches
     // on metadata.approval BEFORE run()/runWithView and drives propose →
@@ -763,14 +786,7 @@ export function buildAITool<TInput>(
         )
         : config.handler!(validated, ctx),
     );
-    // JSON.stringify(undefined) is the VALUE undefined, not a string — a
-    // handler that mutates and returns nothing must still produce text.
-    const text = typeof result === "string"
-      ? result
-      : (JSON.stringify(result) ?? "Done");
-    return config.outputSchema !== undefined && result !== undefined
-      ? { text, structured: result }
-      : { text };
+    return resolveAIToolReturn(result, config.outputSchema !== undefined);
   };
 
   const sdkTool: SDKTool<TInput> = {
@@ -778,19 +794,19 @@ export function buildAITool<TInput>(
     description,
     input_schema: zodToJsonSchema(config.inputSchema),
     run: async (input: TInput, context?: SDKToolRunContext) =>
-      (await execute(
-        input,
-        undefined,
-        context
-          ? {
-            toolUseId: context.toolUse.id,
-            signal: context.signal ?? new AbortController().signal,
-          }
-          : detachedCallContext(),
-      )).text,
-    runWithView: async (input, getView, ctx) =>
-      (await execute(input, getView, ctx)).text,
-    runStructured: execute,
+      buildToolResultContent(
+        (await execute(
+          input,
+          undefined,
+          context
+            ? {
+              toolUseId: context.toolUse.id,
+              signal: context.signal ?? new AbortController().signal,
+            }
+            : detachedCallContext(),
+        )).output,
+      ),
+    runWithView: execute,
   };
   if (config.validation !== "internal") {
     // Every driver already tolerates absent parse (`parse ? parse(x) : x`),

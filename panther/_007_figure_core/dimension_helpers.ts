@@ -89,8 +89,9 @@ export function calculateMinSubChartWidth(
 
 // Legibility floor for figures whose sub-chart contains no axis — only data
 // labels (the charts with no axes: map, pie). Both extents come from this one
-// call: their cells have no axis direction to distinguish, and a pie cell is
-// square (radius = min(w, h) / 2), so width and height are the same quantity.
+// call: their sub-charts have no axis direction to distinguish, and a pie's
+// radius is min(w, h) / 2 of its slot, so width and height are the same
+// quantity.
 //
 // The multiplier is a CALIBRATION, not a derivation. The value-axis siblings
 // above use 4 because "2 tick labels + 2× spacing" is a real geometry; a

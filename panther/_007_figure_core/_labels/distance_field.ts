@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 // The one geometric primitive both halves of the label system read from: a
-// signed distance field over a cell's silhouette, positive inside.
+// signed distance field over a pie's or map's silhouette, positive inside.
 //
 // It answers four questions with one build:
 //   - where inside a region a label should sit  -> interiorMax()
@@ -147,7 +147,7 @@ export type BuildFieldOptions = {
   //
   // A caller that sizes its margin for a whole RANGE of content scales must set
   // this separately: the exact query costs ~8us against the raster's ~0.05us,
-  // so tying the two together made a 47-label map cell spend 20 seconds in
+  // so tying the two together made a 47-label map spend 20 seconds in
   // 2.5 million exact queries that a 1 DU raster answer would have served.
   exactDistance?: number;
 };

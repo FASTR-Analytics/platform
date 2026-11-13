@@ -23,7 +23,16 @@ export {
   buildAITool,
   createAITool,
   getHeadlessCapability,
+  runAIToolWithView,
 } from "./tool_helpers.ts";
+export {
+  AIToolOutput,
+  buildToolResultContent,
+  parseToolResultContent,
+  resolveAIToolReturn,
+} from "./tool_output.ts";
+export type { AIToolRun } from "./tool_output.ts";
+export type { AIToolImage } from "./tool_image.ts";
 export { defineAIViews, resolveViewLabel, view } from "./view_types.ts";
 export { buildToolCatalog } from "./tool_catalog.ts";
 export {
@@ -31,13 +40,8 @@ export {
   createMCPServer,
   validateMCPServerConfig,
 } from "./mcp_server.ts";
-export { MCPRequestError } from "./mcp_types.ts";
-export {
-  bindAITool,
-  bindAIToolToView,
-  runContextOf,
-  scopeAITool,
-} from "./scope_ai_tool.ts";
+export { buildMCPContent, MCPRequestError } from "./mcp_types.ts";
+export { bindAITool, bindAIToolToView, scopeAITool } from "./scope_ai_tool.ts";
 export type {
   BindAIToolToViewOptions,
   ScopeAIToolOptions,
@@ -79,6 +83,7 @@ export type {
   MCPApprovalMode,
   MCPCallOutcome,
   MCPConnection,
+  MCPContent,
   MCPElicitDecision,
   MCPPromptConfig,
   MCPResourceConfig,

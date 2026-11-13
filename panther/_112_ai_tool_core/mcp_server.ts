@@ -18,7 +18,12 @@ import type {
   ProposalResult,
   ToolUIMetadata,
 } from "./tool_helpers.ts";
-import { detachedCallContext, getHeadlessCapability } from "./tool_helpers.ts";
+import {
+  detachedCallContext,
+  getHeadlessCapability,
+  runAIToolWithView,
+} from "./tool_helpers.ts";
+import { type AIToolRun, resolveAIToolReturn } from "./tool_output.ts";
 import { toolThrowToResultParts } from "./tool_failure.ts";
 import {
   type CreateMCPServerConfig,
@@ -86,13 +91,6 @@ function droppedReason(metadata: ToolUIMetadata): string {
   }
 }
 
-// JSON.stringify(undefined) is the VALUE undefined, not a string — a commit
-// that mutates and returns nothing (an ordinary spelling) must still produce
-// a valid text content block.
-function stringifyToolOutput(output: unknown): string {
-  return typeof output === "string" ? output : (JSON.stringify(output) ?? "");
-}
-
 // The MCP wrapper rule: structuredContent must be a JSON OBJECT and tool
 // outputs are arbitrary JSON (arrays included), so every tool wraps
 // UNIFORMLY — structuredContent is { result: <output> } and the advertised
@@ -103,19 +101,21 @@ function wrappedOutputSchema(schema: zType.ZodType): Record<string, unknown> {
   return z.toJSONSchema(z.object({ result: schema }), { io: "output" });
 }
 
-function wrappedStructured(
-  structured: unknown,
-): Record<string, unknown> | undefined {
-  return structured === undefined ? undefined : { result: structured };
+function completeText(text: string): MCPCallOutcome {
+  return { type: "complete", text, isError: false };
 }
 
-function completeText(
-  text: string,
-  structuredContent?: Record<string, unknown>,
-): MCPCallOutcome {
-  return structuredContent === undefined
-    ? { type: "complete", text, isError: false }
-    : { type: "complete", text, isError: false, structuredContent };
+function completeRun(run: AIToolRun, textPrefix = ""): MCPCallOutcome {
+  const { output, structured } = run;
+  return {
+    type: "complete",
+    text: textPrefix + output.text,
+    isError: false,
+    ...(output.images.length > 0 ? { images: output.images } : {}),
+    ...(structured !== undefined
+      ? { structuredContent: { result: structured } }
+      : {}),
+  };
 }
 
 function completeError(text: string): MCPCallOutcome {
@@ -609,11 +609,9 @@ export function buildMCPServerCore(
       return completeText(staleText(preview));
     }
     try {
-      const output = await Promise.resolve(commit());
-      const text = stringifyToolOutput(output);
-      return completeText(
-        withAuditHeader ? renderAuditHeader(preview) + text : text,
-        emitStructured ? wrappedStructured(output) : undefined,
+      return completeRun(
+        resolveAIToolReturn(await Promise.resolve(commit()), emitStructured),
+        withAuditHeader ? renderAuditHeader(preview) : "",
       );
     } catch (error) {
       return completeFromThrow(error);
@@ -761,22 +759,14 @@ export function buildMCPServerCore(
         );
       }
       try {
-        if (tool.sdkTool.runStructured) {
-          const { text, structured } = await tool.sdkTool.runStructured(
+        return completeRun(
+          await runAIToolWithView(
+            tool.sdkTool,
             input,
             poisonView(name),
             detachedCallContext(),
-          );
-          return completeText(text, wrappedStructured(structured));
-        }
-        const text = tool.sdkTool.runWithView
-          ? await tool.sdkTool.runWithView(
-            input,
-            poisonView(name),
-            detachedCallContext(),
-          )
-          : await tool.sdkTool.run(input);
-        return completeText(text);
+          ),
+        );
       } catch (error) {
         return completeFromThrow(error);
       }

@@ -303,8 +303,8 @@ export function placePieOutsideBoxesAt(
 
 // The label terms of the autofit floor, measured UNWRAPPED
 // (maxWidth Infinity) so the floor is exactly proportional to the font scale
-// (monotone) and has no cell dependence (no circularity). Budgets
-// every shown label as outside: with no cell in existence there is nothing to
+// (monotone) and has no slot dependence (no circularity). Budgets
+// every shown label as outside: with no slot in existence there is nothing to
 // resolve `auto` against, and the conservative side is the only safe one; the
 // draw freezes at s0, so floor ≥ draw.
 export type PieLabelFloorBudget = {
@@ -312,10 +312,10 @@ export type PieLabelFloorBudget = {
   horizontal: number;
   // Extra height. What this MEANS differs by placer, and so does how the
   // consumer combines it:
-  //   flank    the tallest single-flank stack, which the cell must be at least
+  //   flank    the tallest single-flank stack, which the slot must be at least
   //            as tall as — outside labels can outgrow the disc vertically.
   //   nearest  labels sit above and below the content as well as beside it, so
-  //            the demand is ADDITIVE: the cell must be the content plus this.
+  //            the demand is ADDITIVE: the slot must be the content plus this.
   vertical: number;
 };
 
@@ -338,7 +338,7 @@ export function calculatePieLabelFloorBudget(
   let tallestStack = 0;
   // Nearest-point labels can land on any side, so the floor is side-blind:
   // the widest and the tallest label, budgeted on both sides. Still unwrapped,
-  // still monotone in the font scale, still free of any cell dependence — the
+  // still monotone in the font scale, still free of any slot dependence — the
   // three properties that make a floor sound.
   let maxW = 0;
   let maxH = 0;
@@ -386,10 +386,10 @@ export function calculatePieLabelFloorBudget(
     (maxRightW > 0 ? calloutMargin + maxRightW : 0);
   if (!nearest || maxW === 0) return { horizontal, vertical: tallestStack };
 
-  // Under nearest the floor must cover BOTH placers, because any cell may fall
+  // Under nearest the floor must cover BOTH placers, because any pie may fall
   // back to flank and the floor is what autofit shrinks the type against.
   // Budgeting nearest alone is how a 47-label map starved: the floor asked for
-  // 94 DU of height, nothing was shrunk, the cell then fell back to flank and
+  // 94 DU of height, nothing was shrunk, the map then fell back to flank and
   // needed 612 with full-size type. "Floor >= draw" is the property that makes
   // a floor a floor, and a fallback is part of the draw.
   return {
@@ -405,7 +405,7 @@ export function calculatePieLabelFloorBudget(
 //
 // `silhouette` seeds each direction, so a gauge's labels are budgeted against
 // its declared footprint rather than the notional disc. Declared, not drawn: a
-// `remainder.mode: "gap"` cell whose values reach a third of its `total` still
+// `remainder.mode: "gap"` pie whose values reach a third of its `total` still
 // reserves the whole sweep, which is what keeps a gauge's frame from moving as
 // its value changes (see `resolvePieSilhouette`). For a full pie every component
 // is 1 and `s * 1` is exactly `s`, so those extents are unchanged.

@@ -24,9 +24,9 @@ export type PieDataJson = {
   jsonDataConfig: PieJsonDataConfig;
 };
 
-// The denominator a cell's shares are computed against. "sum" (the default)
-// normalises by the cell's own total, so the circle is always 100% of the
-// cell; a number declares a fixed envelope, exactly as yValueAxis.max declares
+// The denominator a pie's shares are computed against. "sum" (the default)
+// normalises by the pie's own total, so the circle is always 100% of the
+// pie; a number declares a fixed envelope, exactly as yValueAxis.max declares
 // one for a bar chart.
 export type PieTotal = number | "sum";
 
@@ -53,15 +53,15 @@ export type PieJsonDataConfig = {
     lane?: MemberSortConfig;
   };
   // Reorders the GLOBAL series dimension by each series' summed value across every
-  // cell. Named after the dimension it reorders, like sortIndicatorValues on
+  // pie. Named after the dimension it reorders, like sortIndicatorValues on
   // ChartOV — but global where ChartOV's is per pane, because slices are the
   // series dimension: global order keeps one legend and a stable color identity;
-  // per-cell orders would break both.
+  // per-pie orders would break both.
   sortSeriesValues?: "ascending" | "descending" | "none";
   // Collapses every named series whose share of the GLOBAL sum across every
-  // cell is below `threshold` into one synthetic slice (id "--other", display
-  // label `label` ?? "Other"), summing their values per cell. The criterion is
-  // global, never per-cell: the series dimension is global (one legend, one
+  // pie is below `threshold` into one synthetic slice (id "--other", display
+  // label `label` ?? "Other"), summing their values per pie. The criterion is
+  // global, never per-pie: the series dimension is global (one legend, one
   // seriesColorFunc identity), so a series is grouped everywhere or nowhere.
   // The grouped slice follows every kept named slice, and the blank slice,
   // never grouped, follows it, regardless of sort/sortSeriesValues.

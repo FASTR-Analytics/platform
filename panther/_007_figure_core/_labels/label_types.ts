@@ -73,8 +73,8 @@ export type LabelGeometry = {
   // label-to-label spacing inside a stack.
   outsideClearance: number;
   // Present only when this figure has opted into nearest-point placement.
-  // Absent → the flank placer runs. The figure decides this once, per cell,
-  // at the harmonised content scale.
+  // Absent → the flank placer runs. The figure decides this once per pie or
+  // map, at the harmonised content scale.
   outsideTrack?: {
     track: LabelTrack;
     clearanceFloor: number;

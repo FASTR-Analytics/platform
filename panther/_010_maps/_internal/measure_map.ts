@@ -97,8 +97,8 @@ export function measureMap(
 
   const projectionFn = getProjectionFn(mergedStyle.map.projection);
 
-  // Two-phase over the grid: solve every cell's content scale
-  // first, then emit every cell at the minimum, so small multiples stay
+  // Two-phase over the figure: solve every sub-chart's content scale
+  // first, then emit every sub-chart at the minimum, so small multiples stay
   // comparable.
   const solved: SolvedMapSubChart[] = [];
   for (const prim of chartMeasured.primitives) {
@@ -153,13 +153,13 @@ type SolvedMapSubChart = {
   // The frozen s0 placement split, carried by id.
   outsideIds: Set<string>;
   outside: MapLabelEntry[];
-  // Which placer this cell solved under. The final choice is re-made at the
+  // Which placer this sub-chart solved under. The final choice is re-made at the
   // harmonised scale in emitMapSubChart; this is the solve's own answer.
   placement: OutsideLabelPlacement;
-  // The field's reference scale and validity margin, fixed per cell so one
+  // The field's reference scale and validity margin, fixed per sub-chart so one
   // distance field serves every trial content scale.
   trackCtx: MapTrackContext;
-  // This cell's own solved content scale; emission uses the grid minimum.
+  // This sub-chart's own solved content scale; emission uses the figure minimum.
   s: number;
   // The budget was infeasible even at the legibility floor.
   starved: boolean;
@@ -295,12 +295,12 @@ function solveMapSubChart(
 
   // Solve for the content scale the frozen label set affords. The
   // floor puts the LARGER drawn dimension at the legibility extent, matching
-  // the old 42×42 minimum cell.
+  // the old 42×42 minimum sub-chart.
   let placement = mergedStyle.map.outsideLabelPlacement;
   const sFloor =
     calculateMinLabelSubChartExtent(rc, mergedStyle.text.dataLabels) /
     Math.max(projBounds.w, projBounds.h);
-  // The field is built once per cell at s0 and reused at every trial scale, so
+  // The field is built once per sub-chart at s0 and reused at every trial scale, so
   // its validity margin has to cover the smallest scale the solve will reach.
   const trackCtx: MapTrackContext = {
     refScale: s0,
@@ -318,7 +318,7 @@ function solveMapSubChart(
         trackCtx,
       );
       // Undefined = the track cannot hold these labels at this scale, which is
-      // a genuine "does not fit"; only when NO scale works does the cell fall
+      // a genuine "does not fit"; only when NO scale works does the sub-chart fall
       // back.
       return e !== undefined &&
         e.left + e.right <= subChartRcd.w() &&
@@ -337,7 +337,7 @@ function solveMapSubChart(
     }
     result = solveContentScale(fitsUnder(placement), sFloor, s0);
     if (result.kind === "infeasible" && placement === "nearest") {
-      // N10: this cell cannot be nearest-point at any scale, so it re-solves on
+      // N10: this sub-chart cannot be nearest-point at any scale, so it re-solves on
       // the flank placer — all shipped machinery — and is NOT cramped for that
       // reason. Flank fitting is a success.
       placement = "flank";
@@ -404,10 +404,10 @@ function emitMapSubChart(
     return generateMapAreaPrimitives(shown, fitted, indices, members);
   }
 
-  // Centre the union bbox in the cell — in BOTH dimensions: at s at most one
+  // Centre the union bbox in the sub-chart — in BOTH dimensions: at s at most one
   // dimension is tight, and centring when underfilling is the standing rule.
   // N10: the final nearest-vs-flank choice is made ONCE, here, at the harmonised
-  // grid-minimum scale — a track feasible at this cell's own solved s can be
+  // figure-minimum scale — a track feasible at this sub-chart's own solved s can be
   // infeasible at a smaller one, and the centring extents and the emitted
   // primitives must not disagree about which placer ran.
   let placement = solvedSubChart.placement;

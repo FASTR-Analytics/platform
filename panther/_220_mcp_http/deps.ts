@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export {
+  buildMCPContent,
   buildMCPServerCore,
   MCPRequestError,
 } from "../_112_ai_tool_core/mod.ts";
