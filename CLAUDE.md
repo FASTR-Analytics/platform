@@ -4,7 +4,7 @@ FASTR Analytics Platform: a Deno/Hono server and SolidJS client that ingests hea
 
 ## Formatting: `deno fmt`, the whole repo
 
-`deno fmt` is the one formatter for every file in the repo: `server/`, `lib/`, `client/`, the root scripts, and every `.md`. Its config is the `fmt` block in `deno.json`, which excludes `vendor/`, `client/public/`, `client/package-lock.json` and `report-forge/`, a submodule whose formatting its own repo owns. `panther/`, a workspace member, takes the `fmt` block of its own `deno.json`, which excludes its `**/*.css` and `_001_font/generated/`. There is no prettier, no editor formatter, and no per-directory style.
+`deno fmt` is the one formatter for every file in the repo: `server/`, `lib/`, `client/`, the root scripts, and every `.md`. Its config is the `fmt` block in `deno.json`, which excludes `vendor/`, `client/public/`, `client/package-lock.json` and `report-forge/`, a synced copy whose formatting its own repo owns. `panther/`, a workspace member, takes the `fmt` block of its own `deno.json`, which excludes its `**/*.css` and `_001_font/generated/`. There is no prettier, no editor formatter, and no per-directory style.
 
 - `deno task typecheck` runs `deno fmt --check` first. An unformatted file fails the gate, so run `deno fmt` before you commit.
 - Never format with anything else. Prettier or an editor's own formatter produces a shape that `deno fmt --check` rejects.
