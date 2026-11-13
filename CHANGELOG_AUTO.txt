@@ -1,3 +1,20 @@
+[TBD] [user] [added] - AI assistant can now look at slides, figures, and charts as images to judge readability
+[TBD] [user] [added] - AI assistant can now add image assets to slides and reports
+[TBD] [user] [added] - AI assistant can now view and change deck settings like logos, footer text, and watermarks
+[TBD] [user] [added] - AI assistant can now set text background colors on slide text blocks
+[TBD] [user] [added] - AI assistant can now adjust text size, bold, and italic on cover and section slides
+[TBD] [user] [added] - AI assistant can now add and configure side panels on content slides
+[TBD] [user] [changed] - Replacing a slide now preserves its existing settings like logos, sub-header, and side panel
+[TBD] [user] [changed] - Deck overview now includes logo, footer, and watermark settings alongside the slide outline
+[TBD] [user] [changed] - AI assistant now shows more detail about image blocks and text styling when reading slides
+[TBD] [admin] [added] - Copilot can now look at slides, report figures, and figure editor previews as images to judge readability
+[TBD] [admin] [added] - Copilot can manage deck settings: logos, footer text, and watermark
+[TBD] [admin] [added] - Copilot can use instance image assets in slides and content blocks
+[TBD] [admin] [added] - Image blocks now supported in slide content alongside text and figures
+[TBD] [admin] [added] - Copilot can set text background colors and text styling on slide blocks
+[TBD] [admin] [changed] - Replacing a slide now preserves existing settings like side panels, logos, and sub-headers when the slide type stays the same
+[TBD] [admin] [changed] - Deck outline from copilot now includes deck settings alongside slide summary
+[TBD] [admin] [internal] - Refactored figure editor preview logic for improved reliability and copilot integration
 [TBD] [user] [changed] - AI assistant can now read multiple slides at once, speeding up deck editing
 [TBD] [user] [improved] - AI assistant now reports page overflow status after slide changes
 [TBD] [user] [improved] - AI assistant shows updated figure details after editing slides
