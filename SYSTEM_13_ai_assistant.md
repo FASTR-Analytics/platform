@@ -192,7 +192,7 @@ A write refuses before it proposes: `propose` loads fresh state and throws `AITo
 
 Triaged findings from the first review cycle. Two same-day fix batches closed the governance HIGHs (delta-based usage parsing, cancel-hook accounting, beta allowlist, NaN boot validation, shared-handler extraction), the custom-prompts gate, the truncation brick (panther turn-logic + max_tokens raise/expose), the panther modelConfig/labels/cap-pause items, and the client-copilot findings (filter-schema template, mid-conversation PDF attach, file DELETE on remove, `update_viz_config` live-data validation, `switch_tab` reports, `get_deck` fetch-on-miss, tools-reactivity memo removal, ai_files env/URL cleanup, Anthropic-shaped thrown errors, CORS header enumeration, and the LOW hygiene tail). The HFA whole-object read-modify-write finding was **rejected**: it matches the app-wide last-write-wins model (see the HFA tools section). Remaining:
 
-**Report figure references (fixes in `report-forge/`, the submodule)**
+**Report figure references (fixes in the report-forge repo, synced into `report-forge/`)**
 
 Both are gaps between what `fastrBodyReferences` reports and what the document resolves, so they land in the shared reader, not here. Its own contract comment (`report_fastr_markdown.ts:733-735`) says "Every figure:/image: the document will try to resolve", which is what `reportLiveFigures` relies on.
 

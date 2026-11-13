@@ -44,8 +44,7 @@ type Hit = { file: string; line: number; text: string };
 
 async function trackedFiles(): Promise<string[]> {
   const out = await new Deno.Command("git", {
-    // report-forge/ is a submodule (no SQL, and its own repository): listed
-    // as one extensionless path it would read as a root script.
+    // report-forge/ is a synced copy of its own repository, with no SQL.
     args: ["ls-files", "--", ":!panther", ":!vendor", ":!report-forge"],
     stdout: "piped",
   }).output();

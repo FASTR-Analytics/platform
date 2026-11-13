@@ -34,7 +34,7 @@ The `globs:` frontmatter above is the lint-enforced manifest (`lint_systems.ts`)
 
 ## Contract
 
-Owns the admin surface for the permission rows S18's `routes/instance/users.ts` writes and S18 evaluates (the user-management rule, scope access, guard semantics, permission keys and special modes live in [SYSTEM_18_permissions.md](SYSTEM_18_permissions.md)). Health is deliberately unauthenticated (and includes one unauthenticated POST write, see the exposure inventory); health uses bare Hono routes, so it is invisible to the route registry: the sanctioned escape from S1's registry-as-contract. Disk autonomics fire out-of-band side effects (volume resize, alert emails) invisible to the registry.
+Owns the admin surface for the permission rows S18's `routes/instance/users.ts` writes and S18 evaluates (the user-management rule, scope access, guard semantics, permission keys and special modes live in [SYSTEM_18_permissions.md](SYSTEM_18_permissions.md)). Every health route requires the fleet status key (see the exposure inventory); health uses bare Hono routes, so it is invisible to the route registry: the sanctioned escape from S1's registry-as-contract. Disk autonomics fire out-of-band side effects (volume resize, alert emails) invisible to the registry.
 
 ## The Scopes page
 
@@ -54,7 +54,7 @@ The app has no backup or restore code. Instance backups are a status-api and vol
 
 ## Health & central export: the exposure inventory
 
-`health.ts` uses **bare Hono routes, not `defineRoute`**, with zero entries in `route-tracker.ts`, so `validateAllRoutesDefined()` cannot see them: the registry blind spot (12 endpoints). `authMiddleware` is `clerkMiddleware()`, which populates session state and **never rejects**, and the read routes carry no guards, so 10 of the 12 health endpoints are public by design (external status dashboard); the other two take `requireStatusKey()` (S18). What each leaks must stay a deliberate decision:
+`health.ts` uses **bare Hono routes, not `defineRoute`**, with zero entries in `route-tracker.ts`, so `validateAllRoutesDefined()` cannot see them: the registry blind spot (12 endpoints). `authMiddleware` is `clerkMiddleware()`, which populates session state and **never rejects**, so each route carries its own guard: **all 12 take `requireStatusKey()`** (S18), and a request without the `status-api-key` header gets 401. The callers are the status site (Admin-Website), the server CLI's restart gate (over localhost) and peer instances (the rename flow's `discoverPeers`, S18), and each sends the key. A new health route takes the guard too. What each returns to a key holder:
 
 1. `/health_check`: instance meta, uptime, **every user email + admin emails**, contact persons, `busy` (the work a restart would kill: the count of `generating` runs and the import families with a `running` run, read by the server CLI's restart gate and the status site's busy marker), dataset stats, last user-log row (excluding two hardcoded personal emails).
 2. `/user_logs`: the forever-retained `getCurrentUser` login trail.
@@ -65,8 +65,8 @@ The app has no backup or restore code. Instance backups are a status-api and vol
 7. `/ai_weekly_usage`: tokens used vs `_WEEKLY_TOKEN_LIMIT`.
 8. `/ai_limit_hits`: limit-hit log.
 9. `/pg_stat_statements`: query texts + timing across all databases.
-10. `/module_defaults_snapshot`: the module default settings S8's fleet script collects; `requireStatusKey()` (401 without the key).
-11. `POST /pg_stat_statements_reset`: the only write (and only READ_AND_WRITE connection) on the health surface; `requireStatusKey()`.
+10. `/module_defaults_snapshot`: the module default settings S8's fleet script collects.
+11. `POST /pg_stat_statements_reset`: the only write (and only READ_AND_WRITE connection) on the health surface.
 12. `/dhis2-indicators-export`: every DHIS2 element in the dictionary with the indicator that carries it (`id` = the element's `data_id`, `label`, `mappedTo` = the indicator id; wire keys the Admin-Website reads, so they stay).
 
 **Central export: none** (ruled): there is no `export_central.ts`, no `main.ts` mount for one, and no `CENTRAL_SERVER_SECRET` env var. A future central hub streams run files instead of `ro_*` COPY.
@@ -103,7 +103,7 @@ SSH/credential/tunnel/psql recipes stay in the **gitignored** `PROTOCOL_ACCESS_D
 
 ## Open items
 
-- **`getInstanceMeta` is deliberately unguarded**: it is fetched pre-auth by the sign-in screen (`instance/logged_in_wrapper.tsx` ClerkNewLogin) so a guard would break login, and every field it exposes except `instanceFiscalYear`, `openAccess` and the two constants `adminVersion` and `isHealthy` is already public by design on `/health_check`. Open question: trim the payload (environment/databaseFolder/versions) to what the login screen needs, or accept as part of the deliberate health exposure inventory.
+- **`getInstanceMeta` is deliberately unguarded**: it is fetched pre-auth by the sign-in screen (`instance/logged_in_wrapper.tsx` ClerkNewLogin) so a guard would break login. It carries no user data, but `/health_check` is no longer public, so it is now the only unauthenticated view of the instance meta. Open question: trim the payload (environment/databaseFolder/versions) to what the login screen needs.
 - **Disk checks**: Linux-only fail-open (`df` GNU flags); `checkSpaceForDataset` has no `iceh` entry.
 - **Hardcoded personal emails** in shipped code: health_check's exclusion list, the resize-alert recipients, all fleet-config candidates.
 - **Legacy UUID project DBs stay on prod hosts** after consolidation; nothing drops them (see Production topology).

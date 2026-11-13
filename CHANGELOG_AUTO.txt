@@ -1,3 +1,8 @@
+[TBD] [user] [added] - Bug reports and suggestions now get an AI-generated first look added to the support email
+[TBD] [admin] [added] - Bug reports and suggestions now get an AI-generated initial assessment emailed to developers
+[TBD] [admin] [added] - Support team emails now include a plain-language summary from Claude's review of the report
+[TBD] [admin] [changed] - Fleet health and telemetry endpoints now require authentication instead of being publicly accessible
+[TBD] [admin] [internal] - Feedback planning has daily caps per reporter and per instance to control costs
 [2.11.0] [user] [changed] - Users table now always shows "Last active" column
 [2.11.0] [user] [changed] - Users table sorts by last active time by default
 [2.11.0] [user] [fixed] - "Last active" column loads instantly instead of showing "..."

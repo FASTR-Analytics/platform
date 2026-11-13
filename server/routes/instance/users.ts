@@ -641,7 +641,7 @@ async function fetchPeerIds(): Promise<string[]> {
 }
 
 /** Every other instance in the fleet and whether it knows either address,
- *  via servers.json + each instance's public /health_check user list. */
+ *  via servers.json + each instance's /health_check user list (status-key guarded). */
 async function discoverPeers(
   oldEmail: string,
   newEmail: string,
@@ -662,9 +662,12 @@ async function discoverPeers(
       let id: string | undefined;
       while ((id = queue.shift()) !== undefined) {
         try {
+          // /health_check requires the fleet status key; without it every
+          // peer answers 401 and is reported unreachable.
           const response = await fetch(
             `https://${id}.${FLEET_DOMAIN}/health_check`,
             {
+              headers: { "status-api-key": _STATUS_API_KEY },
               signal: AbortSignal.timeout(10_000),
             },
           );
@@ -776,8 +779,8 @@ defineRoute(
     // for one of them, and without this check a caller could rename themselves
     // to an address they don't control, or claim someone else's old account.
     // Dry runs are exempt: the wizard previews BEFORE the user adds the new
-    // address in Clerk, and the preview only reads user lists that
-    // /health_check already exposes publicly.
+    // address in Clerk. The preview reports only whether the caller's own old
+    // address and the one new address exist on each peer, never a user list.
     let clerkUserId: string | undefined;
     if (!_BYPASS_AUTH && !body.dryRun) {
       // Session tokens only: the ownership check is the ONLY authorization on

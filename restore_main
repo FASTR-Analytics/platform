@@ -163,10 +163,11 @@ sshx "$SSH_HOST" "wb c update $INSTANCE --server $PREV_VERSION && wb pull && wb 
     { echo "ERROR: could not start $PREV_IMAGE_TAG"; exit 1; }
 
 echo "5. Polling health (timeout ${HEALTH_TIMEOUT_SECONDS}s)"
-if ! command ssh "${SSH_OPTS[@]}" "$SSH_HOST" "PORT='$PORT' TIMEOUT='$HEALTH_TIMEOUT_SECONDS' bash -s" <<'REMOTE'
+if ! command ssh "${SSH_OPTS[@]}" "$SSH_HOST" "INSTANCE='$INSTANCE' PORT='$PORT' TIMEOUT='$HEALTH_TIMEOUT_SECONDS' bash -s" <<'REMOTE'
 deadline=$((SECONDS + TIMEOUT))
 while [ "$SECONDS" -lt "$deadline" ]; do
-    body=$(curl -sfm 5 "http://localhost:$PORT/health_check" || true)
+    [ -n "$key" ] || key=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$INSTANCE" 2>/dev/null | sed -n 's/^STATUS_API_KEY=//p')
+    body=$(curl -sfm 5 -H "status-api-key: $key" "http://localhost:$PORT/health_check" || true)
     case "$body" in
         *'"running":true'*) exit 0 ;;
     esac

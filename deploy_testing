@@ -179,7 +179,8 @@ if ! ssh "$SSH_HOST" "INSTANCE='$INSTANCE' PORT='$PORT' TIMEOUT='$HEALTH_TIMEOUT
 deadline=$((SECONDS + TIMEOUT))
 healthy=false
 while [ "$SECONDS" -lt "$deadline" ]; do
-    body=$(curl -sfm 5 "http://localhost:$PORT/health_check" || true)
+    [ -n "$key" ] || key=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$INSTANCE" 2>/dev/null | sed -n 's/^STATUS_API_KEY=//p')
+    body=$(curl -sfm 5 -H "status-api-key: $key" "http://localhost:$PORT/health_check" || true)
     case "$body" in
         *'"running":true'*)
             healthy=true

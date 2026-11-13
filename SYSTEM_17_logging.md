@@ -9,7 +9,7 @@ docs_absorbed:
 
 # S17: Activity Logging & Audit Trail
 
-Who did what, when, on which instance. Two tables in the main DB (`user_logs` raw, `user_logs_aggregate` weekly roll-up), two writers (the per-route `log()` middleware and S16's edit-session hook), one retention cron, and a read surface that spans the instance Users tab, S15's unauthenticated health endpoints, and the external Admin-Website. Tiny code surface, two files, but fleet-wide data: the Admin-Website's activity analytics are built entirely on these rows.
+Who did what, when, on which instance. Two tables in the main DB (`user_logs` raw, `user_logs_aggregate` weekly roll-up), two writers (the per-route `log()` middleware and S16's edit-session hook), one retention cron, and a read surface that spans the instance Users tab, S15's status-key health endpoints, and the external Admin-Website. Tiny code surface, two files, but fleet-wide data: the Admin-Website's activity analytics are built entirely on these rows.
 
 ## Write path 1: the `log()` middleware
 
@@ -31,7 +31,7 @@ S16's `createVersionTracker` `onSessionEnd` hook ([version_capture.ts](server/co
 ## Readers
 
 - `users.last_active_at` (migration 230, backfilled from `MAX(user_logs.timestamp)`): `AddLog` stamps the user's row with the new log row's timestamp in the same statement, at most once a minute per user, so every writer through `AddLog` (the middleware, the edit sessions, the tour and What's new telemetry) counts as activity. `renameUserEmail`'s own audit row bypasses it; the rename copies the column with the row. The roster row carries it as `lastActiveAt` (S18 "The roster" limits it to `can_view_users` holders) for the Users tab's "Last active" column (`users/users.tsx`). No route returns a row's `details`.
-- S15's unauthenticated health endpoints (`server/routes/instance/health.ts`): `/user_logs` (getCurrentUser trail), `/user_logs_all`, `/user_logs_aggregate`, plus `/health_check` and `/user_activity` derived views. S15 owns the file; S17 is a mandatory reader of the queries.
+- S15's status-key health endpoints (`server/routes/instance/health.ts`): `/user_logs` (getCurrentUser trail), `/user_logs_all`, `/user_logs_aggregate`, plus `/health_check` and `/user_activity` derived views. S15 owns the file; S17 is a mandatory reader of the queries.
 - Admin-Website (separate repo) fetches the health endpoints per instance (and via its `/all/:endpoint` aggregate proxy) for sign-in heatmaps, currently-active users, and per-user activity. Its ServerActivityModal counts every non-`getCurrentUser` row as "user activity", so logging noise directly inflates the fleet's activity metrics.
 
 ## Coverage conventions
