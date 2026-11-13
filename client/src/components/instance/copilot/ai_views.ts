@@ -10,6 +10,7 @@ import type {
   AnyAIView,
   APIResponseNoData,
   APIResponseWithData,
+  FigureInputs,
 } from "panther";
 import {
   COPILOT_PACKAGE_VIEWS,
@@ -249,7 +250,18 @@ export type EditingReportContext = PackageViewContext & {
   getTheme: () => string;
   proposeEdit: (proposal: ReportEditProposal) => ReportEditProposalResult;
   applyFigureUpdate: (figureId: string, block: FigureBlock) => Promise<boolean>;
+  // A figure as the report draws it: the embed's own inputs, palette and ink
+  // applied, and the colour of the ground it sits on. Undefined for an id
+  // the report does not hold.
+  getFigureLook: (
+    figureId: string,
+  ) => { draw: ReportFigureDraw; ground: string } | undefined;
 };
+
+// A report figure's inputs as the report draws it, or the reason it cannot.
+export type ReportFigureDraw =
+  | { ok: true; inputs: FigureInputs }
+  | { ok: false; err: string };
 
 export type ReportParams = {
   reportId: string;

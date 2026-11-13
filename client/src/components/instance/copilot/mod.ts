@@ -20,6 +20,7 @@ export type {
   OpenSlide,
   PackagePageContext,
   PackageViewContext,
+  ReportFigureDraw,
 } from "./ai_views.ts";
 export type {
   DataRowStatus,

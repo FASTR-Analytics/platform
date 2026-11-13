@@ -36,8 +36,14 @@ export {
 export { ProductSettings } from "./product_settings.tsx";
 export { ProductTitle } from "./product_title.tsx";
 export { ReportHtmlPreview } from "./report_html_preview.tsx";
-export { ReportFigureEmbed } from "./report_figure_embed.tsx";
-export type { FigureStaleContext } from "./report_figure_embed.tsx";
+export {
+  buildReportFigureInputs,
+  ReportFigureEmbed,
+} from "./report_figure_embed.tsx";
+export type {
+  FigureGround,
+  FigureStaleContext,
+} from "./report_figure_embed.tsx";
 export {
   divSurface,
   iframeSurface,
