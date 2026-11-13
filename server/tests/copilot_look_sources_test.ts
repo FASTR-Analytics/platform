@@ -16,7 +16,7 @@ function source(path: string): string {
 }
 
 function calls(text: string, fn: string): boolean {
-  return new RegExp(`\\b${fn}\\(`).test(text);
+  return new RegExp(`\\b${fn.replaceAll(".", "\\.")}\\(`).test(text);
 }
 
 // The text of a top-level function, from its declaration to the first line
