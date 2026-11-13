@@ -22,6 +22,7 @@ import {
   type FastrReportTheme,
   fastrThemeIds,
   type FigureBlock,
+  type FigureBundle,
   findReportEmbeds,
   getDataFromConfig,
   getFastrReportTheme,
@@ -93,7 +94,7 @@ function liveFiguresOf(
   return reportLiveFigures(ctx.getBody(), ctx.getFigures());
 }
 
-export function liveFigureOrRefuse(
+function liveFigureOrRefuse(
   ctx: EditingReportContext,
   figureId: string,
 ): FigureBlock {
@@ -106,6 +107,20 @@ export function liveFigureOrRefuse(
     );
   }
   return fig;
+}
+
+export function liveBundleOrRefuse(
+  ctx: EditingReportContext,
+  figureId: string,
+  verb: "read" | "edited",
+): FigureBundle {
+  const bundle = liveFigureOrRefuse(ctx, figureId).bundle;
+  if (!bundle) {
+    throw new AIToolFailure(
+      `Figure "${figureId}" has no resolved data yet and can't be ${verb}.`,
+    );
+  }
+  return bundle;
 }
 
 // A text edit the package refused. A body that broke a rule is a tool
@@ -486,13 +501,7 @@ export function getClientToolsForReportEditor(
       kind: "read",
       handler: async (input, view) => {
         const ctx = view.context;
-        const fig = liveFigureOrRefuse(ctx, input.figureId);
-        if (!fig.bundle) {
-          throw new AIToolFailure(
-            `Figure "${input.figureId}" has no resolved data yet and can't be read.`,
-          );
-        }
-        const bundle = fig.bundle;
+        const bundle = liveBundleOrRefuse(ctx, input.figureId, "read");
         const { lines, metric, config } = readFigureMetricForAI(
           metrics,
           bundle,
@@ -538,12 +547,7 @@ export function getClientToolsForReportEditor(
       kind: "write",
       handler: async (input, view) => {
         const ctx = view.context;
-        const fig = liveFigureOrRefuse(ctx, input.figureId);
-        if (!fig.bundle) {
-          throw new AIToolFailure(
-            `Figure "${input.figureId}" has no resolved data yet and can't be edited.`,
-          );
-        }
+        const bundle = liveBundleOrRefuse(ctx, input.figureId, "edited");
         // metricId/type are not in the patch schema (silently stripped), so an
         // all-unsupported patch arrives empty: reject it instead of re-resolving
         // the figure unchanged and falsely reporting success.
@@ -555,7 +559,6 @@ export function getClientToolsForReportEditor(
               "show a different indicator or chart, use replace_figure.",
           );
         }
-        const bundle = fig.bundle;
         const { lines: moved, metric, config: storedConfig } =
           editFigureMetricForAI(metrics, bundle);
 

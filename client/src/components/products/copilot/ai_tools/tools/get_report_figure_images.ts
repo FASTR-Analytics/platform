@@ -18,7 +18,7 @@ import {
   type ToolImage,
 } from "../../_shared/mod.ts";
 import { describeFigureUnavailableForAI } from "./figure_unavailable_for_ai.ts";
-import { liveFigureOrRefuse } from "./report_editor.ts";
+import { liveBundleOrRefuse } from "./report_editor.ts";
 
 export function createGetReportFigureImagesTool() {
   return createAITool({
@@ -40,15 +40,9 @@ export function createGetReportFigureImagesTool() {
     handler: async (input, view) => {
       const ctx = view.context;
       const figureIds = [...new Set(input.figureIds)];
-      const bundles = figureIds.map((figureId) => {
-        const bundle = liveFigureOrRefuse(ctx, figureId).bundle;
-        if (!bundle) {
-          throw new AIToolFailure(
-            `Figure "${figureId}" has no resolved data yet and can't be read.`,
-          );
-        }
-        return bundle;
-      });
+      const bundles = figureIds.map((figureId) =>
+        liveBundleOrRefuse(ctx, figureId, "read")
+      );
       const images: ToolImage[] = [];
       for (const [i, figureId] of figureIds.entries()) {
         await awaitFigureBoundaries(bundles[i]);
