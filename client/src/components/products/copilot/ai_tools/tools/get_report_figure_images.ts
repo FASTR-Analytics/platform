@@ -8,7 +8,7 @@ import {
   loadFontsWithTimeout,
 } from "panther";
 import { z } from "zod";
-import { COPILOT_TOOL_VIEWS } from "lib";
+import { COPILOT_TOOL_VIEWS, type FigureUnavailable } from "lib";
 import { awaitFigureBoundaries } from "~/generate_visualization/mod";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import {
@@ -18,6 +18,23 @@ import {
   type ToolImage,
 } from "../../_shared/mod.ts";
 import { liveFigureOrRefuse } from "./report_editor.ts";
+
+// The reason the embed shows, in English for the model.
+function describeUnavailable(reason: FigureUnavailable): string {
+  if (reason.kind === "no_area_matches") {
+    return `none of its ${reason.dataAreas} data areas matches one of the ${reason.boundaries} map boundaries${
+      reason.source === "package" ? " in this results package" : ""
+    }.`;
+  }
+  const boundaries =
+    `the ${reason.family.toUpperCase()} map boundaries at Admin Area ${reason.level}`;
+  if (reason.kind === "boundaries_loading") {
+    return `${boundaries} are still loading.`;
+  }
+  return reason.source === "package"
+    ? `this results package was generated without ${boundaries}.`
+    : `${boundaries} have not been uploaded to this instance.`;
+}
 
 export function createGetReportFigureImagesTool() {
   return createAITool({
@@ -59,7 +76,11 @@ export function createGetReportFigureImagesTool() {
         }
         if (!look.draw.ok) {
           throw new AIToolFailure(
-            `Figure "${figureId}" cannot be drawn: ${look.draw.err}`,
+            `Figure "${figureId}" cannot be drawn: ${
+              "unavailable" in look.draw
+                ? describeUnavailable(look.draw.unavailable)
+                : look.draw.err
+            }`,
           );
         }
         const inputs = look.draw.inputs;

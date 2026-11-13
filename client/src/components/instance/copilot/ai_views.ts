@@ -29,6 +29,7 @@ import type {
   DatasetType,
   FigureBlock,
   FigureLocalization,
+  FigureUnavailable,
   HfaDictionaryForValidation,
   HfaIndicator,
   HfaIndicatorCode,
@@ -258,10 +259,13 @@ export type EditingReportContext = PackageViewContext & {
   ) => { draw: ReportFigureDraw; ground: string } | undefined;
 };
 
-// A report figure's inputs as the report draws it, or the reason it cannot.
+// A report figure's inputs as the report draws it, or the reason it cannot:
+// a reason the build gave as data, so each surface words it in its own
+// language, or an error's text.
 export type ReportFigureDraw =
   | { ok: true; inputs: FigureInputs }
-  | { ok: false; err: string };
+  | { ok: false; err: string }
+  | { ok: false; unavailable: FigureUnavailable };
 
 export type ReportParams = {
   reportId: string;

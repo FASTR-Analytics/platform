@@ -76,7 +76,7 @@ export function buildReportFigureInputs(
   try {
     const built = buildFigureInputs(bundle, undefined, chartPalette);
     if (!built.ok) {
-      return { ok: false, err: describeFigureUnavailable(built.unavailable) };
+      return { ok: false, unavailable: built.unavailable };
     }
     return {
       ok: true,
@@ -133,7 +133,10 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
   };
   const errMsg = () => {
     const d = drawn();
-    return d.ok ? undefined : d.err;
+    if (d.ok) return undefined;
+    return "unavailable" in d
+      ? describeFigureUnavailable(d.unavailable)
+      : d.err;
   };
 
   const staleBadge = () => {

@@ -156,3 +156,4 @@ Starts when `./sync --check wb-fastr`, run in the panther repo, reports nothing 
 ## §6 Log
 
 - Step 1: the sync commits carry the step's subject, their own `panther sync` line moved to the body, because the review greps the step's commits by subject. Step 1 is three syncs, not one: a second panther commit (6afd69d4, a comment) landed before the review, and the review's fix made `IMAGE_LIMITS` package-public in panther (13e17ccb) so the brief, the tool's description and the test read the cap of 20 instead of restating it.
+- Step 3: the shared builder's commit also edits the two `mod.ts` entries its exports pass through, `instance/copilot/mod.ts` (`ReportFigureDraw`) and `products/_shared/mod.ts` (`buildReportFigureInputs`, `FigureGround`), which the step's Surface did not list.
