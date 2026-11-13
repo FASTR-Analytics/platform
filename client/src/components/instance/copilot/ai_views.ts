@@ -45,6 +45,7 @@ import type {
   RunProgress,
   Slide,
   SlideDeckConfig,
+  TranslatableString,
 } from "lib";
 import { onCleanup } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
@@ -271,6 +272,17 @@ export type ReportParams = {
   reportId: string;
 };
 
+// What a figure editor's preview shows: the figure's inputs, or what stands
+// in for them. The preview's own words are kept in every language where it
+// has them, so the user reads theirs and the copilot reads English.
+export type FigureEditorPreviewText = TranslatableString | string;
+export type FigureEditorPreview =
+  | { status: "ready"; inputs: FigureInputs }
+  | { status: "loading"; msg?: FigureEditorPreviewText }
+  | { status: "notice"; msg: TranslatableString }
+  | { status: "error"; err: FigureEditorPreviewText }
+  | { status: "unavailable"; reason: FigureUnavailable };
+
 // A figure editor's view: the figure it edits or shows, by its metric, and
 // its draft config live, read and applied. `figureId` names the slide block,
 // the report figure or the package's preset.
@@ -282,6 +294,8 @@ export type FigureEditorContext = PackageViewContext & {
    *  preview a patch labels it exactly as the figure does. */
   getLocalization: () => FigureLocalization;
   applyDraftConfig: (config: PresentationObjectConfig) => void;
+  // The preview as it stands: the one state the preview draws from.
+  getPreview: () => FigureEditorPreview;
 };
 export type EditingSlideFigureParams = {
   deckId: string;

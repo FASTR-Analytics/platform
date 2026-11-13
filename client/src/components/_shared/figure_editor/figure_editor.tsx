@@ -46,11 +46,9 @@ import {
   createEffect,
   createMemo,
   createSignal,
-  Match,
   onCleanup,
   onMount,
   Show,
-  Switch,
   untrack,
 } from "solid-js";
 import {
@@ -67,6 +65,8 @@ import {
 } from "~/state/instance/collab";
 import { resolveScope } from "~/state/instance/t1_store";
 import {
+  type FigureEditorPreview,
+  type FigureEditorPreviewText,
   type FigureEditorView,
   setFigureEditorView,
 } from "~/components/instance/copilot/mod.ts";
@@ -194,6 +194,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     getDraftConfig: () => unwrap(tempConfig),
     getLocalization: () => p.localization,
     applyDraftConfig: (config) => setTempConfig(reconcile(config)),
+    getPreview: () => preview(),
   });
 
   const [itemsHolder, setItemsHolder] = createSignal<
@@ -209,6 +210,154 @@ export function VisualizationEditorInner(p: InnerProps) {
       pt: "A obter dados para visualizar...",
     }),
   });
+
+  // What the preview shows. The preview draws from it and the copilot's look
+  // reads it, so the look sees what the user sees.
+  const preview = createMemo<FigureEditorPreview>(() => {
+    const { config, effectiveValueProps } = getEffectivePOConfig(tempConfig, {
+      valueProps: metric.valueProps,
+      singleValueDims: getSingleValueDimsFromPossibleValues(
+        p.resultsValueInfo.disaggregationPossibleValues,
+      ),
+    });
+    if (
+      hasDuplicateDisaggregatorDisplayOptions(
+        metric,
+        config,
+        effectiveValueProps,
+      )
+    ) {
+      return {
+        status: "notice",
+        msg: {
+          en: "You have two disaggregators with the same display option",
+          fr:
+            "Vous disposez de deux désagrégateurs avec la même option d'affichage",
+          pt: "Tem dois desagregadores com a mesma opção de apresentação",
+        },
+      };
+    }
+    if (
+      getReplicateByProp(tempConfig) && !tempConfig.d.selectedReplicantValue
+    ) {
+      return {
+        status: "notice",
+        msg: {
+          en: "You must select a replicant",
+          fr: "Un réplicant doit être sélectionné",
+          pt: "Tem de selecionar um replicante",
+        },
+      };
+    }
+    const holder = itemsHolder();
+    if (holder.status === "loading") {
+      return { status: "loading", msg: holder.msg };
+    }
+    if (holder.status === "error") return { status: "error", err: holder.err };
+    const { ih, config: effectiveConfig } = holder.data;
+    if (ih.status === "too_many_items") {
+      return {
+        status: "notice",
+        msg: {
+          en:
+            "Too many data points selected. Please add filters or reduce disaggregation options to view fewer than 20,000 data points.",
+          fr:
+            "Trop de points de données sélectionnés. Veuillez ajouter des filtres ou réduire les options de désagrégation pour afficher moins de 20 000 points de données.",
+          pt:
+            "Demasiados pontos de dados selecionados. Adicione filtros ou reduza as opções de desagregação para ver menos de 20.000 pontos de dados.",
+        },
+      };
+    }
+    if (ih.status === "no_data_available") {
+      return {
+        status: "notice",
+        msg: {
+          en: "No data available with current filter selection.",
+          fr: "Aucune donnée disponible avec la sélection de filtre actuelle.",
+          pt: "Não há dados disponíveis com a seleção de filtros atual.",
+        },
+      };
+    }
+    if (ih.items.length === 0) {
+      return {
+        status: "error",
+        err: {
+          en: "No rows returned from database for this filter configuration",
+          fr:
+            "Aucune ligne retournée de la base de données pour cette configuration de filtre",
+          pt:
+            "Nenhuma linha devolvida da base de dados para esta configuração de filtro",
+        },
+      };
+    }
+    // Deep-track s and t so this re-runs on ANY nested change: including a
+    // collaborator's edit reconciled IN PLACE into a nested array (e.g. a
+    // conditional-formatting threshold bucket's color: reconcile fires only
+    // the leaf `s.cfThresholdBuckets[i].color`, which a shallow top-level read
+    // misses). Same primitive as the fetch effect below.
+    trackStore(tempConfig.s);
+    trackStore(tempConfig.t);
+    if (tempConfig.d.type === "timeseries") {
+      if (!tempConfig.d.timeseriesGrouping) {
+        throw new Error("Timeseries config missing timeseriesGrouping");
+      }
+      if (!(tempConfig.d.timeseriesGrouping in ih.items[0])) {
+        return {
+          status: "loading",
+          msg: {
+            en: "Re-fetching data...",
+            fr: "Récupération des données...",
+            pt: "A obter dados novamente...",
+          },
+        };
+      }
+    }
+    try {
+      const bundle = makeFigureBundleFromFetchedData(
+        scope(),
+        {
+          resultsValue: metric,
+          ih: ih as Parameters<typeof makeFigureBundleFromFetchedData>[1]["ih"],
+          effectiveConfig,
+        },
+        p.localization,
+      );
+      // The host's palette, so the figure is edited in the colours it prints
+      // in.
+      const built = buildFigureInputs(bundle, undefined, p.chartPalette?.());
+      return built.ok
+        ? { status: "ready", inputs: built.inputs }
+        : { status: "unavailable", reason: built.unavailable };
+    } catch (e) {
+      return {
+        status: "error",
+        err: e instanceof Error ? e.message : "Render error",
+      };
+    }
+  });
+  // The preview in the user's language: a notice it shows in place of the
+  // figure, or else the figure's state.
+  const previewNotice = () => {
+    const v = preview();
+    return v.status === "notice" ? t3(v.msg) : undefined;
+  };
+  const previewState = (): StateHolder<FigureInputs> | undefined => {
+    const v = preview();
+    const text = (t: FigureEditorPreviewText) =>
+      typeof t === "string" ? t : t3(t);
+    switch (v.status) {
+      case "ready":
+        return { status: "ready", data: v.inputs };
+      case "loading":
+        return { status: "loading", msg: v.msg && text(v.msg) };
+      case "error":
+        return { status: "error", err: text(v.err) };
+      case "unavailable":
+        return { status: "error", err: describeFigureUnavailable(v.reason) };
+      case "notice":
+        return undefined;
+    }
+  };
 
   // Sub-state updater
 
@@ -927,231 +1076,44 @@ export function VisualizationEditorInner(p: InnerProps) {
                 );
               }}
             </Show>
-            <Show
-              when={(() => {
-                const { config, effectiveValueProps } = getEffectivePOConfig(
-                  tempConfig,
-                  {
-                    valueProps: metric.valueProps,
-                    singleValueDims: getSingleValueDimsFromPossibleValues(
-                      p.resultsValueInfo.disaggregationPossibleValues,
-                    ),
-                  },
-                );
-                return !hasDuplicateDisaggregatorDisplayOptions(
-                  metric,
-                  config,
-                  effectiveValueProps,
-                );
-              })()}
-              fallback={
-                <div class="ui-pad">
-                  {t3({
-                    en:
-                      "You have two disaggregators with the same display option",
-                    fr:
-                      "Vous disposez de deux désagrégateurs avec la même option d'affichage",
-                    pt:
-                      "Tem dois desagregadores com a mesma opção de apresentação",
-                  })}
-                </div>
-              }
+            <div
+              class="ui-pad h-full w-full overflow-auto"
+              data-cursor-zone="preview-area"
             >
               <Show
-                when={!getReplicateByProp(tempConfig) ||
-                  tempConfig.d.selectedReplicantValue}
-                fallback={
-                  <div class="ui-pad">
-                    {t3({
-                      en: "You must select a replicant",
-                      fr: "Un réplicant doit être sélectionné",
-                      pt: "Tem de selecionar um replicante",
-                    })}
-                  </div>
-                }
+                when={previewState()}
+                fallback={<div>{previewNotice()}</div>}
               >
-                <StateHolderWrapper
-                  state={itemsHolder()}
-                  loadingAndErrorPad="md"
-                >
-                  {(keyedItemsHolder) => {
-                    return (
-                      <Switch>
-                        <Match
-                          when={keyedItemsHolder.ih.status === "too_many_items"}
+                {(state) => (
+                  <StateHolderWrapper state={state()}>
+                    {(keyedFigureInputs) => {
+                      const coverage = getFigureMapCoverage(keyedFigureInputs);
+                      return (
+                        <div
+                          class="flex flex-col"
+                          classList={{ "h-full": editorHeight() === "flex" }}
                         >
-                          <div class="ui-pad">
-                            {t3({
-                              en:
-                                "Too many data points selected. Please add filters or reduce disaggregation options to view fewer than 20,000 data points.",
-                              fr:
-                                "Trop de points de données sélectionnés. Veuillez ajouter des filtres ou réduire les options de désagrégation pour afficher moins de 20 000 points de données.",
-                              pt:
-                                "Demasiados pontos de dados selecionados. Adicione filtros ou reduza as opções de desagregação para ver menos de 20.000 pontos de dados.",
-                            })}
+                          <div
+                            classList={{
+                              "min-h-0 flex-1": editorHeight() === "flex",
+                            }}
+                          >
+                            <FigureHolder
+                              figureInputs={keyedFigureInputs}
+                              height={editorHeight()}
+                              canvasElementId="VIZ_PREVIEW_CANVAS"
+                            />
                           </div>
-                        </Match>
-                        <Match
-                          when={keyedItemsHolder.ih.status ===
-                            "no_data_available"}
-                        >
-                          <div class="ui-pad">
-                            {t3({
-                              en:
-                                "No data available with current filter selection.",
-                              fr:
-                                "Aucune donnée disponible avec la sélection de filtre actuelle.",
-                              pt:
-                                "Não há dados disponíveis com a seleção de filtros atual.",
-                            })}
-                          </div>
-                        </Match>
-                        <Match when={keyedItemsHolder.ih.status === "ok"}>
-                          {(() => {
-                            const figureInputs = createMemo<
-                              StateHolder<FigureInputs>
-                            >(() => {
-                              // Check for empty items array (shouldn't happen with new discriminated union, but keeping for safety)
-                              if (
-                                keyedItemsHolder.ih.status === "ok" &&
-                                keyedItemsHolder.ih.items.length === 0
-                              ) {
-                                return {
-                                  status: "error",
-                                  err: t3({
-                                    en:
-                                      "No rows returned from database for this filter configuration",
-                                    fr:
-                                      "Aucune ligne retournée de la base de données pour cette configuration de filtre",
-                                    pt:
-                                      "Nenhuma linha devolvida da base de dados para esta configuração de filtro",
-                                  }),
-                                };
-                              }
-                              // Reactive dependency read: re-render on type change.
-                              const _type = tempConfig.d.type;
-                              // Deep-track s and t so this render re-runs on ANY
-                              // nested change: including a collaborator's edit
-                              // reconciled IN PLACE into a nested array (e.g. a
-                              // conditional-formatting threshold bucket's color:
-                              // reconcile fires only the leaf `s.cfThresholdBuckets
-                              // [i].color`, which a shallow top-level read misses).
-                              // Same primitive as the fetch effect above.
-                              trackStore(tempConfig.s);
-                              trackStore(tempConfig.t);
-                              if (
-                                _type === "timeseries" &&
-                                keyedItemsHolder.ih.status === "ok" &&
-                                keyedItemsHolder.ih.items.length > 0
-                              ) {
-                                if (!tempConfig.d.timeseriesGrouping) {
-                                  throw new Error(
-                                    "Timeseries config missing timeseriesGrouping",
-                                  );
-                                }
-                                const periodProp =
-                                  tempConfig.d.timeseriesGrouping;
-                                if (
-                                  !(periodProp in keyedItemsHolder.ih.items[0])
-                                ) {
-                                  return {
-                                    status: "loading",
-                                    msg: t3({
-                                      en: "Re-fetching data...",
-                                      fr: "Récupération des données...",
-                                      pt: "A obter dados novamente...",
-                                    }),
-                                  };
-                                }
-                              }
-                              try {
-                                const bundle = makeFigureBundleFromFetchedData(
-                                  scope(),
-                                  {
-                                    resultsValue: metric,
-                                    ih: keyedItemsHolder.ih as Parameters<
-                                      typeof makeFigureBundleFromFetchedData
-                                    >[1]["ih"],
-                                    effectiveConfig: keyedItemsHolder.config,
-                                  },
-                                  p.localization,
-                                );
-                                // The host's palette, so the figure is
-                                // edited in the colours it prints in.
-                                const built = buildFigureInputs(
-                                  bundle,
-                                  undefined,
-                                  p.chartPalette?.(),
-                                );
-                                return built.ok
-                                  ? {
-                                    status: "ready" as const,
-                                    data: built.inputs,
-                                  }
-                                  : {
-                                    status: "error" as const,
-                                    err: describeFigureUnavailable(
-                                      built.unavailable,
-                                    ),
-                                  };
-                              } catch (e) {
-                                return {
-                                  status: "error" as const,
-                                  err: e instanceof Error
-                                    ? e.message
-                                    : "Render error",
-                                };
-                              }
-                            });
-
-                            return (
-                              <div
-                                class="ui-pad h-full w-full overflow-auto"
-                                data-cursor-zone="preview-area"
-                              >
-                                <StateHolderWrapper state={figureInputs()}>
-                                  {(keyedFigureInputs) => {
-                                    const coverage = getFigureMapCoverage(
-                                      keyedFigureInputs,
-                                    );
-                                    return (
-                                      <div
-                                        class="flex flex-col"
-                                        classList={{
-                                          "h-full": editorHeight() === "flex",
-                                        }}
-                                      >
-                                        <div
-                                          classList={{
-                                            "min-h-0 flex-1":
-                                              editorHeight() === "flex",
-                                          }}
-                                        >
-                                          <FigureHolder
-                                            figureInputs={keyedFigureInputs}
-                                            height={editorHeight()}
-                                            canvasElementId="VIZ_PREVIEW_CANVAS"
-                                          />
-                                        </div>
-                                        <Show when={coverage} keyed>
-                                          {(c) => (
-                                            <MapCoverageLine coverage={c} />
-                                          )}
-                                        </Show>
-                                      </div>
-                                    );
-                                  }}
-                                </StateHolderWrapper>
-                              </div>
-                            );
-                          })()}
-                        </Match>
-                      </Switch>
-                    );
-                  }}
-                </StateHolderWrapper>
+                          <Show when={coverage} keyed>
+                            {(c) => <MapCoverageLine coverage={c} />}
+                          </Show>
+                        </div>
+                      );
+                    }}
+                  </StateHolderWrapper>
+                )}
               </Show>
-            </Show>
+            </div>
           </div>
         </FrameLeftResizable>
       </FrameTop>

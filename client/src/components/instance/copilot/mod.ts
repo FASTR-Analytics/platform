@@ -14,6 +14,8 @@ export type {
   EditingSlideDeckContext,
   ExploreContext,
   FigureEditorContext,
+  FigureEditorPreview,
+  FigureEditorPreviewText,
   FigureEditorView,
   HfaIndicatorEditorContext,
   HfaIndicatorsContext,
