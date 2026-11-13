@@ -8,7 +8,6 @@ import {
   getSingleValueDimsFromPossibleValues,
   hasDuplicateDisaggregatorDisplayOptions,
   isSampleNProp,
-  ItemsHolderPresentationObject,
   materializeFigureConfig,
   type MetricWithStatus,
   normalizePOConfigForStorage,
@@ -82,6 +81,7 @@ import {
 } from "~/generate_visualization/mod";
 import { getTableExportAoa } from "~/exports/get_table_export_aoa";
 import {
+  type FigureItemsState,
   getPresentationObjectItemsFromCacheOrFetch,
   getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator,
 } from "~/state/products/t2_figure_data";
@@ -197,22 +197,10 @@ export function VisualizationEditorInner(p: InnerProps) {
     getPreview: () => preview(),
   });
 
-  const [itemsHolder, setItemsHolder] = createSignal<
-    StateHolder<{
-      ih: ItemsHolderPresentationObject;
-      config: PresentationObjectConfig;
-    }>
-  >({
+  const [itemsHolder, setItemsHolder] = createSignal<FigureItemsState>({
     status: "loading",
-    msg: t3({
-      en: "Fetching data to be visualized...",
-      fr: "Récupération des données à visualiser...",
-      pt: "A obter dados para visualizar...",
-    }),
   });
 
-  // What the preview shows. The preview draws from it and the copilot's look
-  // reads it, so the look sees what the user sees.
   const preview = createMemo<FigureEditorPreview>(() => {
     const { config, effectiveValueProps } = getEffectivePOConfig(tempConfig, {
       valueProps: metric.valueProps,
@@ -250,9 +238,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       };
     }
     const holder = itemsHolder();
-    if (holder.status === "loading") {
-      return { status: "loading", msg: holder.msg };
-    }
+    if (holder.status === "loading") return { status: "loading" };
     if (holder.status === "error") return { status: "error", err: holder.err };
     const { ih, config: effectiveConfig } = holder.data;
     if (ih.status === "too_many_items") {
@@ -335,8 +321,6 @@ export function VisualizationEditorInner(p: InnerProps) {
       };
     }
   });
-  // The preview in the user's language: a notice it shows in place of the
-  // figure, or else the figure's state.
   const previewNotice = () => {
     const v = preview();
     return v.status === "notice" ? t3(v.msg) : undefined;

@@ -16,7 +16,7 @@ import {
 } from "~/components/instance/copilot/mod.ts";
 import { describeToolImage, encodeToolImage } from "../../_shared/mod.ts";
 import { describeFigureUnavailableForAI } from "./figure_unavailable_for_ai.ts";
-import { assertFigureEditorStillOpen } from "./figure_editor.ts";
+import type { FigureEditorViewState } from "./figure_editor.ts";
 
 // The editor draws its preview on its own white ground.
 const PREVIEW_GROUND = "#ffffff";
@@ -47,7 +47,11 @@ function previewRefusal(
   }
 }
 
-export function createGetFigureEditorImageTool() {
+// `assertStillOpen` is update_figure_editor's check, handed in rather than
+// imported so this file and the group that registers it do not import each other.
+export function createGetFigureEditorImageTool(
+  assertStillOpen: (view: FigureEditorViewState) => void,
+) {
   return createAITool({
     viewRegistry: copilotViews,
     name: "get_figure_editor_image",
@@ -64,7 +68,7 @@ export function createGetFigureEditorImageTool() {
       await loadFontsWithTimeout(
         new CustomFigureStyle(preview.inputs.style).getFontsToRegister(),
       );
-      assertFigureEditorStillOpen(view);
+      assertStillOpen(view);
       const image = encodeToolImage(
         (widthPx) => getFigureAsCanvas(preview.inputs, widthPx),
         PREVIEW_GROUND,

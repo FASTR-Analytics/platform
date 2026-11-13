@@ -294,7 +294,6 @@ export type FigureEditorContext = PackageViewContext & {
    *  preview a patch labels it exactly as the figure does. */
   getLocalization: () => FigureLocalization;
   applyDraftConfig: (config: PresentationObjectConfig) => void;
-  // The preview as it stands: the one state the preview draws from.
   getPreview: () => FigureEditorPreview;
 };
 export type EditingSlideFigureParams = {

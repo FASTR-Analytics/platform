@@ -39,7 +39,7 @@ export type FigureEditorViewState = Extract<
 
 // The draft the call read is the one it writes: the editor that set the view
 // is still the current one once the awaits return.
-export function assertFigureEditorStillOpen(view: FigureEditorViewState): void {
+function assertFigureEditorStillOpen(view: FigureEditorViewState): void {
   const current = copilotViewController.current();
   if (current.id !== view.id || current.context !== view.context) {
     throw new AIToolFailure(
@@ -48,11 +48,6 @@ export function assertFigureEditorStillOpen(view: FigureEditorViewState): void {
   }
 }
 
-// The Figure editor group: the open figure editor's draft, read
-// and written live through the view's context, in the three figure views.
-// The write is update_figure's validate-before-commit pipeline over the
-// draft instead of a stored bundle, with the editor's own patch schema, which
-// adds the chart type and the timeseries grouping the editor can change.
 export function getClientToolsForFigureEditor(
   env: ClientAIToolEnv,
   metrics: MetricWithStatus[],
@@ -77,7 +72,7 @@ export function getClientToolsForFigureEditor(
       inProgressLabel: "Reading the figure editor...",
       completionMessage: "Read the figure editor",
     }),
-    createGetFigureEditorImageTool(),
+    createGetFigureEditorImageTool(assertFigureEditorStillOpen),
     createAITool({
       viewRegistry: copilotViews,
       name: "update_figure_editor",
