@@ -9,13 +9,13 @@ import {
   type ChartComponentSizes,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
-  estimateMinYScaleAxisWidth,
+  estimateMinYValueAxisWidth,
   estimateTierHeaderAndLabelGapWidth,
+  getDimensionMembers,
   PANE_HEADER_SAMPLE_MAX_W,
   type RenderContext,
   resolveDefaultLegend,
   SIZING_SAMPLE,
-  slotHeaders,
 } from "../deps.ts";
 import { getTimeseriesDataTransformed } from "../get_timeseries_data.ts";
 import type { TimeseriesDataTransformed, TimeseriesInputs } from "../types.ts";
@@ -45,8 +45,8 @@ export function getTimeseriesComponentSizes(
   // xPeriod tick labels are short, fixed-format (years/months) and never wrap
   // or rotate, so this unwrapped sample is a faithful estimate of the real axis
   // height — Timeseries intentionally stays on the estimate fit path (it does
-  // not pass a ResolveFloorPlotH). If long/wrapping period labels are ever
-  // introduced, route it through the probe like ChartOV (resolveScaleAxisFloorPlotH).
+  // not pass a ResolveFloorExtent). If long/wrapping period labels are ever
+  // introduced, route it through the probe like ChartOV (resolveValueAxisFloorSubChartHeight).
   const xAxisTickH = rc
     .mText(
       SIZING_SAMPLE.periodTick,
@@ -79,17 +79,17 @@ export function getTimeseriesComponentSizes(
   return {
     customFigureStyle: cs,
     mergedStyle: ms,
-    nLanes: slotHeaders(data.lane).length,
-    nTiers: slotHeaders(data.tier).length,
-    nPanes: slotHeaders(data.pane).length,
+    nLanes: getDimensionMembers(data.lane).length,
+    nTiers: getDimensionMembers(data.tier).length,
+    nPanes: getDimensionMembers(data.pane).length,
     minSubChartWidth,
-    minSubChartHeight: calculateMinSubChartHeight(rc, ms.yScaleAxis),
+    minSubChartHeight: calculateMinSubChartHeight(rc, ms.yValueAxis),
     xAxisHeight,
     paneHeaderHeight,
-    minYAxisWidth: estimateMinYScaleAxisWidth(
+    minYAxisWidth: estimateMinYValueAxisWidth(
       rc,
-      data.yScaleAxisLabel,
-      ms.yScaleAxis,
+      data.yValueAxisLabel,
+      ms.yValueAxis,
       ms.grid,
       estimateTierHeaderAndLabelGapWidth(rc, data.tier, data.lane, ms),
     ),

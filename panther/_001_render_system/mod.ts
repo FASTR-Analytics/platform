@@ -5,7 +5,7 @@
 
 export * from "./chart_info_types.ts";
 export * from "./diagram_info_types.ts";
-export * from "./header_types.ts";
+export * from "./dimension_types.ts";
 export * from "./render_context.ts";
 export * from "./types.ts";
 export * from "./primitives/mod.ts";

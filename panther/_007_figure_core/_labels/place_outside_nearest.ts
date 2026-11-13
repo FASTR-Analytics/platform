@@ -22,7 +22,7 @@ import {
 
 export type NearestLabelInput = {
   // Where the label's own element is — a pie slice's mid-radius point, a map
-  // region's interior anchor. The nearest track point to THIS is where the
+  // area's interior anchor. The nearest track point to THIS is where the
   // label wants to be.
   anchor: Point;
   width: number;
@@ -119,7 +119,7 @@ const REPAIR_ROUNDS = 8;
 // rate between arc and DU is unreadable; fall back to the cap.
 const REPAIR_MIN_SEPARATION_DU = 1;
 // A pair that needs more arc than this per DU is on a stretch of track so folded
-// that separating them would drag a label right off its own region. Capping the
+// that separating them would drag a label right off its own map area. Capping the
 // ask is what makes the round budget bite instead of one pathological pair
 // eating the whole track.
 const REPAIR_MAX_ARC_PER_DU = 4;
@@ -332,7 +332,7 @@ type ComponentLayout = {
 //
 // "The nearest point on the track" is a total rule only on a convex silhouette,
 // where every track point has open space outward. On a real coastline it is
-// not: the nearest point to an interior region can face more land, and the box
+// not: the nearest point to an interior map area can face more land, and the box
 // has nowhere to go. Measured on East Africa, 5 of 19 labels had no seat at
 // their nearest point — and because relaxation only moves a label when a
 // NEIGHBOUR forces it, a single refusal used to fail the entire cell to flank.
@@ -662,7 +662,7 @@ export function placeNearestBoxes(
       );
     };
 
-    const crossingCount = (layout: ComponentLayout): number => {
+    const nCrossings = (layout: ComponentLayout): number => {
       let n = 0;
       for (let a = 0; a < members.length; a++) {
         for (let b = a + 1; b < members.length; b++) {
@@ -692,7 +692,7 @@ export function placeNearestBoxes(
     //
     // Both halves of the hand-back are needed. The seed is what reorders labels
     // whose slots differ; their place in `ordering` is what reorders labels whose
-    // slots are EQUAL, which on a map is the ordinary case — two regions sharing
+    // slots are EQUAL, which on a map is the ordinary case — two map areas sharing
     // one nearest track point tie, and the relaxation breaks the tie on the
     // sequence it was handed. Measured on Kenya adm1: the one crossing pair on
     // the 16-label map is exactly such a tie, so a seed-only swap came back
@@ -772,7 +772,7 @@ export function placeNearestBoxes(
     if (opts.untangleLeaders && members.length > 1) {
       let bestSeeds = seeds;
       let bestLayout = layout;
-      let bestCrossings = crossingCount(layout);
+      let bestCrossings = nCrossings(layout);
       let barren = 0;
       for (
         let sweep = 0;
@@ -788,7 +788,7 @@ export function placeNearestBoxes(
         seeds = swapped.seeds;
         ordering = swapped.ordering;
         layout = next;
-        const crossings = crossingCount(next);
+        const crossings = nCrossings(next);
         if (crossings < bestCrossings) {
           bestCrossings = crossings;
           bestSeeds = seeds;

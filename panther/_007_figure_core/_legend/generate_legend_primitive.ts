@@ -6,9 +6,9 @@
 import {
   buildItem,
   Coordinates,
+  itemCoordinate,
   labelBoxRcd,
   RectCoordsDims,
-  slotCoordinate,
   unionRectCoordsDims,
   Z_INDEX,
 } from "../deps.ts";
@@ -27,20 +27,21 @@ export function generateLegendPrimitive(
   bounds: RectCoordsDims,
   seriesDimension: string | undefined,
 ): FigureLegendPrimitive {
-  const items: FigureLegendPrimitive["items"] = [];
+  const entries: FigureLegendPrimitive["entries"] = [];
 
   let currentX = coords.x();
   let currentY = coords.y();
   const colorBoxWidthOrPointWidth = mLegend.colorBoxWidthOrPointWidth;
 
   mLegend.groups.forEach(
-    ({ allMeasuredLines, legendItemsThisGroup, wThisGroupLabels }) => {
-      allMeasuredLines.forEach((mText, i_legendItem) => {
-        const item = legendItemsThisGroup[i_legendItem]!;
-        const pointStyle = item.pointStyle;
-        const lineStrokeWidthScaleFactor = item.lineStrokeWidthScaleFactor ?? 1;
-        const lineDash = item.lineDash ?? "solid";
-        const color = item.color;
+    ({ allMeasuredLines, legendEntriesThisGroup, wThisGroupLabels }) => {
+      allMeasuredLines.forEach((mText, i_legendEntry) => {
+        const entry = legendEntriesThisGroup[i_legendEntry]!;
+        const pointStyle = entry.pointStyle;
+        const lineStrokeWidthScaleFactor = entry.lineStrokeWidthScaleFactor ??
+          1;
+        const lineDash = entry.lineDash ?? "solid";
+        const color = entry.color;
 
         // Label position (to the right of symbol)
         const labelPosition = new Coordinates([
@@ -49,7 +50,7 @@ export function generateLegendPrimitive(
         ]);
 
         // Symbol configuration (discriminated union)
-        let symbol: FigureLegendPrimitive["items"][number]["symbol"];
+        let symbol: FigureLegendPrimitive["entries"][number]["symbol"];
 
         if (pointStyle === undefined || pointStyle === "as-block") {
           // Rectangle symbol
@@ -102,17 +103,17 @@ export function generateLegendPrimitive(
           };
         }
 
-        const seriesHeader = item.id === undefined
+        const seriesMember = entry.id === undefined
           ? undefined
-          : { id: item.id, label: item.label };
-        items.push({
-          seriesHeader,
+          : { id: entry.id, label: entry.label };
+        entries.push({
+          seriesMember,
           mText,
           labelPosition,
           symbol,
           ...entryIdentity(
             seriesDimension,
-            seriesHeader,
+            seriesMember,
             unionRectCoordsDims([
               new RectCoordsDims([
                 currentX,
@@ -125,7 +126,7 @@ export function generateLegendPrimitive(
           ),
         });
 
-        currentY += mText.dims.h() + mLegend.s.legendItemVerticalGap;
+        currentY += mText.dims.h() + mLegend.s.legendEntryVerticalGap;
       });
 
       // Move to next column
@@ -142,9 +143,9 @@ export function generateLegendPrimitive(
     key: "legend",
     bounds,
     meta: {
-      // Figure-level legend - no paneIndex
+      // Figure-level legend - no i_pane
     },
-    items,
+    entries,
     zIndex: Z_INDEX.LEGEND,
   };
 }
@@ -153,9 +154,9 @@ export function generateLegendPrimitive(
 // slot and its label.
 function entryIdentity(
   seriesDimension: string | undefined,
-  seriesHeader: FigureLegendPrimitive["items"][number]["seriesHeader"],
+  seriesMember: FigureLegendPrimitive["entries"][number]["seriesMember"],
   hitBounds: RectCoordsDims,
 ): NestedIdentity {
-  const item = buildItem([slotCoordinate(seriesDimension, seriesHeader)]);
+  const item = buildItem([itemCoordinate(seriesDimension, seriesMember)]);
   return item === undefined ? {} : { item, part: "header", hitBounds };
 }

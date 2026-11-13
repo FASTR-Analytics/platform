@@ -124,7 +124,7 @@ export type PageInputsBase = {
 export type CoverPageInputs = PageInputsBase & {
   type: "cover";
   title?: string;
-  subTitle?: string;
+  subtitle?: string;
   author?: string;
   date?: string;
   titleLogos?: HTMLImageElement[];
@@ -134,7 +134,7 @@ export type CoverPageInputs = PageInputsBase & {
 export type SectionPageInputs = PageInputsBase & {
   type: "section";
   sectionTitle?: string;
-  sectionSubTitle?: string;
+  sectionSubtitle?: string;
 };
 
 // The page chrome that decides the content box. Logos are structural so a
@@ -188,11 +188,11 @@ type MeasuredPageBase = Measured<PageInputs> & {
 // Cover page specific measured data
 export type MeasuredCoverPage = MeasuredPageBase & {
   type: "cover";
-  item: CoverPageInputs;
+  inputs: CoverPageInputs;
   style: MergedCoverStyle;
   primitives: PagePrimitive[];
   mTitle?: MeasuredText;
-  mSubTitle?: MeasuredText;
+  mSubtitle?: MeasuredText;
   mAuthor?: MeasuredText;
   mDate?: MeasuredText;
 };
@@ -200,17 +200,17 @@ export type MeasuredCoverPage = MeasuredPageBase & {
 // Section page specific measured data
 export type MeasuredSectionPage = MeasuredPageBase & {
   type: "section";
-  item: SectionPageInputs;
+  inputs: SectionPageInputs;
   style: MergedSectionStyle;
   primitives: PagePrimitive[];
   mSectionTitle?: MeasuredText;
-  mSectionSubTitle?: MeasuredText;
+  mSectionSubtitle?: MeasuredText;
 };
 
 // Freeform page specific measured data
 export type MeasuredFreeformPage = MeasuredPageBase & {
   type: "freeform";
-  item: FreeformPageInputs;
+  inputs: FreeformPageInputs;
   style: MergedFreeformStyle;
   primitives: PagePrimitive[];
   header?: {

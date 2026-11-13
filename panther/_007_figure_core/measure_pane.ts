@@ -9,8 +9,8 @@ import {
 } from "./_axes/measure_y_axis.ts";
 import { measureXAxis } from "./_axes/measure_x_axis.ts";
 import type {
-  ChartLabelPrimitive,
-  DataAxis,
+  ChartHeaderPrimitive,
+  DataDimension,
   MeasuredText,
   MergedChartStyleBase,
   Primitive,
@@ -19,33 +19,33 @@ import type {
 } from "./deps.ts";
 import {
   buildItem,
+  getDimensionMembers,
+  itemCoordinate,
   Padding,
   RectCoordsDims,
-  slotCoordinate,
-  slotHeaders,
-  textBoxInAnchor,
+  textBoxInAlignRcd,
   Z_INDEX,
 } from "./deps.ts";
 import type {
   MeasurePaneConfig,
-  PaneBandLayout,
   PaneLayout,
+  PaneTierOrLaneLayout,
 } from "./measure_types.ts";
 import { generatePaneContentPrimitives } from "./generate_pane_content_primitives.ts";
 
 // The "-if-no-lanes" variants self-resolve at measure time (this is the only
-// point where both the style choice and the axis data are in scope): the
-// named position when this axis has no real lane disaggregation (a chart
+// point where both the style choice and the data dimensions are in scope): the
+// named position when this chart has no real lane disaggregation (a chart
 // with tiers but no lanes gains nothing from reserving a left-hand gutter
 // for tier headers), left otherwise so lane headers and tier headers don't
-// compete for the same horizontal band.
+// compete for the same horizontal strip.
 function resolveTierHeaderPosition(
   headerPosition: MergedChartStyleBase["tiers"]["headerPosition"],
-  lane: DataAxis | undefined,
-): "left" | "above-axis" | "above-plot-area" {
+  lane: DataDimension | undefined,
+): "left" | "above-axis" | "above-sub-chart" {
   if (
     headerPosition !== "above-axis-if-no-lanes" &&
-    headerPosition !== "above-plot-area-if-no-lanes"
+    headerPosition !== "above-sub-chart-if-no-lanes"
   ) {
     return headerPosition;
   }
@@ -54,42 +54,53 @@ function resolveTierHeaderPosition(
   }
   return headerPosition === "above-axis-if-no-lanes"
     ? "above-axis"
-    : "above-plot-area";
+    : "above-sub-chart";
 }
 
-// Proportional band layout: solve the pane-local slot thickness from the
-// pane's free plot extent (unless a chart-global slotT is threaded in) and
-// size each band as nInd_b × slotT (+ inter-slot strokes in sides mode —
-// mirrors ohPerSubChartPlotH / calculate_mapped_coordinates; omit the stroke
+// Proportional tier-or-lane layout: solve the pane-local slot thickness from the
+// pane's free category-axis extent (unless a chart-global slotExtent is threaded in) and
+// size each tier or lane as nInd_b × slotExtent (+ inter-slot strokes in sides mode —
+// mirrors ohSubChartHeight / calculate_mapped_coordinates; omit the stroke
 // term and every slot is ≈stroke/n too short). Σ_b (nInd_b + 1) strokes =
-// totalSlots + nBands.
-function solveBandLayout(
-  bandAxis: "tier" | "lane",
-  bandIndices: number[],
-  bandMasks: number[][],
-  freePlotExtent: number,
+// nSlots + nTiersOrLanes.
+function solveTierOrLaneLayout(
+  tierOrLaneDimension: "tier" | "lane",
+  tierOrLaneIndices: number[],
+  tierOrLaneMasks: number[][],
+  freeCategoryAxisExtent: number,
   centered: boolean,
-  gridStrokeWidth: number,
-  slotTOverride: number | undefined,
-): PaneBandLayout {
-  const visibleIndicators = bandIndices.map((b) => bandMasks[b] ?? []);
+  gridLineStrokeWidth: number,
+  slotExtentOverride: number | undefined,
+): PaneTierOrLaneLayout {
+  const visibleIndicators = tierOrLaneIndices.map((b) =>
+    tierOrLaneMasks[b] ?? []
+  );
   const counts = visibleIndicators.map((v) => v.length);
-  const totalSlots = counts.reduce((a, b) => a + b, 0);
+  const nSlots = counts.reduce((a, b) => a + b, 0);
   const strokeTerms = centered
     ? 0
-    : gridStrokeWidth * (totalSlots + bandIndices.length);
-  const slotT = slotTOverride ??
-    Math.max(0, (freePlotExtent - strokeTerms) / Math.max(1, totalSlots));
-  const bandExtents = counts.map((n) =>
-    n * slotT + (centered ? 0 : gridStrokeWidth * (n + 1))
+    : gridLineStrokeWidth * (nSlots + tierOrLaneIndices.length);
+  const slotExtent = slotExtentOverride ??
+    Math.max(
+      0,
+      (freeCategoryAxisExtent - strokeTerms) / Math.max(1, nSlots),
+    );
+  const tierOrLaneExtents = counts.map((n) =>
+    n * slotExtent + (centered ? 0 : gridLineStrokeWidth * (n + 1))
   );
-  return { bandAxis, bandIndices, visibleIndicators, slotT, bandExtents };
+  return {
+    tierOrLaneDimension,
+    tierOrLaneIndices,
+    visibleIndicators,
+    slotExtent,
+    tierOrLaneExtents,
+  };
 }
 
 // layoutOnly skips content-primitive generation (bars/points/lines/labels) —
 // the expensive part of a measure. Used by getIdealHeight/fitReport probes,
 // which only consume the returned layout geometry. Header/axis text is still
-// measured (it determines the layout); only the plot contents are skipped.
+// measured (it determines the layout); only the sub-chart contents are skipped.
 export function measurePane<TData>(
   rc: RenderContext,
   config: MeasurePaneConfig<TData>,
@@ -97,44 +108,51 @@ export function measurePane<TData>(
 ): { primitives: Primitive[]; layout: PaneLayout } {
   const i_pane = config.indices.pane;
   const baseStyle = config.baseStyle;
-  const { pane, tier, lane } = config.dataProps;
-  const paneHeader = pane?.headers[i_pane];
-  const allTiers = slotHeaders(tier).map((_, i) => i);
-  const allLanes = slotHeaders(lane).map((_, i) => i);
+  const { pane, tier, lane } = config.dataDimensions;
+  const paneMember = pane?.members[i_pane];
+  const allTiers = getDimensionMembers(tier).map((_, i) => i);
+  const allLanes = getDimensionMembers(lane).map((_, i) => i);
   const nTiers = allTiers.length;
   const headerPosition = resolveTierHeaderPosition(
     baseStyle.tiers.headerPosition,
     lane,
   );
 
-  // Unbalanced tier/lane membership: this pane's visible band subsets
+  // Unbalanced tier/lane membership: this pane's visible tier-or-lane subsets
   // (global indices). Space divisions and header-label placement iterate the
   // subset; extent measures (header column width/row height) and every data
   // lookup keep the global set/indices.
-  const visibleTiers = config.dataProps.visibleTiersByPane?.[i_pane];
-  const visibleLanes = config.dataProps.visibleLanesByPane?.[i_pane];
+  const visibleTiers = config.dataDimensions.visibleTiersByPane?.[i_pane];
+  const visibleLanes = config.dataDimensions.visibleLanesByPane?.[i_pane];
 
-  // Proportional band layout: this pane's per-(band) visible indicator
-  // masks. The band iteration list drops bands with no visible indicators
-  // in this pane (empty-band policy — legitimate data, never asserted).
-  const bandMasks = config.dataProps.visibleIndicatorsByPaneBand?.[i_pane];
-  const tierBandIndices = bandMasks && config.orientation === "horizontal" &&
+  // Proportional tier-or-lane layout: this pane's per-(tier or lane) visible indicator
+  // masks. The tier-or-lane iteration list drops tiers or lanes with no visible indicators
+  // in this pane (empty tier-or-lane policy — legitimate data, never asserted).
+  const tierOrLaneMasks = config.dataDimensions
+    .visibleIndicatorsByPaneTierOrLane?.[i_pane];
+  const proportionalTierIndices =
+    tierOrLaneMasks && config.orientation === "horizontal" &&
       config.yAxisConfig.type === "text"
-    ? (visibleTiers ?? allTiers).filter((t) => (bandMasks[t]?.length ?? 0) > 0)
-    : undefined;
-  const laneBandIndices = bandMasks && config.orientation === "vertical" &&
+      ? (visibleTiers ?? allTiers).filter((t) =>
+        (tierOrLaneMasks[t]?.length ?? 0) > 0
+      )
+      : undefined;
+  const proportionalLaneIndices =
+    tierOrLaneMasks && config.orientation === "vertical" &&
       config.xAxisConfig.type === "text"
-    ? (visibleLanes ?? allLanes).filter((l) => (bandMasks[l]?.length ?? 0) > 0)
-    : undefined;
+      ? (visibleLanes ?? allLanes).filter((l) =>
+        (tierOrLaneMasks[l]?.length ?? 0) > 0
+      )
+      : undefined;
 
-  const nTierBands = tierBandIndices
-    ? Math.max(1, tierBandIndices.length)
+  const nLaidOutTiers = proportionalTierIndices
+    ? Math.max(1, proportionalTierIndices.length)
     : visibleTiers
     ? Math.max(1, visibleTiers.length)
     : nTiers;
 
-  const maxTierHeaderWidth = config.geometry.contentRcd.w() *
-    baseStyle.tiers.maxHeaderWidthAsPctOfChart;
+  const maxTierHeaderWidth = config.geometry.innerRcd.w() *
+    baseStyle.tiers.maxHeaderWidthFractionOfPane;
 
   const headerGap = baseStyle.tiers.headerGap;
 
@@ -168,62 +186,63 @@ export function measurePane<TData>(
     rc,
     config.yAxisConfig,
     baseStyle.grid,
-    config.geometry.contentRcd,
+    config.geometry.innerRcd,
     i_pane,
     tierHeaderAndLabelGapWidth,
     nTiers,
   );
 
   const nLanes = allLanes.length;
-  const nLaneBands = laneBandIndices
-    ? Math.max(1, laneBandIndices.length)
+  const nLaidOutLanes = proportionalLaneIndices
+    ? Math.max(1, proportionalLaneIndices.length)
     : visibleLanes
     ? Math.max(1, visibleLanes.length)
     : nLanes;
   const lanes = baseStyle.lanes;
-  const xAxisW = config.geometry.contentRcd.w() -
+  const xAxisW = config.geometry.innerRcd.w() -
     yAxisWidthInfo.widthIncludingYAxisStrokeWidth;
-  const subChartAreaWidth = (xAxisW -
-    (lanes.paddingLeft + Math.max(0, nLaneBands - 1) * lanes.gapX +
+  const uniformSubChartWidth = (xAxisW -
+    (lanes.paddingLeft + Math.max(0, nLaidOutLanes - 1) * lanes.gapX +
       lanes.paddingRight)) /
-    Math.max(1, nLaneBands);
+    Math.max(1, nLaidOutLanes);
 
-  // Proportional lane bands (OV): solve slotT from the free width — exactly
-  // the equal-split numerator, reconstructed as subChartAreaWidth × nBands.
-  const laneBands =
-    laneBandIndices && bandMasks && config.xAxisConfig.type === "text"
-      ? solveBandLayout(
-        "lane",
-        laneBandIndices,
-        bandMasks,
-        subChartAreaWidth * laneBandIndices.length,
-        config.xAxisConfig.axisStyle.tickPosition === "center",
-        baseStyle.grid.gridStrokeWidth,
-        config.slotT,
-      )
-      : undefined;
+  // Proportional lanes (OV): solve slotExtent from the free width — exactly
+  // the equal-split numerator, reconstructed as uniformSubChartWidth × nTiersOrLanes.
+  const laneLayout = proportionalLaneIndices && tierOrLaneMasks &&
+      config.xAxisConfig.type === "text"
+    ? solveTierOrLaneLayout(
+      "lane",
+      proportionalLaneIndices,
+      tierOrLaneMasks,
+      uniformSubChartWidth * proportionalLaneIndices.length,
+      config.xAxisConfig.axisStyle.tickPosition === "center",
+      baseStyle.grid.gridLineStrokeWidth,
+      config.slotExtent,
+    )
+    : undefined;
 
   // This pane's indicator order (a subset under unbalanced membership, a
   // permutation under a value sort); x-text axis only — slot layout goes
   // per-pane, axis extent stays global.
   const xAxisConfig = config.xAxisConfig;
-  const visibleIndicators = config.dataProps.visibleIndicatorsByPane?.[i_pane];
-  const visibleXTextHeaders =
+  const visibleIndicators = config.dataDimensions.visibleIndicatorsByPane
+    ?.[i_pane];
+  const visibleXTextMembers =
     visibleIndicators !== undefined && xAxisConfig.type === "text"
-      ? visibleIndicators.map((i) => xAxisConfig.indicatorHeaders[i])
+      ? visibleIndicators.map((i) => xAxisConfig.indicatorMembers[i])
       : undefined;
 
   const xAxisMeasuredInfo = measureXAxis(
     rc,
-    config.geometry.contentRcd,
+    config.geometry.innerRcd,
     yAxisWidthInfo,
-    subChartAreaWidth,
+    uniformSubChartWidth,
     config.xAxisConfig,
     baseStyle.grid,
     i_pane,
     nLanes,
-    visibleXTextHeaders,
-    laneBands?.slotT,
+    visibleXTextMembers,
+    laneLayout?.slotExtent,
   );
 
   const {
@@ -231,135 +250,136 @@ export function measurePane<TData>(
     measuredTexts: measuredLaneHeaders,
   } = baseStyle.lanes.hideHeaders
     ? { value: 0, measuredTexts: [] }
-    : laneBands
-    ? measureLaneHeadersProportional(rc, laneBands, lane, baseStyle)
-    : measureLaneHeaders(rc, subChartAreaWidth, lane, baseStyle);
+    : laneLayout
+    ? measureLaneHeadersProportional(rc, laneLayout, lane, baseStyle)
+    : measureLaneHeaders(rc, uniformSubChartWidth, lane, baseStyle);
   const topHeightForLaneHeaders = laneHeaderTextHeight > 0
     ? laneHeaderTextHeight + baseStyle.lanes.headerGap
     : 0;
 
-  const { yAxisRcd, subChartAreaHeight } = measureYAxisLayout(
+  const { yAxisRcd, uniformSubChartHeight } = measureYAxisLayout(
     topHeightForLaneHeaders,
     xAxisMeasuredInfo.xAxisRcd.h(),
     yAxisWidthInfo,
     baseStyle.tiers,
-    config.geometry.contentRcd,
-    nTierBands,
+    config.geometry.innerRcd,
+    nLaidOutTiers,
     tierHeaderAndLabelGapHeight,
   );
 
-  // Proportional tier bands (OH): solve slotT from the free height — exactly
-  // the equal-split numerator, reconstructed as subChartAreaHeight × nBands.
-  const tierBands =
-    tierBandIndices && bandMasks && config.yAxisConfig.type === "text"
-      ? solveBandLayout(
-        "tier",
-        tierBandIndices,
-        bandMasks,
-        subChartAreaHeight * tierBandIndices.length,
-        config.yAxisConfig.axisStyle.tickPosition === "center",
-        baseStyle.grid.gridStrokeWidth,
-        config.slotT,
-      )
-      : undefined;
-  const paneBands = laneBands ?? tierBands;
+  // Proportional tiers (OH): solve slotExtent from the free height — exactly
+  // the equal-split numerator, reconstructed as uniformSubChartHeight × nTiersOrLanes.
+  const tierLayout = proportionalTierIndices && tierOrLaneMasks &&
+      config.yAxisConfig.type === "text"
+    ? solveTierOrLaneLayout(
+      "tier",
+      proportionalTierIndices,
+      tierOrLaneMasks,
+      uniformSubChartHeight * proportionalTierIndices.length,
+      config.yAxisConfig.axisStyle.tickPosition === "center",
+      baseStyle.grid.gridLineStrokeWidth,
+      config.slotExtent,
+    )
+    : undefined;
+  const tierOrLaneLayout = laneLayout ?? tierLayout;
 
   const measured = {
     yAxisWidthInfo,
     xAxisMeasuredInfo,
     yAxisRcd,
-    subChartAreaHeight,
-    subChartAreaWidth,
+    uniformSubChartHeight,
+    uniformSubChartWidth,
     topHeightForLaneHeaders,
     tierHeaderAndLabelGapHeight,
-    paneBands,
+    tierOrLaneLayout,
   };
 
   const labelPrimitives: Primitive[] = [];
 
   if (config.paneHeader) {
     const panePadding = new Padding(baseStyle.panes.padding);
-    // The header hugs its plot: the row's header strip may be taller than
+    // The header hugs its sub-chart: the row's header strip may be taller than
     // this header, and the slack belongs above it, not between it and the
     // chart it names.
-    const paneHeaderBounds = new RectCoordsDims({
+    const paneHeaderRcd = new RectCoordsDims({
       x: config.geometry.outerRcd.x() + panePadding.pl(),
-      y: config.geometry.contentRcd.y() - baseStyle.panes.headerGap -
+      y: config.geometry.innerRcd.y() - baseStyle.panes.headerGap -
         config.paneHeader.dims.h(),
       w: config.geometry.outerRcd.w() - panePadding.pl() - panePadding.pr(),
       h: config.paneHeader.dims.h(),
     });
     labelPrimitives.push({
-      type: "chart-label",
+      type: "chart-header",
       key: `pane-header-${i_pane}`,
-      item: buildItem([slotCoordinate(pane?.dimension, paneHeader)]),
+      item: buildItem([itemCoordinate(pane?.name, paneMember)]),
       part: "header",
-      hitBounds: paneHeaderBounds,
-      bounds: textBoxInAnchor(
+      hitBounds: paneHeaderRcd,
+      bounds: textBoxInAlignRcd(
         config.paneHeader,
-        paneHeaderBounds,
+        paneHeaderRcd,
         baseStyle.panes.headerAlignH,
         "top",
       ),
-      anchorRcd: paneHeaderBounds,
+      alignRcd: paneHeaderRcd,
       zIndex: Z_INDEX.LABEL,
-      meta: { labelType: "pane", paneIndex: i_pane, paneHeader },
+      meta: { headerType: "pane", i_pane, paneMember },
       mText: config.paneHeader,
-      alignment: { h: baseStyle.panes.headerAlignH, v: "top" },
+      alignH: baseStyle.panes.headerAlignH,
+      alignV: "top",
     });
   }
 
-  // How far the y-axis's topmost tick label pokes above each tier's plot
+  // How far the y-axis's topmost tick label pokes above each tier's sub-chart
   // area (left-positioned, top-aligned tier headers line up with it). With
-  // overhang clearance, scale-axis top labels stay inside the plot except
+  // overhang clearance, value-axis top labels stay inside the sub-chart except
   // for the half-grid-stroke rendering convention; inset labels hang fully
   // inside.
-  const tierHeaderTopNudge = config.yAxisConfig.type === "scale"
+  const tierHeaderTopNudge = config.yAxisConfig.type === "value"
     ? (config.yAxisConfig.axisStyle.tickLabelAlignment === "inset"
       ? 0
       : Math.min(
         yAxisWidthInfo.halfYAxisTickLabelH,
-        baseStyle.grid.gridStrokeWidth / 2,
+        baseStyle.grid.gridLineStrokeWidth / 2,
       ))
     : yAxisWidthInfo.halfYAxisTickLabelH;
 
   labelPrimitives.push(
     ...tierHeaderLabelPrimitives(
       measuredTierHeaders,
-      tierBands?.bandIndices ?? visibleTiers ?? allTiers,
+      tierLayout?.tierOrLaneIndices ?? visibleTiers ?? allTiers,
       tierHeaderTopNudge,
       yAxisRcd,
-      subChartAreaHeight,
+      uniformSubChartHeight,
       tierHeaderAndLabelGapWidth,
       tierHeaderAndLabelGapHeight,
       { ...baseStyle.tiers, headerPosition },
-      config.geometry.contentRcd,
+      config.geometry.innerRcd,
       i_pane,
       pane,
       tier,
-      tierBands?.bandExtents,
+      tierLayout?.tierOrLaneExtents,
     ),
   );
 
-  const laneHeaderRcd = new RectCoordsDims({
+  const laneHeaderStripRcd = new RectCoordsDims({
     x: xAxisMeasuredInfo.xAxisRcd.x(),
-    y: config.geometry.contentRcd.y(),
-    w: config.geometry.contentRcd.rightX() - xAxisMeasuredInfo.xAxisRcd.x(),
+    y: config.geometry.innerRcd.y(),
+    w: config.geometry.innerRcd.rightX() - xAxisMeasuredInfo.xAxisRcd.x(),
     h: laneHeaderTextHeight,
   });
   labelPrimitives.push(
     ...laneHeaderLabelPrimitives(
       measuredLaneHeaders,
-      laneBands?.bandIndices ?? visibleLanes ?? allLanes,
-      laneHeaderRcd,
-      subChartAreaWidth,
+      laneLayout?.tierOrLaneIndices ?? visibleLanes ?? allLanes,
+      laneHeaderStripRcd,
+      uniformSubChartWidth,
       lanes.paddingLeft,
       lanes.gapX,
       lanes.headerAlignH,
       i_pane,
       pane,
       lane,
-      laneBands?.bandExtents,
+      laneLayout?.tierOrLaneExtents,
     ),
   );
 
@@ -369,17 +389,17 @@ export function measurePane<TData>(
       ...generatePaneContentPrimitives(rc, config, measured),
     ],
     layout: {
-      subChartAreaHeight: measured.subChartAreaHeight,
-      subChartAreaWidth: measured.subChartAreaWidth,
+      uniformSubChartHeight: measured.uniformSubChartHeight,
+      uniformSubChartWidth: measured.uniformSubChartWidth,
       topHeightForLaneHeaders: measured.topHeightForLaneHeaders,
       tierHeaderAndLabelGapHeight: measured.tierHeaderAndLabelGapHeight,
       yAxisWidth: measured.yAxisWidthInfo.widthIncludingYAxisStrokeWidth,
-      paneContentWidth: config.geometry.contentRcd.w(),
-      proportionalSlotTotal: paneBands
-        ? paneBands.visibleIndicators.reduce((a, v) => a + v.length, 0)
+      paneInnerWidth: config.geometry.innerRcd.w(),
+      nProportionalSlots: tierOrLaneLayout
+        ? tierOrLaneLayout.visibleIndicators.reduce((a, v) => a + v.length, 0)
         : undefined,
-      proportionalBandCount: paneBands
-        ? paneBands.bandIndices.length
+      nProportionalTiersOrLanes: tierOrLaneLayout
+        ? tierOrLaneLayout.tierOrLaneIndices.length
         : undefined,
     },
   };
@@ -387,8 +407,8 @@ export function measurePane<TData>(
 
 export function estimateTierHeaderAndLabelGapWidth(
   rc: RenderContext,
-  tier: DataAxis | undefined,
-  lane: DataAxis | undefined,
+  tier: DataDimension | undefined,
+  lane: DataDimension | undefined,
   s: MergedChartStyleBase,
 ): number {
   if (s.tiers.hideHeaders) return 0;
@@ -406,19 +426,19 @@ export function estimateTierHeaderAndLabelGapWidth(
 
 function measureTierHeaders(
   rc: RenderContext,
-  tier: DataAxis | undefined,
+  tier: DataDimension | undefined,
   tierHeadersTextStyle: TextInfoUnkeyed,
   labelGap: number,
   maxWidth: number,
 ): { value: number; measuredTexts: MeasuredText[] } {
-  if (tier === undefined || tier.headers.length < 2) {
+  if (tier === undefined || tier.members.length < 2) {
     return { value: 0, measuredTexts: [] };
   }
   const measuredTexts: MeasuredText[] = [];
   let maxMeasuredWidth = 0;
-  for (const tierHeader of tier.headers) {
+  for (const tierMember of tier.members) {
     const mText = rc.mText(
-      tierHeader.label,
+      tierMember.label,
       tierHeadersTextStyle,
       maxWidth,
     );
@@ -430,20 +450,20 @@ function measureTierHeaders(
 
 function measureLaneHeaders(
   rc: RenderContext,
-  subChartAreaWidth: number,
-  lane: DataAxis | undefined,
+  uniformSubChartWidth: number,
+  lane: DataDimension | undefined,
   s: MergedChartStyleBase,
 ): { value: number; measuredTexts: MeasuredText[] } {
-  if (lane === undefined || lane.headers.length < 2) {
+  if (lane === undefined || lane.members.length < 2) {
     return { value: 0, measuredTexts: [] };
   }
   const measuredTexts: MeasuredText[] = [];
   let maxHeight = 0;
-  for (const laneHeader of lane.headers) {
+  for (const laneMember of lane.members) {
     const mText = rc.mText(
-      laneHeader.label,
+      laneMember.label,
       s.text.laneHeaders,
-      subChartAreaWidth,
+      uniformSubChartWidth,
     );
     measuredTexts.push(mText);
     maxHeight = Math.max(maxHeight, mText.dims.h());
@@ -451,34 +471,34 @@ function measureLaneHeaders(
   return { value: maxHeight, measuredTexts };
 }
 
-// Proportional lane bands (OV): each visible lane's header wraps at its own
-// band extent (bands are unequal, so a single shared wrap width is wrong).
+// Proportional lanes (OV): each visible lane's header wraps at its own
+// lane extent (lanes are unequal, so a single shared wrap width is wrong).
 // measuredTexts stays indexed by GLOBAL lane index; lanes dropped for this
-// pane are measured at slotT only to keep the array dense (they are never
+// pane are measured at slotExtent only to keep the array dense (they are never
 // placed) and are excluded from the reserved height.
 function measureLaneHeadersProportional(
   rc: RenderContext,
-  laneBands: PaneBandLayout,
-  lane: DataAxis | undefined,
+  laneLayout: PaneTierOrLaneLayout,
+  lane: DataDimension | undefined,
   s: MergedChartStyleBase,
 ): { value: number; measuredTexts: MeasuredText[] } {
-  if (lane === undefined || lane.headers.length < 2) {
+  if (lane === undefined || lane.members.length < 2) {
     return { value: 0, measuredTexts: [] };
   }
   const measuredTexts: MeasuredText[] = [];
   let maxHeight = 0;
-  for (let i_lane = 0; i_lane < lane.headers.length; i_lane++) {
-    const bandOrdinal = laneBands.bandIndices.indexOf(i_lane);
-    const wrapW = bandOrdinal >= 0
-      ? laneBands.bandExtents[bandOrdinal]
-      : laneBands.slotT;
+  for (let i_lane = 0; i_lane < lane.members.length; i_lane++) {
+    const tierOrLaneOrdinal = laneLayout.tierOrLaneIndices.indexOf(i_lane);
+    const wrapW = tierOrLaneOrdinal >= 0
+      ? laneLayout.tierOrLaneExtents[tierOrLaneOrdinal]
+      : laneLayout.slotExtent;
     const mText = rc.mText(
-      lane.headers[i_lane].label,
+      lane.members[i_lane].label,
       s.text.laneHeaders,
       wrapW,
     );
     measuredTexts.push(mText);
-    if (bandOrdinal >= 0) {
+    if (tierOrLaneOrdinal >= 0) {
       maxHeight = Math.max(maxHeight, mText.dims.h());
     }
   }
@@ -487,13 +507,13 @@ function measureLaneHeadersProportional(
 
 function tierHeaderLabelPrimitives(
   measuredTexts: MeasuredText[],
-  // Global tier indices to place, in band order (the visible subset under
-  // unbalanced membership; all tiers when balanced). Positions run by band
+  // Global tier indices to place, in tier order (the visible subset under
+  // unbalanced membership; all tiers when balanced). Positions run by tier
   // ordinal; keys/meta keep the global index.
   tierIndices: number[],
   tierHeaderTopNudge: number,
   yAxisRcd: RectCoordsDims,
-  subChartAreaHeight: number,
+  uniformSubChartHeight: number,
   tierHeaderAndLabelGapWidth: number,
   tierHeaderAndLabelGapHeight: number,
   tiers: {
@@ -502,107 +522,119 @@ function tierHeaderLabelPrimitives(
     headerGap: number;
     headerAlignH: "left" | "center" | "right";
     headerAlignV: "top" | "middle";
-    headerPosition: "left" | "above-axis" | "above-plot-area";
+    headerPosition: "left" | "above-axis" | "above-sub-chart";
   },
-  contentRcd: RectCoordsDims,
+  innerRcd: RectCoordsDims,
   i_pane: number,
-  pane: DataAxis | undefined,
-  tier: DataAxis | undefined,
-  // Proportional band layout: per-band extents parallel to tierIndices.
-  // Absent = uniform subChartAreaHeight per band.
-  bandExtents?: number[],
-): ChartLabelPrimitive[] {
+  pane: DataDimension | undefined,
+  tier: DataDimension | undefined,
+  // Proportional tier layout: per-tier extents parallel to tierIndices.
+  // Absent = uniform uniformSubChartHeight per tier.
+  tierOrLaneExtents?: number[],
+): ChartHeaderPrimitive[] {
   if (measuredTexts.length === 0) return [];
 
-  const paneHeader = pane?.headers[i_pane];
-  const tierIdentity = (i_tier: number, tierBounds: RectCoordsDims) => ({
+  const paneMember = pane?.members[i_pane];
+  const tierIdentity = (i_tier: number, tierHeaderRcd: RectCoordsDims) => ({
     item: buildItem([
-      slotCoordinate(pane?.dimension, paneHeader),
-      slotCoordinate(tier?.dimension, tier?.headers[i_tier]),
+      itemCoordinate(pane?.name, paneMember),
+      itemCoordinate(tier?.name, tier?.members[i_tier]),
     ]),
     part: "header" as const,
-    hitBounds: tierBounds,
+    hitBounds: tierHeaderRcd,
   });
-  const primitives: ChartLabelPrimitive[] = [];
+  const primitives: ChartHeaderPrimitive[] = [];
 
   if (tiers.headerPosition !== "left") {
     const boundsX = tiers.headerPosition === "above-axis"
       ? yAxisRcd.x()
       : yAxisRcd.rightX();
-    const boundsW = contentRcd.rightX() - boundsX;
+    const boundsW = innerRcd.rightX() - boundsX;
     let currentY = yAxisRcd.y() + tiers.paddingTop;
 
-    for (let bandOrdinal = 0; bandOrdinal < tierIndices.length; bandOrdinal++) {
-      const i_tier = tierIndices[bandOrdinal];
-      const bandExtent = bandExtents?.[bandOrdinal] ?? subChartAreaHeight;
-      const tierBounds = new RectCoordsDims({
+    for (
+      let tierOrLaneOrdinal = 0;
+      tierOrLaneOrdinal < tierIndices.length;
+      tierOrLaneOrdinal++
+    ) {
+      const i_tier = tierIndices[tierOrLaneOrdinal];
+      const tierOrLaneExtent = tierOrLaneExtents?.[tierOrLaneOrdinal] ??
+        uniformSubChartHeight;
+      const tierHeaderRcd = new RectCoordsDims({
         x: boundsX,
         y: currentY,
         w: boundsW,
         h: tierHeaderAndLabelGapHeight,
       });
       primitives.push({
-        type: "chart-label",
+        type: "chart-header",
         key: `tier-header-${i_pane}-${i_tier}`,
-        ...tierIdentity(i_tier, tierBounds),
-        bounds: textBoxInAnchor(
+        ...tierIdentity(i_tier, tierHeaderRcd),
+        bounds: textBoxInAlignRcd(
           measuredTexts[i_tier],
-          tierBounds,
+          tierHeaderRcd,
           tiers.headerAlignH,
           "top",
         ),
-        anchorRcd: tierBounds,
+        alignRcd: tierHeaderRcd,
         zIndex: Z_INDEX.LABEL,
         meta: {
-          labelType: "tier",
-          paneIndex: i_pane,
-          tierIndex: i_tier,
-          paneHeader,
-          tierHeader: tier?.headers[i_tier],
+          headerType: "tier",
+          i_pane,
+          i_tier,
+          paneMember,
+          tierMember: tier?.members[i_tier],
         },
         mText: measuredTexts[i_tier],
-        alignment: { h: tiers.headerAlignH, v: "top" },
+        alignH: tiers.headerAlignH,
+        alignV: "top",
       });
-      currentY += tierHeaderAndLabelGapHeight + bandExtent + tiers.gapY;
+      currentY += tierHeaderAndLabelGapHeight + tierOrLaneExtent + tiers.gapY;
     }
   } else {
     let currentY = yAxisRcd.y() + tiers.paddingTop;
 
-    for (let bandOrdinal = 0; bandOrdinal < tierIndices.length; bandOrdinal++) {
-      const i_tier = tierIndices[bandOrdinal];
-      const bandExtent = bandExtents?.[bandOrdinal] ?? subChartAreaHeight;
+    for (
+      let tierOrLaneOrdinal = 0;
+      tierOrLaneOrdinal < tierIndices.length;
+      tierOrLaneOrdinal++
+    ) {
+      const i_tier = tierIndices[tierOrLaneOrdinal];
+      const tierOrLaneExtent = tierOrLaneExtents?.[tierOrLaneOrdinal] ??
+        uniformSubChartHeight;
       const tierY = tiers.headerAlignV === "top"
         ? currentY - tierHeaderTopNudge
         : currentY;
-      const tierBounds = new RectCoordsDims({
+      const tierHeaderRcd = new RectCoordsDims({
         x: yAxisRcd.x(),
         y: tierY,
         w: tierHeaderAndLabelGapWidth - tiers.headerGap,
-        h: bandExtent,
+        h: tierOrLaneExtent,
       });
       primitives.push({
-        type: "chart-label",
+        type: "chart-header",
         key: `tier-header-${i_pane}-${i_tier}`,
-        ...tierIdentity(i_tier, tierBounds),
-        bounds: textBoxInAnchor(
+        ...tierIdentity(i_tier, tierHeaderRcd),
+        bounds: textBoxInAlignRcd(
           measuredTexts[i_tier],
-          tierBounds,
+          tierHeaderRcd,
           tiers.headerAlignH,
           tiers.headerAlignV,
         ),
-        anchorRcd: tierBounds,
+        alignRcd: tierHeaderRcd,
         zIndex: Z_INDEX.LABEL,
         meta: {
-          labelType: "tier",
-          paneIndex: i_pane,
-          tierIndex: i_tier,
-          paneHeader,
-          tierHeader: tier?.headers[i_tier],
+          headerType: "tier",
+          i_pane,
+          i_tier,
+          paneMember,
+          tierMember: tier?.members[i_tier],
         },
         mText: measuredTexts[i_tier],
-        alignment: { h: tiers.headerAlignH, v: tiers.headerAlignV },
+        alignH: tiers.headerAlignH,
+        alignV: tiers.headerAlignV,
       });
-      currentY += bandExtent + tiers.gapY;
+      currentY += tierOrLaneExtent + tiers.gapY;
     }
   }
 
@@ -611,66 +643,72 @@ function tierHeaderLabelPrimitives(
 
 function laneHeaderLabelPrimitives(
   measuredTexts: MeasuredText[],
-  // Global lane indices to place, in band order (the visible subset under
-  // unbalanced membership; all lanes when balanced). Positions run by band
+  // Global lane indices to place, in lane order (the visible subset under
+  // unbalanced membership; all lanes when balanced). Positions run by lane
   // ordinal; keys/meta keep the global index.
   laneIndices: number[],
-  laneHeaderRcd: RectCoordsDims,
-  subChartAreaWidth: number,
+  laneHeaderStripRcd: RectCoordsDims,
+  uniformSubChartWidth: number,
   lanePaddingLeft: number,
   laneGapX: number,
   headerAlignH: "left" | "center" | "right",
   i_pane: number,
-  pane: DataAxis | undefined,
-  lane: DataAxis | undefined,
-  // Proportional band layout: per-band extents parallel to laneIndices.
-  // Absent = uniform subChartAreaWidth per band.
-  bandExtents?: number[],
-): ChartLabelPrimitive[] {
+  pane: DataDimension | undefined,
+  lane: DataDimension | undefined,
+  // Proportional lane layout: per-lane extents parallel to laneIndices.
+  // Absent = uniform uniformSubChartWidth per lane.
+  tierOrLaneExtents?: number[],
+): ChartHeaderPrimitive[] {
   if (measuredTexts.length === 0) return [];
 
-  const paneHeader = pane?.headers[i_pane];
-  const primitives: ChartLabelPrimitive[] = [];
-  let currentX = laneHeaderRcd.x() + lanePaddingLeft;
+  const paneMember = pane?.members[i_pane];
+  const primitives: ChartHeaderPrimitive[] = [];
+  let currentX = laneHeaderStripRcd.x() + lanePaddingLeft;
 
-  for (let bandOrdinal = 0; bandOrdinal < laneIndices.length; bandOrdinal++) {
-    const i_lane = laneIndices[bandOrdinal];
-    const bandExtent = bandExtents?.[bandOrdinal] ?? subChartAreaWidth;
-    const laneBounds = new RectCoordsDims({
+  for (
+    let tierOrLaneOrdinal = 0;
+    tierOrLaneOrdinal < laneIndices.length;
+    tierOrLaneOrdinal++
+  ) {
+    const i_lane = laneIndices[tierOrLaneOrdinal];
+    const tierOrLaneExtent = tierOrLaneExtents?.[tierOrLaneOrdinal] ??
+      uniformSubChartWidth;
+    const laneHeaderRcd = new RectCoordsDims({
       x: currentX,
-      y: laneHeaderRcd.y(),
-      w: bandExtent,
-      h: laneHeaderRcd.h(),
+      y: laneHeaderStripRcd.y(),
+      w: tierOrLaneExtent,
+      h: laneHeaderStripRcd.h(),
     });
-    const laneHeader = lane?.headers[i_lane];
+    const laneMember = lane?.members[i_lane];
     primitives.push({
-      type: "chart-label",
+      type: "chart-header",
       key: `lane-header-${i_pane}-${i_lane}`,
       item: buildItem([
-        slotCoordinate(pane?.dimension, paneHeader),
-        slotCoordinate(lane?.dimension, laneHeader),
+        itemCoordinate(pane?.name, paneMember),
+        itemCoordinate(lane?.name, laneMember),
       ]),
       part: "header",
-      hitBounds: laneBounds,
-      bounds: textBoxInAnchor(
+      hitBounds: laneHeaderRcd,
+      bounds: textBoxInAlignRcd(
         measuredTexts[i_lane],
-        laneBounds,
+        laneHeaderRcd,
         headerAlignH,
         "bottom",
       ),
-      anchorRcd: laneBounds,
+      alignRcd: laneHeaderRcd,
       zIndex: Z_INDEX.LABEL,
       meta: {
-        labelType: "lane",
-        paneIndex: i_pane,
-        laneIndex: i_lane,
-        paneHeader,
-        laneHeader,
+        headerType: "lane",
+        i_pane,
+        i_lane,
+        paneMember,
+        laneMember,
       },
       mText: measuredTexts[i_lane],
-      alignment: { h: headerAlignH, v: "bottom" },
+      alignH: headerAlignH,
+      alignV: "bottom",
     });
-    currentX += bandExtent + laneGapX;
+    currentX += tierOrLaneExtent + laneGapX;
   }
 
   return primitives;

@@ -46,7 +46,7 @@ function getCoverPageInputs(
   return {
     type: "cover",
     title: t3({ en: "Title", fr: "Titre", pt: "Título" }),
-    subTitle: t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" }),
+    subtitle: t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" }),
     style,
     overlay: bgDetail.overlay,
     titleLogos: logos,

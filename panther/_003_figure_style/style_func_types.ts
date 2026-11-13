@@ -19,8 +19,8 @@ import {
   getAdjustedColor,
   type LineStyle,
   m,
-  type MapRegionInfo,
-  type MapRegionInfoFunc,
+  type MapAreaInfo,
+  type MapAreaInfoFunc,
   ms,
   msPadding,
   type Padding,
@@ -47,16 +47,16 @@ export const VALUES_COLOR_SENTINEL = 777;
 
 // The figure-wide magnitude slot. It receives the element being coloured —
 // the element's own Info, so a rule can be chosen by identity (this cell's
-// row, this bar's indicator, this region's pane) while the colour stays a
+// row, this bar's indicator, this map area's pane) while the colour stays a
 // function of the value. Returning undefined declines: the resolution site
 // then falls through as if no sentinel were set (bars and points take their
-// series colour; table cells and map regions take "none"). Legend sampling
+// series colour; table cells and map areas take "none"). Legend sampling
 // (resolveAutoScaleLegend) calls it with no element; an element-dependent
 // function should decline there, and the figure supplies an explicit legend.
 // min/max are figure-global, not per element.
 //
 // A header-free ValuesColorFunc (_001_color) is assignable to this slot as-is.
-export type ValueColorElement = TableCellInfo | ChartValueInfo | MapRegionInfo;
+export type ValueColorElement = TableCellInfo | ChartValueInfo | MapAreaInfo;
 
 export type FigureValuesColorFunc = (
   value: number | undefined,
@@ -114,7 +114,7 @@ function resolveValuesColorFunc(
 
 // A leader line has no existence apart from the label at its end, so it is a
 // property of the label — not a sibling of it on the host element. (It used to
-// sit as three flat fields on GenericMapRegionStyle.)
+// sit as three flat fields on GenericMapAreaStyle.)
 export type GenericLeaderLineStyle = {
   strokeColor: ColorKeyOrString;
   strokeWidth: number;
@@ -602,7 +602,7 @@ export function getPointStyleFunc(
     const oRadius = oc?.radius ?? og?.radius;
     const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
     const resolvedColor = color === VALUES_COLOR_SENTINEL
-      ? valuesColorFunc(info.val, info.valueMin, info.valueMax, info) ??
+      ? valuesColorFunc(info.value, info.valueMin, info.valueMax, info) ??
         seriesColorFunc(info)
       : color === SERIES_COLOR_SENTINEL
       ? seriesColorFunc(info)
@@ -684,7 +684,7 @@ export function getBarStyleFunc(
     const og = gf?.(info);
     const color = oc?.fillColor ?? og?.fillColor ?? dColor;
     const resolvedFillColor = color === VALUES_COLOR_SENTINEL
-      ? valuesColorFunc(info.val, info.valueMin, info.valueMax, info) ??
+      ? valuesColorFunc(info.value, info.valueMin, info.valueMax, info) ??
         seriesColorFunc(info)
       : color === SERIES_COLOR_SENTINEL
       ? seriesColorFunc(info)
@@ -849,7 +849,7 @@ export type GenericCascadeArrowStyleOptions = {
   strokeWidth?: number;
   arrowHeadLength?: number;
   showArrowhead?: boolean;
-  arrowLengthPctOfSpace?: number;
+  arrowLengthFractionOfSpace?: number;
   arrowLabelGap?: number;
   dataLabel?: GenericDataLabelStyleOptions;
 };
@@ -860,7 +860,7 @@ export type GenericCascadeArrowStyle = {
   strokeWidth: number;
   arrowHeadLength: number;
   showArrowhead: boolean;
-  arrowLengthPctOfSpace: number;
+  arrowLengthFractionOfSpace: number;
   arrowLabelGap: number;
   dataLabel: GenericDataLabelStyle;
 };
@@ -871,7 +871,7 @@ export type CascadeArrowStyle = {
   strokeWidth: number;
   arrowHeadLength: number;
   showArrowhead: boolean;
-  arrowLengthPctOfSpace: number;
+  arrowLengthFractionOfSpace: number;
   arrowLabelGap: number;
   dataLabel: DataLabelStyle;
 };
@@ -897,10 +897,10 @@ export function getCascadeArrowStyleFunc(
     d.arrowHeadLength,
   );
   const dShowArrowhead = m(c?.showArrowhead, g?.showArrowhead, d.showArrowhead);
-  const dArrowLengthPctOfSpace = m(
-    c?.arrowLengthPctOfSpace,
-    g?.arrowLengthPctOfSpace,
-    d.arrowLengthPctOfSpace,
+  const dArrowLengthFractionOfSpace = m(
+    c?.arrowLengthFractionOfSpace,
+    g?.arrowLengthFractionOfSpace,
+    d.arrowLengthFractionOfSpace,
   );
   const dArrowLabelGap = ms(
     _sf,
@@ -942,9 +942,9 @@ export function getCascadeArrowStyleFunc(
         ? oArrowHeadLength * _sf
         : dArrowHeadLength,
       showArrowhead: oc?.showArrowhead ?? og?.showArrowhead ?? dShowArrowhead,
-      arrowLengthPctOfSpace: oc?.arrowLengthPctOfSpace ??
-        og?.arrowLengthPctOfSpace ??
-        dArrowLengthPctOfSpace,
+      arrowLengthFractionOfSpace: oc?.arrowLengthFractionOfSpace ??
+        og?.arrowLengthFractionOfSpace ??
+        dArrowLengthFractionOfSpace,
       arrowLabelGap: oArrowLabelGap !== undefined
         ? oArrowLabelGap * _sf
         : dArrowLabelGap,
@@ -1084,35 +1084,35 @@ export function getErrorBarStyleFunc(
   };
 }
 
-export type GenericConfidenceBandStyleOptions = {
+export type GenericErrorBandStyleOptions = {
   show?: boolean;
   fillColor?: ColorKeyOrString | typeof SERIES_COLOR_SENTINEL;
   fillColorAdjustmentStrategy?: ColorAdjustmentStrategy;
 };
 
-export type GenericConfidenceBandStyle = {
+export type GenericErrorBandStyle = {
   show: boolean;
   fillColor: ColorKeyOrString | typeof SERIES_COLOR_SENTINEL;
   fillColorAdjustmentStrategy: ColorAdjustmentStrategy;
 };
 
-export type ConfidenceBandStyle = {
+export type ErrorBandStyle = {
   show: boolean;
   fillColor: ColorKeyOrString;
   fillColorAdjustmentStrategy: ColorAdjustmentStrategy;
 };
 
-export function getConfidenceBandStyleFunc(
+export function getErrorBandStyleFunc(
   _sf: number,
   _c: CustomFigureStyleOptions,
   _g: CustomFigureStyleOptions,
   _d: DefaultFigureStyle,
-): ChartSeriesInfoFunc<ConfidenceBandStyle> {
+): ChartSeriesInfoFunc<ErrorBandStyle> {
   const { c, cf, g, gf } = splitStyleLevels(
-    _c.content?.confidenceBands?.func,
-    _g.content?.confidenceBands?.func,
+    _c.content?.errorBands?.func,
+    _g.content?.errorBands?.func,
   );
-  const d = _d.content.confidenceBands.func;
+  const d = _d.content.errorBands.func;
   const seriesColorFunc = resolveSeriesColorFunc(_c, _g, _d);
   const dShow = m(c?.show, g?.show, d.show);
   const dFillColor = m(c?.fillColor, g?.fillColor, d.fillColor);
@@ -1121,7 +1121,7 @@ export function getConfidenceBandStyleFunc(
     g?.fillColorAdjustmentStrategy,
     d.fillColorAdjustmentStrategy,
   );
-  return (info: ChartSeriesInfo): ConfidenceBandStyle => {
+  return (info: ChartSeriesInfo): ErrorBandStyle => {
     const oc = cf?.(info);
     const og = gf?.(info);
     const fillColor = oc?.fillColor ?? og?.fillColor ?? dFillColor;
@@ -1137,7 +1137,7 @@ export function getConfidenceBandStyleFunc(
   };
 }
 
-export type GenericMapRegionStyleOptions = {
+export type GenericMapAreaStyleOptions = {
   show?: boolean;
   fillColor?: ColorKeyOrString | typeof VALUES_COLOR_SENTINEL | "none";
   strokeColor?: ColorKeyOrString | "none";
@@ -1146,7 +1146,7 @@ export type GenericMapRegionStyleOptions = {
   centroidOffset?: { dx: number; dy: number };
 };
 
-export type GenericMapRegionStyle = {
+export type GenericMapAreaStyle = {
   show: boolean;
   fillColor: ColorKeyOrString | typeof VALUES_COLOR_SENTINEL | "none";
   strokeColor: ColorKeyOrString | "none";
@@ -1155,7 +1155,7 @@ export type GenericMapRegionStyle = {
   centroidOffset: { dx: number; dy: number };
 };
 
-export type MapRegionStyle = {
+export type MapAreaStyle = {
   show: boolean;
   fillColor: ColorKeyOrString | "none";
   strokeColor: ColorKeyOrString | "none";
@@ -1164,17 +1164,17 @@ export type MapRegionStyle = {
   centroidOffset: { dx: number; dy: number };
 };
 
-export function getMapRegionStyleFunc(
+export function getMapAreaStyleFunc(
   _sf: number,
   _c: CustomFigureStyleOptions,
   _g: CustomFigureStyleOptions,
   _d: DefaultFigureStyle,
-): MapRegionInfoFunc<MapRegionStyle> {
+): MapAreaInfoFunc<MapAreaStyle> {
   const { c, cf, g, gf } = splitStyleLevels(
-    _c.content?.mapRegions?.func,
-    _g.content?.mapRegions?.func,
+    _c.content?.mapAreas?.func,
+    _g.content?.mapAreas?.func,
   );
-  const d = _d.content.mapRegions.func;
+  const d = _d.content.mapAreas.func;
   const valuesColorFunc = resolveValuesColorFunc(_c, _g, _d);
   const dShow = m(c?.show, g?.show, d.show);
   const dFillColor = m(c?.fillColor, g?.fillColor, d.fillColor);
@@ -1195,7 +1195,7 @@ export function getMapRegionStyleFunc(
     d.dataLabel,
   );
 
-  return (info: MapRegionInfo): MapRegionStyle => {
+  return (info: MapAreaInfo): MapAreaStyle => {
     const oc = cf?.(info);
     const og = gf?.(info);
     const fillColor = oc?.fillColor ?? og?.fillColor ?? dFillColor;

@@ -7,36 +7,38 @@ import type { RectCoordsDims } from "../../deps.ts";
 import type { XTextAxisMeasuredInfo } from "./types.ts";
 
 export function calculateVerticalGridLinesForLaneXText(
-  plotAreaRcd: RectCoordsDims,
+  subChartRcd: RectCoordsDims,
   xTextAxisMeasuredInfo: XTextAxisMeasuredInfo,
   nIndicators: number,
-  gridStrokeWidth: number,
+  gridLineStrokeWidth: number,
   centeredTicks: boolean,
 ): { x: number; tickValue?: number }[] {
   const mx = xTextAxisMeasuredInfo;
   const verticalGridLines: { x: number; tickValue?: number }[] = [];
 
   let currentX = centeredTicks
-    ? plotAreaRcd.x()
-    : plotAreaRcd.x() + gridStrokeWidth / 2;
+    ? subChartRcd.x()
+    : subChartRcd.x() + gridLineStrokeWidth / 2;
 
   for (let i_indicator = 0; i_indicator < nIndicators; i_indicator++) {
     if (centeredTicks) {
       verticalGridLines.push({
-        x: currentX + mx.indicatorAreaInnerWidth / 2,
+        x: currentX + mx.slotExtent / 2,
       });
     } else {
       verticalGridLines.push({ x: currentX });
     }
 
     currentX += centeredTicks
-      ? mx.indicatorAreaInnerWidth
-      : mx.indicatorAreaInnerWidth + gridStrokeWidth;
+      ? mx.slotExtent
+      : mx.slotExtent + gridLineStrokeWidth;
   }
 
   // Add final grid line at right edge (only for non-centered ticks)
   if (!centeredTicks) {
-    verticalGridLines.push({ x: plotAreaRcd.rightX() - gridStrokeWidth / 2 });
+    verticalGridLines.push({
+      x: subChartRcd.rightX() - gridLineStrokeWidth / 2,
+    });
   }
 
   return verticalGridLines;

@@ -4,10 +4,10 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  BandGeom,
   EdgeGeom,
   Geometry,
   GroupGeom,
-  LaneGeom,
   NodeGeom,
   Rect,
 } from "./types_geometry.ts";
@@ -22,7 +22,7 @@ import { DEFAULT_CORNER_RADIUS } from "./stages/_6_route/route_shared.ts";
 
 // [T] transform + the six numbered stages (pipeline.ts — the sequence is
 // data there, shared with the stage film), then [7] assembly: node/group
-// geoms, lane boxes, bounds, and the stability order record
+// geoms, band boxes, bounds, and the stability order record
 // (DOC_VIZGRAPH_ARCHITECTURE.md stage pipeline).
 export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
   const state = createPipelineState(model, options);
@@ -87,7 +87,7 @@ export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
     options?.cornerRadius ?? DEFAULT_CORNER_RADIUS,
   );
 
-  const lanes = deriveLaneGeoms(
+  const bands = deriveBandGeoms(
     state.spans ?? [],
     state.route!,
     nodes,
@@ -101,11 +101,11 @@ export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
       Object.values(nodes),
       Object.values(edges),
       Object.values(groups),
-      Object.values(lanes),
+      Object.values(bands),
     ),
     nodes,
     edges,
-    lanes,
+    bands,
     groups,
     hitAreas: [],
     warnings: state.warnings,
@@ -113,22 +113,22 @@ export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
   };
 }
 
-// Lane boxes: a lane spans its columns (plus the group inset on both
-// sides) and the FULL drawing height — every lane the same band, header row
-// on top (uniform: the tallest lane label, so lane tops align — the
-// ept-lineage look), inset below. Nodes never move for a lane; the box and
+// Band boxes: a band spans its columns (plus the group inset on both
+// sides) and the FULL drawing height — every band the same strip, header row
+// on top (uniform: the tallest band label, so band tops align — the
+// ept-lineage look), inset below. Nodes never move for a band; the box and
 // the bounds grow around them. Span groups have no box here (they keep
 // their hug ring in `groups`).
-function deriveLaneGeoms(
+function deriveBandGeoms(
   spans: ResolvedSpan[],
   route: { columnX?: number[]; columnW?: number[] },
   nodes: Record<string, NodeGeom>,
   edges: Record<string, EdgeGeom>,
   groups: Record<string, GroupGeom>,
   spacing: ResolvedSpacing,
-): Record<string, LaneGeom> {
-  const laneSpans = spans.filter((span) => span.region.source === "lane");
-  if (laneSpans.length === 0 || route.columnX === undefined) {
+): Record<string, BandGeom> {
+  const bandSpans = spans.filter((span) => span.region.source === "band");
+  if (bandSpans.length === 0 || route.columnX === undefined) {
     return {};
   }
   const content = computeBounds(
@@ -139,17 +139,17 @@ function deriveLaneGeoms(
   );
   const headerH = Math.max(
     0,
-    ...laneSpans.map((span) => span.region.label?.h ?? 0),
+    ...bandSpans.map((span) => span.region.label?.h ?? 0),
   );
   const y = content.y - spacing.groupPad - headerH;
   const h = content.h + 2 * spacing.groupPad + headerH;
-  const lanes: Record<string, LaneGeom> = {};
-  for (const span of laneSpans) {
+  const bands: Record<string, BandGeom> = {};
+  for (const span of bandSpans) {
     const x = route.columnX[span.fromLayerIndex] - spacing.groupPad;
     const right = route.columnX[span.toLayerIndex] +
       route.columnW![span.toLayerIndex] + spacing.groupPad;
     const w = right - x;
-    lanes[span.region.id] = {
+    bands[span.region.id] = {
       x,
       y,
       w,
@@ -162,14 +162,14 @@ function deriveLaneGeoms(
       },
     };
   }
-  return lanes;
+  return bands;
 }
 
 function computeBounds(
   nodeGeoms: NodeGeom[],
   edgeGeoms: EdgeGeom[],
   groupGeoms: GroupGeom[],
-  laneGeoms: LaneGeom[],
+  bandGeoms: BandGeom[],
 ): Rect {
   if (nodeGeoms.length === 0) {
     return { x: 0, y: 0, w: 0, h: 0 };
@@ -198,7 +198,7 @@ function computeBounds(
     maxX = Math.max(maxX, g.x + g.w);
     maxY = Math.max(maxY, g.y + g.h);
   }
-  for (const l of laneGeoms) {
+  for (const l of bandGeoms) {
     minX = Math.min(minX, l.x);
     minY = Math.min(minY, l.y);
     maxX = Math.max(maxX, l.x + l.w);

@@ -5,27 +5,27 @@
 
 export type { PeriodType } from "../_000_utils/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
-export { slotHeaders } from "../_001_render_system/mod.ts";
+export { getDimensionMembers } from "../_001_render_system/mod.ts";
 export type {
-  AxisMembership,
-  DataAxis,
-  HeaderItem,
-  HeaderSortConfig,
-  HeaderSortFunc,
+  DataDimension,
+  DimensionMember,
+  DimensionMembership,
+  MemberSortConfig,
+  MemberSortFunc,
   PointType,
 } from "../_001_render_system/mod.ts";
 export type { CustomFigureStyleOptions } from "../_003_figure_style/mod.ts";
 export type {
   AnnotationRectStyle,
-  ChartScaleAxisLimits,
-  ChartScaleAxisLimitsEntry,
-  ChartScaleAxisPaneLimits,
+  ChartValueAxisLimits,
+  ChartValueAxisLimitsEntry,
+  ChartValueAxisPaneLimits,
   FigureAnnotation,
   FigureAutofitOptions,
   JsonArray,
   JsonArrayItem,
+  LegendEntry,
   LegendInput,
-  LegendItem,
   ScaleLegendConfig,
   UncertaintyConfig,
 } from "../_007_figure_core/mod.ts";
@@ -63,13 +63,13 @@ export type {
   ColGroupCol,
   RowGroup,
   RowGroupRow,
-  TableColAxis,
+  TableColDataDimensions,
   TableData,
   TableDataJson,
   TableDataTransformed,
   TableInputs,
   TableJsonDataConfig,
-  TableRowAxis,
+  TableRowDataDimensions,
 } from "../_010_table/mod.ts";
 export type {
   TimeseriesData,

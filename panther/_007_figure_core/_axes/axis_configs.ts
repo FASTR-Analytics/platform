@@ -4,20 +4,20 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  HeaderItem,
+  DimensionMember,
   MergedXPeriodAxisStyle,
-  MergedXScaleAxisStyle,
   MergedXTextAxisStyle,
-  MergedYScaleAxisStyle,
+  MergedXValueAxisStyle,
   MergedYTextAxisStyle,
+  MergedYValueAxisStyle,
   PeriodType,
 } from "../deps.ts";
-import type { ChartScaleAxisLimits } from "../types.ts";
+import type { ChartValueAxisLimits } from "../types.ts";
 
 export type XAxisConfig =
   | {
     type: "text";
-    indicatorHeaders: HeaderItem[];
+    indicatorMembers: DimensionMember[];
     axisStyle: MergedXTextAxisStyle;
   }
   | {
@@ -30,23 +30,23 @@ export type XAxisConfig =
     axisStyle: MergedXPeriodAxisStyle;
   }
   | {
-    type: "scale";
-    axisStyle: MergedXScaleAxisStyle;
-    axisData: ChartScaleAxisLimits;
+    type: "value";
+    axisStyle: MergedXValueAxisStyle;
+    axisData: ChartValueAxisLimits;
     axisLabel?: string;
   }
   | { type: "none" };
 
 export type YAxisConfig =
   | {
-    type: "scale";
-    axisStyle: MergedYScaleAxisStyle;
-    axisData: ChartScaleAxisLimits;
+    type: "value";
+    axisStyle: MergedYValueAxisStyle;
+    axisData: ChartValueAxisLimits;
     axisLabel?: string;
   }
   | {
     type: "text";
-    indicatorHeaders: HeaderItem[];
+    indicatorMembers: DimensionMember[];
     axisStyle: MergedYTextAxisStyle;
   }
   | { type: "none" };

@@ -5,14 +5,14 @@
 
 import { Coordinates, type RectCoordsDims } from "../deps.ts";
 import type {
-  FigureCaptionPrimitive,
   FigureLegendPrimitive,
   FigureScaleLegendGradientPrimitive,
   FigureScaleLegendSteppedPrimitive,
+  FigureTextPrimitive,
 } from "./types.ts";
 
 export type SurroundsPrimitive =
-  | FigureCaptionPrimitive
+  | FigureTextPrimitive
   | FigureLegendPrimitive
   | FigureScaleLegendGradientPrimitive
   | FigureScaleLegendSteppedPrimitive;
@@ -36,12 +36,12 @@ export function translatePrimitive(
   const bounds = rect(p.bounds);
   const annotationBounds = p.annotationBounds && rect(p.annotationBounds);
   switch (p.type) {
-    case "figure-caption":
+    case "figure-text":
       return {
         ...p,
         bounds,
         annotationBounds,
-        anchorRcd: rect(p.anchorRcd),
+        alignRcd: rect(p.alignRcd),
         hitBounds: rect(p.hitBounds),
       };
     case "figure-legend":
@@ -49,18 +49,18 @@ export function translatePrimitive(
         ...p,
         bounds,
         annotationBounds,
-        items: p.items.map((item) => {
+        entries: p.entries.map((entry) => {
           const placed = {
-            labelPosition: pt(item.labelPosition),
-            symbol: item.symbol.type === "point"
-              ? { ...item.symbol, position: pt(item.symbol.position) }
-              : item.symbol.type === "line"
-              ? { ...item.symbol, coords: item.symbol.coords.map(pt) }
-              : { ...item.symbol, position: rect(item.symbol.position) },
+            labelPosition: pt(entry.labelPosition),
+            symbol: entry.symbol.type === "point"
+              ? { ...entry.symbol, position: pt(entry.symbol.position) }
+              : entry.symbol.type === "line"
+              ? { ...entry.symbol, coords: entry.symbol.coords.map(pt) }
+              : { ...entry.symbol, position: rect(entry.symbol.position) },
           };
-          return item.part === undefined
-            ? { ...item, ...placed }
-            : { ...item, ...placed, hitBounds: rect(item.hitBounds) };
+          return entry.part === undefined
+            ? { ...entry, ...placed }
+            : { ...entry, ...placed, hitBounds: rect(entry.hitBounds) };
         }),
       };
     case "figure-scale-legend-gradient":

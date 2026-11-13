@@ -66,16 +66,16 @@ export type FigureType = FigureInputs["figureType"];
 // ================================================================================
 
 export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
-  isType(item: unknown): item is FigureInputs {
+  isType(inputs: unknown): inputs is FigureInputs {
     if (
-      typeof item !== "object" || item === null || !("figureType" in item)
+      typeof inputs !== "object" || inputs === null || !("figureType" in inputs)
     ) {
       return false;
     }
     // The cast makes the switch exhaustiveness-checked: a new FigureInputs
-    // member fails typecheck here (and in getRendererForFigureItem) until its
+    // member fails typecheck here (and in getFigureRenderer) until its
     // tag is handled. Unknown runtime strings fall to default and return false.
-    const figureType = item.figureType as FigureType;
+    const figureType = inputs.figureType as FigureType;
     switch (figureType) {
       case "table":
       case "chart-ov":
@@ -96,9 +96,9 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
   measure(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: FigureInputs,
+    inputs: FigureInputs,
   ): MeasuredFigure {
-    return measureFigure(rc, bounds, item);
+    return measureFigure(rc, bounds, inputs);
   },
 
   render(rc: RenderContext, measured: MeasuredFigure): void {
@@ -108,19 +108,19 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
   measureAndRender(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: FigureInputs,
+    inputs: FigureInputs,
   ): void {
-    const measured = measureFigure(rc, bounds, item);
+    const measured = measureFigure(rc, bounds, inputs);
     renderFigure(rc, measured);
   },
 
   getIdealHeight(
     rc: RenderContext,
     width: number,
-    item: FigureInputs,
+    inputs: FigureInputs,
   ): HeightConstraints {
-    const renderer = getRendererForFigureItem(item);
-    return renderer.getIdealHeight(rc, width, item);
+    const renderer = getFigureRenderer(inputs);
+    return renderer.getIdealHeight(rc, width, inputs);
   },
 };
 
@@ -131,15 +131,15 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
 function measureFigure(
   rc: RenderContext,
   bounds: RectCoordsDims,
-  item: FigureInputs,
+  inputs: FigureInputs,
 ): MeasuredFigure {
-  const renderer = getRendererForFigureItem(item);
-  const measured = renderer.measure(rc, bounds, item);
-  if (item.annotations?.length) {
+  const renderer = getFigureRenderer(inputs);
+  const measured = renderer.measure(rc, bounds, inputs);
+  if (inputs.annotations?.length) {
     const sf = measured.customFigureStyle.sf;
     const annotationPrimitives = generateAnnotationPrimitives(
       rc,
-      item.annotations,
+      inputs.annotations,
       measured.primitives,
       sf,
     );
@@ -149,7 +149,7 @@ function measureFigure(
 }
 
 function renderFigure(rc: RenderContext, measured: MeasuredFigure): void {
-  const renderer = getRendererForFigureItem(measured.item);
+  const renderer = getFigureRenderer(measured.inputs);
   renderer.render(rc, measured);
 }
 
@@ -157,21 +157,21 @@ function renderFigure(rc: RenderContext, measured: MeasuredFigure): void {
 // HELPERS
 // ================================================================================
 
-function getRendererForFigureItem(
-  item: FigureInputs,
+function getFigureRenderer(
+  inputs: FigureInputs,
 ): Renderer<FigureInputs, MeasuredFigure> {
-  const renderer = pickRenderer(item);
-  // The single variance point of the dispatch: the tag pairs the item with its
+  const renderer = pickRenderer(inputs);
+  // The single variance point of the dispatch: the tag pairs the inputs with its
   // renderer, but TS cannot carry that pairing through a union of
   // Renderer<T, M> objects (method-parameter contravariance). Widen the
   // matched renderer to the union-typed Renderer once, here — callers then
-  // need no casts, and only ever pass the item/measured the renderer was
+  // need no casts, and only ever pass the inputs/measured the renderer was
   // selected for.
   return renderer as unknown as Renderer<FigureInputs, MeasuredFigure>;
 }
 
-function pickRenderer(item: FigureInputs) {
-  switch (item.figureType) {
+function pickRenderer(inputs: FigureInputs) {
+  switch (inputs.figureType) {
     case "table":
       return TableRenderer;
     case "chart-ov":
@@ -189,7 +189,7 @@ function pickRenderer(item: FigureInputs) {
     case "diagram":
       return DiagramRenderer;
     default: {
-      const _exhaustive: never = item;
+      const _exhaustive: never = inputs;
       throw new Error("Unknown figure type");
     }
   }

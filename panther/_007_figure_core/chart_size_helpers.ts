@@ -32,7 +32,7 @@ import {
 // unbalanced membership; the global count when balanced (mask absent).
 // Intrinsic sizing reserves space for the fullest pane instead of the
 // global union.
-export function maxVisibleCount(
+export function maxNVisible(
   visibleByPane: number[][] | undefined,
   nGlobal: number,
 ): number {
@@ -48,39 +48,41 @@ export function maxVisibleCount(
   return max;
 }
 
-// Proportional band layout: the fullest pane's categorical plot extent —
-// Σ over its bands of (visible slots × perSlot) plus the inter-slot strokes
-// in sides mode (Σ_b (n_b + 1) = totalSlots + nBands). Bands with no visible
-// indicators are dropped (empty-band policy). Callers divide by their
-// reported band count so the uniform decomposition (× nBands) recovers the
+// Proportional tier-or-lane layout: the fullest pane's category-axis extent —
+// Σ over its tiers or lanes of (visible slots × slotExtent) plus the inter-slot strokes
+// in sides mode (Σ_b (n_b + 1) = nSlots + nTiersOrLanes). Tiers or lanes with no visible
+// indicators are dropped (empty tier-or-lane policy). Callers divide by their
+// reported tier-or-lane count so the uniform decomposition (× nTiersOrLanes) recovers the
 // pane total.
-export function maxProportionalPanePlotExtent(
-  visibleByPaneBand: number[][][],
-  perSlot: number,
+export function maxProportionalPaneCategoryAxisExtent(
+  visibleByPaneTierOrLane: number[][][],
+  slotExtent: number,
   centered: boolean,
-  gridStrokeWidth: number,
+  gridLineStrokeWidth: number,
 ): number {
   let max = 0;
-  for (const bands of visibleByPaneBand) {
-    const counts = bands.filter((b) => b.length > 0).map((b) => b.length);
-    const totalSlots = counts.reduce((a, b) => a + b, 0);
+  for (const tiersOrLanes of visibleByPaneTierOrLane) {
+    const counts = tiersOrLanes.filter((b) => b.length > 0).map((b) =>
+      b.length
+    );
+    const nSlots = counts.reduce((a, b) => a + b, 0);
     const strokes = centered
       ? 0
-      : gridStrokeWidth * (totalSlots + counts.length);
-    max = Math.max(max, totalSlots * perSlot + strokes);
+      : gridLineStrokeWidth * (nSlots + counts.length);
+    max = Math.max(max, nSlots * slotExtent + strokes);
   }
   return max;
 }
 
-// Proportional band layout: the true ragged slot total, Σ over all
-// (pane, band) of visible indicator counts.
-export function proportionalTotalSlots(
-  visibleByPaneBand: number[][][],
+// Proportional tier-or-lane layout: the true ragged slot total, Σ over all
+// (pane, tier or lane) of visible indicator counts.
+export function countProportionalSlots(
+  visibleByPaneTierOrLane: number[][][],
 ): number {
   let total = 0;
-  for (const bands of visibleByPaneBand) {
-    for (const band of bands) {
-      total += band.length;
+  for (const tiersOrLanes of visibleByPaneTierOrLane) {
+    for (const tierOrLane of tiersOrLanes) {
+      total += tierOrLane.length;
     }
   }
   return total;
@@ -99,59 +101,59 @@ export type ChartComponentSizes = {
   minYAxisWidth: number;
   surroundsMinWidth: number;
   resolvedLegendLabels: LegendInput | undefined;
-  // Proportional band layout only: the per-slot minimum along the
+  // Proportional tier-or-lane layout only: the per-slot minimum along the
   // categorical direction (per-column width floor on OV) and the text-axis
   // tick mode (drives the inter-slot stroke term). Set by the renderers'
   // get_size_info when proportional layout is active.
-  minSlotWidth?: number;
+  minSlotExtent?: number;
   slotTicksCentered?: boolean;
 };
 
 // Each renderer supplies this: turn the figure's content + a probe's layout
-// geometry into the natural per-sub-chart plot height (the raw target before
-// the legibility-floor clamp). Scale-axis charts (ChartOV, Timeseries) share
-// resolveScaleAxisPlotHeight below; ChartOH provides its own (category-driven).
+// geometry into the natural per-sub-chart height (the raw target before
+// the legibility-floor clamp). Value-axis charts (ChartOV, Timeseries) share
+// resolveValueAxisSubChartHeight below; ChartOH provides its own (category-driven).
 // paneGrid is the grid the caller resolved for this scale and width.
-export type ResolveTargetPlotH = (
+export type ResolveTargetExtent = (
   info: ChartComponentSizes,
   probeLayouts: PaneLayout[],
   paneGrid: PaneGrid,
 ) => number;
 
-// Per-renderer legibility-FLOOR plot height: the minimum per-sub-chart height
+// Per-renderer legibility-FLOOR sub-chart height: the minimum per-sub-chart height
 // at which the renderer's content draws WITHOUT OVERLAP (text wrapped at the
-// real wrap width; rotation/caps applied). Same shape as ResolveTargetPlotH but
+// real wrap width; rotation/caps applied). Same shape as ResolveTargetExtent but
 // a different policy — the floor omits comfort terms (e.g. ideal bar thickness)
 // that the natural target reserves. Consumed by the shrink-to-fit decision so it
-// reacts to wrapped tick labels. ChartOV supplies resolveScaleAxisFloorPlotH so
+// reacts to wrapped tick labels. ChartOV supplies resolveValueAxisFloorSubChartHeight so
 // the probe path sees its real x-text axis height; Timeseries does not.
-export type ResolveFloorPlotH = (
+export type ResolveFloorExtent = (
   info: ChartComponentSizes,
   probeLayouts: PaneLayout[],
   paneGrid: PaneGrid,
 ) => number;
 
-// Natural plot-height resolver for scale-axis charts (ChartOV, Timeseries):
-// the idealHeight.idealPlotHeight policy evaluated at the vertically-stacked
-// subchart-row count (nPaneRows × nTiers). Layout-independent — probeLayouts
-// is unused. Both renderers pass this as their ResolveTargetPlotH.
-export function resolveScaleAxisPlotHeight(
+// Natural sub-chart-height resolver for value-axis charts (ChartOV, Timeseries):
+// the idealHeight.idealSubChartHeight policy evaluated at the vertically-stacked
+// sub-chart-row count (nPaneRows × nTiers). Layout-independent — probeLayouts
+// is unused. Both renderers pass this as their ResolveTargetExtent.
+export function resolveValueAxisSubChartHeight(
   info: ChartComponentSizes,
   _probeLayouts: PaneLayout[],
   paneGrid: PaneGrid,
 ): number {
-  return info.mergedStyle.idealHeight.idealPlotHeight(
-    paneGrid.nGRows * info.nTiers,
+  return info.mergedStyle.idealHeight.idealSubChartHeight(
+    paneGrid.nRows * info.nTiers,
   );
 }
 
-// Legibility-FLOOR resolver for scale-axis charts (ChartOV): the
-// per-sub-chart plot floor is the scale-axis minimum, which is layout- and
+// Legibility-FLOOR resolver for value-axis charts (ChartOV): the
+// per-sub-chart floor is the value-axis minimum, which is layout- and
 // scale-independent (no wrapped text in the run direction). Supplying it routes
 // the chart through the probe-based fit decision, which makes the OVERHEAD —
 // notably the real x-text axis height including rotated/capped tick labels —
 // accurate, fixing the unrotated `"Category"`/`"2024"` sample's blind spot.
-export function resolveScaleAxisFloorPlotH(
+export function resolveValueAxisFloorSubChartHeight(
   info: ChartComponentSizes,
   _probeLayouts: PaneLayout[],
   _paneGrid: PaneGrid,
@@ -159,21 +161,24 @@ export function resolveScaleAxisFloorPlotH(
   return info.minSubChartHeight;
 }
 
-// Single clamp + finite guard for any ResolveTargetPlotH result. Keeps the
+// Single clamp + finite guard for any ResolveTargetExtent result. Keeps the
 // getIdealHeight and fitReport paths from drifting and turns a NaN/Infinity
 // from a custom idealHeight function into a diagnosable error rather than an
 // undiagnosable crash deep in axis tick math.
-function finalizeTargetPlotH(minSubChartHeight: number, raw: number): number {
+function finalizeTargetSubChartHeight(
+  minSubChartHeight: number,
+  raw: number,
+): number {
   if (!Number.isFinite(raw)) {
     throw new Error(
-      `idealHeight function resolved to a non-finite plot height: ${raw}`,
+      `idealHeight function resolved to a non-finite sub-chart height: ${raw}`,
     );
   }
   return Math.max(minSubChartHeight, raw);
 }
 
 // Finite guard for a per-slot target thickness (proportional panes path).
-function finalizeSlotT(raw: number): number {
+function finalizeSlotExtent(raw: number): number {
   if (!Number.isFinite(raw)) {
     throw new Error(
       `idealHeight function resolved to a non-finite slot thickness: ${raw}`,
@@ -182,15 +187,15 @@ function finalizeSlotT(raw: number): number {
   return Math.max(0, raw);
 }
 
-// Cross-pane proportional pane sizing: the axis (if any) that measureChart's
+// Cross-pane proportional pane sizing: the direction (if any) that measureChart's
 // pass 2 stamped on every probe layout. undefined = not engaged (uniform
 // pane extents — the shipped decompositions apply).
-function proportionalPanesAxisOf(
+function proportionalPanesDirectionOf(
   layouts: PaneLayout[],
 ): "width" | "height" | undefined {
-  const axis = layouts[0]?.proportionalPanesAxis;
+  const axis = layouts[0]?.proportionalPanesDirection;
   return axis !== undefined &&
-      layouts.every((l) => l.proportionalPanesAxis === axis)
+      layouts.every((l) => l.proportionalPanesDirection === axis)
     ? axis
     : undefined;
 }
@@ -208,9 +213,9 @@ function chartMinWidthAt(
   info: ChartComponentSizes,
   yAxisWidth: number,
 ): number {
-  const nGCols = minWidthColumns(info);
-  return calculateColumnMinWidth(info, yAxisWidth) * nGCols +
-    (nGCols - 1) * info.mergedStyle.panes.gapX +
+  const nPaneCols = minWidthColumns(info);
+  return calculateColumnMinWidth(info, yAxisWidth) * nPaneCols +
+    (nPaneCols - 1) * info.mergedStyle.panes.gapX +
     info.surroundsMinWidth;
 }
 
@@ -225,23 +230,23 @@ export function calculateChartIdealHeight(
   inputs: FigureInputsBase,
   paneGrid: PaneGrid,
 ): number {
-  const { nGRows } = paneGrid;
+  const { nRows: nPaneRows } = paneGrid;
 
-  const totalSubChartsHeight = info.minSubChartHeight * info.nTiers * nGRows;
+  const totalSubChartsHeight = info.minSubChartHeight * info.nTiers * nPaneRows;
   const tierGapsHeight = (info.nTiers - 1) * info.mergedStyle.tiers.gapY *
-    nGRows;
-  const paneGapsHeight = (nGRows - 1) * info.mergedStyle.panes.gapY;
+    nPaneRows;
+  const paneGapsHeight = (nPaneRows - 1) * info.mergedStyle.panes.gapY;
   const tierPaddingHeight =
     (info.mergedStyle.tiers.paddingTop + info.mergedStyle.tiers.paddingBottom) *
-    nGRows;
+    nPaneRows;
 
   let paneHeadersHeight = 0;
   if (!info.mergedStyle.panes.hideHeaders && info.nPanes > 1) {
     paneHeadersHeight =
-      (info.paneHeaderHeight + info.mergedStyle.panes.headerGap) * nGRows;
+      (info.paneHeaderHeight + info.mergedStyle.panes.headerGap) * nPaneRows;
   }
 
-  const xAxisHeight = info.xAxisHeight * nGRows;
+  const xAxisHeight = info.xAxisHeight * nPaneRows;
 
   const dummyBounds = new RectCoordsDims({
     x: 0,
@@ -253,8 +258,8 @@ export function calculateChartIdealHeight(
     rc,
     dummyBounds,
     info.customFigureStyle,
-    inputs.caption,
-    inputs.subCaption,
+    inputs.title,
+    inputs.subtitle,
     inputs.footnote,
     info.resolvedLegendLabels,
   );
@@ -294,18 +299,18 @@ export function measureChartWithAutofit<
   ) => PaneLayout[],
   // When provided alongside probeMeasure, resolves the natural target for
   // naturalH in the fitReport so it matches getIdealHeight().idealH.
-  resolveTargetForReport?: ResolveTargetPlotH,
+  resolveTargetForReport?: ResolveTargetExtent,
   // When provided alongside probeMeasure, the shrink-to-fit decision
   // measures the height floor and min-width from real probe layouts instead of
   // the unwrapped/sample estimates, so it reacts to wrapped tick labels.
-  resolveFloor?: ResolveFloorPlotH,
+  resolveFloor?: ResolveFloorExtent,
   // Per-SLOT thickness resolvers (proportional panes contract fork): used
-  // instead of the per-subchart plot-height resolvers when the probe layouts
-  // show cross-pane proportional sizing engaged along the HEIGHT axis. Same
+  // instead of the per-sub-chart sub-chart-height resolvers when the probe layouts
+  // show cross-pane proportional sizing engaged along the HEIGHT direction. Same
   // shape, different semantics — the ragged decomposition is inverted per
-  // slot, not per subchart.
-  resolveTargetSlotT?: ResolveTargetPlotH,
-  resolveFloorSlotT?: ResolveFloorPlotH,
+  // slot, not per sub-chart.
+  resolveTargetSlotExtent?: ResolveTargetExtent,
+  resolveFloorSlotExtent?: ResolveFloorExtent,
 ): TMeasured {
   const autofitOpts = resolveFigureAutofitOptions(inputs.autofit);
   const getSizes = memoizeByScale(getChartComponentSizes);
@@ -368,23 +373,23 @@ export function measureChartWithAutofit<
       paneGrid,
     );
     const layouts = memoProbe(est);
-    const paneAxis = proportionalPanesAxisOf(layouts);
+    const panesDirection = proportionalPanesDirectionOf(layouts);
     const maxRealYAxisWidth = Math.max(...layouts.map((l) => l.yAxisWidth));
-    const minWidth = paneAxis === "width"
+    const minWidth = panesDirection === "width"
       ? calculateChartMinWidthProportionalPanes(info, layouts)
       : chartMinWidthAt(info, maxRealYAxisWidth);
-    const idealHeight = paneAxis === "height" && resolveFloorSlotT
+    const idealHeight = panesDirection === "height" && resolveFloorSlotExtent
       ? computeChartIdealHeightProportionalPanes(
-        finalizeSlotT(resolveFloorSlotT(info, layouts, paneGrid)),
-        info.mergedStyle.grid.gridStrokeWidth,
+        finalizeSlotExtent(resolveFloorSlotExtent(info, layouts, paneGrid)),
+        info.mergedStyle.grid.gridLineStrokeWidth,
         info.slotTicksCentered ?? false,
         memoProbe,
         est,
       )
       : computeChartIdealHeightByMeasure(
-        paneGrid.nGRows,
+        paneGrid.nRows,
         nTiers,
-        finalizeTargetPlotH(
+        finalizeTargetSubChartHeight(
           info.minSubChartHeight,
           resolveFloor(info, layouts, paneGrid),
         ),
@@ -420,27 +425,28 @@ export function measureChartWithAutofit<
     );
     const initLayouts = memoProbe(estH1);
     if (
-      proportionalPanesAxisOf(initLayouts) === "height" && resolveTargetSlotT
+      proportionalPanesDirectionOf(initLayouts) === "height" &&
+      resolveTargetSlotExtent
     ) {
       naturalHOverride = computeChartIdealHeightProportionalPanes(
-        finalizeSlotT(resolveTargetSlotT(info1, initLayouts, grid1)),
-        info1.mergedStyle.grid.gridStrokeWidth,
+        finalizeSlotExtent(resolveTargetSlotExtent(info1, initLayouts, grid1)),
+        info1.mergedStyle.grid.gridLineStrokeWidth,
         info1.slotTicksCentered ?? false,
         memoProbe,
         estH1,
       );
     } else {
-      let naturalTargetPlotH = info1.minSubChartHeight;
+      let naturalTargetSubChartHeight = info1.minSubChartHeight;
       if (resolveTargetForReport) {
-        naturalTargetPlotH = finalizeTargetPlotH(
+        naturalTargetSubChartHeight = finalizeTargetSubChartHeight(
           info1.minSubChartHeight,
           resolveTargetForReport(info1, initLayouts, grid1),
         );
       }
       naturalHOverride = computeChartIdealHeightByMeasure(
-        grid1.nGRows,
+        grid1.nRows,
         nTiers,
-        naturalTargetPlotH,
+        naturalTargetSubChartHeight,
         memoProbe,
         estH1,
       );
@@ -469,20 +475,20 @@ export function measureChartWithAutofit<
 // Phase A: measure-once-then-decompose
 // ---------------------------------------------------------------------------
 
-// Inverts H = overhead(width) + nGRows×nTiers×subChartAreaH to find the total
-// figure height at which the minimum sub-chart plot height equals targetPlotH.
+// Inverts H = overhead(width) + nPaneRows×nTiers×uniformSubChartHeight to find the total
+// figure height at which the minimum sub-chart height equals targetSubChartHeight.
 //
 // The fixed-point iteration handles the one circularity: the Y-axis tick-count
-// guess depends on subChartAreaH, which affects overhead (x-label wrap, lane
+// guess depends on uniformSubChartHeight, which affects overhead (x-label wrap, lane
 // headers). Up to MAX_ITER probes; converges in ≤2 for typical figures.
 //
 // probeMeasure(probeH) runs the real measure at the given height and returns
 // the per-pane layouts. Pass a memoized closure — probes are cheap when
 // re-called at already-computed heights.
 function computeChartIdealHeightByMeasure(
-  nGRows: number,
+  nPaneRows: number,
   nTiers: number,
-  targetPlotH: number,
+  targetSubChartHeight: number,
   probeMeasure: (probeH: number) => PaneLayout[],
   initialProbeH: number,
 ): number {
@@ -490,17 +496,17 @@ function computeChartIdealHeightByMeasure(
   let currentH = Math.max(50, initialProbeH);
   for (let i = 0; i < MAX_ITER; i++) {
     const layouts = probeMeasure(currentH);
-    // Use the globally minimum subChartAreaHeight (most-constrained pane).
+    // Use the globally minimum uniformSubChartHeight (most-constrained pane).
     // Clamp to 0: when the probe is below overhead (e.g. at the estimate
-    // for a figure with tall vertical x-labels), subChartAreaHeight can be
+    // for a figure with tall vertical x-labels), uniformSubChartHeight can be
     // negative — treat it as 0 so the overhead is recovered and the iteration
-    // converges to overhead + nGRows×nTiers×targetPlotH.
+    // converges to overhead + nPaneRows×nTiers×targetSubChartHeight.
     const minSubChart = Math.max(
       0,
-      Math.min(...layouts.map((l) => l.subChartAreaHeight)),
+      Math.min(...layouts.map((l) => l.uniformSubChartHeight)),
     );
-    const overhead = currentH - nGRows * nTiers * minSubChart;
-    const nextH = overhead + nGRows * nTiers * targetPlotH;
+    const overhead = currentH - nPaneRows * nTiers * minSubChart;
+    const nextH = overhead + nPaneRows * nTiers * targetSubChartHeight;
     if (Math.abs(nextH - currentH) < 0.5) {
       currentH = nextH;
       break;
@@ -518,7 +524,7 @@ function computeChartIdealHeightByMeasure(
 // measure function (e.g. measureChartOV).
 //
 // resolveTarget: turns the figure's content + a probe's layout into the natural
-// per-sub-chart plot height (clamped here to the legibility floor). idealH is
+// per-sub-chart height (clamped here to the legibility floor). idealH is
 // inverted from it; minH always uses the floor.
 export function getChartHeightConstraintsByMeasure<
   TInputs extends FigureInputsBase,
@@ -532,14 +538,14 @@ export function getChartHeightConstraintsByMeasure<
     paneGrid: PaneGrid,
     scale?: number,
   ) => PaneLayout[],
-  resolveTarget: ResolveTargetPlotH,
+  resolveTarget: ResolveTargetExtent,
   // When supplied, minH is inverted from the renderer's floor through real
   // probes (ChartOH's wrapped-label floor, ChartOV's minSubChartHeight with
   // the real overhead), matching the live fit decision instead of the estimate.
-  resolveFloor?: ResolveFloorPlotH,
+  resolveFloor?: ResolveFloorExtent,
   // Per-SLOT thickness resolvers — see measureChartWithAutofit.
-  resolveTargetSlotT?: ResolveTargetPlotH,
-  resolveFloorSlotT?: ResolveFloorPlotH,
+  resolveTargetSlotExtent?: ResolveTargetExtent,
+  resolveFloorSlotExtent?: ResolveFloorExtent,
 ): HeightConstraints {
   const autofitOpts = resolveFigureAutofitOptions(inputs.autofit);
   const getSizes = memoizeByScale(getChartComponentSizes);
@@ -562,24 +568,24 @@ export function getChartHeightConstraintsByMeasure<
     paneGrid,
   );
 
-  // Resolve the natural target plot height from the idealHeight policy. One probe at
+  // Resolve the natural target sub-chart height from the idealHeight policy. One probe at
   // the estimate gives the layout geometry ChartOH needs for label wrapping;
   // ChartOV/Timeseries ignore it.
   const initLayouts = memoProbe(estIdealH);
-  const paneAxis = proportionalPanesAxisOf(initLayouts);
+  const panesDirection = proportionalPanesDirectionOf(initLayouts);
 
-  const idealH = paneAxis === "height" && resolveTargetSlotT
+  const idealH = panesDirection === "height" && resolveTargetSlotExtent
     ? computeChartIdealHeightProportionalPanes(
-      finalizeSlotT(resolveTargetSlotT(info, initLayouts, paneGrid)),
-      info.mergedStyle.grid.gridStrokeWidth,
+      finalizeSlotExtent(resolveTargetSlotExtent(info, initLayouts, paneGrid)),
+      info.mergedStyle.grid.gridLineStrokeWidth,
       info.slotTicksCentered ?? false,
       memoProbe,
       estIdealH,
     )
     : computeChartIdealHeightByMeasure(
-      paneGrid.nGRows,
+      paneGrid.nRows,
       nTiers,
-      finalizeTargetPlotH(
+      finalizeTargetSubChartHeight(
         info.minSubChartHeight,
         resolveTarget(info, initLayouts, paneGrid),
       ),
@@ -593,10 +599,11 @@ export function getChartHeightConstraintsByMeasure<
     ...idealLayouts.map((l) => l.yAxisWidth),
   );
   // Reconstruct min-width using real y-axis width in place of the estimate;
-  // proportional OV pane widths sum per-pane totals instead of max × count.
-  const minComfortableWidth = proportionalPanesAxisOf(idealLayouts) === "width"
-    ? calculateChartMinWidthProportionalPanes(info, idealLayouts)
-    : chartMinWidthAt(info, maxRealYAxisWidth);
+  // Proportional OV pane widths sum per-pane totals instead of max × count.
+  const minComfortableWidth =
+    proportionalPanesDirectionOf(idealLayouts) === "width"
+      ? calculateChartMinWidthProportionalPanes(info, idealLayouts)
+      : chartMinWidthAt(info, maxRealYAxisWidth);
   const neededScalingToFitWidth = width >= minComfortableWidth
     ? 1.0
     : width / minComfortableWidth;
@@ -642,26 +649,29 @@ export function getChartHeightConstraintsByMeasure<
   const floorLayouts = memoProbeFloor(estMinH);
   let minH: number;
   if (
-    proportionalPanesAxisOf(floorLayouts) === "height" && resolveFloorSlotT
+    proportionalPanesDirectionOf(floorLayouts) === "height" &&
+    resolveFloorSlotExtent
   ) {
     minH = computeChartIdealHeightProportionalPanes(
-      finalizeSlotT(resolveFloorSlotT(infoFloor, floorLayouts, gridFloor)),
-      infoFloor.mergedStyle.grid.gridStrokeWidth,
+      finalizeSlotExtent(
+        resolveFloorSlotExtent(infoFloor, floorLayouts, gridFloor),
+      ),
+      infoFloor.mergedStyle.grid.gridLineStrokeWidth,
       infoFloor.slotTicksCentered ?? false,
       memoProbeFloor,
       estMinH,
     );
   } else {
-    const targetPlotHFloor = resolveFloor
-      ? finalizeTargetPlotH(
+    const targetSubChartHeightFloor = resolveFloor
+      ? finalizeTargetSubChartHeight(
         infoFloor.minSubChartHeight,
         resolveFloor(infoFloor, floorLayouts, gridFloor),
       )
       : infoFloor.minSubChartHeight;
     minH = computeChartIdealHeightByMeasure(
-      gridFloor.nGRows,
+      gridFloor.nRows,
       nTiers,
-      targetPlotHFloor,
+      targetSubChartHeightFloor,
       memoProbeFloor,
       estMinH,
     );
@@ -677,15 +687,15 @@ export function getChartHeightConstraintsByMeasure<
 }
 
 // Proportional panes, OH (free = HEIGHT): inverts
-//   H = overhead + slotT × Σ_(pane,band) nInd + Σ_p strokes_p
-// where overhead = H_probe − Σ_p freePlotExtent_p is recovered from a real
+//   H = overhead + slotExtent × Σ_(pane, tier or lane) nInd + Σ_p strokes_p
+// where overhead = H_probe − Σ_p freeCategoryAxisExtent_p is recovered from a real
 // probe (the sum of per-pane overheads, pane gaps, and surrounds). Same
 // fixed-point shape as computeChartIdealHeightByMeasure with the true ragged
-// coefficient instead of the uniform nGRows×nTiers product — the uniform
+// coefficient instead of the uniform nPaneRows×nTiers product — the uniform
 // inversion is wrong once pane extents vary with their slot totals.
 function computeChartIdealHeightProportionalPanes(
-  targetSlotT: number,
-  gridStrokeWidth: number,
+  targetSlotExtent: number,
+  gridLineStrokeWidth: number,
   centered: boolean,
   probeMeasure: (probeH: number) => PaneLayout[],
   initialProbeH: number,
@@ -695,19 +705,21 @@ function computeChartIdealHeightProportionalPanes(
   for (let i = 0; i < MAX_ITER; i++) {
     const layouts = probeMeasure(currentH);
     let freeTotal = 0;
-    let slotsTotal = 0;
+    let nSlots = 0;
     let strokesTotal = 0;
     for (const l of layouts) {
-      const bandCount = l.proportionalBandCount ?? 0;
-      const slots = l.proportionalSlotTotal ?? 0;
+      const nTiersOrLanes = l.nProportionalTiersOrLanes ?? 0;
+      const slots = l.nProportionalSlots ?? 0;
       // Clamp to 0 like the uniform path: below-overhead probes report
       // negative free extents; treat as 0 so overhead is recovered.
-      freeTotal += Math.max(0, l.subChartAreaHeight * bandCount);
-      slotsTotal += slots;
-      strokesTotal += centered ? 0 : gridStrokeWidth * (slots + bandCount);
+      freeTotal += Math.max(0, l.uniformSubChartHeight * nTiersOrLanes);
+      nSlots += slots;
+      strokesTotal += centered
+        ? 0
+        : gridLineStrokeWidth * (slots + nTiersOrLanes);
     }
     const overhead = currentH - freeTotal;
-    const nextH = overhead + targetSlotT * slotsTotal + strokesTotal;
+    const nextH = overhead + targetSlotExtent * nSlots + strokesTotal;
     if (Math.abs(nextH - currentH) < 0.5) {
       currentH = nextH;
       break;
@@ -725,17 +737,17 @@ function calculateChartMinWidthProportionalPanes(
   info: ChartComponentSizes,
   layouts: PaneLayout[],
 ): number {
-  const minSlotW = info.minSlotWidth ?? 0;
+  const minSlotExtent = info.minSlotExtent ?? 0;
   const centered = info.slotTicksCentered ?? false;
-  const gsw = info.mergedStyle.grid.gridStrokeWidth;
+  const gsw = info.mergedStyle.grid.gridLineStrokeWidth;
   const lanes = info.mergedStyle.lanes;
   let total = 0;
   for (const l of layouts) {
-    const slots = l.proportionalSlotTotal ?? 0;
-    const bandCount = l.proportionalBandCount ?? 0;
-    total += slots * minSlotW +
-      (centered ? 0 : gsw * (slots + bandCount)) +
-      Math.max(0, bandCount - 1) * lanes.gapX +
+    const slots = l.nProportionalSlots ?? 0;
+    const nTiersOrLanes = l.nProportionalTiersOrLanes ?? 0;
+    total += slots * minSlotExtent +
+      (centered ? 0 : gsw * (slots + nTiersOrLanes)) +
+      Math.max(0, nTiersOrLanes - 1) * lanes.gapX +
       lanes.paddingLeft + lanes.paddingRight +
       l.yAxisWidth;
   }

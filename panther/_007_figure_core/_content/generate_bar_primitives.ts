@@ -25,9 +25,9 @@ import {
   makeBarDataLabel,
   makeBarRect,
   type Orientation,
-  valBaselineCoord,
-  valCoord,
-  valExtendDir,
+  valueBaselineCoord,
+  valueCoord,
+  valueExtendDir,
 } from "./orientation_helpers.ts";
 
 // Shared with measure_data_label_clearance.ts, which mirrors bar thickness
@@ -50,43 +50,43 @@ export function generateBarPrimitives(
   // Bars whose baseline edge rests against the zero line are extended past
   // that line by `baselineFudge` so the grid line doesn't show through. A
   // zero-extent bar is not: the fudge alone would paint a hairline.
-  const valBaseline = valBaselineCoord(
+  const valueBaseline = valueBaselineCoord(
     ctx.subChartRcd,
     orientation,
     ctx.valueClearance.start,
   );
-  const extendDir = valExtendDir(orientation);
-  const baselineFudge = -extendDir * (ctx.gridStrokeWidth / 2);
+  const extendDir = valueExtendDir(orientation);
+  const baselineFudge = -extendDir * (ctx.gridLineStrokeWidth / 2);
   const seriesInfos = Array.from(
-    { length: ctx.nSeries },
+    { length: ctx.nSerieses },
     (_, i) => buildSeriesInfo(ctx, i, mapped),
   );
 
-  for (let i_val = 0; i_val < ctx.nVals; i_val++) {
-    for (let i_series = 0; i_series < ctx.nSeries; i_series++) {
-      const mappedVal = mapped[i_series][i_val];
-      if (mappedVal === undefined) continue;
+  for (let i_value = 0; i_value < ctx.nValues; i_value++) {
+    for (let i_series = 0; i_series < ctx.nSerieses; i_series++) {
+      const mappedValue = mapped[i_series][i_value];
+      if (mappedValue === undefined) continue;
 
       const valueInfo = buildValueInfo(
         ctx,
         seriesInfos[i_series],
-        mappedVal.val,
-        i_val,
+        mappedValue.value,
+        i_value,
       );
       const barStyle = s.bars.getStyle(valueInfo);
       if (!barStyle.show) continue;
 
-      // Indicator slot — category-axis region for this i_val, centered on
-      // the mapped category coordinate.
-      const indicatorSlotThickness = ctx.categoryIncrement * BAR_PROP_INDICATOR;
-      const indicatorSlotStart = catCoord(mappedVal.coords, orientation) -
-        indicatorSlotThickness / 2;
+      // The bar group: the bars' share of this i_value's slot along the
+      // category axis, centred on the mapped category coordinate.
+      const barGroupThickness = ctx.slotExtent * BAR_PROP_INDICATOR;
+      const barGroupStart = catCoord(mappedValue.coords, orientation) -
+        barGroupThickness / 2;
 
       // Value-axis coordinate of this bar's value end (e.g. bar's top in
       // vertical, right-edge in horizontal).
-      const valAtMapped = valCoord(mappedVal.coords, orientation);
-      const baselineStart = valBaseline +
-        (mappedVal.barExtent > 0 ? baselineFudge : 0);
+      const valueAtMapped = valueCoord(mappedValue.coords, orientation);
+      const baselineStart = valueBaseline +
+        (mappedValue.barExtent > 0 ? baselineFudge : 0);
 
       let barRcd: RectCoordsDims;
       let isTopOfStack = false;
@@ -95,85 +95,85 @@ export function generateBarPrimitives(
 
       if (s.bars.stacking === "stacked") {
         const seriesThickness = Math.min(
-          indicatorSlotThickness * BAR_PROP_SERIES,
+          barGroupThickness * BAR_PROP_SERIES,
           s.bars.maxBarWidth,
         );
-        const seriesStart = indicatorSlotStart +
-          (indicatorSlotThickness - seriesThickness) / 2;
+        const seriesStart = barGroupStart +
+          (barGroupThickness - seriesThickness) / 2;
 
         let accumulatedExtent = 0;
         for (let s_idx = 0; s_idx < i_series; s_idx++) {
-          const mv = mapped[s_idx][i_val];
+          const mv = mapped[s_idx][i_value];
           if (mv !== undefined) accumulatedExtent += mv.barExtent;
         }
 
         // Non-first series's inner edge touches the previous bar and needs no
         // fudge.
-        const valStart = i_series === 0
+        const valueStart = i_series === 0
           ? baselineStart
-          : valBaseline + extendDir * accumulatedExtent;
-        const valEnd = valBaseline +
-          extendDir * (accumulatedExtent + mappedVal.barExtent);
+          : valueBaseline + extendDir * accumulatedExtent;
+        const valueEnd = valueBaseline +
+          extendDir * (accumulatedExtent + mappedValue.barExtent);
 
         barRcd = makeBarRect(
           {
             catStart: seriesStart,
             catExtent: seriesThickness,
-            valStart,
-            valEnd,
+            valueStart,
+            valueEnd,
           },
           orientation,
         );
 
         isTopOfStack = true;
-        for (let s_idx = i_series + 1; s_idx < ctx.nSeries; s_idx++) {
-          if (mapped[s_idx][i_val] !== undefined) {
+        for (let s_idx = i_series + 1; s_idx < ctx.nSerieses; s_idx++) {
+          if (mapped[s_idx][i_value] !== undefined) {
             isTopOfStack = false;
             break;
           }
         }
-        for (let s_idx = 0; s_idx <= ctx.nSeries - 1; s_idx++) {
-          const mv = mapped[s_idx][i_val];
-          if (mv !== undefined) stackTotal += mv.val;
+        for (let s_idx = 0; s_idx <= ctx.nSerieses - 1; s_idx++) {
+          const mv = mapped[s_idx][i_value];
+          if (mv !== undefined) stackTotal += mv.value;
         }
         positionInStack = i_series;
       } else if (s.bars.stacking === "imposed") {
         const seriesThickness = Math.min(
-          indicatorSlotThickness * BAR_PROP_SERIES,
+          barGroupThickness * BAR_PROP_SERIES,
           s.bars.maxBarWidth,
         );
-        const seriesStart = indicatorSlotStart +
-          (indicatorSlotThickness - seriesThickness) / 2;
+        const seriesStart = barGroupStart +
+          (barGroupThickness - seriesThickness) / 2;
 
         barRcd = makeBarRect(
           {
             catStart: seriesStart,
             catExtent: seriesThickness,
-            valStart: baselineStart,
-            valEnd: valAtMapped,
+            valueStart: baselineStart,
+            valueEnd: valueAtMapped,
           },
           orientation,
         );
 
         isTopOfStack = true;
-        for (let s_idx = i_series + 1; s_idx < ctx.nSeries; s_idx++) {
-          if (mapped[s_idx]?.[i_val] !== undefined) {
+        for (let s_idx = i_series + 1; s_idx < ctx.nSerieses; s_idx++) {
+          if (mapped[s_idx]?.[i_value] !== undefined) {
             isTopOfStack = false;
             break;
           }
         }
-        for (let s_idx = 0; s_idx < ctx.nSeries; s_idx++) {
-          const mv = mapped[s_idx]?.[i_val];
-          if (mv !== undefined && mv.val > stackTotal) stackTotal = mv.val;
+        for (let s_idx = 0; s_idx < ctx.nSerieses; s_idx++) {
+          const mv = mapped[s_idx]?.[i_value];
+          if (mv !== undefined && mv.value > stackTotal) stackTotal = mv.value;
         }
         positionInStack = i_series;
       } else if (s.bars.stacking === "diff") {
         const seriesThickness = Math.min(
-          indicatorSlotThickness * BAR_PROP_SERIES,
+          barGroupThickness * BAR_PROP_SERIES,
           s.bars.maxBarWidth,
         );
-        const seriesStart = indicatorSlotStart +
-          (indicatorSlotThickness - seriesThickness) / 2;
+        const seriesStart = barGroupStart +
+          (barGroupThickness - seriesThickness) / 2;
 
         if (i_series === 0) {
           // Same as imposed for the first series.
@@ -181,56 +181,56 @@ export function generateBarPrimitives(
             {
               catStart: seriesStart,
               catExtent: seriesThickness,
-              valStart: baselineStart,
-              valEnd: valAtMapped,
+              valueStart: baselineStart,
+              valueEnd: valueAtMapped,
             },
             orientation,
           );
         } else {
-          const prevMapped = mapped[i_series - 1]?.[i_val];
+          const prevMapped = mapped[i_series - 1]?.[i_value];
           if (!prevMapped) continue;
           barRcd = makeBarRect(
             {
               catStart: seriesStart,
               catExtent: seriesThickness,
-              valStart: valCoord(prevMapped.coords, orientation),
-              valEnd: valAtMapped,
+              valueStart: valueCoord(prevMapped.coords, orientation),
+              valueEnd: valueAtMapped,
             },
             orientation,
           );
         }
 
         isTopOfStack = true;
-        for (let s_idx = i_series + 1; s_idx < ctx.nSeries; s_idx++) {
-          if (mapped[s_idx]?.[i_val] !== undefined) {
+        for (let s_idx = i_series + 1; s_idx < ctx.nSerieses; s_idx++) {
+          if (mapped[s_idx]?.[i_value] !== undefined) {
             isTopOfStack = false;
             break;
           }
         }
-        for (let s_idx = 0; s_idx < ctx.nSeries; s_idx++) {
-          const mv = mapped[s_idx]?.[i_val];
-          if (mv !== undefined && mv.val > stackTotal) stackTotal = mv.val;
+        for (let s_idx = 0; s_idx < ctx.nSerieses; s_idx++) {
+          const mv = mapped[s_idx]?.[i_value];
+          if (mv !== undefined && mv.value > stackTotal) stackTotal = mv.value;
         }
         positionInStack = i_series;
       } else {
-        // "none" — grouped. Each series gets its own sub-slot within the
-        // indicator slot.
-        const seriesOuterAreaThickness = indicatorSlotThickness / ctx.nSeries;
-        const seriesOuterStart = indicatorSlotStart +
-          seriesOuterAreaThickness * i_series;
+        // "none" — grouped. Each series gets its own share of the bar
+        // group.
+        const seriesOuterThickness = barGroupThickness / ctx.nSerieses;
+        const seriesOuterStart = barGroupStart +
+          seriesOuterThickness * i_series;
         const seriesThickness = Math.min(
-          seriesOuterAreaThickness * BAR_PROP_SERIES,
+          seriesOuterThickness * BAR_PROP_SERIES,
           s.bars.maxBarWidth,
         );
         const seriesStart = seriesOuterStart +
-          (seriesOuterAreaThickness - seriesThickness) / 2;
+          (seriesOuterThickness - seriesThickness) / 2;
 
         barRcd = makeBarRect(
           {
             catStart: seriesStart,
             catExtent: seriesThickness,
-            valStart: baselineStart,
-            valEnd: valAtMapped,
+            valueStart: baselineStart,
+            valueEnd: valueAtMapped,
           },
           orientation,
         );
@@ -242,13 +242,13 @@ export function generateBarPrimitives(
         s.bars.stacking === "imposed" ||
         s.bars.stacking === "diff";
       const shouldShowLabel = (isStackLike ? isTopOfStack : true) &&
-        labelOwner[i_series][i_val] === "bars";
+        labelOwner[i_series][i_value] === "bars";
 
       if (shouldShowLabel) {
         const dl = barStyle.dataLabel;
         const labelStr = s.bars.textFormatter !== "none"
           ? s.bars.textFormatter(valueInfo)
-          : String(mappedVal.val);
+          : String(mappedValue.value);
 
         const textStyle = buildDataLabelTextStyle(ctx.dataLabelsTextStyle, dl);
         const halo = buildLabelHalo(dl);
@@ -291,8 +291,8 @@ export function generateBarPrimitives(
       primitives.push({
         type: "chart-bar",
         key:
-          `bar-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}-${i_val}`,
-        item: chartValueItem(ctx.itemAxes, valueInfo),
+          `bar-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}-${i_value}`,
+        item: chartValueItem(ctx.itemDataDimensions, valueInfo),
         part: "body",
         bounds: barRcd,
         hitBounds: barRcd,

@@ -4,21 +4,21 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export type {
+  BandIn,
   Constraints,
   EdgeIn,
   GraphModel,
   GroupIn,
   Hints,
-  LaneIn,
   NodeIn,
 } from "./types_model.ts";
 
 export type {
+  BandGeom,
   EdgeGeom,
   Geometry,
   GroupGeom,
   HitArea,
-  LaneGeom,
   LayoutWarning,
   LayoutWarningCode,
   NodeGeom,

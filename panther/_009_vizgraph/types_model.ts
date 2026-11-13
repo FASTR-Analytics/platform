@@ -6,7 +6,7 @@
 export type GraphModel = {
   nodes: NodeIn[];
   edges: EdgeIn[];
-  lanes?: LaneIn[];
+  bands?: BandIn[];
   groups?: GroupIn[];
   constraints?: Constraints;
   hints?: Hints;
@@ -20,7 +20,7 @@ export type NodeIn = {
   size?: { w: number; h: number };
   layer?: number;
   seq?: number;
-  laneId?: string;
+  bandId?: string;
   groupId?: string;
 };
 
@@ -36,15 +36,15 @@ export type EdgeIn = {
   thickness?: number;
 };
 
-// A lane is a SPAN region along the flow axis: its members (node.laneId)
+// A band is a SPAN region along the flow axis: its members (node.bandId)
 // own a contiguous, exclusive range of layers — every node in those layers
 // is a member, or the claim is dropped with a `span-violated` warning.
-// Ranges come from the members' resolved layers (lanes expect given
+// Ranges come from the members' resolved layers (bands expect given
 // layers); the array order is the intended flow order (a disagreement
-// warns `lane-order`). The lane renders as a full-height box
-// (Geometry.lanes) with `label` as its header block; `minSize` floors the
-// box width; spacing.laneGap widens the gutters at lane boundaries.
-export type LaneIn = {
+// warns `band-order`). The band renders as a full-height box
+// (Geometry.bands) with `label` as its header block; `minSize` floors the
+// box width; spacing.bandGap widens the gutters at band boundaries.
+export type BandIn = {
   id: string;
   label?: { w: number; h: number };
   minSize?: number;
@@ -54,7 +54,7 @@ export type LaneIn = {
 // `span` and `zone` are claims on the drawing.
 // span: the group is a span region — its members (the nesting chain) own a
 // contiguous, exclusive layer range ordered against sibling spans; the same
-// machinery as lanes minus the lane box (a span group keeps its hug ring).
+// machinery as bands minus the band box (a span group keeps its hug ring).
 // zone: the group is a zone region — its members own a contiguous,
 // EXCLUSIVE cross-axis interval over the group's layer range: no
 // non-member's box intersects it, and the group holds one position in the

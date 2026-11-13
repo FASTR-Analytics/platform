@@ -5,12 +5,12 @@
 
 import type {
   LabelMode,
+  MapAreaInfo,
+  MapAreaInfoFunc,
   MapDataLabelMode,
-  MapRegionInfo,
-  MapRegionInfoFunc,
   RectCoordsDims,
   RenderContext,
-  SubChartHeaders,
+  SubChartMembers,
   TextInfoUnkeyed,
 } from "../deps.ts";
 import { buildDataLabelTextStyle } from "../deps.ts";
@@ -32,31 +32,31 @@ export function toLabelMode(mode: MapDataLabelMode): LabelMode {
   }
 }
 
-export function buildMapRegionInfo(
+export function buildMapAreaInfo(
   featureId: string,
   feature: GeoJSONFeature,
   value: number | undefined,
-  paneIndex: number,
-  tierIndex: number,
-  laneIndex: number,
-  headers: SubChartHeaders,
-): MapRegionInfo {
+  i_pane: number,
+  i_tier: number,
+  i_lane: number,
+  members: SubChartMembers,
+): MapAreaInfo {
   return {
     featureId,
     value,
     valueMin: 0,
     valueMax: 0,
     featureProperties: feature.properties,
-    paneIndex,
-    tierIndex,
-    laneIndex,
-    ...headers,
+    i_pane,
+    i_tier,
+    i_lane,
+    ...members,
   };
 }
 
 export function resolveMapLabelText(
-  textFormatter: MapRegionInfoFunc<string | undefined> | "none",
-  info: MapRegionInfo,
+  textFormatter: MapAreaInfoFunc<string | undefined> | "none",
+  info: MapAreaInfo,
 ): string | undefined {
   if (textFormatter !== "none") return textFormatter(info);
   return info.value !== undefined ? String(info.value) : info.featureId;
@@ -82,10 +82,10 @@ export function measureMapLabel(
 
 export function getFeatureMatchKey(
   feature: GeoJSONFeature,
-  areaMatchProp: string,
+  mapAreaMatchProp: string,
 ): string {
-  const val = feature.properties[areaMatchProp];
-  if (val !== undefined && val !== null) return String(val);
+  const value = feature.properties[mapAreaMatchProp];
+  if (value !== undefined && value !== null) return String(value);
   if (feature.id !== undefined) return String(feature.id);
   return "";
 }

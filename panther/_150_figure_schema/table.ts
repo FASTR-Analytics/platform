@@ -9,18 +9,18 @@ import type {
   ColGroupCol,
   RowGroup,
   RowGroupRow,
-  TableColAxis,
+  TableColDataDimensions,
   TableData,
   TableDataJson,
   TableDataTransformed,
   TableJsonDataConfig,
-  TableRowAxis,
+  TableRowDataDimensions,
 } from "./deps.ts";
 import {
   type Conforms,
-  zHeaderSortConfig,
   zJsonArray,
   zMaybeString,
+  zMemberSortConfig,
   zValueCell,
 } from "./shared.ts";
 
@@ -33,10 +33,10 @@ export const zTableJsonDataConfig = z.object({
   labelReplacements: z.record(z.string(), z.string()).optional(),
   sort: z
     .object({
-      colGroup: zHeaderSortConfig.optional(),
-      col: zHeaderSortConfig.optional(),
-      rowGroup: zHeaderSortConfig.optional(),
-      row: zHeaderSortConfig.optional(),
+      colGroup: zMemberSortConfig.optional(),
+      col: zMemberSortConfig.optional(),
+      rowGroup: zMemberSortConfig.optional(),
+      row: zMemberSortConfig.optional(),
     })
     .optional(),
   liveDomainExcludeIds: z.array(z.string()).optional(),
@@ -93,30 +93,30 @@ const zRowGroup = z.object({
 });
 const _zRowGroupConforms: Conforms<z.infer<typeof zRowGroup>, RowGroup> = true;
 
-const zTableColAxis = z.object({
+const zTableColDataDimensions = z.object({
   dimension: z.string(),
   groupDimension: z.string().optional(),
   groups: z.array(zColGroup),
 });
-const _zTableColAxisConforms: Conforms<
-  z.infer<typeof zTableColAxis>,
-  TableColAxis
+const _zTableColDataDimensionsConforms: Conforms<
+  z.infer<typeof zTableColDataDimensions>,
+  TableColDataDimensions
 > = true;
 
-const zTableRowAxis = z.object({
+const zTableRowDataDimensions = z.object({
   dimension: z.string(),
   groupDimension: z.string().optional(),
   groups: z.array(zRowGroup),
 });
-const _zTableRowAxisConforms: Conforms<
-  z.infer<typeof zTableRowAxis>,
-  TableRowAxis
+const _zTableRowDataDimensionsConforms: Conforms<
+  z.infer<typeof zTableRowDataDimensions>,
+  TableRowDataDimensions
 > = true;
 
 export const zTableDataTransformed = z.object({
   isTransformed: z.literal(true),
-  cols: zTableColAxis.optional(),
-  rows: zTableRowAxis.optional(),
+  cols: zTableColDataDimensions.optional(),
+  rows: zTableRowDataDimensions.optional(),
   aoa: z.array(z.array(z.union([z.string(), z.number()]))),
   liveDomainExcludeIds: z.array(z.string()).optional(),
   // zValueCell accepts null: JSON round-trips turn in-array undefined into

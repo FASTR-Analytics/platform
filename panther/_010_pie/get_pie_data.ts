@@ -4,19 +4,19 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  buildDataAxis,
+  buildDataDimension,
   checkValuePropsAssignment,
   compareBlankLast,
   createArray,
-  type DataAxis,
+  type DataDimension,
+  type DataDimensions,
   fillValuesWithDuplicateCheck,
-  getHeaderIndex,
-  type HeaderSortConfig,
-  isBlankHeader,
-  type SlotAxes,
-  slotHeaders,
+  getDimensionMembers,
+  getMemberIndex,
+  isBlankMember,
+  type MemberSortConfig,
   validateDataInput,
-  validateSlotDimensions,
+  validateDimensionProps,
 } from "./deps.ts";
 import {
   isPieDataTransformed,
@@ -56,43 +56,55 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
     paneProp,
   });
 
-  const slotProps = {
+  const dimensionProps = {
     series: seriesProp,
     indicator: indicatorProp,
     pane: paneProp,
     tier: tierProp,
     lane: laneProp,
   };
-  validateSlotDimensions(jsonArray, slotProps);
-  const axis = (prop: string | undefined, sortConfig?: HeaderSortConfig) =>
-    buildDataAxis(jsonArray, prop, valueProps, labelReplacements, sortConfig);
+  validateDimensionProps(jsonArray, dimensionProps);
+  const buildDimension = (
+    prop: string | undefined,
+    sortConfig?: MemberSortConfig,
+  ) =>
+    buildDataDimension(
+      jsonArray,
+      prop,
+      valueProps,
+      labelReplacements,
+      sortConfig,
+    );
   const sortsByValue = sortSeriesValues !== undefined &&
     sortSeriesValues !== "none";
   // sortSeriesValues reorders the global slice order by data, so a configured
-  // header sort would be overwritten — skip it.
-  const series = axis(seriesProp, sortsByValue ? undefined : sort?.series);
-  const indicator = axis(indicatorProp, sort?.indicator);
-  const lane = axis(laneProp, sort?.lane);
-  const tier = axis(tierProp, sort?.tier);
-  const pane = axis(paneProp, sort?.pane);
+  // member sort would be overwritten — skip it.
+  const series = buildDimension(
+    seriesProp,
+    sortsByValue ? undefined : sort?.series,
+  );
+  const indicator = buildDimension(indicatorProp, sort?.indicator);
+  const lane = buildDimension(laneProp, sort?.lane);
+  const tier = buildDimension(tierProp, sort?.tier);
+  const pane = buildDimension(paneProp, sort?.pane);
 
   const values = createEmptyValuesArray(
-    slotHeaders(pane).length,
-    slotHeaders(tier).length,
-    slotHeaders(lane).length,
-    slotHeaders(series).length,
-    slotHeaders(indicator).length,
+    getDimensionMembers(pane).length,
+    getDimensionMembers(tier).length,
+    getDimensionMembers(lane).length,
+    getDimensionMembers(series).length,
+    getDimensionMembers(indicator).length,
   );
 
-  const axes: SlotAxes = { series, lane, tier, pane };
+  const dimensions: DataDimensions = { series, lane, tier, pane };
 
   fillValuesWithDuplicateCheck(
     values,
     jsonArray,
     valueProps,
-    axes,
-    // The last axis is the indicator (repeat) dimension: one pie per entry.
-    (obj, valueProp) => getHeaderIndex(indicator, valueProp, obj),
+    dimensions,
+    // The last index is the indicator (repeat) dimension: one pie per entry.
+    (obj, valueProp) => getMemberIndex(indicator, valueProp, obj),
   );
 
   assertNoNegativeValues(values, series);
@@ -131,16 +143,16 @@ const OTHER_SERIES_ID = "--other";
 // Collapses every named series whose share of the GLOBAL sum (across every
 // cell) is below threshold into one summed series, placed after the kept named
 // series and before the blank one, which is never grouped: an unknown category
-// is not a small known one. Global, never per-cell: the series axis is global,
+// is not a small known one. Global, never per-cell: the series dimension is global,
 // so a series is grouped everywhere or nowhere — a cell may still show a
 // locally small slice whose global share clears the threshold, and that is the
 // correct trade.
 function applyGroupSmallSlices(
   values: (number | undefined)[][][][][],
-  series: DataAxis,
+  series: DataDimension,
   config: { threshold: number; label?: string },
-): { values: (number | undefined)[][][][][]; series: DataAxis } {
-  const sums = sumSeriesGlobally(values, series.headers.length);
+): { values: (number | undefined)[][][][][]; series: DataDimension } {
+  const sums = sumSeriesGlobally(values, series.members.length);
   const globalSum = sums.reduce((a, b) => a + b, 0);
   if (globalSum <= 0) {
     return { values, series };
@@ -149,8 +161,8 @@ function applyGroupSmallSlices(
   const keptIdx: number[] = [];
   const groupedIdx: number[] = [];
   const blankIdx: number[] = [];
-  series.headers.forEach((h, i) => {
-    const target = isBlankHeader(h)
+  series.members.forEach((h, i) => {
+    const target = isBlankMember(h)
       ? blankIdx
       : sums[i] / globalSum < config.threshold
       ? groupedIdx
@@ -161,10 +173,10 @@ function applyGroupSmallSlices(
     return { values, series };
   }
 
-  const newHeaders = [
-    ...keptIdx.map((i) => series.headers[i]),
+  const newMembers = [
+    ...keptIdx.map((i) => series.members[i]),
     { id: OTHER_SERIES_ID, label: config.label ?? "Other" },
-    ...blankIdx.map((i) => series.headers[i]),
+    ...blankIdx.map((i) => series.members[i]),
   ];
   const newValues = values.map((pane) =>
     pane.map((tier) =>
@@ -195,29 +207,29 @@ function applyGroupSmallSlices(
 
   return {
     values: newValues,
-    series: { dimension: series.dimension, headers: newHeaders },
+    series: { name: series.name, members: newMembers },
   };
 }
 
 function createEmptyValuesArray(
-  paneCount: number,
-  tierCount: number,
-  laneCount: number,
-  seriesCount: number,
-  indicatorCount: number,
+  nPanes: number,
+  nTiers: number,
+  nLanes: number,
+  nSerieses: number,
+  nIndicators: number,
 ): (number | undefined)[][][][][] {
   return createArray(
-    paneCount,
+    nPanes,
     () =>
       createArray(
-        tierCount,
+        nTiers,
         () =>
           createArray(
-            laneCount,
+            nLanes,
             () =>
               createArray(
-                seriesCount,
-                () => createArray(indicatorCount, () => undefined),
+                nSerieses,
+                () => createArray(nIndicators, () => undefined),
               ),
           ),
       ),
@@ -230,7 +242,7 @@ function createEmptyValuesArray(
 // rejected; see resolvePieTotal.)
 function assertNoNegativeValues(
   values: (number | undefined)[][][][][],
-  series: DataAxis | undefined,
+  series: DataDimension | undefined,
 ): void {
   for (const pane of values) {
     for (const tier of pane) {
@@ -240,7 +252,7 @@ function assertNoNegativeValues(
             if (v !== undefined && v < 0) {
               throw new Error(
                 `Pie values must be non-negative: series "${
-                  series?.headers[i_series].id ?? i_series
+                  series?.members[i_series].id ?? i_series
                 }" has value ${v}`,
               );
             }
@@ -253,22 +265,22 @@ function assertNoNegativeValues(
 
 function reorderSeriesByGlobalSum(
   values: (number | undefined)[][][][][],
-  series: DataAxis,
+  series: DataDimension,
   direction: "ascending" | "descending",
-): { values: (number | undefined)[][][][][]; series: DataAxis } {
-  const sums = sumSeriesGlobally(values, series.headers.length);
+): { values: (number | undefined)[][][][][]; series: DataDimension } {
+  const sums = sumSeriesGlobally(values, series.members.length);
 
-  const order = series.headers
+  const order = series.members
     .map((_, i) => i)
     .sort((a, b) =>
-      compareBlankLast(series.headers[a], series.headers[b]) ||
+      compareBlankLast(series.members[a], series.members[b]) ||
       (direction === "descending" ? sums[b] - sums[a] : sums[a] - sums[b])
     );
 
   return {
     series: {
-      dimension: series.dimension,
-      headers: order.map((i) => series.headers[i]),
+      name: series.name,
+      members: order.map((i) => series.members[i]),
     },
     values: values.map((pane) =>
       pane.map((tier) => tier.map((lane) => order.map((i) => lane[i])))
@@ -278,9 +290,9 @@ function reorderSeriesByGlobalSum(
 
 function sumSeriesGlobally(
   values: (number | undefined)[][][][][],
-  nSeries: number,
+  nSerieses: number,
 ): number[] {
-  return createArray(nSeries, (i_series) => {
+  return createArray(nSerieses, (i_series) => {
     let total = 0;
     for (const pane of values) {
       for (const tier of pane) {

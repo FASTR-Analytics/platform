@@ -9,7 +9,7 @@ import type {
   PaddingOptions,
   TextInfoUnkeyed,
 } from "./deps.ts";
-import type { LegendItem } from "./_legend/types.ts";
+import type { LegendEntry } from "./_legend/types.ts";
 import type { LegendInput } from "./_legend/scale_legend_types.ts";
 import type { YTextAxisWidthInfo } from "./_axes/y_text/types.ts";
 export type { YTextAxisWidthInfo };
@@ -45,13 +45,13 @@ export type AnnotationRectStyle = {
 };
 
 export type FigureInputsBase = {
-  caption?: string | undefined;
-  subCaption?: string | undefined;
+  title?: string | undefined;
+  subtitle?: string | undefined;
   footnote?: string | string[] | undefined;
   legend?: LegendInput | undefined;
   style?: CustomFigureStyleOptions | undefined;
   autofit?: boolean | FigureAutofitOptions;
-  // When shrink-to-fit shrinks a figure, surrounds (caption/subCaption/footnote
+  // When shrink-to-fit shrinks a figure, surrounds (title/subtitle/footnote
   // text + their padding/gaps) stay at full size by default while the body
   // scales. Set true to make them shrink with the body. The legend always
   // scales with the body, regardless of this flag.
@@ -59,18 +59,18 @@ export type FigureInputsBase = {
   annotations?: FigureAnnotation[];
 };
 
-export type ChartScaleAxisLimitsEntry = {
+export type ChartValueAxisLimitsEntry = {
   valueMin: number;
   valueMax: number;
 };
 
-export type ChartScaleAxisPaneLimits = ChartScaleAxisLimitsEntry & {
-  tierLimits: ChartScaleAxisLimitsEntry[];
-  laneLimits: ChartScaleAxisLimitsEntry[];
+export type ChartValueAxisPaneLimits = ChartValueAxisLimitsEntry & {
+  tierLimits: ChartValueAxisLimitsEntry[];
+  laneLimits: ChartValueAxisLimitsEntry[];
 };
 
-export type ChartScaleAxisLimits = {
-  paneLimits: ChartScaleAxisPaneLimits[];
+export type ChartValueAxisLimits = {
+  paneLimits: ChartValueAxisPaneLimits[];
 };
 
 export type YAxisWidthInfoBase = {
@@ -82,7 +82,7 @@ export type XAxisHeightInfoBase = {
   heightIncludingXAxisStrokeWidth: number;
 };
 
-export type YScaleAxisWidthInfo = YAxisWidthInfoBase & {
+export type YValueAxisWidthInfo = YAxisWidthInfoBase & {
   yAxisTickValues: number[][];
   tierHeaderAndLabelGapWidth: number;
   tickLabelFormatter: (v: number) => string;
@@ -90,15 +90,15 @@ export type YScaleAxisWidthInfo = YAxisWidthInfoBase & {
 
 export type YNoneAxisWidthInfo = YAxisWidthInfoBase;
 export type YAxisWidthInfo =
-  | YScaleAxisWidthInfo
+  | YValueAxisWidthInfo
   | YTextAxisWidthInfo
   | YNoneAxisWidthInfo;
 
-export type ValueRange = { minVal: number; maxVal: number };
+export type ValueRange = { valueMin: number; valueMax: number };
 
-// Inset applied to a scale axis's value range WITHIN the plot area, so
+// Inset applied to a value axis's value range WITHIN the sub-chart, so
 // elements centered on the extreme ticks (tick labels, data labels) stay
-// inside the plot rect. The plot rect itself never changes — only the
+// inside the sub-chart rect. The sub-chart rect itself never changes — only the
 // value-to-coordinate mapping. start = 0% end (x: left, y: bottom),
 // end = 100% end (x: right, y: top).
 export type OverhangClearance = {
@@ -108,15 +108,18 @@ export type OverhangClearance = {
 
 export const NO_OVERHANG_CLEARANCE: OverhangClearance = { start: 0, end: 0 };
 
-// Never let clearance consume more than this fraction of the plot extent
+// Never let clearance consume more than this fraction of the value axis extent
 // per side (pathologically small plots / huge labels).
 const MAX_OVERHANG_CLEARANCE_FRACTION = 0.4;
 
 export function clampOverhangClearance(
   clearance: OverhangClearance,
-  plotExtent: number,
+  valueAxisExtent: number,
 ): OverhangClearance {
-  const maxPerSide = Math.max(0, plotExtent * MAX_OVERHANG_CLEARANCE_FRACTION);
+  const maxPerSide = Math.max(
+    0,
+    valueAxisExtent * MAX_OVERHANG_CLEARANCE_FRACTION,
+  );
   return {
     start: Math.max(0, Math.min(clearance.start, maxPerSide)),
     end: Math.max(0, Math.min(clearance.end, maxPerSide)),
@@ -126,9 +129,9 @@ export function clampOverhangClearance(
 export type UncertaintyConfig =
   | {
     uncertaintyProp: string;
-    peValue: string;
-    ubValue: string;
-    lbValue: string;
+    peMemberId: string;
+    ubMemberId: string;
+    lbMemberId: string;
   }
   | {
     ubValueProps: string[];
@@ -139,9 +142,9 @@ export function isRowBasedUncertainty(
   u: UncertaintyConfig,
 ): u is {
   uncertaintyProp: string;
-  peValue: string;
-  ubValue: string;
-  lbValue: string;
+  peMemberId: string;
+  ubMemberId: string;
+  lbMemberId: string;
 } {
   return "uncertaintyProp" in u;
 }
@@ -173,4 +176,4 @@ export function validateUncertaintyConfig(
   }
 }
 
-export type { LegendItem };
+export type { LegendEntry };

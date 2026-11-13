@@ -12,7 +12,7 @@ import {
   type IndicatorFormat,
   PresentationObjectConfig,
 } from "lib";
-import { getScaleTickLabelFormatter, getTextStyle } from "./_0_common";
+import { getTextStyle, getValueAxisTickLabelFormatter } from "./_0_common";
 
 export function buildCoverageChartStyle(
   config: PresentationObjectConfig,
@@ -29,10 +29,10 @@ export function buildCoverageChartStyle(
     text: getTextStyle(config, deckStyle, chartPalette),
     panes: { nCols: config.s.nColsInCellDisplay },
     xPeriodAxis: { calendar },
-    yScaleAxis: {
+    yValueAxis: {
       max: config.s.forceYMax1 && formatAs === "percent" ? 1 : undefined,
       min: config.s.forceYMinAuto ? "auto" : undefined,
-      tickLabelFormatter: getScaleTickLabelFormatter(formatAs),
+      tickLabelFormatter: getValueAxisTickLabelFormatter(formatAs),
     },
     content: {
       points: {
@@ -41,13 +41,13 @@ export function buildCoverageChartStyle(
           dataLabel: { show: true },
         },
         textFormatter: (info: ChartValueInfo) => {
-          const thisSeries = info.seriesValArrays.at(info.i_series);
+          const thisSeries = info.seriesValueArrays.at(info.i_series);
           if (!thisSeries) return "";
           let lastGoodIndex = 0;
           for (let i = 0; i < thisSeries.length; i++) {
             if (thisSeries[i] !== undefined) lastGoodIndex = i;
           }
-          return info.i_val === lastGoodIndex ? toPct0(info.val) : "";
+          return info.i_value === lastGoodIndex ? toPct0(info.value) : "";
         },
       },
       bars: { func: { show: false } },
@@ -67,14 +67,14 @@ function getCoverageSeriesColorFunc(
   return (info) => {
     // TODO: switch to .id matching once raw series ids are confirmed
     // (and drop the French branches: id is locale-stable, label is not)
-    // Stored figures may carry seriesHeader as a bare string instead of
+    // Stored figures may carry seriesMember as a bare string instead of
     // { id, label }; fall back to the string (or empty) so .startsWith is safe.
-    const header = info.seriesHeader as unknown;
-    const label = typeof header === "string"
-      ? header
-      : (header as { label?: string } | undefined)?.label ?? "";
-    // A chart with no series disaggregation has no series header.
-    if (header === undefined) return strong;
+    const member = info.seriesMember as unknown;
+    const label = typeof member === "string"
+      ? member
+      : (member as { label?: string } | undefined)?.label ?? "";
+    // A chart with no series disaggregation has no series member.
+    if (member === undefined) return strong;
     if (
       label.startsWith("Survey") ||
       label.startsWith("Estimation basée")

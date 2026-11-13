@@ -4,10 +4,10 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  calculateMinLabelPlotExtent,
+  calculateMinLabelSubChartExtent,
   type ContentScaleResult,
   CustomFigureStyle,
-  getSubChartHeaders,
+  getSubChartMembers,
   isAutoScaleLegendConfig,
   measureChart,
   type MergedMapStyle,
@@ -21,15 +21,15 @@ import {
   resolveLabelPlacement,
   type SimplifiedChartConfig,
   solveContentScale,
-  type SubChartHeaders,
+  type SubChartMembers,
 } from "../deps.ts";
 import { getMapDataTransformed } from "../get_map_data.ts";
 import type { MapDataTransformed, MapInputs, MeasuredMap } from "../types.ts";
 import {
-  generateMapRegionPrimitives,
-  resolveShownRegions,
-  type ShownMapRegion,
-} from "./generate_map_region_primitives.ts";
+  generateMapAreaPrimitives,
+  resolveShownMapAreas,
+  type ShownMapArea,
+} from "./generate_map_area_primitives.ts";
 import {
   buildMapLabelEntries,
   buildMapUnitGeometry,
@@ -69,7 +69,7 @@ export function measureMap(
   > = {
     mergedStyle,
     transformedData,
-    dataProps: {
+    dataDimensions: {
       pane: transformedData.pane,
       tier: transformedData.tier,
       lane: transformedData.lane,
@@ -100,13 +100,13 @@ export function measureMap(
   // Two-phase over the grid: solve every cell's content scale
   // first, then emit every cell at the minimum, so small multiples stay
   // comparable.
-  const solved: SolvedMapCell[] = [];
+  const solved: SolvedMapSubChart[] = [];
   for (const prim of chartMeasured.primitives) {
     if (prim.type !== "chart-grid") continue;
     solved.push(
-      solveMapCell(
+      solveMapSubChart(
         rc,
-        prim.plotAreaRcd,
+        prim.bounds,
         prim.meta,
         transformedData,
         mergedStyle,
@@ -123,7 +123,7 @@ export function measureMap(
   const mapPrimitives: Primitive[] = [];
   for (const c of solved) {
     mapPrimitives.push(
-      ...emitMapCell(c, mergedStyle, projectionFn, commonS),
+      ...emitMapSubChart(c, mergedStyle, projectionFn, commonS),
     );
   }
 
@@ -136,25 +136,25 @@ export function measureMap(
   };
 }
 
-type CellIndices = {
-  paneIndex: number;
-  tierIndex: number;
-  laneIndex: number;
+type SubChartIndices = {
+  i_pane: number;
+  i_tier: number;
+  i_lane: number;
 };
 
-type SolvedMapCell = {
-  indices: CellIndices;
-  headers: SubChartHeaders;
+type SolvedMapSubChart = {
+  indices: SubChartIndices;
+  members: SubChartMembers;
   subChartRcd: RectCoordsDims;
   featuresForFitting: GeoJSONFeature[];
-  shown: ShownMapRegion[];
+  shown: ShownMapArea[];
   unitGeom: MapUnitGeometry | undefined;
   entries: MapLabelEntry[];
   // The frozen s0 placement split, carried by id.
   outsideIds: Set<string>;
   outside: MapLabelEntry[];
   // Which placer this cell solved under. The final choice is re-made at the
-  // harmonised scale in emitMapCell; this is the solve's own answer.
+  // harmonised scale in emitMapSubChart; this is the solve's own answer.
   placement: OutsideLabelPlacement;
   // The field's reference scale and validity margin, fixed per cell so one
   // distance field serves every trial content scale.
@@ -170,52 +170,52 @@ type SolvedMapCell = {
 export function featuresForFit(
   geoFeatures: GeoJSONFeature[],
   valueMap: Record<string, number | undefined>,
-  areaMatchProp: string,
-  fit: "all-regions" | "only-regions-in-data",
+  mapAreaMatchProp: string,
+  fit: "all-map-areas" | "only-map-areas-in-data",
 ): GeoJSONFeature[] {
-  return fit === "only-regions-in-data"
+  return fit === "only-map-areas-in-data"
     ? geoFeatures.filter(
-      (f) => getFeatureMatchKey(f, areaMatchProp) in valueMap,
+      (f) => getFeatureMatchKey(f, mapAreaMatchProp) in valueMap,
     )
     : geoFeatures;
 }
 
-function solveMapCell(
+function solveMapSubChart(
   rc: RenderContext,
   subChartRcd: RectCoordsDims,
-  indices: CellIndices,
+  indices: SubChartIndices,
   data: MapDataTransformed,
   mergedStyle: MergedMapStyle,
   projectionFn: ProjectionFn,
-): SolvedMapCell {
-  const { paneIndex, tierIndex, laneIndex } = indices;
+): SolvedMapSubChart {
+  const { i_pane, i_tier, i_lane } = indices;
   const mode = toLabelMode(mergedStyle.map.dataLabelMode);
-  const valueMap = data.valueMaps[paneIndex][tierIndex][laneIndex];
-  const headers = getSubChartHeaders(data, indices);
+  const valueMap = data.valueMaps[i_pane][i_tier][i_lane];
+  const members = getSubChartMembers(data, indices);
 
   const featuresForFitting = featuresForFit(
     data.geoFeatures,
     valueMap,
-    data.area.matchProp,
+    data.mapArea.matchProp,
     mergedStyle.map.fit,
   );
-  const shown = resolveShownRegions(
+  const shown = resolveShownMapAreas(
     data.geoFeatures,
     valueMap,
     data.valueRange,
     data,
-    mergedStyle.content.mapRegions.getStyle,
-    paneIndex,
-    tierIndex,
-    laneIndex,
-    headers,
+    mergedStyle.content.mapAreas.getStyle,
+    i_pane,
+    i_tier,
+    i_lane,
+    members,
   );
 
   const projBounds = computeProjectedBounds(featuresForFitting, projectionFn);
   if (!projBounds || projBounds.w === 0 || projBounds.h === 0) {
     return {
       indices,
-      headers,
+      members,
       subChartRcd,
       featuresForFitting,
       shown,
@@ -264,7 +264,7 @@ function solveMapCell(
       unitFitted,
       mode,
       indices,
-      headers,
+      members,
       s0,
     );
     entries = entries.map((e) => {
@@ -287,7 +287,7 @@ function solveMapCell(
       }
       // A rung may have re-wrapped the text to earn its verdict, and the
       // emitter must draw what was tested: a label rescued onto two lines and
-      // then drawn as one long line overflows the region it was kept inside.
+      // then drawn as one long line overflows the map area it was kept inside.
       return mText === e.mText ? e : { ...e, mText };
     });
     outside = entries.filter((e) => outsideIds.has(e.id));
@@ -297,7 +297,8 @@ function solveMapCell(
   // floor puts the LARGER drawn dimension at the legibility extent, matching
   // the old 42×42 minimum cell.
   let placement = mergedStyle.map.outsideLabelPlacement;
-  const sFloor = calculateMinLabelPlotExtent(rc, mergedStyle.text.dataLabels) /
+  const sFloor =
+    calculateMinLabelSubChartExtent(rc, mergedStyle.text.dataLabels) /
     Math.max(projBounds.w, projBounds.h);
   // The field is built once per cell at s0 and reused at every trial scale, so
   // its validity margin has to cover the smallest scale the solve will reach.
@@ -356,7 +357,7 @@ function solveMapCell(
 
   return {
     indices,
-    headers,
+    members,
     subChartRcd,
     featuresForFitting,
     shown,
@@ -372,15 +373,15 @@ function solveMapCell(
   };
 }
 
-function emitMapCell(
-  solvedCell: SolvedMapCell,
+function emitMapSubChart(
+  solvedSubChart: SolvedMapSubChart,
   mergedStyle: MergedMapStyle,
   projectionFn: ProjectionFn,
   s: number,
 ): Primitive[] {
   const {
     indices,
-    headers,
+    members,
     subChartRcd,
     featuresForFitting,
     shown,
@@ -390,7 +391,7 @@ function emitMapCell(
     outside,
     trackCtx,
     degenerate,
-  } = solvedCell;
+  } = solvedSubChart;
 
   if (degenerate || !unitGeom || s <= 0) {
     const fitted = fitProjectionAtScale(
@@ -400,7 +401,7 @@ function emitMapCell(
       subChartRcd.centerX(),
       subChartRcd.centerY(),
     );
-    return generateMapRegionPrimitives(shown, fitted, indices, headers);
+    return generateMapAreaPrimitives(shown, fitted, indices, members);
   }
 
   // Centre the union bbox in the cell — in BOTH dimensions: at s at most one
@@ -409,7 +410,7 @@ function emitMapCell(
   // grid-minimum scale — a track feasible at this cell's own solved s can be
   // infeasible at a smaller one, and the centring extents and the emitted
   // primitives must not disagree about which placer ran.
-  let placement = solvedCell.placement;
+  let placement = solvedSubChart.placement;
   let extents = outside.length > 0
     ? mapExtentsAt(outside, unitGeom, s, mergedStyle, placement, trackCtx)
     : undefined;
@@ -444,11 +445,11 @@ function emitMapCell(
     cy,
   );
 
-  const primitives: Primitive[] = generateMapRegionPrimitives(
+  const primitives: Primitive[] = generateMapAreaPrimitives(
     shown,
     fitted,
     indices,
-    headers,
+    members,
   );
 
   primitives.push(
@@ -462,7 +463,7 @@ function emitMapCell(
       cy,
       mergedStyle,
       indices,
-      headers,
+      members,
       placement,
       trackCtx,
     ),

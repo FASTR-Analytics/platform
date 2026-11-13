@@ -11,7 +11,7 @@
 // W(s)/H(s) are NOT assumed monotone in s: label terms have slope cos(θ) or 0,
 // and pie's flank edge cx ± √(s² − dy²) is concave, so the feasible set can be
 // a union of intervals. The solver scans downward from sMax before bisecting;
-// any feasible band wider than the scan step is never stepped over. Sized so
+// any feasible interval wider than the scan step is never stepped over. Sized so
 // the step stays comfortably below the content legibility floor (~21 DU pie
 // radius) for realistic cells.
 export const SOLVE_SCAN_STEPS = 64;
@@ -87,10 +87,10 @@ export function solveContentScale(
   // Scan downward for the largest fitting sample, sFloor included as the last
   // one. The floor is NOT assumed to fit: under nearest-point placement
   // shrinking `s` shortens the track while the label footprints stay fixed in
-  // DU, so the feasible set can be a band that excludes the floor entirely — a
+  // DU, so the feasible set can be an interval that excludes the floor entirely — a
   // cell can be placeable at radius 190 and unplaceable at 21. Bailing on
   // `!fits(sFloor)` (as this did) reported such a cell infeasible without ever
-  // looking at the band, which sent every one of them to the fallback placer.
+  // looking at the interval, which sent every one of them to the fallback placer.
   const step = (sMax - sFloor) / SOLVE_SCAN_STEPS;
   let found: number | undefined;
   let hi = sMax;

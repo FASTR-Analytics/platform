@@ -14,15 +14,15 @@ import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
 import {
   formatIndicatorValue,
   getIndicatorIdsForChartValue,
-  getMapRegionsContent,
+  getMapAreasContent,
   getPieCenterLabel,
   getPieSlicesContent,
-  getScaleTickLabelFormatter,
   getStandardSeriesColorFunc,
   getTableCellsContent,
   getTableColHeadersContent,
   getTableLayoutStyle,
   getTextStyle,
+  getValueAxisTickLabelFormatter,
 } from "./_0_common";
 import { getAdminAreaLevelFromMapConfig } from "../get_admin_area_level_from_config";
 
@@ -45,7 +45,7 @@ export function buildStandardStyle(
     : allowNegativeScale
     ? "auto-zero"
     : undefined;
-  // The shared scale axis and everything derived from it: tick labels, the
+  // The shared value axis and everything derived from it: tick labels, the
   // forceYMax1 clamp, the pie completion envelope. These are the ONLY
   // legitimate uses of the collapsed format; every individual value below goes
   // through formatForValue instead.
@@ -57,10 +57,10 @@ export function buildStandardStyle(
   const scaleMax = config.s.forceYMax1 && axisFormat === "percent"
     ? 1
     : undefined;
-  const tickLabelFormatter = getScaleTickLabelFormatter(axisFormat);
+  const tickLabelFormatter = getValueAxisTickLabelFormatter(axisFormat);
   const formatChartValue = (info: ChartValueInfo) =>
     formatIndicatorValue(
-      info.val,
+      info.value,
       effectiveFormat.formatForValue(
         getIndicatorIdsForChartValue(effectiveValueProps, info),
       ),
@@ -87,7 +87,7 @@ export function buildStandardStyle(
       reverseOrder: config.s.content === "bars" && config.s.barsStacked,
     },
     grid: {
-      showGrid: config.d.type !== "table" || cf.type === "none",
+      showGridLines: config.d.type !== "table" || cf.type === "none",
     },
     panes: {
       nCols: config.s.nColsInCellDisplay,
@@ -107,13 +107,13 @@ export function buildStandardStyle(
       forceSideTicksWhenYear: config.s.content === "bars",
       calendar,
     },
-    yScaleAxis: {
+    yValueAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
       max: scaleMax,
       min: scaleMin,
       tickLabelFormatter,
     },
-    xScaleAxis: {
+    xValueAxis: {
       allowIndividualLaneLimits: config.s.allowIndividualRowLimits,
       max: scaleMax,
       min: scaleMin,
@@ -158,7 +158,7 @@ export function buildStandardStyle(
         deckStyle,
       ),
       tableColHeaders: getTableColHeadersContent(config),
-      mapRegions: getMapRegionsContent(
+      mapAreas: getMapAreasContent(
         config,
         effectiveFormat,
         effectiveValueProps,
@@ -177,7 +177,7 @@ export function buildStandardStyle(
         projection: config.s.mapProjection ?? "equirectangular",
         dataLabelMode: config.s.mapDataLabelMode ?? "centroid",
         fit: (getAdminAreaLevelFromMapConfig(config) ?? 0) >= 3
-          ? "only-regions-in-data"
+          ? "only-map-areas-in-data"
           : undefined,
       }
       : undefined,

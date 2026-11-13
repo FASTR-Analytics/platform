@@ -18,21 +18,21 @@ import {
 } from "./_internal/measure.ts";
 
 export const DiagramRenderer: Renderer<DiagramInputs, MeasuredDiagram> = {
-  isType(item: unknown): item is DiagramInputs {
-    return typeof item === "object" && item !== null &&
-      "figureType" in item && item.figureType === "diagram";
+  isType(inputs: unknown): inputs is DiagramInputs {
+    return typeof inputs === "object" && inputs !== null &&
+      "figureType" in inputs && inputs.figureType === "diagram";
   },
 
   measure(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: DiagramInputs,
+    inputs: DiagramInputs,
   ): MeasuredDiagram {
     return measureSceneFigure(
       rc,
       bounds,
-      item,
-      diagramSource(item.data, item.customNode),
+      inputs,
+      diagramSource(inputs.data, inputs.customNode),
     );
   },
 
@@ -44,21 +44,21 @@ export const DiagramRenderer: Renderer<DiagramInputs, MeasuredDiagram> = {
   measureAndRender(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: DiagramInputs,
+    inputs: DiagramInputs,
   ): void {
-    this.render(rc, this.measure(rc, bounds, item));
+    this.render(rc, this.measure(rc, bounds, inputs));
   },
 
   getIdealHeight(
     rc: RenderContext,
     width: number,
-    item: DiagramInputs,
+    inputs: DiagramInputs,
   ): HeightConstraints {
     return getSceneFigureIdealHeight(
       rc,
       width,
-      item,
-      diagramSource(item.data, item.customNode),
+      inputs,
+      diagramSource(inputs.data, inputs.customNode),
     );
   },
 };

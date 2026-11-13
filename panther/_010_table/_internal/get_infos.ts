@@ -43,7 +43,7 @@ export function getRowHeaderInfos(
         id: rowGroup.id,
         label: rowGroup.label,
         index: undefined,
-        itemCount: nRows,
+        nRowsOrCols: nRows,
         isGroupHeader: true,
         ...(resolved.rowGroupSampleN[groupIndex] !== undefined
           ? { sampleN: resolved.rowGroupSampleN[groupIndex] }
@@ -79,7 +79,7 @@ export function getRowHeaderInfos(
         id: row.id,
         label: row.label,
         index: row.index,
-        itemCount: nRows,
+        nRowsOrCols: nRows,
         isGroupHeader: false,
         ...(resolved.rowSampleN[row.index] !== undefined
           ? { sampleN: resolved.rowSampleN[row.index] }
@@ -141,7 +141,7 @@ export function getColGroupHeaderInfos(
       id: colGroup.id,
       label: colGroup.label,
       index: undefined,
-      itemCount: nCols,
+      nRowsOrCols: nCols,
       isGroupHeader: true,
       ...(resolved.colGroupSampleN[groupIndex] !== undefined
         ? { sampleN: resolved.colGroupSampleN[groupIndex] }
@@ -187,7 +187,7 @@ export function getColHeaderInfos(
       id,
       label,
       index,
-      itemCount: nCols,
+      nRowsOrCols: nCols,
       isGroupHeader: false,
       ...(resolved.colSampleN[index] !== undefined
         ? { sampleN: resolved.colSampleN[index] }

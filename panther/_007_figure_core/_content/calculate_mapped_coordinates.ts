@@ -9,7 +9,7 @@ import type { OverhangClearance, ValueRange } from "../types.ts";
 export type MappedValueCoordinate =
   | {
     coords: Coordinates;
-    val: number;
+    value: number;
     barExtent: number;
   }
   | undefined;
@@ -21,72 +21,73 @@ export type MappedValueCoordinate =
 // renders nothing (by construction visibility covers every defined
 // value/bound, so this only guards inconsistent hand-built masks).
 export function calculateMappedCoordinates(
-  seriesVals: (number | undefined)[][],
-  plotAreaRcd: RectCoordsDims,
-  categoryIncrement: number,
+  seriesValues: (number | undefined)[][],
+  subChartRcd: RectCoordsDims,
+  slotExtent: number,
   isCentered: boolean,
-  gridStrokeWidth: number,
+  gridLineStrokeWidth: number,
   valueRange: ValueRange,
   valueClearance: OverhangClearance,
   orientation: "vertical" | "horizontal" = "vertical",
   positionOrdinals: (number | undefined)[],
 ): MappedValueCoordinate[][] {
-  const { maxVal, minVal } = valueRange;
+  const { valueMax, valueMin } = valueRange;
 
   if (orientation === "horizontal") {
-    const effectiveW = plotAreaRcd.w() - valueClearance.start -
+    const effectiveW = subChartRcd.w() - valueClearance.start -
       valueClearance.end;
-    return seriesVals.map((singleSeries) => {
-      return singleSeries.map((val, i_val) => {
-        if (val === undefined) {
+    return seriesValues.map((singleSeries) => {
+      return singleSeries.map((value, i_value) => {
+        if (value === undefined) {
           return undefined;
         }
 
-        const i_pos = positionOrdinals[i_val];
+        const i_pos = positionOrdinals[i_value];
         if (i_pos === undefined) {
           return undefined;
         }
 
-        const extraForStroke = isCentered ? 0 : gridStrokeWidth;
-        const y = plotAreaRcd.y() +
+        const extraForStroke = isCentered ? 0 : gridLineStrokeWidth;
+        const y = subChartRcd.y() +
           extraForStroke +
-          categoryIncrement / 2 +
-          i_pos * (extraForStroke + categoryIncrement);
+          slotExtent / 2 +
+          i_pos * (extraForStroke + slotExtent);
 
         const barExtent = effectiveW *
-          ((val - minVal) / (maxVal - minVal));
+          ((value - valueMin) / (valueMax - valueMin));
         // coords.x() is at the VALUE end of the bar (mirrors coords.y() being
         // the value end in vertical).
-        const x = plotAreaRcd.x() + valueClearance.start + barExtent;
+        const x = subChartRcd.x() + valueClearance.start + barExtent;
 
-        return { coords: new Coordinates({ x, y }), val, barExtent };
+        return { coords: new Coordinates({ x, y }), value, barExtent };
       });
     });
   }
 
-  const effectiveH = plotAreaRcd.h() - valueClearance.start -
+  const effectiveH = subChartRcd.h() - valueClearance.start -
     valueClearance.end;
-  return seriesVals.map((singleSeries) => {
-    return singleSeries.map((val, i_val) => {
-      if (val === undefined) {
+  return seriesValues.map((singleSeries) => {
+    return singleSeries.map((value, i_value) => {
+      if (value === undefined) {
         return undefined;
       }
 
-      const i_pos = positionOrdinals[i_val];
+      const i_pos = positionOrdinals[i_value];
       if (i_pos === undefined) {
         return undefined;
       }
 
-      const extraWidthForStrokeIfNeeded = isCentered ? 0 : gridStrokeWidth;
-      const x = plotAreaRcd.x() +
+      const extraWidthForStrokeIfNeeded = isCentered ? 0 : gridLineStrokeWidth;
+      const x = subChartRcd.x() +
         extraWidthForStrokeIfNeeded +
-        categoryIncrement / 2 +
-        i_pos * (extraWidthForStrokeIfNeeded + categoryIncrement);
+        slotExtent / 2 +
+        i_pos * (extraWidthForStrokeIfNeeded + slotExtent);
 
-      const barExtent = effectiveH * ((val - minVal) / (maxVal - minVal));
-      const y = plotAreaRcd.y() + valueClearance.end + (effectiveH - barExtent);
+      const barExtent = effectiveH *
+        ((value - valueMin) / (valueMax - valueMin));
+      const y = subChartRcd.y() + valueClearance.end + (effectiveH - barExtent);
 
-      return { coords: new Coordinates({ x, y }), val, barExtent };
+      return { coords: new Coordinates({ x, y }), value, barExtent };
     });
   });
 }

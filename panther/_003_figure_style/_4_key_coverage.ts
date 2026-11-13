@@ -29,10 +29,10 @@ import type {
   MergedSurroundsStyle,
   MergedTableStyle,
   MergedXPeriodAxisStyle,
-  MergedXScaleAxisStyle,
   MergedXTextAxisStyle,
-  MergedYScaleAxisStyle,
+  MergedXValueAxisStyle,
   MergedYTextAxisStyle,
+  MergedYValueAxisStyle,
 } from "./_3_merged_style_return_types.ts";
 import type { DataLabelStyle } from "./style_func_types.ts";
 import type { FigureTextStyleKey } from "./text_style_keys.ts";
@@ -94,15 +94,15 @@ export type FigureStyleKeyCoverage = {
   tiers: AssertNoMissingKeys<Missing<"tiers", MergedChartStyleBase["tiers"]>>;
   lanes: AssertNoMissingKeys<Missing<"lanes", MergedChartStyleBase["lanes"]>>;
   xTextAxis: AssertNoMissingKeys<Missing<"xTextAxis", MergedXTextAxisStyle>>;
-  xScaleAxis: AssertNoMissingKeys<
-    Missing<"xScaleAxis", MergedXScaleAxisStyle>
+  xValueAxis: AssertNoMissingKeys<
+    Missing<"xValueAxis", MergedXValueAxisStyle>
   >;
   xPeriodAxis: AssertNoMissingKeys<
     Missing<"xPeriodAxis", MergedXPeriodAxisStyle>
   >;
   yTextAxis: AssertNoMissingKeys<Missing<"yTextAxis", MergedYTextAxisStyle>>;
-  yScaleAxis: AssertNoMissingKeys<
-    Missing<"yScaleAxis", MergedYScaleAxisStyle>
+  yValueAxis: AssertNoMissingKeys<
+    Missing<"yValueAxis", MergedYValueAxisStyle>
   >;
   content: AssertNoMissingKeys<Missing<"content", MergedContentAuthoringView>>;
   contentFuncPayloads: AssertNoMissingKeys<
@@ -141,10 +141,10 @@ type MergedFigureTextKey =
   | keyof MergedSurroundsStyle["text"]
   | keyof MergedTableStyle["text"]
   | keyof MergedXTextAxisStyle["text"]
-  | keyof MergedXScaleAxisStyle["text"]
+  | keyof MergedXValueAxisStyle["text"]
   | keyof MergedXPeriodAxisStyle["text"]
   | keyof MergedYTextAxisStyle["text"]
-  | keyof MergedYScaleAxisStyle["text"]
+  | keyof MergedYValueAxisStyle["text"]
   | keyof MergedPieStyle["pie"]["text"]
   | (MergedLegendStyle["text"] extends TextInfoUnkeyed ? "legend" : never)
   | MergedSceneTextKey;

@@ -7,54 +7,54 @@ import type {
   ChartConnectorInfo,
   ChartSeriesInfo,
   ChartValueInfo,
-  DataAxis,
+  DataDimension,
   ItemCoordinate,
   PeriodType,
   PrimitiveItem,
 } from "./deps.ts";
-import { buildItem, getPeriodIdFromTime, slotCoordinate } from "./deps.ts";
-import { subChartItemCoordinates } from "./sub_chart_headers.ts";
+import { buildItem, getPeriodIdFromTime, itemCoordinate } from "./deps.ts";
+import { subChartItemCoordinates } from "./sub_chart_members.ts";
 
-// The axes a chart's items are coordinates in. The value slot is the
-// indicator axis or, on a timeseries, the period, whose members are the time
+// The dimensions a chart's items are coordinates in. The value index runs
+// along the indicator dimension or, on a timeseries, the period, whose members are the time
 // points from timeMin, each named by its period id.
-export type ChartItemAxes = {
-  pane?: DataAxis;
-  tier?: DataAxis;
-  lane?: DataAxis;
-  series?: DataAxis;
-  indicator?: DataAxis;
-  period?: { dimension: string; periodType: PeriodType; timeMin: number };
+export type ChartItemDataDimensions = {
+  pane?: DataDimension;
+  tier?: DataDimension;
+  lane?: DataDimension;
+  series?: DataDimension;
+  indicator?: DataDimension;
+  period?: { name: string; periodType: PeriodType; timeMin: number };
 };
 
 export function chartSeriesItem(
-  axes: ChartItemAxes,
+  dimensions: ChartItemDataDimensions,
   info: ChartSeriesInfo,
 ): PrimitiveItem | undefined {
   return buildItem([
-    ...subChartItemCoordinates(axes, info),
-    slotCoordinate(axes.series?.dimension, info.seriesHeader),
+    ...subChartItemCoordinates(dimensions, info),
+    itemCoordinate(dimensions.series?.name, info.seriesMember),
   ]);
 }
 
 export function chartValueItem(
-  axes: ChartItemAxes,
+  dimensions: ChartItemDataDimensions,
   info: ChartValueInfo,
 ): PrimitiveItem | undefined {
   return buildItem([
-    ...subChartItemCoordinates(axes, info),
-    slotCoordinate(axes.series?.dimension, info.seriesHeader),
-    valueSlotCoordinate(axes, info.i_val),
+    ...subChartItemCoordinates(dimensions, info),
+    itemCoordinate(dimensions.series?.name, info.seriesMember),
+    valueIndexCoordinate(dimensions, info.i_value),
   ]);
 }
 
 export function chartConnectorItem(
-  axes: ChartItemAxes,
+  dimensions: ChartItemDataDimensions,
   info: ChartConnectorInfo,
 ): PrimitiveItem | undefined {
   return buildItem([
-    ...subChartItemCoordinates(axes, info),
-    valueSlotCoordinate(axes, info.i_val),
+    ...subChartItemCoordinates(dimensions, info),
+    valueIndexCoordinate(dimensions, info.i_value),
   ]);
 }
 
@@ -65,20 +65,23 @@ export function periodCoordinate(
   return [dimension, String(periodId)];
 }
 
-function valueSlotCoordinate(
-  axes: ChartItemAxes,
-  i_val: number,
+function valueIndexCoordinate(
+  dimensions: ChartItemDataDimensions,
+  i_value: number,
 ): ItemCoordinate {
-  if (axes.indicator !== undefined) {
-    return slotCoordinate(
-      axes.indicator.dimension,
-      axes.indicator.headers[i_val],
+  if (dimensions.indicator !== undefined) {
+    return itemCoordinate(
+      dimensions.indicator.name,
+      dimensions.indicator.members[i_value],
     );
   }
-  if (axes.period !== undefined) {
+  if (dimensions.period !== undefined) {
     return periodCoordinate(
-      axes.period.dimension,
-      getPeriodIdFromTime(axes.period.timeMin + i_val, axes.period.periodType),
+      dimensions.period.name,
+      getPeriodIdFromTime(
+        dimensions.period.timeMin + i_value,
+        dimensions.period.periodType,
+      ),
     );
   }
   return undefined;

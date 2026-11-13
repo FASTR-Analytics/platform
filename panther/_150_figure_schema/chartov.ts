@@ -12,19 +12,19 @@ import type {
 } from "./deps.ts";
 import {
   CHART_LIMITS_LENGTH_MESSAGE,
-  chartLimitsMatchHeaders,
+  chartLimitsMatchMembers,
   type Conforms,
-  zAxisMembership,
-  zChartBounds,
-  zChartProportional,
-  zChartScaleAxisLimits,
-  zDataAxis,
-  zHeaderSortConfig,
+  zChartOVProportional,
+  zChartUncertainty,
+  zChartValueAxisLimits,
+  zDataDimension,
+  zDimensionMembership,
   zJsonArray,
+  zMemberSortConfig,
   zUncertaintyConfig,
   zValues5D,
   zVisibleByPane,
-  zVisibleByPaneBand,
+  zVisibleByPaneTierOrLane,
 } from "./shared.ts";
 
 export const zChartOVJsonDataConfig = z.object({
@@ -35,27 +35,27 @@ export const zChartOVJsonDataConfig = z.object({
   tierProp: z.string().optional(),
   paneProp: z.string().optional(),
   uncertainty: zUncertaintyConfig.optional(),
-  // strict: a stray scale-direction key (tier on OV) must error, not be
+  // strict: a stray value-direction key (tier on OV) must error, not be
   // silently stripped — see validateChartMembership for the rule.
   membership: z
     .strictObject({
-      indicator: zAxisMembership.optional(),
-      lane: zAxisMembership.optional(),
+      indicator: zDimensionMembership.optional(),
+      lane: zDimensionMembership.optional(),
     })
     .optional(),
-  proportional: zChartProportional.optional(),
+  proportional: zChartOVProportional.optional(),
   labelReplacements: z.record(z.string(), z.string()).optional(),
   sort: z
     .object({
-      indicator: zHeaderSortConfig.optional(),
-      series: zHeaderSortConfig.optional(),
-      lane: zHeaderSortConfig.optional(),
-      tier: zHeaderSortConfig.optional(),
-      pane: zHeaderSortConfig.optional(),
+      indicator: zMemberSortConfig.optional(),
+      series: zMemberSortConfig.optional(),
+      lane: zMemberSortConfig.optional(),
+      tier: zMemberSortConfig.optional(),
+      pane: zMemberSortConfig.optional(),
     })
     .optional(),
   sortIndicatorValues: z.enum(["ascending", "descending", "none"]).optional(),
-  yScaleAxisLabel: z.string().optional(),
+  yValueAxisLabel: z.string().optional(),
 });
 const _zChartOVJsonDataConfigConforms: Conforms<
   z.infer<typeof zChartOVJsonDataConfig>,
@@ -73,18 +73,18 @@ const _zChartOVDataJsonConforms: Conforms<
 
 const zChartOVDataTransformedObject = z.object({
   isTransformed: z.literal(true),
-  indicator: zDataAxis,
-  series: zDataAxis.optional(),
-  lane: zDataAxis.optional(),
-  tier: zDataAxis.optional(),
-  pane: zDataAxis.optional(),
+  indicator: zDataDimension,
+  series: zDataDimension.optional(),
+  lane: zDataDimension.optional(),
+  tier: zDataDimension.optional(),
+  pane: zDataDimension.optional(),
   values: zValues5D,
-  bounds: zChartBounds.optional(),
-  scaleAxisLimits: zChartScaleAxisLimits,
-  yScaleAxisLabel: z.string().optional(),
+  uncertaintyValues: zChartUncertainty.optional(),
+  valueAxisLimits: zChartValueAxisLimits,
+  yValueAxisLabel: z.string().optional(),
   visibleIndicatorsByPane: zVisibleByPane.optional(),
   visibleLanesByPane: zVisibleByPane.optional(),
-  visibleIndicatorsByPaneBand: zVisibleByPaneBand.optional(),
+  visibleIndicatorsByPaneLane: zVisibleByPaneTierOrLane.optional(),
   proportionalPanes: z.boolean().optional(),
 });
 const _zChartOVDataTransformedConforms: Conforms<
@@ -94,7 +94,7 @@ const _zChartOVDataTransformedConforms: Conforms<
 
 export const zChartOVDataTransformed: z.ZodType<ChartOVDataTransformed> =
   zChartOVDataTransformedObject.refine(
-    chartLimitsMatchHeaders,
+    chartLimitsMatchMembers,
     CHART_LIMITS_LENGTH_MESSAGE,
   );
 

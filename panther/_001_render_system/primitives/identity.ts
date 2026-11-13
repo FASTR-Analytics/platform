@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { HeaderItem } from "../deps.ts";
+import type { DimensionMember } from "../deps.ts";
 
 export type PrimitivePart =
   | "body"
@@ -17,19 +17,19 @@ export type PrimitiveItem = Readonly<Record<string, string>>;
 
 // `@` marks an item key for a thing that is not data, as JSON-LD marks its
 // reserved keys, so no reader takes it for a dimension.
-export const CAPTION_ITEM_KEY = "@caption";
+export const FIGURE_TEXT_ITEM_KEY = "@figure-text";
 
 export type ItemCoordinate =
   | readonly [dimension: string, id: string]
   | undefined;
 
-export function slotCoordinate(
+export function itemCoordinate(
   dimension: string | undefined,
-  header: HeaderItem | undefined,
+  member: DimensionMember | undefined,
 ): ItemCoordinate {
-  return dimension === undefined || header === undefined
+  return dimension === undefined || member === undefined
     ? undefined
-    : [dimension, header.id];
+    : [dimension, member.id];
 }
 
 // Undefined when no coordinate is defined, never `{}`, so primitives that

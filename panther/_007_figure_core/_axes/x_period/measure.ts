@@ -17,15 +17,15 @@ import {
   getLargeLabelExemplar,
   getLargeLabelForms,
   getPeriodAxisInfo,
-  labelFitsCell,
+  labelFitsSpan,
 } from "./helpers.ts";
 import type { XPeriodAxisMeasuredInfo } from "./types.ts";
 
 export function measureXPeriodAxis(
   rc: RenderContext,
-  contentRcd: RectCoordsDims,
+  innerRcd: RectCoordsDims,
   yAxisWidthInfo: YAxisWidthInfoBase,
-  subChartAreaWidth: number,
+  uniformSubChartWidth: number,
   periodType: "year-month" | "year-quarter" | "year",
   nTimePoints: number,
   axisStyle: MergedXPeriodAxisStyle,
@@ -33,28 +33,28 @@ export function measureXPeriodAxis(
 ): XPeriodAxisMeasuredInfo {
   const sx = axisStyle;
 
-  const yAxisAreaWidthIncludingStroke =
+  const yAxisWidthIncludingStroke =
     yAxisWidthInfo.widthIncludingYAxisStrokeWidth;
 
-  const xAxisW = contentRcd.w() - yAxisAreaWidthIncludingStroke;
+  const xAxisW = innerRcd.w() - yAxisWidthIncludingStroke;
 
-  const periodIncrementWidth =
-    periodType === "year" && !sx.forceSideTicksWhenYear
-      ? subChartAreaWidth / nTimePoints
-      : (subChartAreaWidth - gridStyle.gridStrokeWidth * (nTimePoints + 1)) /
-        nTimePoints;
+  const slotExtent = periodType === "year" && !sx.forceSideTicksWhenYear
+    ? uniformSubChartWidth / nTimePoints
+    : (uniformSubChartWidth -
+      gridStyle.gridLineStrokeWidth * (nTimePoints + 1)) /
+      nTimePoints;
 
   const { periodAxisType, maxTickH, periodAxisSmallTickH } = getPeriodAxisInfo(
     rc,
     periodType,
     axisStyle,
-    periodIncrementWidth,
+    slotExtent,
   );
 
   const heightIncludingXAxisStrokeWidth = gridStyle.axisStrokeWidth + maxTickH;
 
-  const xAxisRcd = contentRcd.getAdjusted((prev) => ({
-    x: prev.x() + yAxisAreaWidthIncludingStroke,
+  const xAxisRcd = innerRcd.getAdjusted((prev) => ({
+    x: prev.x() + yAxisWidthIncludingStroke,
     y: prev.bottomY() - heightIncludingXAxisStrokeWidth,
     w: xAxisW,
     h: heightIncludingXAxisStrokeWidth,
@@ -78,9 +78,9 @@ export function measureXPeriodAxis(
   // periods; every other rung advances stroke + increment per period.
   const isYearCentered = periodAxisType === "year-centered";
   const widthPerYear = isYearCentered
-    ? periodIncrementWidth
+    ? slotExtent
     : getPeriodsPerYear(periodType) *
-      (periodIncrementWidth + gridStyle.gridStrokeWidth);
+      (slotExtent + gridStyle.gridLineStrokeWidth);
 
   const labelGap = getLabelGap(sx);
   const yearSkipInterval = Math.max(
@@ -89,14 +89,14 @@ export function measureXPeriodAxis(
   );
 
   const boundaryTicksEveryYear = !isYearCentered &&
-    labelFitsCell(
+    labelFitsSpan(
       shortestFormW,
-      widthPerYear - gridStyle.gridStrokeWidth - labelGap,
+      widthPerYear - gridStyle.gridLineStrokeWidth - labelGap,
     );
 
   return {
-    subChartAreaWidth,
-    periodIncrementWidth,
+    uniformSubChartWidth,
+    slotExtent,
     xAxisRcd,
     periodAxisType,
     periodAxisSmallTickH,

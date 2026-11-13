@@ -12,23 +12,23 @@ import {
 } from "./content_generation_types.ts";
 
 export function resolveDataLabelOwnership(
-  seriesVals: (number | undefined)[][],
+  seriesValues: (number | undefined)[][],
   ctx: ContentGenerationContext,
 ): DataLabelOwnershipMap {
   const s = ctx.contentStyle;
   const result: DataLabelOwnershipMap = [];
 
-  for (let i_series = 0; i_series < ctx.nSeries; i_series++) {
+  for (let i_series = 0; i_series < ctx.nSerieses; i_series++) {
     const row: DataLabelOwner[] = [];
-    const seriesInfo = buildSeriesInfo(ctx, i_series, seriesVals);
-    for (let i_val = 0; i_val < ctx.nVals; i_val++) {
-      const val = seriesVals[i_series][i_val];
-      if (val === undefined) {
+    const seriesInfo = buildSeriesInfo(ctx, i_series, seriesValues);
+    for (let i_value = 0; i_value < ctx.nValues; i_value++) {
+      const value = seriesValues[i_series][i_value];
+      if (value === undefined) {
         row.push("none");
         continue;
       }
 
-      const valueInfo = buildValueInfo(ctx, seriesInfo, val, i_val);
+      const valueInfo = buildValueInfo(ctx, seriesInfo, value, i_value);
 
       const pointStyle = s.points.getStyle(valueInfo);
       if (pointStyle.show && pointStyle.dataLabel.show) {

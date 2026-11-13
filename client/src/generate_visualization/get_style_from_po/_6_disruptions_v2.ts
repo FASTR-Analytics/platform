@@ -10,8 +10,8 @@ import {
 } from "lib";
 import {
   formatIndicatorValue,
-  getScaleTickLabelFormatter,
   getTextStyle,
+  getValueAxisTickLabelFormatter,
 } from "./_0_common";
 
 export const BAND_GREY = "#e2e2e2";
@@ -35,11 +35,11 @@ export function buildDisruptionsChartV2Style(
       nCols: config.s.nColsInCellDisplay,
     },
     xPeriodAxis: { calendar },
-    yScaleAxis: {
+    yValueAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
       max: config.s.forceYMax1 && formatAs === "percent" ? 1 : undefined,
       min: config.s.forceYMinAuto ? "auto" : undefined,
-      tickLabelFormatter: getScaleTickLabelFormatter(formatAs),
+      tickLabelFormatter: getValueAxisTickLabelFormatter(formatAs),
     },
     content: {
       points: { func: { show: false } },
@@ -53,7 +53,11 @@ export function buildDisruptionsChartV2Style(
           dataLabel: { show: config.s.showDataLabelsLineCharts },
         }),
         textFormatter: (info: ChartValueInfo) =>
-          formatIndicatorValue(info.val, formatAs, config.s.decimalPlaces ?? 0),
+          formatIndicatorValue(
+            info.value,
+            formatAs,
+            config.s.decimalPlaces ?? 0,
+          ),
       },
       areas: {
         // Diff areas are styled with i_series = the attributed series: 0 for

@@ -6,8 +6,8 @@
 import {
   applyTextColorStrategy,
   CustomFigureStyle,
+  type DimensionMember,
   generateSurroundsPrimitives,
-  type HeaderItem,
   measureSurrounds,
   type MergedTableStyle,
   type RectCoordsDims,
@@ -15,9 +15,10 @@ import {
   sum,
   type TableCellInfo,
   type TableCellInfoFunc,
-  toHeaderItem,
+  toDimensionMember,
 } from "../deps.ts";
 import { getTableDataTransformed } from "../get_table_data.ts";
+import type { ValueRange } from "../deps.ts";
 import type {
   MeasuredCellInfo,
   MeasuredRowInfo,
@@ -51,8 +52,8 @@ export function measureTable(
   fitScale?: number,
   cache?: PerScaleMeasureCache,
 ) {
-  const caption = inputs.caption;
-  const subCaption = inputs.subCaption;
+  const title = inputs.title;
+  const subtitle = inputs.subtitle;
   const footnote = inputs.footnote;
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
@@ -63,7 +64,7 @@ export function measureTable(
   // Register the styles that you will need for this class
   const mergedStyle = customFigureStyle.getMergedTableStyle();
 
-  // Add legend items manually
+  // Add legend entries manually
   const legend = inputs.legend;
 
   const s = mergedStyle;
@@ -81,19 +82,19 @@ export function measureTable(
     rc,
     rcdWithSurrounds,
     customFigureStyle,
-    caption,
-    subCaption,
+    title,
+    subtitle,
     footnote,
     legend,
   );
   const extraHeightDueToSurrounds = measuredSurrounds.extraHeightDueToSurrounds;
-  const contentRcd = measuredSurrounds!.contentRcd;
+  const bodyRcd = measuredSurrounds!.bodyRcd;
 
   const colGroups = tableColGroups(d);
   const rowGroups = tableRowGroups(d);
   const hasRowGroupHeaders = rowGroups.some((rg) => rg.label);
   const nCols = sum(colGroups.map((cg) => cg.cols.length));
-  const maxPossibleRowHeader = 0.5 * contentRcd.w() -
+  const maxPossibleRowHeader = 0.5 * bodyRcd.w() -
     (s.rowHeaderPadding.totalPx() +
       (hasRowGroupHeaders ? s.rowHeaderIndentIfRowGroups : 0));
   const rowHeaderInfos = getRowHeaderInfos(
@@ -111,7 +112,7 @@ export function measureTable(
       return (rhi.mText?.dims.w() ?? 0) + extraIfIndent;
     }),
   );
-  const rowHeadersInnerX = contentRcd.x() + s.borderWidth;
+  const rowHeadersInnerX = bodyRcd.x() + s.borderWidth;
   const firstCellX = rowHeadersInnerX +
     (hasRowHeaders
       ? s.rowHeaderPadding.totalPx() +
@@ -141,7 +142,7 @@ export function measureTable(
     excludedRowIndices,
   );
 
-  const colSpace = contentRcd.rightX() - firstCellX;
+  const colSpace = bodyRcd.rightX() - firstCellX;
   const colSpaceBetweenGridLines = colSpace -
     (nCols - 1) * s.gridLineWidth - s.borderWidth;
   const colInnerWidths = resolveColumnWidths(
@@ -174,12 +175,12 @@ export function measureTable(
     ...colHeaderInfos.map((rhi) => rhi.mText?.dims.h() ?? 0),
   );
 
-  const colGroupHeadersInnerY = contentRcd.y() + s.borderWidth;
-  const colGroupHeaderAxisY = colGroupHeadersInnerY +
+  const colGroupHeadersInnerY = bodyRcd.y() + s.borderWidth;
+  const colGroupHeaderGridLineY = colGroupHeadersInnerY +
     (hasColGroupHeaders
       ? s.colHeaderPadding.totalPy() + colGroupHeaderMaxHeight
       : 0);
-  const colHeadersInnerY = colGroupHeaderAxisY +
+  const colHeadersInnerY = colGroupHeaderGridLineY +
     (hasColGroupHeaders ? s.gridLineWidth : 0);
   const firstCellY = colHeadersInnerY +
     (hasColHeaders
@@ -192,28 +193,28 @@ export function measureTable(
   const rowCellPaddingB = Math.max(s.rowHeaderPadding.pb(), s.cellPadding.pb());
 
   // Measure all cell content for each row and compute row heights
-  const { rowGroupHeaderItems } = buildRowHeaderLookups(rowGroups);
-  const colGroupHeaderItems = buildColGroupHeadersByColIndex(colGroups);
+  const { rowGroupMembers } = buildRowMemberLookups(rowGroups);
+  const colGroupMembers = buildColGroupMembersByColIndex(colGroups);
 
   const measuredRows: MeasuredRowInfo[] = rowHeaderInfos.map((rhi) => {
     const cells: MeasuredCellInfo[] = [];
     let maxCellHeight = rhi.mText?.dims.h() ?? 0;
 
     if (rhi.index !== "group-header") {
-      const rowIndex = rhi.index;
+      const i_row = rhi.index;
       colGroups.forEach((colGroup) => {
         colGroup.cols.forEach((col) => {
-          const val = d.aoa[rowIndex][col.index];
+          const value = d.aoa[i_row][col.index];
           const cellInfo = buildTableCellInfo(
-            val,
-            rowIndex,
+            value,
+            i_row,
             col.index,
             nRows,
             nCols,
-            toHeaderItem(rhi.id, rhi.label),
-            toHeaderItem(col.id, col.label),
-            rowGroupHeaderItems[rowIndex],
-            colGroupHeaderItems[col.index],
+            toDimensionMember(rhi.id, rhi.label),
+            toDimensionMember(col.id, col.label),
+            rowGroupMembers[i_row],
+            colGroupMembers[col.index],
             columnMinMax,
             d.nMatrix,
           );
@@ -256,8 +257,8 @@ export function measureTable(
       }),
     );
 
-  const finalContentH = maxY - contentRcd.y();
-  const extraSpaceForFlexPositiveOrNegative = contentRcd.h() - finalContentH;
+  const finalContentH = maxY - bodyRcd.y();
+  const extraSpaceForFlexPositiveOrNegative = bodyRcd.h() - finalContentH;
   // Only body rows stretch to fill available height; col-group/col headers
   // always render at their natural (ideal) height, mirroring how row headers
   // stay a constant width horizontally while cell columns absorb the slack.
@@ -268,7 +269,7 @@ export function measureTable(
   const extraBottomPaddingForRows = extraPaddingPerRow / 2;
 
   const measuredInfo: TableMeasuredInfo = {
-    contentRcd,
+    bodyRcd,
     rowCellPaddingT,
     rowCellPaddingB,
     maxY,
@@ -287,7 +288,7 @@ export function measureTable(
     measuredRows,
     hasRowGroupHeaders,
     rowHeadersInnerX,
-    colGroupHeaderAxisY,
+    colGroupHeaderGridLineY,
     finalContentH,
     extraTopPaddingForRows,
     extraBottomPaddingForRows,
@@ -296,7 +297,7 @@ export function measureTable(
   const surroundsPrimitives = generateSurroundsPrimitives(measuredSurrounds);
 
   const mTable: MeasuredTable = {
-    item: inputs,
+    inputs,
     bounds: rcdWithSurrounds,
     measuredInfo,
     measuredSurrounds,
@@ -306,8 +307,8 @@ export function measureTable(
     customFigureStyle,
     mergedStyle,
     columnMinMax,
-    caption,
-    subCaption,
+    title,
+    subtitle,
     footnote,
     legend,
   };
@@ -327,11 +328,11 @@ export function buildTableCellInfo(
   i_col: number,
   nRows: number,
   nCols: number,
-  rowHeader: HeaderItem | undefined,
-  colHeader: HeaderItem | undefined,
-  rowGroupHeader: HeaderItem | undefined,
-  colGroupHeader: HeaderItem | undefined,
-  columnMinMax: Map<number, { min: number; max: number }>,
+  rowMember: DimensionMember | undefined,
+  colMember: DimensionMember | undefined,
+  rowGroupMember: DimensionMember | undefined,
+  colGroupMember: DimensionMember | undefined,
+  columnMinMax: Map<number, ValueRange>,
   nMatrix: (number | undefined)[][] | undefined,
 ): TableCellInfo {
   const valueAsNumber = Number(value);
@@ -339,16 +340,16 @@ export function buildTableCellInfo(
   return {
     value,
     valueAsNumber: isNaN(valueAsNumber) ? undefined : valueAsNumber,
-    valueMin: mm?.min ?? 0,
-    valueMax: mm?.max ?? 0,
+    valueMin: mm?.valueMin ?? 0,
+    valueMax: mm?.valueMax ?? 0,
     i_row,
     i_col,
     nRows,
     nCols,
-    rowHeader,
-    colHeader,
-    rowGroupHeader,
-    colGroupHeader,
+    rowMember,
+    colMember,
+    rowGroupMember,
+    colGroupMember,
     sampleN: normalizeN(nMatrix?.[i_row]?.[i_col]),
   };
 }
@@ -356,33 +357,33 @@ export function buildTableCellInfo(
 // Header items per row/column INDEX. The three cell-measuring passes address
 // rows by index and columns by their enclosing group, so the lookups are
 // built once from the same source the headers themselves come from — one
-// HeaderItem per header, not one per cell.
-export function buildRowHeaderLookups(
+// DimensionMember per header, not one per cell.
+export function buildRowMemberLookups(
   rowGroups: LaidOutRowGroup[],
 ): {
-  rowHeaderItems: (HeaderItem | undefined)[];
-  rowGroupHeaderItems: (HeaderItem | undefined)[];
+  rowMembers: (DimensionMember | undefined)[];
+  rowGroupMembers: (DimensionMember | undefined)[];
 } {
-  const rowHeaderItems: (HeaderItem | undefined)[] = [];
-  const rowGroupHeaderItems: (HeaderItem | undefined)[] = [];
+  const rowMembers: (DimensionMember | undefined)[] = [];
+  const rowGroupMembers: (DimensionMember | undefined)[] = [];
   for (const rowGroup of rowGroups) {
-    const groupHeader = toHeaderItem(rowGroup.id, rowGroup.label);
+    const groupMember = toDimensionMember(rowGroup.id, rowGroup.label);
     for (const row of rowGroup.rows) {
-      rowHeaderItems[row.index] = toHeaderItem(row.id, row.label);
-      rowGroupHeaderItems[row.index] = groupHeader;
+      rowMembers[row.index] = toDimensionMember(row.id, row.label);
+      rowGroupMembers[row.index] = groupMember;
     }
   }
-  return { rowHeaderItems, rowGroupHeaderItems };
+  return { rowMembers, rowGroupMembers };
 }
 
-export function buildColGroupHeadersByColIndex(
+export function buildColGroupMembersByColIndex(
   colGroups: LaidOutColGroup[],
-): (HeaderItem | undefined)[] {
-  const byCol: (HeaderItem | undefined)[] = [];
+): (DimensionMember | undefined)[] {
+  const byCol: (DimensionMember | undefined)[] = [];
   for (const colGroup of colGroups) {
-    const header = toHeaderItem(colGroup.id, colGroup.label);
+    const member = toDimensionMember(colGroup.id, colGroup.label);
     for (const col of colGroup.cols) {
-      byCol[col.index] = header;
+      byCol[col.index] = member;
     }
   }
   return byCol;
@@ -393,8 +394,8 @@ export function computeColumnMinMax(
   nRows: number,
   colIndices: number[],
   excludedRowIndices: Set<number>,
-): Map<number, { min: number; max: number }> {
-  const result = new Map<number, { min: number; max: number }>();
+): Map<number, ValueRange> {
+  const result = new Map<number, ValueRange>();
   for (const colIdx of colIndices) {
     let min = 0;
     let max = 0;
@@ -403,8 +404,8 @@ export function computeColumnMinMax(
       if (excludedRowIndices.has(r)) {
         continue;
       }
-      const val = aoa[r][colIdx];
-      const num = Number(val);
+      const value = aoa[r][colIdx];
+      const num = Number(value);
       if (!isNaN(num)) {
         if (!hasNumeric) {
           min = num;
@@ -416,7 +417,7 @@ export function computeColumnMinMax(
         }
       }
     }
-    result.set(colIdx, { min, max });
+    result.set(colIdx, { valueMin: min, valueMax: max });
   }
   return result;
 }
@@ -541,7 +542,7 @@ export function getPerColumnMinWordWidthsCached(
   s: MergedTableStyle,
   nRows: number,
   nCols: number,
-  columnMinMax: Map<number, { min: number; max: number }>,
+  columnMinMax: Map<number, ValueRange>,
   sf: number,
   cache: PerScaleMeasureCache | undefined,
 ): PerColumnMinWordWidths {
@@ -576,13 +577,13 @@ export function computePerColumnMinWordWidths(
   s: MergedTableStyle,
   nRows: number,
   nCols: number,
-  columnMinMax: Map<number, { min: number; max: number }>,
+  columnMinMax: Map<number, ValueRange>,
 ): PerColumnMinWordWidths {
   const colGroups = tableColGroups(d);
-  const { rowHeaderItems, rowGroupHeaderItems } = buildRowHeaderLookups(
+  const { rowMembers, rowGroupMembers } = buildRowMemberLookups(
     tableRowGroups(d),
   );
-  const colGroupHeaderItems = buildColGroupHeadersByColIndex(colGroups);
+  const colGroupMembers = buildColGroupMembersByColIndex(colGroups);
 
   let colGroupHeaderMaxWidth = 0;
   const groupLabelWidestWordByGroup: number[] = [];
@@ -609,27 +610,27 @@ export function computePerColumnMinWordWidths(
       let colMinWidth = s.verticalColHeaders === "always"
         ? 0
         : getWidestWord(rc, col.label, s.text.colHeaders);
-      for (let rowIndex = 0; rowIndex < nRows; rowIndex++) {
-        const val = d.aoa[rowIndex][col.index];
+      for (let i_row = 0; i_row < nRows; i_row++) {
+        const value = d.aoa[i_row][col.index];
         const cellInfo = buildTableCellInfo(
-          val,
-          rowIndex,
+          value,
+          i_row,
           col.index,
           nRows,
           nCols,
-          rowHeaderItems[rowIndex],
-          toHeaderItem(col.id, col.label),
-          rowGroupHeaderItems[rowIndex],
-          colGroupHeaderItems[col.index],
+          rowMembers[i_row],
+          toDimensionMember(col.id, col.label),
+          rowGroupMembers[i_row],
+          colGroupMembers[col.index],
           columnMinMax,
           d.nMatrix,
         );
-        const valStr =
+        const valueStr =
           resolveFormattedCellString(cellInfo, s.tableCells.textFormatter) ??
             String(cellInfo.value);
         colMinWidth = Math.max(
           colMinWidth,
-          getWidestWord(rc, valStr, s.text.cells, cellWordWidthMemo),
+          getWidestWord(rc, valueStr, s.text.cells, cellWordWidthMemo),
         );
       }
       minColWidthByIndex.set(col.index, colMinWidth);
@@ -700,8 +701,8 @@ export function computeAutoColumnMins(
       const deficit = perColumnPadding + labelWidestWord - groupWidthSum;
       if (deficit > 0) {
         const bump = deficit / groupAutoColIndices.length;
-        for (const colIndex of groupAutoColIndices) {
-          mins.set(colIndex, mins.get(colIndex)! + bump);
+        for (const i_col of groupAutoColIndices) {
+          mins.set(i_col, mins.get(i_col)! + bump);
         }
       }
     }
@@ -716,7 +717,7 @@ export function resolveColumnWidths(
   d: TableDataTransformed,
   s: MergedTableStyle,
   nRows: number,
-  columnMinMax: Map<number, { min: number; max: number }>,
+  columnMinMax: Map<number, ValueRange>,
   columnWidths: TableInputs["columnWidths"],
   nCols: number,
   colSpaceBetweenGridLines: number,
@@ -746,13 +747,13 @@ export function resolveColumnWidths(
   const fixedColIndices: number[] = [];
   const autoColIndices: number[] = [];
   const widths = new Array<number>(nCols);
-  displayColIndices.forEach((colIndex, pos) => {
+  displayColIndices.forEach((i_col, pos) => {
     const entry = entries[pos];
     if (typeof entry === "number") {
-      widths[colIndex] = entry;
-      fixedColIndices.push(colIndex);
+      widths[i_col] = entry;
+      fixedColIndices.push(i_col);
     } else {
-      autoColIndices.push(colIndex);
+      autoColIndices.push(i_col);
     }
   });
   const sumFixed = sum(fixedColIndices.map((i) => widths[i]));
@@ -912,13 +913,13 @@ function measureNaturalColumnWidths(
   s: MergedTableStyle,
   nRows: number,
   nCols: number,
-  columnMinMax: Map<number, { min: number; max: number }>,
+  columnMinMax: Map<number, ValueRange>,
 ): number[] {
   const colGroups = tableColGroups(d);
-  const { rowHeaderItems, rowGroupHeaderItems } = buildRowHeaderLookups(
+  const { rowMembers, rowGroupMembers } = buildRowMemberLookups(
     tableRowGroups(d),
   );
-  const colGroupHeaderItems = buildColGroupHeadersByColIndex(colGroups);
+  const colGroupMembers = buildColGroupMembersByColIndex(colGroups);
 
   const textFormatter = s.tableCells.textFormatter;
   const naturalWidths = new Array<number>(nCols).fill(0);
@@ -933,18 +934,18 @@ function measureNaturalColumnWidths(
         ? 0
         : rc.mText(col.label, s.text.colHeaders, Infinity).dims.w();
 
-      for (let rowIndex = 0; rowIndex < nRows; rowIndex++) {
-        const val = d.aoa[rowIndex][col.index];
+      for (let i_row = 0; i_row < nRows; i_row++) {
+        const value = d.aoa[i_row][col.index];
         const cellInfo = buildTableCellInfo(
-          val,
-          rowIndex,
+          value,
+          i_row,
           col.index,
           nRows,
           nCols,
-          rowHeaderItems[rowIndex],
-          toHeaderItem(col.id, col.label),
-          rowGroupHeaderItems[rowIndex],
-          colGroupHeaderItems[col.index],
+          rowMembers[i_row],
+          toDimensionMember(col.id, col.label),
+          rowGroupMembers[i_row],
+          colGroupMembers[col.index],
           columnMinMax,
           d.nMatrix,
         );

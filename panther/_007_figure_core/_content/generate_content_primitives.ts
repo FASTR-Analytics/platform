@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  HeaderItem,
+  DimensionMember,
   MergedContentStyle,
   Primitive,
   RectCoordsDims,
@@ -20,7 +20,7 @@ import { generateErrorBarPrimitives } from "./generate_error_bar_primitives.ts";
 import { generateLinePrimitives } from "./generate_line_primitives.ts";
 import { generatePointPrimitives } from "./generate_point_primitives.ts";
 import { resolveDataLabelOwnership } from "./resolve_data_label_ownership.ts";
-import type { ChartItemAxes } from "../chart_items.ts";
+import type { ChartItemDataDimensions } from "../chart_items.ts";
 import type { OverhangClearance, ValueRange } from "../types.ts";
 
 export type ContentPrimitiveGenerationParams = {
@@ -28,30 +28,30 @@ export type ContentPrimitiveGenerationParams = {
   subChartRcd: RectCoordsDims;
   subChartInfo: {
     nSerieses: number;
-    seriesValArrays: (number | undefined)[][];
+    seriesValueArrays: (number | undefined)[][];
     i_pane: number;
     nPanes: number;
-    paneHeader: HeaderItem | undefined;
+    paneMember: DimensionMember | undefined;
     i_tier: number;
     nTiers: number;
-    tierHeader: HeaderItem | undefined;
+    tierMember: DimensionMember | undefined;
     i_lane: number;
     nLanes: number;
-    laneHeader: HeaderItem | undefined;
+    laneMember: DimensionMember | undefined;
   };
-  seriesVals: (number | undefined)[][];
+  seriesValues: (number | undefined)[][];
   valueRange: ValueRange;
   valueClearance: OverhangClearance;
   isCentered: boolean;
-  categoryIncrement: number;
-  gridStrokeWidth: number;
-  nVals: number;
+  slotExtent: number;
+  gridLineStrokeWidth: number;
+  nValues: number;
   orientation: "vertical" | "horizontal";
-  itemAxes: ChartItemAxes;
+  itemDataDimensions: ChartItemDataDimensions;
   contentStyle: MergedContentStyle;
   dataLabelsTextStyle: TextInfoUnkeyed;
-  boundsUbSeriesVals?: (number | undefined)[][];
-  boundsLbSeriesVals?: (number | undefined)[][];
+  uncertaintyUbSeriesValues?: (number | undefined)[][];
+  uncertaintyLbSeriesValues?: (number | undefined)[][];
   // This unit's slot order: the global indicator index at each slot.
   slotOrder: number[];
 };
@@ -60,10 +60,10 @@ export type ContentPrimitiveGenerationParams = {
 // for an indicator this unit does not show.
 function buildPositionOrdinals(
   slotOrder: number[],
-  nVals: number,
+  nValues: number,
 ): (number | undefined)[] {
   const ordinals: (number | undefined)[] = Array.from(
-    { length: nVals },
+    { length: nValues },
     () => undefined,
   );
   slotOrder.forEach((globalIdx, ordinal) => {
@@ -79,41 +79,41 @@ export function generateContentPrimitives(
     rc,
     subChartRcd,
     subChartInfo,
-    seriesVals,
+    seriesValues,
     valueRange,
     valueClearance,
     isCentered,
-    categoryIncrement,
-    gridStrokeWidth,
-    nVals,
+    slotExtent,
+    gridLineStrokeWidth,
+    nValues,
     orientation,
     contentStyle: s,
     slotOrder,
   } = params;
 
-  const positionOrdinals = buildPositionOrdinals(slotOrder, nVals);
+  const positionOrdinals = buildPositionOrdinals(slotOrder, nValues);
 
   const mapped = calculateMappedCoordinates(
-    seriesVals,
+    seriesValues,
     subChartRcd,
-    categoryIncrement,
+    slotExtent,
     isCentered,
-    gridStrokeWidth,
+    gridLineStrokeWidth,
     valueRange,
     valueClearance,
     orientation,
     positionOrdinals,
   );
 
-  const nSeries = mapped.length;
+  const nSerieses = mapped.length;
 
-  const mappedBoundsUb = params.boundsUbSeriesVals
+  const mappedUncertaintyUb = params.uncertaintyUbSeriesValues
     ? calculateMappedCoordinates(
-      params.boundsUbSeriesVals,
+      params.uncertaintyUbSeriesValues,
       subChartRcd,
-      categoryIncrement,
+      slotExtent,
       isCentered,
-      gridStrokeWidth,
+      gridLineStrokeWidth,
       valueRange,
       valueClearance,
       orientation,
@@ -121,13 +121,13 @@ export function generateContentPrimitives(
     )
     : undefined;
 
-  const mappedBoundsLb = params.boundsLbSeriesVals
+  const mappedUncertaintyLb = params.uncertaintyLbSeriesValues
     ? calculateMappedCoordinates(
-      params.boundsLbSeriesVals,
+      params.uncertaintyLbSeriesValues,
       subChartRcd,
-      categoryIncrement,
+      slotExtent,
       isCentered,
-      gridStrokeWidth,
+      gridLineStrokeWidth,
       valueRange,
       valueClearance,
       orientation,
@@ -139,22 +139,22 @@ export function generateContentPrimitives(
     rc,
     subChartRcd,
     subChartInfo,
-    nVals,
+    nValues,
     slotOrder,
-    nSeries,
+    nSerieses,
     orientation,
-    categoryIncrement,
-    gridStrokeWidth,
-    itemAxes: params.itemAxes,
+    slotExtent,
+    gridLineStrokeWidth,
+    itemDataDimensions: params.itemDataDimensions,
     contentStyle: s,
     dataLabelsTextStyle: params.dataLabelsTextStyle,
     valueRange,
     valueClearance,
-    mappedBoundsUb,
-    mappedBoundsLb,
+    mappedUncertaintyUb,
+    mappedUncertaintyLb,
   };
 
-  const labelOwner = resolveDataLabelOwnership(seriesVals, ctx);
+  const labelOwner = resolveDataLabelOwnership(seriesValues, ctx);
 
   const marks = [
     ...generatePointPrimitives(mapped, labelOwner, ctx),

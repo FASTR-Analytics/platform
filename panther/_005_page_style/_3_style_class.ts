@@ -143,11 +143,11 @@ export class CustomPageStyle {
         g.cover?.titleBottomPadding,
         d.cover.titleBottomPadding,
       ),
-      subTitleBottomPadding: ms(
+      subtitleBottomPadding: ms(
         sf,
-        c.cover?.subTitleBottomPadding,
-        g.cover?.subTitleBottomPadding,
-        d.cover.subTitleBottomPadding,
+        c.cover?.subtitleBottomPadding,
+        g.cover?.subtitleBottomPadding,
+        d.cover.subtitleBottomPadding,
       ),
       authorBottomPadding: ms(
         sf,
@@ -163,9 +163,9 @@ export class CustomPageStyle {
           g.text?.coverTitle,
           baseText,
         ),
-        coverSubTitle: getTextInfo(
-          c.text?.coverSubTitle,
-          g.text?.coverSubTitle,
+        coverSubtitle: getTextInfo(
+          c.text?.coverSubtitle,
+          g.text?.coverSubtitle,
           baseText,
         ),
         coverAuthor: getTextInfo(
@@ -224,9 +224,9 @@ export class CustomPageStyle {
           g.text?.sectionTitle,
           baseText,
         ),
-        sectionSubTitle: getTextInfo(
-          c.text?.sectionSubTitle,
-          g.text?.sectionSubTitle,
+        sectionSubtitle: getTextInfo(
+          c.text?.sectionSubtitle,
+          g.text?.sectionSubtitle,
           baseText,
         ),
         pageNumber: getTextInfo(

@@ -452,7 +452,7 @@ export function lowerTransitionFrame(
   const styleOf = (
     m: MeasuredSceneFigure<FigureInputsBase>,
   ): MergedSceneStyle =>
-    new CustomFigureStyle(m.item.style, sf, m.item.autofitSurrounds)
+    new CustomFigureStyle(m.inputs.style, sf, m.inputs.autofitSurrounds)
       .getMergedSceneStyle();
   const toStyle = styleOf(to);
   const fromStyle = departing.size === 0 ? toStyle : styleOf(from);

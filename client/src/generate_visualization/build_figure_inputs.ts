@@ -191,7 +191,7 @@ function buildInputs(
     return {
       figureType: "timeseries",
       data: d,
-      caption: withDateRange(
+      title: withDateRange(
         withReplicant(
           config.t.caption,
           config,
@@ -201,7 +201,7 @@ function buildInputs(
         dateRange,
         localization,
       ),
-      subCaption: withDateRange(
+      subtitle: withDateRange(
         withReplicant(
           config.t.subCaption,
           config,
@@ -255,7 +255,7 @@ function buildInputs(
           items,
         ),
       }),
-      caption: withDateRange(
+      title: withDateRange(
         withReplicant(
           config.t.caption,
           config,
@@ -265,7 +265,7 @@ function buildInputs(
         dateRange,
         localization,
       ),
-      subCaption: withDateRange(
+      subtitle: withDateRange(
         withReplicant(
           config.t.subCaption,
           config,
@@ -309,7 +309,7 @@ function buildInputs(
       chartPalette,
     );
     const surrounds = {
-      caption: withDateRange(
+      title: withDateRange(
         withReplicant(
           config.t.caption,
           config,
@@ -319,7 +319,7 @@ function buildInputs(
         dateRange,
         localization,
       ),
-      subCaption: withDateRange(
+      subtitle: withDateRange(
         withReplicant(
           config.t.subCaption,
           config,
@@ -423,7 +423,7 @@ function buildInputs(
     return {
       figureType: "map",
       data: d,
-      caption: withDateRange(
+      title: withDateRange(
         withReplicant(
           config.t.caption,
           config,
@@ -433,7 +433,7 @@ function buildInputs(
         dateRange,
         localization,
       ),
-      subCaption: withDateRange(
+      subtitle: withDateRange(
         withReplicant(
           config.t.subCaption,
           config,
@@ -454,7 +454,7 @@ function buildInputs(
           dateRange,
           localization,
         ),
-        d.area.nBlankRows,
+        d.mapArea.nBlankRows,
         noAreaNote,
         localization,
       ),
@@ -493,7 +493,7 @@ function buildInputs(
     return {
       figureType: "pie",
       data: d,
-      caption: withDateRange(
+      title: withDateRange(
         withReplicant(
           config.t.caption,
           config,
@@ -503,7 +503,7 @@ function buildInputs(
         dateRange,
         localization,
       ),
-      subCaption: withDateRange(
+      subtitle: withDateRange(
         withReplicant(
           config.t.subCaption,
           config,

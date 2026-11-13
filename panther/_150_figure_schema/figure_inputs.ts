@@ -16,8 +16,8 @@ import type {
   FigureAnnotation,
   FigureAutofitOptions,
   FigureInputs,
+  LegendEntry,
   LegendInput,
-  LegendItem,
   MapData,
   MapInputs,
   PieInputs,
@@ -54,7 +54,7 @@ const zLegendNoData = z.object({
   label: z.string(),
 });
 
-const zLegendItem = z.object({
+const zLegendEntry = z.object({
   id: z.string().optional(),
   label: z.string(),
   color: zColorKeyOrString,
@@ -64,8 +64,10 @@ const zLegendItem = z.object({
   lineDash: z.enum(["solid", "dashed"]).optional(),
   lineStrokeWidthScaleFactor: z.number().optional(),
 });
-const _zLegendItemConforms: Conforms<z.infer<typeof zLegendItem>, LegendItem> =
-  true;
+const _zLegendEntryConforms: Conforms<
+  z.infer<typeof zLegendEntry>,
+  LegendEntry
+> = true;
 
 const zScaleLegendDomain = z.object({ min: z.number(), max: z.number() });
 
@@ -108,7 +110,7 @@ const _zScaleLegendConfigConforms: Conforms<
 > = true;
 
 export const zLegendInput: z.ZodType<LegendInput> = z.union([
-  z.array(zLegendItem),
+  z.array(zLegendEntry),
   z.array(z.string()),
   zScaleLegendConfig,
 ]);
@@ -140,8 +142,8 @@ const _zFigureAnnotationConforms: Conforms<
 // (function-valued, huge, highest churn), and consumers strip it before
 // storage — there is nothing stored to validate.
 const figureInputsBaseFields = {
-  caption: z.string().optional(),
-  subCaption: z.string().optional(),
+  title: z.string().optional(),
+  subtitle: z.string().optional(),
   footnote: z.union([z.string(), z.array(z.string())]).optional(),
   legend: zLegendInput.optional(),
   style: z
@@ -172,7 +174,9 @@ const _zTableInputsConforms: Conforms<
 
 export const zChartOVInputs = z.object({
   ...figureInputsBaseFields,
-  figureType: z.literal("chart-ov"),
+  figureType: z.literal("chart-ov").describe(
+    "A chart whose indicators run along the x axis and whose values run up the y axis",
+  ),
   data: zChartOVData,
 });
 const _zChartOVInputsConforms: Conforms<
@@ -182,7 +186,9 @@ const _zChartOVInputsConforms: Conforms<
 
 export const zChartOHInputs = z.object({
   ...figureInputsBaseFields,
-  figureType: z.literal("chart-oh"),
+  figureType: z.literal("chart-oh").describe(
+    "A chart whose indicators run down the y axis and whose values run along the x axis",
+  ),
   data: zChartOHData,
 });
 const _zChartOHInputsConforms: Conforms<

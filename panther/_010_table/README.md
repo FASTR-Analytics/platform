@@ -23,8 +23,8 @@ type TableInputs = FigureInputsBase & {
 };
 ```
 
-- **`TableDataJson`** — `{ jsonArray, jsonDataConfig }`: rows of objects plus a config mapping props to col/row/group dimensions, with `labelReplacements` and per-axis `sort` (see `DOC_FIGURE_ARCHITECTURE.md`).
-- **`TableDataTransformed`** — `{ cols?, rows?, aoa }` built directly (this is what markdown tables produce). Each axis names its `dimension` (and `groupDimension` when grouped) and holds its `groups`; an absent axis is one column or row without a header.
+- **`TableDataJson`** — `{ jsonArray, jsonDataConfig }`: rows of objects plus a config mapping props to col/row/group dimensions, with `labelReplacements` and per-dimension `sort` (see `DOC_FIGURE_ARCHITECTURE.md`).
+- **`TableDataTransformed`** — `{ cols?, rows?, aoa }` built directly (this is what markdown tables produce). Each side names its `dimension` (and `groupDimension` when grouped) and holds its `groups`; an absent dimension is one column or row without a header.
 
 ### Column widths (`columnWidths`)
 

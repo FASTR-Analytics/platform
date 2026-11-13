@@ -6,7 +6,7 @@
 import type { SurroundsPrimitive } from "../deps.ts";
 import { generateLegendPrimitive } from "../_legend/generate_legend_primitive.ts";
 import { generateScaleLegendPrimitive } from "../_legend/generate_scale_legend_primitive.ts";
-import { generateCaptionsPrimitives } from "./generate_captions_primitives.ts";
+import { generateFigureTextPrimitives } from "./generate_figure_text_primitives.ts";
 import type { MeasuredSurrounds } from "./measure_surrounds.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -18,11 +18,11 @@ import type { MeasuredSurrounds } from "./measure_surrounds.ts";
 export function generateSurroundsPrimitives(
   mSurrounds: MeasuredSurrounds,
 ): SurroundsPrimitive[] {
-  const captionsPrimitives = generateCaptionsPrimitives(mSurrounds);
+  const figureTextPrimitives = generateFigureTextPrimitives(mSurrounds);
 
   let legendPrimitive: SurroundsPrimitive | undefined = undefined;
   if (mSurrounds.legend) {
-    if (mSurrounds.legend.type === "items") {
+    if (mSurrounds.legend.type === "entries") {
       if (!mSurrounds.s.legend.legendNoRender) {
         legendPrimitive = generateLegendPrimitive(
           mSurrounds.legend.rcd.topLeftCoords(),
@@ -41,7 +41,7 @@ export function generateSurroundsPrimitives(
   }
 
   return [
-    ...captionsPrimitives,
+    ...figureTextPrimitives,
     ...(legendPrimitive ? [legendPrimitive] : []),
   ];
 }

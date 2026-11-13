@@ -19,10 +19,10 @@ export {
   tween,
 } from "../_009_vizgraph/mod.ts";
 export type {
+  BandGeom,
   Geometry,
   GraphModel,
   GroupGeom,
-  LaneGeom,
   LayoutOptions,
   NodeGeom,
   PathSpec,

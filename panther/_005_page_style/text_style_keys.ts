@@ -9,12 +9,12 @@ export const PAGE_TEXT_STYLE_KEYS = [
   "base",
   // Cover styles
   "coverTitle",
-  "coverSubTitle",
+  "coverSubtitle",
   "coverAuthor",
   "coverDate",
   // Section styles
   "sectionTitle",
-  "sectionSubTitle",
+  "sectionSubtitle",
   // Regular page styles
   "header",
   "subHeader",

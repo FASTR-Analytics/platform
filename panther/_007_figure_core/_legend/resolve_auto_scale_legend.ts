@@ -10,6 +10,7 @@ import type {
   ScaleLegendSteppedAutoConfig,
   ScaleLegendSteppedConfig,
 } from "./scale_legend_types.ts";
+import type { ValueRange } from "../types.ts";
 
 const DEFAULT_N_TICKS = 5;
 const N_GRADIENT_STOPS = 50;
@@ -27,10 +28,11 @@ function noDataColor(
 export function resolveAutoScaleLegend(
   config: ScaleLegendGradientAutoConfig | ScaleLegendSteppedAutoConfig,
   valuesColorFunc: FigureValuesColorFunc,
-  valueRange: { min: number; max: number },
+  valueRange: ValueRange,
 ): ScaleLegendGradientConfig | ScaleLegendSteppedConfig {
   const isFixedDomain = config.domain !== undefined;
-  const rawDomain = config.domain ?? valueRange;
+  const rawDomain = config.domain ??
+    { min: valueRange.valueMin, max: valueRange.valueMax };
   if (config.type === "gradient-auto") {
     return resolveGradient(config, valuesColorFunc, rawDomain, isFixedDomain);
   }

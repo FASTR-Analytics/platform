@@ -4,16 +4,16 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  AxisMembership,
-  ChartScaleAxisLimits,
+  ChartValueAxisLimits,
   CustomFigureStyle,
-  DataAxis,
+  DataDimension,
+  DimensionMembership,
   FigureInputsBase,
-  HeaderSortConfig,
   JsonArray,
   LegendInput,
   Measured,
   MeasuredSurrounds,
+  MemberSortConfig,
   MergedChartOVStyle,
   PaneLayout,
   Primitive,
@@ -47,32 +47,32 @@ export type ChartOVJsonDataConfig = {
   paneProp?: string | "--v";
   uncertainty?: UncertaintyConfig;
   // Raggedness is allowed only along the categorical (x-text) direction:
-  // indicators (slots) and lanes (bands) both stack along x. "tier" carries
-  // the y-scale limits and is never allowed on ChartOV.
+  // indicators (slots) and lanes both stack along x. "tier" carries
+  // the y value axis limits and is never allowed on ChartOV.
   membership?: {
-    indicator?: AxisMembership;
-    lane?: AxisMembership;
+    indicator?: DimensionMembership;
+    lane?: DimensionMembership;
   };
-  // Proportional (ragged-table) layout. bands: each lane band is sized by
-  // its own visible indicator count (per-band visibility implied), uniform
-  // slot thickness within a pane. panes: pane widths are additionally
+  // Proportional (ragged-table) layout. lanes: each lane is sized by its own
+  // visible indicator count (per-lane visibility implied), uniform slot
+  // thickness within a pane. panes: pane widths are additionally
   // proportional to their slot totals, uniform slot thickness across the
-  // whole chart (implies bands; engaged only when the pane grid is a single
+  // whole chart (implies lanes; engaged only when the pane grid is a single
   // row). Distinct from membership, which stays per-pane.
   proportional?: {
-    bands?: boolean;
+    lanes?: boolean;
     panes?: boolean;
   };
   labelReplacements?: Record<string, string>;
   sort?: {
-    indicator?: HeaderSortConfig;
-    series?: HeaderSortConfig;
-    lane?: HeaderSortConfig;
-    tier?: HeaderSortConfig;
-    pane?: HeaderSortConfig;
+    indicator?: MemberSortConfig;
+    series?: MemberSortConfig;
+    lane?: MemberSortConfig;
+    tier?: MemberSortConfig;
+    pane?: MemberSortConfig;
   };
   sortIndicatorValues?: "ascending" | "descending" | "none";
-  yScaleAxisLabel?: string;
+  yValueAxisLabel?: string;
 };
 
 ///////////////////////
@@ -83,34 +83,34 @@ export type ChartOVJsonDataConfig = {
 
 export type ChartOVDataTransformed = {
   isTransformed: true;
-  // One axis per split slot; an unsplit slot has none and is one member long
-  // in values.
-  indicator: DataAxis;
-  series?: DataAxis;
-  lane?: DataAxis;
-  tier?: DataAxis;
-  pane?: DataAxis;
+  // One dimension per prop given; with no prop there is none, and values are
+  // one member long there.
+  indicator: DataDimension;
+  series?: DataDimension;
+  lane?: DataDimension;
+  tier?: DataDimension;
+  pane?: DataDimension;
   values: (number | undefined)[][][][][];
-  bounds?: {
+  uncertaintyValues?: {
     ub: (number | undefined)[][][][][];
     lb: (number | undefined)[][][][][];
   };
-  scaleAxisLimits: ChartScaleAxisLimits;
-  yScaleAxisLabel?: string;
+  valueAxisLimits: ChartValueAxisLimits;
+  yValueAxisLabel?: string;
   // Per-pane indicator masks (global indices, in this pane's slot order),
-  // present under unbalanced indicator membership, proportional bands, or a
+  // present under unbalanced indicator membership, proportional lanes, or a
   // value sort (then a full permutation per pane). Absent = every pane shows
-  // the full global set in storage order. Storage (values/bounds) stays dense.
+  // the full global set in storage order. Storage (values/uncertaintyValues) stays dense.
   visibleIndicatorsByPane?: number[][];
   // Per-pane visible lane subsets (global indices), present only for
   // unbalanced lane membership. Same masking model as indicators: dropped
-  // lanes are whole subchart columns.
+  // lanes are whole sub-chart columns.
   visibleLanesByPane?: number[][];
-  // Per-(pane, lane) visible indicator subsets for proportional band layout,
+  // Per-(pane, lane) visible indicator subsets for proportional lane layout,
   // indexed [pane][GLOBAL lane index][visible global indicator indices]. A
   // lane with [] in a pane is dropped for that pane. Present only when
   // proportional layout is enabled.
-  visibleIndicatorsByPaneBand?: number[][][];
+  visibleIndicatorsByPaneLane?: number[][][];
   // Cross-pane proportional sizing requested (proportional.panes). Pane
   // widths become proportional to their slot totals when the pane grid is a
   // single row; otherwise falls back to uniform pane sizing.
@@ -145,8 +145,8 @@ export type MeasuredChartOV = Measured<ChartOVInputs> & {
   transformedData: ChartOVDataTransformed;
   customFigureStyle: CustomFigureStyle;
   mergedStyle: MergedChartOVStyle;
-  caption?: string;
-  subCaption?: string;
+  title?: string;
+  subtitle?: string;
   footnote?: string | string[];
   legend?: LegendInput;
   primitives: Primitive[];

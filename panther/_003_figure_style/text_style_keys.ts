@@ -8,16 +8,16 @@ import type { CustomStyleTextOptions, TextInfoOptions } from "./deps.ts";
 // Canonical source of truth for all figure text style keys
 export const FIGURE_TEXT_STYLE_KEYS = [
   "base",
-  "caption",
-  "subCaption",
+  "title",
+  "subtitle",
   "footnote",
   "xTextAxisTickLabels",
   "xPeriodAxisTickLabels",
-  "xScaleAxisTickLabels",
-  "xScaleAxisLabel",
+  "xValueAxisTickLabels",
+  "xValueAxisLabel",
   "yTextAxisTickLabels",
-  "yScaleAxisTickLabels",
-  "yScaleAxisLabel",
+  "yValueAxisTickLabels",
+  "yValueAxisLabel",
   "dataLabels",
   "legend",
   // Table

@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  HeaderItem,
+  DimensionMember,
   MergedGridStyle,
   MergedXTextAxisStyle,
   RectCoordsDims,
@@ -15,59 +15,59 @@ import type { XTextAxisMeasuredInfo } from "./types.ts";
 
 export function measureXTextAxis(
   rc: RenderContext,
-  contentRcd: RectCoordsDims,
+  innerRcd: RectCoordsDims,
   yAxisWidthInfo: YAxisWidthInfoBase,
-  subChartAreaWidth: number,
-  indicatorHeaders: HeaderItem[],
+  uniformSubChartWidth: number,
+  indicatorMembers: DimensionMember[],
   axisStyle: MergedXTextAxisStyle,
   gridStyle: MergedGridStyle,
   // This pane's indicator order (a subset under unbalanced membership, a
   // permutation under a value sort) drives the slot/tick LAYOUT, while the
   // axis EXTENT (height) stays measured from the
   // global set at the global slot width. Per-pane extents would give panes
-  // different plot rects and break cross-pane scale-direction alignment; the
+  // different sub-chart rects and break cross-pane value-direction alignment; the
   // global measure is a safe upper bound (a subset at a wider slot never
   // wraps taller).
-  visibleIndicatorHeaders?: HeaderItem[],
-  // Proportional band layout: the uniform slot width IS slotT for every
-  // band, so both the layout increment and the extent wrap width are exactly
-  // slotT (the equal-split widths no longer exist).
-  proportionalSlotWidth?: number,
+  visibleIndicatorMembers?: DimensionMember[],
+  // Proportional tier-or-lane layout: the uniform slot width IS slotExtent for every
+  // tier or lane, so both the layout increment and the extent wrap width are exactly
+  // slotExtent (the equal-split widths no longer exist).
+  slotExtentOverride?: number,
 ): XTextAxisMeasuredInfo {
   const sx = axisStyle;
 
-  const yAxisAreaWidthIncludingStroke =
+  const yAxisWidthIncludingStroke =
     yAxisWidthInfo.widthIncludingYAxisStrokeWidth;
 
-  const xAxisW = contentRcd.w() - yAxisAreaWidthIncludingStroke;
+  const xAxisW = innerRcd.w() - yAxisWidthIncludingStroke;
 
   const innerWidthFor = (n: number) =>
     sx.tickPosition === "center"
-      ? subChartAreaWidth / Math.max(1, n)
-      : (subChartAreaWidth - gridStyle.gridStrokeWidth * (n + 1)) /
+      ? uniformSubChartWidth / Math.max(1, n)
+      : (uniformSubChartWidth - gridStyle.gridLineStrokeWidth * (n + 1)) /
         Math.max(1, n);
 
-  const layoutHeaders = visibleIndicatorHeaders ?? indicatorHeaders;
-  const indicatorAreaInnerWidth = proportionalSlotWidth ??
-    innerWidthFor(layoutHeaders.length);
-  const extentInnerWidth = proportionalSlotWidth ??
-    innerWidthFor(indicatorHeaders.length);
+  const layoutMembers = visibleIndicatorMembers ?? indicatorMembers;
+  const slotExtent = slotExtentOverride ??
+    innerWidthFor(layoutMembers.length);
+  const balancedSlotExtent = slotExtentOverride ??
+    innerWidthFor(indicatorMembers.length);
 
   // Cap the vertical extent of rotated (vertical) tick labels so a long label
   // can't grow the axis without bound. This mirrors yTextAxis.maxTickLabelW,
   // which caps the horizontal extent of horizontal tick labels. For rotated
   // text the mText "maxWidth" arg is the reading-direction (pre-rotation)
   // length, which becomes the label's vertical extent after rotation.
-  const verticalTickLabelMaxHeight = contentRcd.h() *
-    sx.maxTickLabelHeightAsPctOfChart;
+  const verticalTickLabelMaxHeight = innerRcd.h() *
+    sx.maxTickLabelHeightFractionOfPane;
 
   let maxIndicatorTickLabelHeight = 0;
 
-  for (const indicatorHeader of indicatorHeaders) {
+  for (const indicatorMember of indicatorMembers) {
     const mText = rc.mText(
-      indicatorHeader.label,
+      indicatorMember.label,
       sx.text.xTextAxisTickLabels,
-      sx.verticalTickLabels ? verticalTickLabelMaxHeight : extentInnerWidth,
+      sx.verticalTickLabels ? verticalTickLabelMaxHeight : balancedSlotExtent,
       { rotation: sx.verticalTickLabels ? "anticlockwise" : undefined },
     );
     maxIndicatorTickLabelHeight = Math.max(
@@ -78,21 +78,21 @@ export function measureXTextAxis(
 
   const heightIncludingXAxisStrokeWidth = sx.tickPosition === "center"
     ? gridStyle.axisStrokeWidth +
-      sx.tickHeight +
+      sx.tickLength +
       sx.tickLabelGap +
       maxIndicatorTickLabelHeight
     : gridStyle.axisStrokeWidth + sx.tickLabelGap + maxIndicatorTickLabelHeight;
 
-  const xAxisRcd = contentRcd.getAdjusted((prev) => ({
-    x: prev.x() + yAxisAreaWidthIncludingStroke,
+  const xAxisRcd = innerRcd.getAdjusted((prev) => ({
+    x: prev.x() + yAxisWidthIncludingStroke,
     y: prev.bottomY() - heightIncludingXAxisStrokeWidth,
     w: xAxisW,
     h: heightIncludingXAxisStrokeWidth,
   }));
 
   return {
-    subChartAreaWidth,
-    indicatorAreaInnerWidth,
+    uniformSubChartWidth,
+    slotExtent,
     verticalTickLabelMaxHeight,
     xAxisRcd,
   };

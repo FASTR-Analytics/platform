@@ -10,7 +10,7 @@ import type { ZoneInterval } from "./zones.ts";
 import { zoneIntervals } from "./zones.ts";
 
 // void-bound (DOC_VIZGRAPH_PLACEMENT.md): the whitespace invariant — no
-// horizontal band of the drawing that is free of ink may exceed maxVoid.
+// horizontal strip of the drawing that is free of ink may exceed maxVoid.
 // Every other pass moves things TOWARD a signal, so anything with no
 // attachment to the rest of the drawing (an edge-less ungrouped node, a
 // whole disconnected component) is exempt from all of them and its distance
@@ -27,27 +27,27 @@ import { zoneIntervals } from "./zones.ts";
 // adopt-isolates is NOT enough").
 //
 // Occupancy is every PNode's y-span — dummies (h = 0) included, because an
-// edge lane is ink: a long edge crossing the middle of the drawing keeps
-// the band it runs through alive, and a band this pass closes therefore has
+// edge track is ink: a long edge crossing the middle of the drawing keeps
+// the strip it runs through alive, and a strip this pass closes therefore has
 // nothing drawn in it in ANY column, plus every zone's reserved interval:
 // a reserved box is drawn, so it is ink too, and the zone-reserve
 // clearance between a zone and its non-members clamps a shift exactly as
 // an in-layer pair's requiredGap does (region-free models add nothing).
 // Loose whitespace the composition wants is untouched: a sparse layer
-// beside a tall one is not a band (the tall layer occupies those y's).
+// beside a tall one is not a strip (the tall layer occupies those y's).
 //
 // Order/gap and straightness invariants hold BY CONSTRUCTION. Every node
-// lies wholly above or wholly below a node-free band, so closing one is a
+// lies wholly above or wholly below a node-free strip, so closing one is a
 // rigid translation of the below-part: in-block geometry is unchanged, and
-// the only segments whose shape changes are those spanning the band — which
-// cannot be straight, the band being wider than any straightness tolerance.
+// the only segments whose shape changes are those spanning the strip — which
+// cannot be straight, the strip being wider than any straightness tolerance.
 // The shift is clamped by the tightest straddling in-layer pair's slack, so
-// separation is never compressed below requiredGap (a band narrower than
+// separation is never compressed below requiredGap (a strip narrower than
 // the separation its straddling pair needs simply stays).
 export type VoidBoundParams = {
-  // The widest ink-free band the drawing may contain, in multiples of
+  // The widest ink-free strip the drawing may contain, in multiples of
   // nodeGap. Deliberately generous — this bounds the pathological, it does
-  // not compact (the whole corpus's widest band is under 4 gaps, so the
+  // not compact (the whole corpus's widest strip is under 4 gaps, so the
   // house look is untouched at the default).
   maxVoidGaps: number;
 };
@@ -68,18 +68,18 @@ export function voidBound(params?: Partial<VoidBoundParams>): PlacementPass {
       if (all.length === 0) {
         return;
       }
-      // Bands and shifts are computed from ONE snapshot: closing a band
-      // translates both sides of every band below it equally, so their
+      // Strips and shifts are computed from ONE snapshot: closing a strip
+      // translates both sides of every strip below it equally, so their
       // straddling gaps are unaffected and the passes are independent.
       const y0 = new Map<PNode, number>(all.map((n) => [n, n.y]));
       const zones = zoneIntervals(proper);
-      for (const band of findBands(all, zones, maxVoid)) {
-        const shift = feasibleShift(proper, ctx, y0, zones, band, maxVoid);
+      for (const strip of findVoidStrips(all, zones, maxVoid)) {
+        const shift = feasibleShift(proper, ctx, y0, zones, strip, maxVoid);
         if (shift <= EPS) {
           continue;
         }
         for (const n of all) {
-          if (y0.get(n)! >= band.bottom - EPS) {
+          if (y0.get(n)! >= strip.bottom - EPS) {
             n.y -= shift;
           }
         }
@@ -88,49 +88,49 @@ export function voidBound(params?: Partial<VoidBoundParams>): PlacementPass {
   };
 }
 
-type Band = { top: number; bottom: number };
+type VoidStrip = { top: number; bottom: number };
 
 // Maximal gaps in the union of node y-spans (and zone intervals), top-down,
 // wider than maxVoid.
-function findBands(
+function findVoidStrips(
   all: PNode[],
   zones: ZoneInterval[],
   maxVoid: number,
-): Band[] {
+): VoidStrip[] {
   const spans = all
     .map((n) => [n.y, n.y + n.h] as [number, number])
     .concat(zones.map((z) => [z.top, z.bottom] as [number, number]))
     .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  const bands: Band[] = [];
+  const strips: VoidStrip[] = [];
   let cur = spans[0][1];
   for (const [lo, hi] of spans) {
     if (lo - cur > maxVoid) {
-      bands.push({ top: cur, bottom: lo });
+      strips.push({ top: cur, bottom: lo });
     }
     cur = Math.max(cur, hi);
   }
-  return bands;
+  return strips;
 }
 
 // How far the below-part may rise: down to maxVoid, but never past the
 // separation the tightest straddling in-layer pair needs, nor past the
 // clearance a zone keeps against the real non-members on the other side of
-// the band in the layers it spans.
+// the strip in the layers it spans.
 function feasibleShift(
   proper: ProperGraph,
   ctx: PassContext,
   y0: Map<PNode, number>,
   zones: ZoneInterval[],
-  band: Band,
+  strip: VoidStrip,
   maxVoid: number,
 ): number {
-  let shift = band.bottom - band.top - maxVoid;
+  let shift = strip.bottom - strip.top - maxVoid;
   for (const layer of proper.layers) {
     for (let k = 1; k < layer.length; k++) {
       const above = layer[k - 1];
       const below = layer[k];
       const aBottom = y0.get(above)! + above.h;
-      if (aBottom > band.top + EPS || y0.get(below)! < band.bottom - EPS) {
+      if (aBottom > strip.top + EPS || y0.get(below)! < strip.bottom - EPS) {
         continue;
       }
       shift = Math.min(
@@ -142,8 +142,8 @@ function feasibleShift(
   const nodeGap = ctx.spacing.nodeGap;
   for (const { zone, top, bottom } of zones) {
     const members = new Set(zone.region.memberIds);
-    const zoneBelow = top >= band.bottom - EPS;
-    const zoneAbove = bottom <= band.top + EPS;
+    const zoneBelow = top >= strip.bottom - EPS;
+    const zoneAbove = bottom <= strip.top + EPS;
     if (!zoneBelow && !zoneAbove) {
       continue;
     }
@@ -154,9 +154,9 @@ function feasibleShift(
         }
         const rTop = y0.get(r)!;
         const rBottom = rTop + r.h;
-        if (zoneBelow && rBottom <= band.top + EPS) {
+        if (zoneBelow && rBottom <= strip.top + EPS) {
           shift = Math.min(shift, top - rBottom - r.padBottom - nodeGap);
-        } else if (zoneAbove && rTop >= band.bottom - EPS) {
+        } else if (zoneAbove && rTop >= strip.bottom - EPS) {
           shift = Math.min(shift, rTop - r.padTop - bottom - nodeGap);
         }
       }

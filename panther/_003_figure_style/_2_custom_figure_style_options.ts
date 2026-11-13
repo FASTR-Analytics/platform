@@ -16,7 +16,7 @@ import {
   type DiagramEdgeInfoFunc,
   type DiagramNodeInfoFunc,
   type DiagramTextInfoFunc,
-  type MapRegionInfoFunc,
+  type MapAreaInfoFunc,
   type PaddingOptions,
   type PieSliceInfoFunc,
   type TableCellInfoFunc,
@@ -30,12 +30,12 @@ import type {
   GenericAreaStyleOptions,
   GenericBarStyleOptions,
   GenericCascadeArrowStyleOptions,
-  GenericConfidenceBandStyleOptions,
   GenericConnectorStyleOptions,
   GenericDataLabelStyleOptions,
+  GenericErrorBandStyleOptions,
   GenericErrorBarStyleOptions,
   GenericLineStyleOptions,
-  GenericMapRegionStyleOptions,
+  GenericMapAreaStyleOptions,
   GenericPieSliceStyleOptions,
   GenericPointStyleOptions,
   GenericTableCellStyleOptions,
@@ -54,19 +54,19 @@ export type CustomFigureStyleOptions = {
     backgroundColor?: ColorKeyOrString | "none";
     legendGap?: number;
     legendPosition?: LegendPosition;
-    captionGap?: number;
-    subCaptionTopPadding?: number;
+    titleGap?: number;
+    subtitleTopPadding?: number;
     footnoteGap?: number;
-    captionAlignH?: "left" | "center" | "right";
-    subCaptionAlignH?: "left" | "center" | "right";
+    titleAlignH?: "left" | "center" | "right";
+    subtitleAlignH?: "left" | "center" | "right";
     footnoteAlignH?: "left" | "center" | "right";
   };
   legend?: {
     legendNoRender?: boolean;
-    maxLegendItemsInOneColumn?: number | number[];
+    maxLegendEntriesInOneColumn?: number | number[];
     reverseOrder?: boolean;
     legendColorBoxWidth?: number;
-    legendItemVerticalGap?: number;
+    legendEntryVerticalGap?: number;
     legendLabelGap?: number;
     legendPointRadius?: number;
     legendPointStrokeWidth?: number;
@@ -101,15 +101,15 @@ export type CustomFigureStyleOptions = {
     paddingTop?: number;
     paddingBottom?: number;
     gapY?: number;
-    maxHeaderWidthAsPctOfChart?: number;
+    maxHeaderWidthFractionOfPane?: number;
     headerAlignH?: "left" | "center" | "right";
     headerAlignV?: "top" | "middle";
     headerPosition?:
       | "left"
       | "above-axis"
-      | "above-plot-area"
+      | "above-sub-chart"
       | "above-axis-if-no-lanes"
-      | "above-plot-area-if-no-lanes";
+      | "above-sub-chart-if-no-lanes";
     headerGap?: number;
   };
   lanes?: {
@@ -123,15 +123,15 @@ export type CustomFigureStyleOptions = {
   xTextAxis?: {
     verticalTickLabels?: boolean;
     tickPosition?: "sides" | "center";
-    tickHeight?: number;
+    tickLength?: number;
     tickLabelGap?: number;
-    maxTickLabelHeightAsPctOfChart?: number;
+    maxTickLabelHeightFractionOfPane?: number;
   };
-  xScaleAxis?: {
+  xValueAxis?: {
     max?: number | "auto" | "auto-zero" | ((i_pane: number) => number);
     min?: number | "auto" | "auto-zero" | ((i_pane: number) => number);
-    labelGap?: number;
-    tickHeight?: number;
+    axisLabelGap?: number;
+    tickLength?: number;
     tickLabelGap?: number;
     tickLabelFormatter?: TickLabelFormatterOption;
     tickLabelAlignment?: "center" | "inset";
@@ -149,15 +149,15 @@ export type CustomFigureStyleOptions = {
     tickPosition?: "sides" | "center";
     paddingTop?: number;
     paddingBottom?: number;
-    tickWidth?: number;
+    tickLength?: number;
     tickLabelGap?: number;
-    maxTickLabelWidthAsPctOfChart?: number;
+    maxTickLabelWidthFractionOfPane?: number;
   };
-  yScaleAxis?: {
+  yValueAxis?: {
     max?: number | "auto" | "auto-zero" | ((i_pane: number) => number);
     min?: number | "auto" | "auto-zero" | ((i_pane: number) => number);
-    labelGap?: number;
-    tickWidth?: number;
+    axisLabelGap?: number;
+    tickLength?: number;
     tickLabelGap?: number;
     tickLabelFormatter?: TickLabelFormatterOption;
     tickLabelAlignment?: "center" | "inset";
@@ -211,10 +211,10 @@ export type CustomFigureStyleOptions = {
         | ChartValueInfoFunc<GenericErrorBarStyleOptions>
         | "none";
     };
-    confidenceBands?: {
+    errorBands?: {
       func?:
-        | GenericConfidenceBandStyleOptions
-        | ChartSeriesInfoFunc<GenericConfidenceBandStyleOptions>
+        | GenericErrorBandStyleOptions
+        | ChartSeriesInfoFunc<GenericErrorBandStyleOptions>
         | "none";
     };
     cascadeArrows?: {
@@ -232,12 +232,12 @@ export type CustomFigureStyleOptions = {
       joinAcrossGaps?: boolean;
       arrowheadFitFallback?: ArrowheadFitFallback;
     };
-    mapRegions?: {
+    mapAreas?: {
       func?:
-        | GenericMapRegionStyleOptions
-        | MapRegionInfoFunc<GenericMapRegionStyleOptions>
+        | GenericMapAreaStyleOptions
+        | MapAreaInfoFunc<GenericMapAreaStyleOptions>
         | "none";
-      textFormatter?: MapRegionInfoFunc<string> | "none";
+      textFormatter?: MapAreaInfoFunc<string> | "none";
     };
     slices?: {
       func?:
@@ -259,11 +259,11 @@ export type CustomFigureStyleOptions = {
         | TableHeaderInfoFunc<GenericTableHeaderStyleOptions>
         | "none";
       // Rewrites the final header label (receives the RAW label + sampleN).
-      // Applies to item AND group headers on this axis. Invoked for every
+      // Applies to item AND group headers on this side. Invoked for every
       // header with a defined label; must be pure and deterministic —
       // label-derived width caches assume it. An "" return demotes a
       // row-GROUP header entirely (truthiness guard); on every other header
-      // kind it renders an empty label with the band still reserved — same as
+      // kind it renders an empty label with its space still reserved — same as
       // an authored "" label.
       textFormatter?: TableHeaderInfoFunc<string> | "none";
     };
@@ -276,11 +276,11 @@ export type CustomFigureStyleOptions = {
     };
   };
   grid?: {
-    showGrid?: boolean;
+    showGridLines?: boolean;
     axisStrokeWidth?: number;
-    gridStrokeWidth?: number;
+    gridLineStrokeWidth?: number;
     axisColor?: ColorKeyOrString;
-    gridColor?: ColorKeyOrString;
+    gridLineColor?: ColorKeyOrString;
     backgroundColor?: ColorKeyOrString | "none";
   };
   panes?: {
@@ -387,7 +387,7 @@ export type CustomFigureStyleOptions = {
   };
   map?: {
     projection?: "equirectangular" | "mercator" | "naturalEarth1";
-    fit?: "all-regions" | "only-regions-in-data";
+    fit?: "all-map-areas" | "only-map-areas-in-data";
     dataLabelMode?: "none" | "centroid" | "callout" | "auto";
     calloutMargin?: number;
     labelCollision?: {
@@ -445,14 +445,14 @@ export type CustomFigureStyleOptions = {
   // concern (page style content.figureMaxStretch). Resolution: custom → global
   // → default.
   idealHeight?: {
-    // Scale-axis charts (ChartOV, Timeseries): natural per-subchart plot
-    // height (DU) as a function of vertically-stacked subchart rows
+    // Value-axis charts (ChartOV, Timeseries): natural per-sub-chart
+    // height (DU) as a function of vertically-stacked sub-chart rows
     // (nPaneRows × nTiers). Decays so stacked grids stay bounded. Clamped to
     // >= the legibility floor. Ignored by ChartOH and Table.
-    idealPlotHeight?: (nSubchartRows: number) => number;
+    idealSubChartHeight?: (nSubChartRows: number) => number;
 
     // ChartOH: natural per-bar-row thickness (DU) as a function of the figure's
-    // total bar rows (nPaneRows × nTiers × nIndicators × (stacked ? 1 : nSeries)).
+    // total bar rows (nPaneRows × nTiers × nIndicators × (stacked ? 1 : nSerieses)).
     // Decays so dense category charts thin their bars instead of growing
     // without bound. Ignored by ChartOV, Timeseries, and Table.
     idealRowThickness?: (nTotalBarRows: number) => number;

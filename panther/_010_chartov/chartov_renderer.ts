@@ -18,8 +18,8 @@ import {
   RectCoordsDims,
   type RenderContext,
   type Renderer,
-  resolveScaleAxisFloorPlotH,
-  resolveScaleAxisPlotHeight,
+  resolveValueAxisFloorSubChartHeight,
+  resolveValueAxisSubChartHeight,
 } from "./deps.ts";
 import type {
   ChartOVDataTransformed,
@@ -32,14 +32,14 @@ import type {
 function buildOVProbe(
   rc: RenderContext,
   width: number,
-  item: ChartOVInputs,
+  inputs: ChartOVInputs,
   data: ChartOVDataTransformed,
 ): (probeH: number, paneGrid: PaneGrid, scale?: number) => PaneLayout[] {
   return (probeH, paneGrid, scale) =>
     measureChartOV(
       rc,
       new RectCoordsDims([0, 0, width, probeH]),
-      item,
+      inputs,
       paneGrid,
       scale,
       data,
@@ -50,35 +50,35 @@ function buildOVProbe(
 function measureOV(
   rc: RenderContext,
   bounds: RectCoordsDims,
-  item: ChartOVInputs,
+  inputs: ChartOVInputs,
 ): MeasuredChartOV {
-  const data = getChartOVSizingData(item);
+  const data = getChartOVSizingData(inputs);
   const w = bounds.w();
   return measureChartWithAutofit(
     rc,
     bounds,
-    item,
-    (scale) => getChartOVComponentSizes(rc, item, data, scale),
+    inputs,
+    (scale) => getChartOVComponentSizes(rc, inputs, data, scale),
     (rc2, b, inp, paneGrid, fitScale) =>
       measureChartOV(rc2, b, inp, paneGrid, fitScale, data),
-    buildOVProbe(rc, w, item, data),
-    resolveScaleAxisPlotHeight,
-    resolveScaleAxisFloorPlotH,
+    buildOVProbe(rc, w, inputs, data),
+    resolveValueAxisSubChartHeight,
+    resolveValueAxisFloorSubChartHeight,
   );
 }
 
 export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
-  isType(item: unknown): item is ChartOVInputs {
-    return typeof item === "object" && item !== null &&
-      "figureType" in item && item.figureType === "chart-ov";
+  isType(inputs: unknown): inputs is ChartOVInputs {
+    return typeof inputs === "object" && inputs !== null &&
+      "figureType" in inputs && inputs.figureType === "chart-ov";
   },
 
   measure(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: ChartOVInputs,
+    inputs: ChartOVInputs,
   ): MeasuredChartOV {
-    return measureOV(rc, bounds, item);
+    return measureOV(rc, bounds, inputs);
   },
 
   render(rc: RenderContext, mChartOV: MeasuredChartOV) {
@@ -88,25 +88,25 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
   measureAndRender(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: ChartOVInputs,
+    inputs: ChartOVInputs,
   ): void {
-    renderChartOV(rc, measureOV(rc, bounds, item));
+    renderChartOV(rc, measureOV(rc, bounds, inputs));
   },
 
   getIdealHeight(
     rc: RenderContext,
     width: number,
-    item: ChartOVInputs,
+    inputs: ChartOVInputs,
   ): HeightConstraints {
-    const data = getChartOVSizingData(item);
+    const data = getChartOVSizingData(inputs);
     return getChartHeightConstraintsByMeasure(
       rc,
       width,
-      item,
-      (scale) => getChartOVComponentSizes(rc, item, data, scale),
-      buildOVProbe(rc, width, item, data),
-      resolveScaleAxisPlotHeight,
-      resolveScaleAxisFloorPlotH,
+      inputs,
+      (scale) => getChartOVComponentSizes(rc, inputs, data, scale),
+      buildOVProbe(rc, width, inputs, data),
+      resolveValueAxisSubChartHeight,
+      resolveValueAxisFloorSubChartHeight,
     );
   },
 };

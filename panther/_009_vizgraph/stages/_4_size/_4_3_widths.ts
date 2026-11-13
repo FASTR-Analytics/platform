@@ -118,14 +118,14 @@ export function allocateNodeSizes(
     // Reachability check at final sizes (covers all-fixed models too):
     // below the floor the layout overflows fit.width — reported, never
     // thrown, and the caller's min-width probe sees the same floor. The
-    // floor is computed at COMPACT gaps (layerGapRange.min, laneGapRange.min)
+    // floor is computed at COMPACT gaps (layerGapRange.min, bandGapRange.min)
     // — the true minimum, matching what pressure can actually reach — and
     // includes what span floors add to their columns.
     placeStage(proper, spacing, plan);
     const compact: ResolvedSpacing = {
       ...spacing,
       layerGap: spacing.layerGapRange.min,
-      laneGap: spacing.laneGapRange.min,
+      bandGap: spacing.bandGapRange.min,
     };
     const gutterAtMin = computeGutterTotal(proper, options, compact);
     let floorTotal = gutterAtMin;
@@ -148,7 +148,7 @@ export function allocateNodeSizes(
             g,
             proper.layers.length,
             compact,
-            proper.laneBoundaries,
+            proper.bandBoundaries,
           ),
         spacing.groupPad,
       )
@@ -175,7 +175,7 @@ export function allocateNodeSizes(
 // layerGap compresses ideal→min BEFORE any node width interpolation —
 // whitespace is cheaper than text reflow, so text never rewraps while air
 // remains between columns. Writes the effective gap into spacing.layerGap
-// (the object every later stage reads). laneGap rides the same
+// (the object every later stage reads). bandGap rides the same
 // schedule: boundary gutters compress by the same fraction as interior
 // ones, and span floors raise the columns' floor/ideal widths before the
 // sums are taken.
@@ -210,20 +210,20 @@ function allocateWidths(
     }
   }
   const { min: gapMin, ideal: gapIdeal } = spacing.layerGapRange;
-  const { min: laneMin, ideal: laneIdeal } = spacing.laneGapRange;
+  const { min: bandMin, ideal: bandIdeal } = spacing.bandGapRange;
   const floorGutter = (g: number): number =>
     2 * gutterBasePad(
       g,
       layerCount,
-      { ...spacing, layerGap: gapMin, laneGap: laneMin },
-      proper.laneBoundaries,
+      { ...spacing, layerGap: gapMin, bandGap: bandMin },
+      proper.bandBoundaries,
     );
   const idealGutter = (g: number): number =>
     2 * gutterBasePad(
       g,
       layerCount,
-      { ...spacing, layerGap: gapIdeal, laneGap: laneIdeal },
-      proper.laneBoundaries,
+      { ...spacing, layerGap: gapIdeal, bandGap: bandIdeal },
+      proper.bandBoundaries,
     );
   const minExtras = spanColumnExtras(
     spans,
@@ -245,21 +245,21 @@ function allocateWidths(
   const sumIdeal = colIdeal.reduce((acc, w) => acc + w, 0);
 
   const interiorGutters = Math.max(0, layerCount - 1);
-  const boundaryGutters = proper.laneBoundaries.filter((b) => b).length;
+  const boundaryGutters = proper.bandBoundaries.filter((b) => b).length;
   const gapSpan = interiorGutters * (gapIdeal - gapMin) +
-    boundaryGutters * (laneIdeal - laneMin);
+    boundaryGutters * (bandIdeal - bandMin);
 
   let prevGutterAtIdeal = -1;
   for (let round = 0; round < MAX_FIT_ROUNDS; round++) {
     placeStage(proper, spacing, plan);
-    // gutterTotal is linear in layerGap and laneGap (each interior gutter
+    // gutterTotal is linear in layerGap and bandGap (each interior gutter
     // carries them as base pad), so measure once at ideal and derive the
     // compressed values arithmetically. Track bundles depend on y only —
     // gap-independent.
     const gutterAtIdeal = computeGutterTotal(proper, options, {
       ...spacing,
       layerGap: gapIdeal,
-      laneGap: laneIdeal,
+      bandGap: bandIdeal,
     });
     if (Math.abs(gutterAtIdeal - prevGutterAtIdeal) < FIT_EPS) {
       break;
@@ -272,7 +272,7 @@ function allocateWidths(
     let available: number;
     if (availAtIdeal >= sumIdeal || interiorGutters === 0) {
       spacing.layerGap = gapIdeal;
-      spacing.laneGap = laneIdeal;
+      spacing.bandGap = bandIdeal;
       available = availAtIdeal;
     } else if (availAtIdeal + gapSpan >= sumIdeal) {
       if (boundaryGutters === 0) {
@@ -281,12 +281,12 @@ function allocateWidths(
       } else {
         const fraction = (sumIdeal - availAtIdeal) / gapSpan;
         spacing.layerGap = gapIdeal - fraction * (gapIdeal - gapMin);
-        spacing.laneGap = laneIdeal - fraction * (laneIdeal - laneMin);
+        spacing.bandGap = bandIdeal - fraction * (bandIdeal - bandMin);
       }
       available = sumIdeal;
     } else {
       spacing.layerGap = gapMin;
-      spacing.laneGap = laneMin;
+      spacing.bandGap = bandMin;
       available = availAtIdeal + gapSpan;
     }
 

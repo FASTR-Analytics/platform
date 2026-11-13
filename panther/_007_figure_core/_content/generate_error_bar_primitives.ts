@@ -16,7 +16,7 @@ import {
   catCoord,
   catExtentOfRect,
   makeErrorBarPrimitive,
-  valCoord,
+  valueCoord,
 } from "./orientation_helpers.ts";
 
 type Anchor = {
@@ -35,17 +35,17 @@ export function generateErrorBarPrimitives(
   marks: Primitive[],
   ctx: ContentGenerationContext,
 ): ChartErrorBarPrimitive[] {
-  const ub = ctx.mappedBoundsUb;
-  const lb = ctx.mappedBoundsLb;
+  const ub = ctx.mappedUncertaintyUb;
+  const lb = ctx.mappedUncertaintyLb;
   if (!ub || !lb) {
     return [];
   }
   const orientation = ctx.orientation;
   const anchors = new Map<string, Anchor>();
-  const cellKey = (v: ChartValueInfo) => `${v.i_series}-${v.i_val}`;
+  const valueKey = (v: ChartValueInfo) => `${v.i_series}-${v.i_value}`;
   for (const p of marks) {
     if (p.type === "chart-bar") {
-      anchors.set(cellKey(p.meta.value), {
+      anchors.set(valueKey(p.meta.value), {
         value: p.meta.value,
         item: p.item,
         categoryCenter: catCenterOfRect(p.bounds, orientation),
@@ -53,9 +53,9 @@ export function generateErrorBarPrimitives(
         zIndex: Z_INDEX.CONTENT_BAR + 1,
       });
     } else if (
-      p.type === "chart-data-point" && !anchors.has(cellKey(p.meta.value))
+      p.type === "chart-data-point" && !anchors.has(valueKey(p.meta.value))
     ) {
-      anchors.set(cellKey(p.meta.value), {
+      anchors.set(valueKey(p.meta.value), {
         value: p.meta.value,
         item: p.item,
         categoryCenter: catCoord(p.coords, orientation),
@@ -71,19 +71,19 @@ export function generateErrorBarPrimitives(
     if (!ebStyle.show) {
       continue;
     }
-    const ubMapped = ub[a.value.i_series]?.[a.value.i_val];
-    const lbMapped = lb[a.value.i_series]?.[a.value.i_val];
+    const ubMapped = ub[a.value.i_series]?.[a.value.i_value];
+    const lbMapped = lb[a.value.i_series]?.[a.value.i_value];
     if (!ubMapped || !lbMapped) {
       continue;
     }
     primitives.push(makeErrorBarPrimitive({
       key:
-        `errorbar-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${a.value.i_series}-${a.value.i_val}`,
+        `errorbar-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${a.value.i_series}-${a.value.i_value}`,
       item: a.item,
       meta: { value: a.value },
       categoryCenter: a.categoryCenter,
-      valUb: valCoord(ubMapped.coords, orientation),
-      valLb: valCoord(lbMapped.coords, orientation),
+      valueUb: valueCoord(ubMapped.coords, orientation),
+      valueLb: valueCoord(lbMapped.coords, orientation),
       capExtent: a.markExtent * ebStyle.capWidthProportion,
       strokeColor: ebStyle.strokeColor,
       strokeWidth: ebStyle.strokeWidth,

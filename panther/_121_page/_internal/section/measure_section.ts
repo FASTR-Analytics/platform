@@ -22,7 +22,7 @@ import type {
 export function measureSection(
   rc: RenderContext,
   bounds: RectCoordsDims,
-  item: SectionPageInputs,
+  inputs: SectionPageInputs,
   style: MergedSectionStyle,
   fullPageBounds: RectCoordsDims,
   measuredSplitImage: MeasuredImage | undefined,
@@ -30,29 +30,33 @@ export function measureSection(
 ): MeasuredSectionPage {
   const textMaxWidth = bounds.w() - style.padding.totalPx();
 
-  const mSectionTitle = item.sectionTitle?.trim()
-    ? rc.mText(item.sectionTitle.trim(), style.text.sectionTitle, textMaxWidth)
+  const mSectionTitle = inputs.sectionTitle?.trim()
+    ? rc.mText(
+      inputs.sectionTitle.trim(),
+      style.text.sectionTitle,
+      textMaxWidth,
+    )
     : undefined;
 
-  const mSectionSubTitle = item.sectionSubTitle?.trim()
+  const mSectionSubtitle = inputs.sectionSubtitle?.trim()
     ? rc.mText(
-      item.sectionSubTitle.trim(),
-      style.text.sectionSubTitle,
+      inputs.sectionSubtitle.trim(),
+      style.text.sectionSubtitle,
       textMaxWidth,
     )
     : undefined;
 
   const { primitives, totalH } = buildSectionPrimitives(
     bounds,
-    item,
+    inputs,
     style,
     mSectionTitle,
-    mSectionSubTitle,
+    mSectionSubtitle,
   );
 
   return {
     type: "section",
-    item,
+    inputs,
     bounds,
     style,
     overflow: totalH > bounds.h(),
@@ -61,7 +65,7 @@ export function measureSection(
     mWatermark,
     primitives,
     mSectionTitle,
-    mSectionSubTitle,
+    mSectionSubtitle,
   };
 }
 
@@ -98,10 +102,10 @@ function getStartY(
 
 function buildSectionPrimitives(
   bounds: RectCoordsDims,
-  item: SectionPageInputs,
+  inputs: SectionPageInputs,
   s: MergedSectionStyle,
   mSectionTitle?: import("../../deps.ts").MeasuredText,
-  mSectionSubTitle?: import("../../deps.ts").MeasuredText,
+  mSectionSubtitle?: import("../../deps.ts").MeasuredText,
 ): { primitives: PagePrimitive[]; totalH: number } {
   const primitives: PagePrimitive[] = [];
   const alignH = s.alignH;
@@ -118,21 +122,21 @@ function buildSectionPrimitives(
   }
 
   // Overlay
-  if (item.overlay) {
+  if (inputs.overlay) {
     primitives.push({
       type: "image",
       id: "sectionOverlay",
-      image: item.overlay,
+      image: inputs.overlay,
       rcd: bounds,
     });
   }
 
   // Calculate layout
   const sectionTitleH = mSectionTitle ? mSectionTitle.dims.h() : 0;
-  const sectionSubTitleH = mSectionSubTitle ? mSectionSubTitle.dims.h() : 0;
+  const sectionSubtitleH = mSectionSubtitle ? mSectionSubtitle.dims.h() : 0;
 
   const totalH = sectionTitleH +
-    (sectionSubTitleH > 0 ? s.sectionTitleBottomPadding + sectionSubTitleH : 0);
+    (sectionSubtitleH > 0 ? s.sectionTitleBottomPadding + sectionSubtitleH : 0);
 
   const textX = getTextX(bounds, s.padding, alignH);
   let currentY = getStartY(bounds, s.padding, alignV, totalH);
@@ -155,11 +159,11 @@ function buildSectionPrimitives(
   }
 
   // Section Subtitle
-  if (mSectionSubTitle && sectionSubTitleH > 0) {
+  if (mSectionSubtitle && sectionSubtitleH > 0) {
     primitives.push({
       type: "text",
-      id: "sectionSubTitle",
-      mText: mSectionSubTitle,
+      id: "sectionSubtitle",
+      mText: mSectionSubtitle,
       x: textX,
       y: currentY,
       alignH: alignH,

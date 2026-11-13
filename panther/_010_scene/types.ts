@@ -82,7 +82,7 @@ export type SceneRegionStyle = {
   depth?: number;
 };
 
-// Draws into a rect that is already in the content rect's coordinates, at the
+// Draws into a rect that is already in the body rect's coordinates, at the
 // figure's shrink factor; the keys it returns are nested under the element's.
 export type CustomDraw = (
   rc: RenderContext,

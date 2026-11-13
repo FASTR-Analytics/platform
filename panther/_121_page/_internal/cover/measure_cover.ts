@@ -24,7 +24,7 @@ import type {
 export function measureCover(
   rc: RenderContext,
   bounds: RectCoordsDims,
-  item: CoverPageInputs,
+  inputs: CoverPageInputs,
   style: MergedCoverStyle,
   fullPageBounds: RectCoordsDims,
   measuredSplitImage: MeasuredImage | undefined,
@@ -32,35 +32,35 @@ export function measureCover(
 ): MeasuredCoverPage {
   const textMaxWidth = bounds.w() - style.padding.totalPx();
 
-  const mTitle = item.title?.trim()
-    ? rc.mText(item.title.trim(), style.text.coverTitle, textMaxWidth)
+  const mTitle = inputs.title?.trim()
+    ? rc.mText(inputs.title.trim(), style.text.coverTitle, textMaxWidth)
     : undefined;
 
-  const mSubTitle = item.subTitle?.trim()
-    ? rc.mText(item.subTitle.trim(), style.text.coverSubTitle, textMaxWidth)
+  const mSubtitle = inputs.subtitle?.trim()
+    ? rc.mText(inputs.subtitle.trim(), style.text.coverSubtitle, textMaxWidth)
     : undefined;
 
-  const mAuthor = item.author?.trim()
-    ? rc.mText(item.author.trim(), style.text.coverAuthor, textMaxWidth)
+  const mAuthor = inputs.author?.trim()
+    ? rc.mText(inputs.author.trim(), style.text.coverAuthor, textMaxWidth)
     : undefined;
 
-  const mDate = item.date?.trim()
-    ? rc.mText(item.date.trim(), style.text.coverDate, textMaxWidth)
+  const mDate = inputs.date?.trim()
+    ? rc.mText(inputs.date.trim(), style.text.coverDate, textMaxWidth)
     : undefined;
 
   const { primitives, totalH } = buildCoverPrimitives(
     bounds,
-    item,
+    inputs,
     style,
     mTitle,
-    mSubTitle,
+    mSubtitle,
     mAuthor,
     mDate,
   );
 
   return {
     type: "cover",
-    item,
+    inputs,
     bounds,
     style,
     overflow: totalH > bounds.h(),
@@ -69,7 +69,7 @@ export function measureCover(
     mWatermark,
     primitives,
     mTitle,
-    mSubTitle,
+    mSubtitle,
     mAuthor,
     mDate,
   };
@@ -79,10 +79,10 @@ type CoverResult = { primitives: PagePrimitive[]; totalH: number };
 
 function buildCoverPrimitives(
   bounds: RectCoordsDims,
-  item: CoverPageInputs,
+  inputs: CoverPageInputs,
   s: MergedCoverStyle,
   mTitle?: MeasuredText,
-  mSubTitle?: MeasuredText,
+  mSubtitle?: MeasuredText,
   mAuthor?: MeasuredText,
   mDate?: MeasuredText,
 ): CoverResult {
@@ -97,25 +97,25 @@ function buildCoverPrimitives(
     });
   }
 
-  if (item.overlay) {
+  if (inputs.overlay) {
     primitives.push({
       type: "image",
       id: "coverOverlay",
-      image: item.overlay,
+      image: inputs.overlay,
       rcd: bounds,
     });
   }
 
-  const hasLogos = item.titleLogos && item.titleLogos.length > 0;
+  const hasLogos = inputs.titleLogos && inputs.titleLogos.length > 0;
   const isFixed = isFixedPlacement(s.logosPlacement);
 
   if (hasLogos && isFixed) {
     const result = buildFixedLogosCover(
       bounds,
-      item.titleLogos!,
+      inputs.titleLogos!,
       s,
       mTitle,
-      mSubTitle,
+      mSubtitle,
       mAuthor,
       mDate,
     );
@@ -125,10 +125,10 @@ function buildCoverPrimitives(
 
   const result = buildFlowCover(
     bounds,
-    hasLogos ? item.titleLogos : undefined,
+    hasLogos ? inputs.titleLogos : undefined,
     s,
     mTitle,
-    mSubTitle,
+    mSubtitle,
     mAuthor,
     mDate,
   );
@@ -145,7 +145,7 @@ function buildFixedLogosCover(
   logos: HTMLImageElement[],
   s: MergedCoverStyle,
   mTitle?: MeasuredText,
-  mSubTitle?: MeasuredText,
+  mSubtitle?: MeasuredText,
   mAuthor?: MeasuredText,
   mDate?: MeasuredText,
 ): CoverResult {
@@ -207,11 +207,11 @@ function buildFixedLogosCover(
     s.alignH,
     s.alignV,
     mTitle,
-    mSubTitle,
+    mSubtitle,
     mAuthor,
     mDate,
     s.titleBottomPadding,
-    s.subTitleBottomPadding,
+    s.subtitleBottomPadding,
     s.authorBottomPadding,
   );
   primitives.push(...contentResult.primitives);
@@ -224,7 +224,7 @@ function buildFlowCover(
   logos: HTMLImageElement[] | undefined,
   s: MergedCoverStyle,
   mTitle?: MeasuredText,
-  mSubTitle?: MeasuredText,
+  mSubtitle?: MeasuredText,
   mAuthor?: MeasuredText,
   mDate?: MeasuredText,
 ): CoverResult {
@@ -255,7 +255,7 @@ function buildFlowCover(
   }
 
   addItem("title", mTitle?.dims.h() ?? 0, s.titleBottomPadding);
-  addItem("subtitle", mSubTitle?.dims.h() ?? 0, s.subTitleBottomPadding);
+  addItem("subtitle", mSubtitle?.dims.h() ?? 0, s.subtitleBottomPadding);
   addItem("author", mAuthor?.dims.h() ?? 0, s.authorBottomPadding);
   addItem("date", mDate?.dims.h() ?? 0, 0);
 
@@ -307,11 +307,11 @@ function buildFlowCover(
         alignV: "top",
         maxWidth: textMaxWidth,
       });
-    } else if (item.type === "subtitle" && mSubTitle) {
+    } else if (item.type === "subtitle" && mSubtitle) {
       primitives.push({
         type: "text",
-        id: "coverSubTitle",
-        mText: mSubTitle,
+        id: "coverSubtitle",
+        mText: mSubtitle,
         x: textX,
         y: currentY,
         alignH: s.alignH,
@@ -357,7 +357,7 @@ function buildContentStack(
   alignH: AlignH,
   alignV: AlignV,
   mTitle?: MeasuredText,
-  mSubTitle?: MeasuredText,
+  mSubtitle?: MeasuredText,
   mAuthor?: MeasuredText,
   mDate?: MeasuredText,
   titleGap: number = 0,
@@ -371,8 +371,8 @@ function buildContentStack(
   const items: StackItem[] = [];
 
   if (mTitle) items.push({ type: "title", mText: mTitle, gap: titleGap });
-  if (mSubTitle) {
-    items.push({ type: "subtitle", mText: mSubTitle, gap: subtitleGap });
+  if (mSubtitle) {
+    items.push({ type: "subtitle", mText: mSubtitle, gap: subtitleGap });
   }
   if (mAuthor) items.push({ type: "author", mText: mAuthor, gap: authorGap });
   if (mDate) items.push({ type: "date", mText: mDate, gap: 0 });

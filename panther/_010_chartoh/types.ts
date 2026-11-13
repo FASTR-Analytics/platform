@@ -4,16 +4,16 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  AxisMembership,
-  ChartScaleAxisLimits,
+  ChartValueAxisLimits,
   CustomFigureStyle,
-  DataAxis,
+  DataDimension,
+  DimensionMembership,
   FigureInputsBase,
-  HeaderSortConfig,
   JsonArray,
   LegendInput,
   Measured,
   MeasuredSurrounds,
+  MemberSortConfig,
   MergedChartOHStyle,
   PaneLayout,
   Primitive,
@@ -41,64 +41,64 @@ export type ChartOHJsonDataConfig = {
   paneProp?: string | "--v";
   uncertainty?: UncertaintyConfig;
   // Raggedness is allowed only along the categorical (y-text) direction:
-  // indicators (slots) and tiers (bands) both stack along y. "lane" carries
-  // the x-scale limits and is never allowed on ChartOH.
+  // indicators (slots) and tiers both stack along y. "lane" carries
+  // the x value axis limits and is never allowed on ChartOH.
   membership?: {
-    indicator?: AxisMembership;
-    tier?: AxisMembership;
+    indicator?: DimensionMembership;
+    tier?: DimensionMembership;
   };
-  // Proportional (ragged-table) layout. bands: each tier band is sized by
-  // its own visible indicator count (per-band visibility implied), uniform
-  // slot thickness within a pane. panes: pane heights are additionally
+  // Proportional (ragged-table) layout. tiers: each tier is sized by its own
+  // visible indicator count (per-tier visibility implied), uniform slot
+  // thickness within a pane. panes: pane heights are additionally
   // proportional to their slot totals, uniform slot thickness across the
-  // whole chart (implies bands; engaged only when the pane grid is a single
+  // whole chart (implies tiers; engaged only when the pane grid is a single
   // column). Distinct from membership, which stays per-pane.
   proportional?: {
-    bands?: boolean;
+    tiers?: boolean;
     panes?: boolean;
   };
   labelReplacements?: Record<string, string>;
   sort?: {
-    indicator?: HeaderSortConfig;
-    series?: HeaderSortConfig;
-    lane?: HeaderSortConfig;
-    tier?: HeaderSortConfig;
-    pane?: HeaderSortConfig;
+    indicator?: MemberSortConfig;
+    series?: MemberSortConfig;
+    lane?: MemberSortConfig;
+    tier?: MemberSortConfig;
+    pane?: MemberSortConfig;
   };
   sortIndicatorValues?: "ascending" | "descending" | "none";
-  xScaleAxisLabel?: string;
+  xValueAxisLabel?: string;
 };
 
 export type ChartOHDataTransformed = {
   isTransformed: true;
-  // One axis per split slot; an unsplit slot has none and is one member long
-  // in values. The indicators are the Y categories.
-  indicator: DataAxis;
-  series?: DataAxis;
-  lane?: DataAxis;
-  tier?: DataAxis;
-  pane?: DataAxis;
+  // One dimension per prop given; with no prop there is none, and values are
+  // one member long there. The indicators are the Y categories.
+  indicator: DataDimension;
+  series?: DataDimension;
+  lane?: DataDimension;
+  tier?: DataDimension;
+  pane?: DataDimension;
   values: (number | undefined)[][][][][]; // [pane][tier][lane][series][indicator]
-  bounds?: {
+  uncertaintyValues?: {
     ub: (number | undefined)[][][][][];
     lb: (number | undefined)[][][][][];
   };
-  scaleAxisLimits: ChartScaleAxisLimits;
-  xScaleAxisLabel?: string;
+  valueAxisLimits: ChartValueAxisLimits;
+  xValueAxisLabel?: string;
   // Per-pane indicator masks (global indices, in this pane's slot order),
-  // present under unbalanced indicator membership, proportional bands, or a
+  // present under unbalanced indicator membership, proportional tiers, or a
   // value sort (then a full permutation per pane). Absent = every pane shows
-  // the full global set in storage order. Storage (values/bounds) stays dense.
+  // the full global set in storage order. Storage (values/uncertaintyValues) stays dense.
   visibleIndicatorsByPane?: number[][];
   // Per-pane visible tier subsets (global indices), present only for
   // unbalanced tier membership. Same masking model as indicators: dropped
-  // tiers are whole subchart rows.
+  // tiers are whole sub-chart rows.
   visibleTiersByPane?: number[][];
-  // Per-(pane, tier) visible indicator subsets for proportional band layout,
+  // Per-(pane, tier) visible indicator subsets for proportional tier layout,
   // indexed [pane][GLOBAL tier index][visible global indicator indices]. A
   // tier with [] in a pane is dropped for that pane. Present only when
   // proportional layout is enabled.
-  visibleIndicatorsByPaneBand?: number[][][];
+  visibleIndicatorsByPaneTier?: number[][][];
   // Cross-pane proportional sizing requested (proportional.panes). Pane
   // heights become proportional to their slot totals when the pane grid is a
   // single column; otherwise falls back to uniform pane sizing.
@@ -121,8 +121,8 @@ export type MeasuredChartOH = Measured<ChartOHInputs> & {
   transformedData: ChartOHDataTransformed;
   customFigureStyle: CustomFigureStyle;
   mergedStyle: MergedChartOHStyle;
-  caption?: string;
-  subCaption?: string;
+  title?: string;
+  subtitle?: string;
   footnote?: string | string[];
   legend?: LegendInput;
   primitives: Primitive[];

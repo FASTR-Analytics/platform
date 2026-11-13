@@ -6,31 +6,31 @@
 import type { RectCoordsDims } from "../../deps.ts";
 
 export function calculateHorizontalGridLinesForTierYText(
-  plotAreaRcd: RectCoordsDims,
+  subChartRcd: RectCoordsDims,
   nIndicators: number,
-  gridStrokeWidth: number,
+  gridLineStrokeWidth: number,
   centeredTicks: boolean,
 ): { y: number; tickValue?: number }[] {
   const result: { y: number; tickValue?: number }[] = [];
-  const innerH = centeredTicks
-    ? plotAreaRcd.h() / Math.max(1, nIndicators)
-    : (plotAreaRcd.h() - gridStrokeWidth * (nIndicators + 1)) /
+  const slotExtent = centeredTicks
+    ? subChartRcd.h() / Math.max(1, nIndicators)
+    : (subChartRcd.h() - gridLineStrokeWidth * (nIndicators + 1)) /
       Math.max(1, nIndicators);
 
   let currentY = centeredTicks
-    ? plotAreaRcd.y()
-    : plotAreaRcd.y() + gridStrokeWidth / 2;
+    ? subChartRcd.y()
+    : subChartRcd.y() + gridLineStrokeWidth / 2;
 
   for (let i = 0; i < nIndicators; i++) {
     if (centeredTicks) {
-      result.push({ y: currentY + innerH / 2 });
+      result.push({ y: currentY + slotExtent / 2 });
     } else {
       result.push({ y: currentY });
     }
-    currentY += centeredTicks ? innerH : innerH + gridStrokeWidth;
+    currentY += centeredTicks ? slotExtent : slotExtent + gridLineStrokeWidth;
   }
   if (!centeredTicks) {
-    result.push({ y: plotAreaRcd.bottomY() - gridStrokeWidth / 2 });
+    result.push({ y: subChartRcd.bottomY() - gridLineStrokeWidth / 2 });
   }
   return result;
 }

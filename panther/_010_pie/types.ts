@@ -4,11 +4,11 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  DataAxis,
+  DataDimension,
   FigureInputsBase,
-  HeaderSortConfig,
   JsonArray,
   MeasuredChartBase,
+  MemberSortConfig,
   MergedPieStyle,
 } from "./deps.ts";
 
@@ -26,7 +26,7 @@ export type PieDataJson = {
 
 // The denominator a cell's shares are computed against. "sum" (the default)
 // normalises by the cell's own total, so the circle is always 100% of the
-// cell; a number declares a fixed envelope, exactly as yScaleAxis.max declares
+// cell; a number declares a fixed envelope, exactly as yValueAxis.max declares
 // one for a bar chart.
 export type PieTotal = number | "sum";
 
@@ -38,7 +38,7 @@ export type PieJsonDataConfig = {
   // id-stable swatch colors for free.
   seriesProp?: string | "--v";
   // The repeat dimension: one pie per indicator, tiled inside each sub-chart.
-  // Costs no disaggregation axis — panes/tiers/lanes stay free.
+  // Costs no disaggregation dimension — panes/tiers/lanes stay free.
   indicatorProp?: string | "--v";
   paneProp?: string | "--v";
   tierProp?: string | "--v";
@@ -46,22 +46,22 @@ export type PieJsonDataConfig = {
   total?: PieTotal;
   labelReplacements?: Record<string, string>;
   sort?: {
-    series?: HeaderSortConfig;
-    indicator?: HeaderSortConfig;
-    pane?: HeaderSortConfig;
-    tier?: HeaderSortConfig;
-    lane?: HeaderSortConfig;
+    series?: MemberSortConfig;
+    indicator?: MemberSortConfig;
+    pane?: MemberSortConfig;
+    tier?: MemberSortConfig;
+    lane?: MemberSortConfig;
   };
-  // Reorders the GLOBAL series axis by each series' summed value across every
-  // cell. Named after the axis it reorders, like sortIndicatorValues on
+  // Reorders the GLOBAL series dimension by each series' summed value across every
+  // cell. Named after the dimension it reorders, like sortIndicatorValues on
   // ChartOV — but global where ChartOV's is per pane, because slices are the
-  // series axis: global order keeps one legend and a stable color identity;
+  // series dimension: global order keeps one legend and a stable color identity;
   // per-cell orders would break both.
   sortSeriesValues?: "ascending" | "descending" | "none";
   // Collapses every named series whose share of the GLOBAL sum across every
   // cell is below `threshold` into one synthetic slice (id "--other", display
   // label `label` ?? "Other"), summing their values per cell. The criterion is
-  // global, never per-cell: the series axis is global (one legend, one
+  // global, never per-cell: the series dimension is global (one legend, one
   // seriesColorFunc identity), so a series is grouped everywhere or nowhere.
   // The grouped slice follows every kept named slice, and the blank slice,
   // never grouped, follows it, regardless of sort/sortSeriesValues.
@@ -70,17 +70,17 @@ export type PieJsonDataConfig = {
 
 export type PieDataTransformed = {
   isTransformed: true;
-  // One axis per split slot; an unsplit slot has none and is one member long
-  // in values.
-  series?: DataAxis;
-  indicator?: DataAxis;
-  pane?: DataAxis;
-  tier?: DataAxis;
-  lane?: DataAxis;
+  // One dimension per prop given; with no prop there is none, and values are
+  // one member long there.
+  series?: DataDimension;
+  indicator?: DataDimension;
+  pane?: DataDimension;
+  tier?: DataDimension;
+  lane?: DataDimension;
   // [pane][tier][lane][series][indicator] — literally ChartOV's shape. The
-  // last axis is the repeat dimension (one pie per indicator, length 1 with no
+  // last index is the repeat dimension (one pie per indicator, length 1 with no
   // indicatorProp), which keeps fillValuesWithDuplicateCheck reused verbatim
-  // and values[pane][tier][lane] literally the seriesValArrays
+  // and values[pane][tier][lane] literally the seriesValueArrays
   // ChartSeriesInfo wants.
   values: (number | undefined)[][][][][];
   total: PieTotal;

@@ -3,12 +3,12 @@ import {
   Color,
   ColorKeyOrString,
   type CustomFigureStyleOptions,
+  type DimensionMember,
   type FontInfo,
   getAdjustedColor,
   getFormatterFunc,
   type GlobalStyleOptions,
-  type HeaderItem,
-  MapRegionInfo,
+  MapAreaInfo,
   PieSliceInfo,
   TableCellInfo,
   TableHeaderInfo,
@@ -50,8 +50,8 @@ export const BASE_TEXT_OPTIONS: TextInfoOptions = {
 export const GLOBAL_STYLE_OPTIONS: GlobalStyleOptions = {
   figure: {
     text: {
-      caption: { font: _InternationalInter_800 },
-      subCaption: { color: "#959595" },
+      title: { font: _InternationalInter_800 },
+      subtitle: { color: "#959595" },
       footnote: { color: "#959595" },
       legend: { relFontSize: 0.8 },
       rowGroupHeaders: { relFontSize: 1.1, font: _InternationalInter_800 },
@@ -64,7 +64,7 @@ export const GLOBAL_STYLE_OPTIONS: GlobalStyleOptions = {
     panes: { headerGap: 9, gapX: 30, gapY: 30 },
     lanes: { paddingLeft: 8 },
     tiers: { paddingBottom: 8, headerPosition: "above-axis-if-no-lanes" },
-    xTextAxis: { tickLabelGap: 5, tickHeight: 7 },
+    xTextAxis: { tickLabelGap: 5, tickLength: 7 },
     content: {
       points: {
         func: { innerColorStrategy: { brighten: 0.5 } },
@@ -124,11 +124,11 @@ export function getTextStyle(
   const boldFont = getFigureFont(deckStyle, true, chartPalette);
   return {
     base: { font: baseFont },
-    // caption: { relFontSize: config.t.captionRelFontSize ?? 2, font: boldFont },
-    // subCaption: { relFontSize: config.t.subCaptionRelFontSize ?? 1.3 },
+    // title: { relFontSize: config.t.captionRelFontSize ?? 2, font: boldFont },
+    // subtitle: { relFontSize: config.t.subCaptionRelFontSize ?? 1.3 },
     // footnote: { relFontSize: config.t.footnoteRelFontSize ?? 0.9 },
-    caption: { relFontSize: 1.6, font: boldFont },
-    subCaption: { relFontSize: 1.2 },
+    title: { relFontSize: 1.6, font: boldFont },
+    subtitle: { relFontSize: 1.2 },
     footnote: { relFontSize: 0.9 },
     rowGroupHeaders: { font: boldFont },
     colGroupHeaders: { font: boldFont },
@@ -192,11 +192,11 @@ export function getTableLayoutStyle(
 
 // The ids that could identify a table cell's indicator, most specific first.
 // An indicator reaches a cell either as the value prop (wide-format metrics)
-// or as one of its four headers (long-format metrics, where the indicator sits
+// or as one of its four members (long-format metrics, where the indicator sits
 // on a disaggregation axis and the lone value prop is "value"). All four are
-// required, not just the item headers: getStartingConfigForPresentationObject
-// assigns display options in order, so a three-dimension table lands its
-// indicator dimension on rowGroup.
+// required, not just the row and col members:
+// getStartingConfigForPresentationObject assigns display options in order, so
+// a three-dimension table lands its indicator dimension on rowGroup.
 //
 // The same list feeds formatForValue and ruleForValue, each stopping at the
 // first id that DECLARES its fact.
@@ -204,15 +204,15 @@ export function getIndicatorIdsForCell(
   effectiveValueProps: string[],
   info: Pick<
     TableCellInfo,
-    "colHeader" | "rowHeader" | "colGroupHeader" | "rowGroupHeader"
+    "colMember" | "rowMember" | "colGroupMember" | "rowGroupMember"
   >,
 ): (string | undefined)[] {
   return [
     effectiveValueProps.length === 1 ? effectiveValueProps[0] : undefined,
-    info.colHeader?.id,
-    info.rowHeader?.id,
-    info.colGroupHeader?.id,
-    info.rowGroupHeader?.id,
+    info.colMember?.id,
+    info.rowMember?.id,
+    info.colGroupMember?.id,
+    info.rowGroupMember?.id,
   ];
 }
 
@@ -321,11 +321,11 @@ export function formatRateAuto(v: number): string {
   return getFormatterFunc("number", 3)(scaled);
 }
 
-// Scale-axis tick labels for the same three formats. percent/number keep
+// Value-axis tick labels for the same three formats. percent/number keep
 // panther's auto-decimal modes (sized from the resolved tick list);
 // rate_per_10k has no auto mode, so it goes through the formatter function
 // escape, which sees one tick at a time, exactly what formatRateAuto wants.
-export function getScaleTickLabelFormatter(
+export function getValueAxisTickLabelFormatter(
   formatAs: IndicatorFormat,
 ): TickLabelFormatterOption {
   if (formatAs === "rate_per_10k") {
@@ -336,8 +336,8 @@ export function getScaleTickLabelFormatter(
 
 // The ids that could identify a plotted value's indicator, most specific
 // first. A wide-format metric carries the indicator as the sole value prop
-// (same rule as getIndicatorIdsForCell). Category charts carry it at i_val;
-// timeseries leave indicatorHeader undefined and identify by series; a pie
+// (same rule as getIndicatorIdsForCell). Category charts carry it at i_value;
+// timeseries leave indicatorMember undefined and identify by series; a pie
 // slice always has one. Any of the four layout axes can carry the indicator
 // dimension instead, and none of them is ever an admin area on a chart.
 export function getIndicatorIdsForChartValue(
@@ -345,37 +345,37 @@ export function getIndicatorIdsForChartValue(
   info:
     & Pick<
       ChartSeriesInfo,
-      "seriesHeader" | "laneHeader" | "tierHeader" | "paneHeader"
+      "seriesMember" | "laneMember" | "tierMember" | "paneMember"
     >
-    & { indicatorHeader: HeaderItem | undefined },
+    & { indicatorMember: DimensionMember | undefined },
 ): (string | undefined)[] {
   return [
     effectiveValueProps.length === 1 ? effectiveValueProps[0] : undefined,
-    info.indicatorHeader?.id,
-    info.seriesHeader?.id,
-    info.laneHeader?.id,
-    info.tierHeader?.id,
-    info.paneHeader?.id,
+    info.indicatorMember?.id,
+    info.seriesMember?.id,
+    info.laneMember?.id,
+    info.tierMember?.id,
+    info.paneMember?.id,
   ];
 }
 
-// A map region's own key is an admin area, never an indicator, so only the
+// A map area's own key is an admin area, never an indicator, so only the
 // sole value prop (wide-format metrics) or the three layout axes (or a filter
 // pin, which formatForValue falls back to) can say which indicator the value
 // belongs to.
-export function getIndicatorIdsForMapRegion(
+export function getIndicatorIdsForMapArea(
   effectiveValueProps: string[],
-  info: MapRegionInfo,
+  info: MapAreaInfo,
 ): (string | undefined)[] {
   return [
     effectiveValueProps.length === 1 ? effectiveValueProps[0] : undefined,
-    info.paneHeader?.id,
-    info.tierHeader?.id,
-    info.laneHeader?.id,
+    info.paneMember?.id,
+    info.tierMember?.id,
+    info.laneMember?.id,
   ];
 }
 
-export function getMapRegionsContent(
+export function getMapAreasContent(
   config: PresentationObjectConfig,
   effectiveFormat: EffectiveIndicatorFacts,
   effectiveValueProps: string[],
@@ -399,13 +399,13 @@ export function getMapRegionsContent(
         borderWidth: 1,
       },
     },
-    textFormatter: (info: MapRegionInfo) => {
+    textFormatter: (info: MapAreaInfo) => {
       const regionText = showRegion ? info.featureId : "";
       const dataText = showData && info.value !== undefined
         ? formatIndicatorValue(
           info.value,
           effectiveFormat.formatForValue(
-            getIndicatorIdsForMapRegion(effectiveValueProps, info),
+            getIndicatorIdsForMapArea(effectiveValueProps, info),
           ),
           config.s.decimalPlaces ?? 0,
         )
@@ -422,7 +422,7 @@ export function getMapRegionsContent(
 // panther's built-in formatter auto-picks decimals.
 //
 // The name is dropped when the slice axis carries no disaggregation, where
-// panther gives the slice no series header. That is every completion pie (the whole point is one
+// panther gives the slice no series member. That is every completion pie (the whole point is one
 // filled arc per indicator, named by the indicator header panther draws beside
 // it) and any pie left with an empty Slices slot.
 export function getPieSlicesContent(config: PresentationObjectConfig) {
@@ -435,9 +435,9 @@ export function getPieSlicesContent(config: PresentationObjectConfig) {
           "percent",
           config.s.decimalPlaces ?? 0,
         )(info.share);
-        return info.seriesHeader === undefined
+        return info.seriesMember === undefined
           ? share
-          : `${info.seriesHeader.label} ${share}`;
+          : `${info.seriesMember.label} ${share}`;
       }
       : undefined,
   };
@@ -457,21 +457,21 @@ export function getPieCenterLabel(
   return isPieCompletionMode(config, formatAs) ? "share" : "total";
 }
 
-// The header whose index drives series coloring (see getIndex below): the
+// The member whose index drives series coloring (see getIndex below): the
 // roll-up pin check must look at the same axis the palette indexes. Undefined
 // for an axis with no disaggregation.
-function getColorPropHeaderId(
+function getColorPropMemberId(
   info: ChartSeriesInfo,
   seriesColorFuncPropToUse: "series" | "cell" | "row" | "col" | undefined,
 ): string | undefined {
-  const header = seriesColorFuncPropToUse === "cell"
-    ? info.paneHeader
+  const member = seriesColorFuncPropToUse === "cell"
+    ? info.paneMember
     : seriesColorFuncPropToUse === "col"
-    ? info.laneHeader
+    ? info.laneMember
     : seriesColorFuncPropToUse === "row"
-    ? info.tierHeader
-    : info.seriesHeader;
-  return header?.id;
+    ? info.tierMember
+    : info.seriesMember;
+  return member?.id;
 }
 
 export function getStandardSeriesColorFunc(
@@ -492,7 +492,7 @@ export function getStandardSeriesColorFunc(
   // reference series rather than a member of the palette.
   const neutral = chartPalette?.neutral ?? _CF_COMPARISON;
   return (info: ChartSeriesInfo) => {
-    const id = getColorPropHeaderId(info, config.s.seriesColorFuncPropToUse);
+    const id = getColorPropMemberId(info, config.s.seriesColorFuncPropToUse);
     return id !== undefined && ROLLUP_PIN_IDS.includes(id)
       ? neutral
       : base(info);

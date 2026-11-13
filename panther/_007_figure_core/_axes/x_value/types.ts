@@ -6,14 +6,14 @@
 import type { RectCoordsDims } from "../../deps.ts";
 import type { XAxisHeightInfoBase } from "../../types.ts";
 
-export type XScaleAxisHeightInfo = XAxisHeightInfoBase & {
-  xAxisTickValues: number[][]; // indexed by i_lane — mirror of YScaleAxisWidthInfo.yAxisTickValues (indexed by i_tier)
+export type XValueAxisHeightInfo = XAxisHeightInfoBase & {
+  xAxisTickValues: number[][]; // indexed by i_lane — mirror of YValueAxisWidthInfo.yAxisTickValues (indexed by i_tier)
   tickLabelFormatter: (v: number) => string;
   maxTickLabelW: number;
 };
 
-export type XScaleAxisMeasuredInfo = {
+export type XValueAxisMeasuredInfo = {
   xAxisRcd: RectCoordsDims;
-  subChartAreaWidth: number;
-  xScaleHeightInfo: XScaleAxisHeightInfo;
+  uniformSubChartWidth: number;
+  xValueAxisHeightInfo: XValueAxisHeightInfo;
 };

@@ -16,24 +16,24 @@ export type PeriodAxisType =
   | "year-centered";
 
 export type XPeriodAxisMeasuredInfo = {
-  subChartAreaWidth: number;
-  periodIncrementWidth: number;
+  uniformSubChartWidth: number;
+  slotExtent: number;
   xAxisRcd: RectCoordsDims;
   periodAxisSmallTickH: number | "none";
   periodAxisType: PeriodAxisType;
   // The large-label fallback ladder, widest form first, each with its measured
   // exemplar width. The axis picks the widest form that fits every labelled
-  // cell.
+  // span.
   largeLabelForms: { form: LargeLabelForm; w: number }[];
-  // Label every Nth year band (year-centered: tick + label every Nth year).
+  // Label every Nth year (year-centered: tick + label every Nth year).
   yearSkipInterval: number;
-  // Centre-to-centre distance between labelled years (N * band width).
+  // Centre-to-centre distance between labelled years (N * year width).
   labelSpan: number;
   // Minimum air between neighbouring year labels and the inset between a
   // boundary tick and the label that starts at it, em-based (scales with fit).
   labelGap: number;
   // Non-year-centered only. True: a full-height tick at every year start and
-  // year labels sit inside their own band. False (label wider than a band):
-  // full-height ticks only at labelled starts, label starts at the cell's tick.
+  // year labels sit inside their own year. False (label wider than a year):
+  // full-height ticks only at labelled starts, label starts at the span's tick.
   boundaryTicksEveryYear: boolean;
 };

@@ -43,7 +43,7 @@ export function renderFreeformSlide(
   createCanvasRenderContext: CreateCanvasRenderContext,
 ): PptxSlide {
   const slide = pptx.addSlide() as unknown as PptxSlide;
-  const item = measured.item;
+  const inputs = measured.inputs;
   const bounds = measured.bounds;
   const s = measured.style;
 
@@ -73,7 +73,7 @@ export function renderFreeformSlide(
   if (measured.measuredSplitImage) {
     const splitImg = measured.measuredSplitImage;
     const imgDataUrl = imageToDataUrl(
-      splitImg.item.image as HTMLImageElement,
+      splitImg.inputs.image as HTMLImageElement,
       createCanvasRenderContext,
     );
     slide.addImage({
@@ -99,9 +99,9 @@ export function renderFreeformSlide(
   renderContent(rc, slide, measured, createCanvasRenderContext);
 
   // Watermark
-  if (item.watermark) {
-    const mText = rc.mText(item.watermark, s.text.watermark, bounds.w());
-    slide.addText(item.watermark, {
+  if (inputs.watermark) {
+    const mText = rc.mText(inputs.watermark, s.text.watermark, bounds.w());
+    slide.addText(inputs.watermark, {
       x: pixelsToInches(bounds.x()),
       y: pixelsToInches(bounds.centerY() - mText.dims.h() / 2),
       w: pixelsToInches(bounds.w()),
@@ -125,7 +125,7 @@ function renderHeader(
   createCanvasRenderContext: CreateCanvasRenderContext,
 ): void {
   const header = measured.header!;
-  const inputs = measured.item;
+  const inputs = measured.inputs;
   const padHeader = new Padding(s.header.padding);
 
   // Header background
@@ -263,7 +263,7 @@ function renderFooter(
   createCanvasRenderContext: CreateCanvasRenderContext,
 ): void {
   const footer = measured.footer!;
-  const inputs = measured.item;
+  const inputs = measured.inputs;
   const padFooter = new Padding(s.footer.padding);
 
   // Footer background (if different from content)

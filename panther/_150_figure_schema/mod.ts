@@ -4,15 +4,15 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export {
-  zChartScaleAxisLimits,
-  zChartScaleAxisLimitsEntry,
-  zChartScaleAxisPaneLimits,
-  zDataAxis,
-  zHeaderItem,
-  zHeaderItems,
-  zHeaderSortConfig,
+  zChartValueAxisLimits,
+  zChartValueAxisLimitsEntry,
+  zChartValueAxisPaneLimits,
+  zDataDimension,
+  zDimensionMember,
+  zDimensionMembers,
   zJsonArray,
   zJsonArrayItem,
+  zMemberSortConfig,
   zPeriodType,
   zUncertaintyConfig,
 } from "./shared.ts";

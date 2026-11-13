@@ -274,7 +274,7 @@ export function getPeriodAxisInfo(
   rc: RenderContext,
   periodType: PeriodType,
   axisStyle: MergedXPeriodAxisStyle,
-  periodIncrementWidth: number,
+  slotExtent: number,
 ): PeriodAxisInfo {
   const labelGap = getLabelGap(axisStyle);
   const smallLabelH = rc
@@ -302,7 +302,7 @@ export function getPeriodAxisInfo(
     const _MONTHS_THREE_CHARS = get_MONTHS_THREE_CHARS(axisStyle.calendar);
     if (
       getMaxWidthWord(rc, axisStyle, _MONTHS_THREE_CHARS) + labelGap <
-        periodIncrementWidth
+        slotExtent
     ) {
       const periodAxisSmallTickH = axisStyle.periodLabelSmallTopPadding +
         smallLabelH;
@@ -334,7 +334,7 @@ export function getPeriodAxisInfo(
     const _QUARTERS_TWO_CHARS = get_QUARTERS_TWO_CHARS();
     if (
       getMaxWidthWord(rc, axisStyle, _QUARTERS_TWO_CHARS) + labelGap <
-        periodIncrementWidth
+        slotExtent
     ) {
       const periodAxisSmallTickH = axisStyle.periodLabelSmallTopPadding +
         smallLabelH;
@@ -406,16 +406,16 @@ function getMaxWidthWord(
 }
 
 // Year-label density and placement (non-year-centered rungs). A year label
-// starts labelGap to the right of its boundary tick, so the room a cell offers
+// starts labelGap to the right of its boundary tick, so the room a span offers
 // a label is its width minus the tick stroke and that inset.
 //
 // Two independent decisions, both sized against the label ladder:
-//   - skip interval N: label every Nth year band, so adjacent labels keep
+//   - skip interval N: label every Nth year, so adjacent labels keep
 //     labelGap of air between them (left-to-left distance N*bandW must clear
 //     label width + gap).
 //   - boundary ticks: a full-height tick at EVERY year start whenever the
-//     shortest label physically fits inside one band. Only when it does not do
-//     we fall back to widening the labelled cell to N bands, which is the one
+//     shortest label physically fits inside one year. Only when it does not do
+//     we fall back to widening the labelled span to N years, which is the one
 //     case where a year boundary tick is dropped.
 
 const _SKIP_INTERVALS = [1, 2, 5, 10, 20, 50, 100];
@@ -434,8 +434,8 @@ export function calculateYearSkipInterval(
   return _SKIP_INTERVALS[_SKIP_INTERVALS.length - 1];
 }
 
-export function labelFitsCell(labelW: number, cellInnerW: number): boolean {
-  return labelW <= cellInnerW;
+export function labelFitsSpan(labelW: number, spanInnerWidth: number): boolean {
+  return labelW <= spanInnerWidth;
 }
 
 // A form is only used when the span leaves at least its own width of air to
@@ -444,10 +444,10 @@ export function labelFitsCell(labelW: number, cellInnerW: number): boolean {
 const _FORM_SPAN_FACTOR = 2;
 
 // Widest form that keeps the air to its neighbours (labelSpan = left-to-left
-// distance of labelled bands) and fits in the room its own cell offers.
+// distance of labelled years) and fits in the room its own span offers.
 export function pickLargeLabelForm(
   labelSpan: number,
-  cellInnerW: number,
+  spanInnerWidth: number,
   labelGap: number,
   forms: { form: LargeLabelForm; w: number }[],
 ): LargeLabelForm {
@@ -455,7 +455,7 @@ export function pickLargeLabelForm(
     if (
       f.w * _FORM_SPAN_FACTOR <= labelSpan &&
       f.w + labelGap <= labelSpan &&
-      labelFitsCell(f.w, cellInnerW)
+      labelFitsSpan(f.w, spanInnerWidth)
     ) {
       return f.form;
     }

@@ -4,11 +4,11 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export * from "./_axes/x_period/types.ts";
-export * from "./_axes/x_scale/types.ts";
+export * from "./_axes/x_value/types.ts";
 export * from "./_axes/x_text/types.ts";
 export * from "./_axes/y_text/types.ts";
-export { measureXScaleAxisHeight } from "./_axes/x_scale/measure.ts";
-export { estimateMinYScaleAxisWidth } from "./_axes/y_scale/measure.ts";
+export { measureXValueAxisHeight } from "./_axes/x_value/measure.ts";
+export { estimateMinYValueAxisWidth } from "./_axes/y_value/measure.ts";
 export { estimateMinYTextAxisWidth } from "./_axes/y_text/measure.ts";
 export { estimateTierHeaderAndLabelGapWidth } from "./measure_pane.ts";
 export { buildDataLabelTextStyle } from "./_content/content_generation_types.ts";
@@ -28,8 +28,8 @@ export * from "./common_data_transform.ts";
 export * from "./dimension_helpers.ts";
 export * from "./measure_chart.ts";
 export * from "./measure_types.ts";
-export * from "./one_way_chart_transform.ts";
+export * from "./chart_ov_or_oh_transform.ts";
 export * from "./generate_annotation_primitives.ts";
 export * from "./render_primitives.ts";
-export * from "./sub_chart_headers.ts";
+export * from "./sub_chart_members.ts";
 export * from "./types.ts";

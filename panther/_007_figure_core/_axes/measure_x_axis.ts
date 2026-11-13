@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  type HeaderItem,
+  type DimensionMember,
   type MergedGridStyle,
   RectCoordsDims,
   type RenderContext,
@@ -14,91 +14,91 @@ import type { XAxisConfig } from "./axis_configs.ts";
 import { measureXPeriodAxis } from "./x_period/measure.ts";
 import type { XPeriodAxisMeasuredInfo } from "./x_period/types.ts";
 import {
-  measureXScaleAxisHeightInfo,
-  measureXScaleAxisLayout,
-} from "./x_scale/measure.ts";
-import type { XScaleAxisMeasuredInfo } from "./x_scale/types.ts";
+  measureXValueAxisHeightInfo,
+  measureXValueAxisLayout,
+} from "./x_value/measure.ts";
+import type { XValueAxisMeasuredInfo } from "./x_value/types.ts";
 import { measureXTextAxis } from "./x_text/measure.ts";
 import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
 
 export type XNoneAxisMeasuredInfo = {
-  subChartAreaWidth: number;
+  uniformSubChartWidth: number;
   xAxisRcd: RectCoordsDims;
 };
 
 export type XAxisMeasuredInfo =
   | XTextAxisMeasuredInfo
   | XPeriodAxisMeasuredInfo
-  | XScaleAxisMeasuredInfo
+  | XValueAxisMeasuredInfo
   | XNoneAxisMeasuredInfo;
 
 export function measureXAxis(
   rc: RenderContext,
-  contentRcd: RectCoordsDims,
+  innerRcd: RectCoordsDims,
   yAxisWidthInfo: YAxisWidthInfo,
-  subChartAreaWidth: number,
+  uniformSubChartWidth: number,
   xAxisConfig: XAxisConfig,
   gridStyle: MergedGridStyle,
   i_pane: number,
-  laneCount: number,
+  nLanes: number,
   // This pane's indicator order (a subset under unbalanced membership, a
   // permutation under a value sort); text axis only. See measureXTextAxis for
   // the extent/layout split.
-  visibleIndicatorHeaders?: HeaderItem[],
-  // Proportional band layout: the uniform slot width (slotT); text axis only.
-  proportionalSlotWidth?: number,
+  visibleIndicatorMembers?: DimensionMember[],
+  // Proportional tier-or-lane layout: the uniform slot width (slotExtent); text axis only.
+  slotExtentOverride?: number,
 ): XAxisMeasuredInfo {
   switch (xAxisConfig.type) {
     case "text":
       return measureXTextAxis(
         rc,
-        contentRcd,
+        innerRcd,
         yAxisWidthInfo,
-        subChartAreaWidth,
-        xAxisConfig.indicatorHeaders,
+        uniformSubChartWidth,
+        xAxisConfig.indicatorMembers,
         xAxisConfig.axisStyle,
         gridStyle,
-        visibleIndicatorHeaders,
-        proportionalSlotWidth,
+        visibleIndicatorMembers,
+        slotExtentOverride,
       );
     case "period":
       return measureXPeriodAxis(
         rc,
-        contentRcd,
+        innerRcd,
         yAxisWidthInfo,
-        subChartAreaWidth,
+        uniformSubChartWidth,
         xAxisConfig.periodType,
         xAxisConfig.nTimePoints,
         xAxisConfig.axisStyle,
         gridStyle,
       );
-    case "scale": {
-      const xScaleHeightInfo = measureXScaleAxisHeightInfo(
+    case "value": {
+      const xValueAxisHeightInfo = measureXValueAxisHeightInfo(
         rc,
         xAxisConfig.axisData,
         xAxisConfig.axisLabel,
         xAxisConfig.axisStyle,
         gridStyle,
-        contentRcd,
+        innerRcd,
         i_pane,
-        laneCount,
+        nLanes,
       );
-      return measureXScaleAxisLayout(
-        contentRcd,
+      return measureXValueAxisLayout(
+        innerRcd,
         yAxisWidthInfo.widthIncludingYAxisStrokeWidth,
-        xScaleHeightInfo,
-        subChartAreaWidth,
+        xValueAxisHeightInfo,
+        uniformSubChartWidth,
       );
     }
     case "none": {
-      const xStart = contentRcd.x() +
+      const xStart = innerRcd.x() +
         yAxisWidthInfo.widthIncludingYAxisStrokeWidth;
       return {
-        subChartAreaWidth,
+        uniformSubChartWidth,
         xAxisRcd: new RectCoordsDims({
           x: xStart,
-          y: contentRcd.bottomY(),
-          w: contentRcd.rightX() - xStart,
+          y: innerRcd.bottomY(),
+          w: innerRcd.rightX() - xStart,
           h: 0,
         }),
       };

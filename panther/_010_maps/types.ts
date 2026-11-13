@@ -4,12 +4,13 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  DataAxis,
+  DataDimension,
   FigureInputsBase,
-  HeaderSortConfig,
   JsonArray,
   MeasuredChartBase,
+  MemberSortConfig,
   MergedMapStyle,
+  ValueRange,
 } from "./deps.ts";
 import type {
   GeoJSONFeature,
@@ -36,30 +37,30 @@ export type MapGeoInput =
 
 export type MapJsonDataConfig = {
   valueProp: string;
-  areaProp: string;
-  areaMatchProp: string;
+  mapAreaProp: string;
+  mapAreaMatchProp: string;
   paneProp?: string;
   tierProp?: string;
   laneProp?: string;
   labelReplacements?: Record<string, string>;
   sort?: {
-    pane?: HeaderSortConfig;
-    tier?: HeaderSortConfig;
-    lane?: HeaderSortConfig;
+    pane?: MemberSortConfig;
+    tier?: MemberSortConfig;
+    lane?: MemberSortConfig;
   };
 };
 
 export type MapDataTransformed = {
   isTransformed: true;
   geoFeatures: GeoJSONFeature[];
-  // The area dimension, the feature property its members match, and the rows
-  // left off the map because their area is the blank member.
-  area: { dimension: string; matchProp: string; nBlankRows: number };
-  pane?: DataAxis;
-  tier?: DataAxis;
-  lane?: DataAxis;
+  // The map area dimension's name, the feature property its members match, and the rows
+  // left off the map because their map area is the blank member.
+  mapArea: { name: string; matchProp: string; nBlankRows: number };
+  pane?: DataDimension;
+  tier?: DataDimension;
+  lane?: DataDimension;
   valueMaps: Record<string, number | undefined>[][][];
-  valueRange: { min: number; max: number };
+  valueRange: ValueRange;
 };
 
 export type MeasuredMap = MeasuredChartBase<

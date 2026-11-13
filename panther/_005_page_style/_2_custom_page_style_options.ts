@@ -26,7 +26,7 @@ export type CoverStyleOptions = {
   logosSizing?: LogosSizingOptions;
   logosPlacement?: LogosPlacementOptions;
   titleBottomPadding?: number;
-  subTitleBottomPadding?: number;
+  subtitleBottomPadding?: number;
   authorBottomPadding?: number;
   alignH?: AlignH;
   alignV?: AlignV;

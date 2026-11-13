@@ -5,12 +5,12 @@
 
 import {
   BLANK_SENTINEL,
-  buildDataAxis,
+  buildDataDimension,
   getDimensionId,
-  getHeaderIndex,
-  type HeaderSortConfig,
-  slotHeaders,
-  validateSlotDimensions,
+  getDimensionMembers,
+  getMemberIndex,
+  type MemberSortConfig,
+  validateDimensionProps,
 } from "./deps.ts";
 import type { GeoJSONFeature } from "./_internal/geojson_types.ts";
 import { decodeTopojson } from "./_internal/topojson_decode.ts";
@@ -25,26 +25,26 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
   const geoFeatures = resolveGeoFeatures(data);
   const config = data.jsonDataConfig;
 
-  const slotProps = {
-    area: config.areaProp,
+  const dimensionProps = {
+    mapArea: config.mapAreaProp,
     pane: config.paneProp,
     tier: config.tierProp,
     lane: config.laneProp,
   };
-  validateSlotDimensions(data.jsonArray, slotProps);
+  validateDimensionProps(data.jsonArray, dimensionProps);
 
-  // A row whose area is the blank member has no region to colour.
+  // A row whose map area is the blank member has nothing to colour.
   const jsonArray = data.jsonArray.filter((row) =>
-    getDimensionId(row, config.areaProp) !== BLANK_SENTINEL
+    getDimensionId(row, config.mapAreaProp) !== BLANK_SENTINEL
   );
-  const axis = (prop: string | undefined, sort?: HeaderSortConfig) =>
-    buildDataAxis(jsonArray, prop, [], config.labelReplacements, sort);
-  const pane = axis(config.paneProp, config.sort?.pane);
-  const tier = axis(config.tierProp, config.sort?.tier);
-  const lane = axis(config.laneProp, config.sort?.lane);
-  const nPanes = slotHeaders(pane).length;
-  const nTiers = slotHeaders(tier).length;
-  const nLanes = slotHeaders(lane).length;
+  const buildDimension = (prop: string | undefined, sort?: MemberSortConfig) =>
+    buildDataDimension(jsonArray, prop, [], config.labelReplacements, sort);
+  const pane = buildDimension(config.paneProp, config.sort?.pane);
+  const tier = buildDimension(config.tierProp, config.sort?.tier);
+  const lane = buildDimension(config.laneProp, config.sort?.lane);
+  const nPanes = getDimensionMembers(pane).length;
+  const nTiers = getDimensionMembers(tier).length;
+  const nLanes = getDimensionMembers(lane).length;
 
   const valueMaps: Record<string, number | undefined>[][][] = [];
   let globalMin = Infinity;
@@ -61,15 +61,15 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
   }
 
   for (const row of jsonArray) {
-    const areaId = getDimensionId(row, config.areaProp);
+    const mapAreaId = getDimensionId(row, config.mapAreaProp);
     const rawValue = row[config.valueProp];
     const value = typeof rawValue === "number" ? rawValue : undefined;
 
-    const ip = getHeaderIndex(pane, config.valueProp, row);
-    const it = getHeaderIndex(tier, config.valueProp, row);
-    const il = getHeaderIndex(lane, config.valueProp, row);
+    const ip = getMemberIndex(pane, config.valueProp, row);
+    const it = getMemberIndex(tier, config.valueProp, row);
+    const il = getMemberIndex(lane, config.valueProp, row);
 
-    valueMaps[ip][it][il][areaId] = value;
+    valueMaps[ip][it][il][mapAreaId] = value;
     if (value !== undefined) {
       if (value < globalMin) globalMin = value;
       if (value > globalMax) globalMax = value;
@@ -82,16 +82,16 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
   return {
     isTransformed: true,
     geoFeatures,
-    area: {
-      dimension: config.areaProp,
-      matchProp: config.areaMatchProp,
+    mapArea: {
+      name: config.mapAreaProp,
+      matchProp: config.mapAreaMatchProp,
       nBlankRows: data.jsonArray.length - jsonArray.length,
     },
     pane,
     tier,
     lane,
     valueMaps,
-    valueRange: { min: globalMin, max: globalMax },
+    valueRange: { valueMin: globalMin, valueMax: globalMax },
   };
 }
 

@@ -6,66 +6,66 @@
 import {
   buildAutoFormatter,
   type MergedGridStyle,
-  type MergedXScaleAxisStyle,
+  type MergedXValueAxisStyle,
   type RectCoordsDims,
   type RenderContext,
 } from "../../deps.ts";
 import { SIZING_SAMPLE } from "../../dimension_helpers.ts";
-import type { ChartScaleAxisLimits } from "../../types.ts";
+import type { ChartValueAxisLimits } from "../../types.ts";
 import { getGoodAxisTickValues } from "../get_good_axis_tick_values.ts";
-import { resolveScaleAxisLimits } from "../resolve_scale_axis_limits.ts";
-import type { XScaleAxisHeightInfo, XScaleAxisMeasuredInfo } from "./types.ts";
+import { resolveValueAxisLimits } from "../resolve_value_axis_limits.ts";
+import type { XValueAxisHeightInfo, XValueAxisMeasuredInfo } from "./types.ts";
 
-function measureXScaleAxisLabelAndLabelGapHeight(
+function measureXValueAxisLabelAndGapHeight(
   rc: RenderContext,
   axisLabel: string | undefined,
-  sx: MergedXScaleAxisStyle,
+  sx: MergedXValueAxisStyle,
 ): number {
   if (!axisLabel) return 0;
-  return rc.mText(axisLabel, sx.text.xScaleAxisLabel, Number.POSITIVE_INFINITY)
-    .dims.h() + sx.labelGap;
+  return rc.mText(axisLabel, sx.text.xValueAxisLabel, Number.POSITIVE_INFINITY)
+    .dims.h() + sx.axisLabelGap;
 }
 
-export function measureXScaleAxisHeight(
+export function measureXValueAxisHeight(
   rc: RenderContext,
   axisLabel: string | undefined,
-  sx: MergedXScaleAxisStyle,
+  sx: MergedXValueAxisStyle,
   sg: MergedGridStyle,
 ): number {
   if (sx.exactAxisY !== "none") return sx.exactAxisY + sg.axisStrokeWidth;
   const sample = rc.mText(
-    SIZING_SAMPLE.scaleTickPct,
-    sx.text.xScaleAxisTickLabels,
+    SIZING_SAMPLE.valueAxisTickPct,
+    sx.text.xValueAxisTickLabels,
     Infinity,
   );
-  return sample.dims.h() + sx.tickLabelGap + sx.tickHeight +
+  return sample.dims.h() + sx.tickLabelGap + sx.tickLength +
     sg.axisStrokeWidth +
-    measureXScaleAxisLabelAndLabelGapHeight(rc, axisLabel, sx);
+    measureXValueAxisLabelAndGapHeight(rc, axisLabel, sx);
 }
 
-export function measureXScaleAxisHeightInfo(
+export function measureXValueAxisHeightInfo(
   rc: RenderContext,
-  dx: ChartScaleAxisLimits,
+  dx: ChartValueAxisLimits,
   axisLabel: string | undefined,
-  sx: MergedXScaleAxisStyle,
+  sx: MergedXValueAxisStyle,
   sg: MergedGridStyle,
-  contentRcd: RectCoordsDims,
+  innerRcd: RectCoordsDims,
   i_pane: number,
-  laneCount: number,
-): XScaleAxisHeightInfo {
-  const heightIncludingXAxisStrokeWidth = measureXScaleAxisHeight(
+  nLanes: number,
+): XValueAxisHeightInfo {
+  const heightIncludingXAxisStrokeWidth = measureXValueAxisHeight(
     rc,
     axisLabel,
     sx,
     sg,
   );
 
-  // Guess tick count from per-lane sub-chart width (mirror of Y-scale,
-  // which divides by tierCount to size per-tier sub-chart height).
-  const guessSubChartW = (contentRcd.w() * 0.8) / laneCount;
+  // Guess tick count from per-lane sub-chart width (mirror of Y value axis,
+  // which divides by nTiers to size per-tier sub-chart height).
+  const guessSubChartW = (innerRcd.w() * 0.8) / nLanes;
   const sampleW = rc.mText(
-    SIZING_SAMPLE.scaleTickWide,
-    sx.text.xScaleAxisTickLabels,
+    SIZING_SAMPLE.valueAxisTickWide,
+    sx.text.xValueAxisTickLabels,
     Infinity,
   )
     .dims.w();
@@ -78,15 +78,15 @@ export function measureXScaleAxisHeightInfo(
     ? formatterOption
     : undefined;
 
-  // Per-LANE tick values — mirror of Y-scale's per-tier tick values in ChartOV.
-  const xAxisTickValues = Array.from({ length: laneCount }, (_, i_lane) => {
+  // Per-LANE tick values — mirror of Y value axis's per-tier tick values in ChartOV.
+  const xAxisTickValues = Array.from({ length: nLanes }, (_, i_lane) => {
     const dataMin = sx.allowIndividualLaneLimits
       ? (dx.paneLimits[i_pane].laneLimits[i_lane]?.valueMin ?? 0)
       : dx.paneLimits[i_pane].valueMin;
     const dataMax = sx.allowIndividualLaneLimits
       ? (dx.paneLimits[i_pane].laneLimits[i_lane]?.valueMax ?? 1)
       : dx.paneLimits[i_pane].valueMax;
-    const { minVal, maxVal } = resolveScaleAxisLimits(
+    const { valueMin, valueMax } = resolveValueAxisLimits(
       sx.min,
       sx.max,
       i_pane,
@@ -94,8 +94,8 @@ export function measureXScaleAxisHeightInfo(
       dataMax,
     );
     return getGoodAxisTickValues(
-      maxVal,
-      minVal,
+      valueMax,
+      valueMin,
       guessMaxNTicks,
       formatterForUniquenessCheck,
     );
@@ -111,11 +111,11 @@ export function measureXScaleAxisHeightInfo(
 
   let maxTickLabelW = 0;
   for (const laneTicks of xAxisTickValues) {
-    for (const tickVal of laneTicks) {
-      const tickLabel = tickLabelFormatter(tickVal);
+    for (const tickValue of laneTicks) {
+      const tickLabel = tickLabelFormatter(tickValue);
       const mTickLabel = rc.mText(
         tickLabel,
-        sx.text.xScaleAxisTickLabels,
+        sx.text.xValueAxisTickLabels,
         9999,
       );
       maxTickLabelW = Math.max(maxTickLabelW, mTickLabel.dims.w());
@@ -130,18 +130,19 @@ export function measureXScaleAxisHeightInfo(
   };
 }
 
-export function measureXScaleAxisLayout(
-  contentRcd: RectCoordsDims,
-  yAxisAreaWidth: number,
-  xScaleHeightInfo: XScaleAxisHeightInfo,
-  subChartAreaWidth: number,
-): XScaleAxisMeasuredInfo {
-  const xStart = contentRcd.x() + yAxisAreaWidth;
-  const xAxisRcd = contentRcd.getAdjusted(() => ({
+export function measureXValueAxisLayout(
+  innerRcd: RectCoordsDims,
+  yAxisWidth: number,
+  xValueAxisHeightInfo: XValueAxisHeightInfo,
+  uniformSubChartWidth: number,
+): XValueAxisMeasuredInfo {
+  const xStart = innerRcd.x() + yAxisWidth;
+  const xAxisRcd = innerRcd.getAdjusted(() => ({
     x: xStart,
-    y: contentRcd.bottomY() - xScaleHeightInfo.heightIncludingXAxisStrokeWidth,
-    w: contentRcd.rightX() - xStart,
-    h: xScaleHeightInfo.heightIncludingXAxisStrokeWidth,
+    y: innerRcd.bottomY() -
+      xValueAxisHeightInfo.heightIncludingXAxisStrokeWidth,
+    w: innerRcd.rightX() - xStart,
+    h: xValueAxisHeightInfo.heightIncludingXAxisStrokeWidth,
   }));
-  return { xAxisRcd, subChartAreaWidth, xScaleHeightInfo };
+  return { xAxisRcd, uniformSubChartWidth, xValueAxisHeightInfo };
 }

@@ -3,8 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { DataAxis, MergedPieStyle, RenderContext } from "../deps.ts";
-import { calculatePaneGrid, slotHeaders } from "../deps.ts";
+import type { DataDimension, MergedPieStyle, RenderContext } from "../deps.ts";
+import { computeNRows, getDimensionMembers } from "../deps.ts";
 import type { PieDataTransformed } from "../types.ts";
 import { layOutPie, type PieIndices } from "./generate_pie_slice_primitives.ts";
 import {
@@ -20,23 +20,23 @@ const SLOT_SCALE_TIE_EPSILON = 1e-9;
 
 export function allPieIndices(data: PieDataTransformed): PieIndices[] {
   const indices: PieIndices[] = [];
-  const nPanes = slotHeaders(data.pane).length;
-  const nTiers = slotHeaders(data.tier).length;
-  const nLanes = slotHeaders(data.lane).length;
-  const nIndicators = slotHeaders(data.indicator).length;
-  for (let paneIndex = 0; paneIndex < nPanes; paneIndex++) {
-    for (let tierIndex = 0; tierIndex < nTiers; tierIndex++) {
+  const nPanes = getDimensionMembers(data.pane).length;
+  const nTiers = getDimensionMembers(data.tier).length;
+  const nLanes = getDimensionMembers(data.lane).length;
+  const nIndicators = getDimensionMembers(data.indicator).length;
+  for (let i_pane = 0; i_pane < nPanes; i_pane++) {
+    for (let i_tier = 0; i_tier < nTiers; i_tier++) {
       for (
-        let laneIndex = 0;
-        laneIndex < nLanes;
-        laneIndex++
+        let i_lane = 0;
+        i_lane < nLanes;
+        i_lane++
       ) {
         for (
-          let indicatorIndex = 0;
-          indicatorIndex < nIndicators;
-          indicatorIndex++
+          let i_indicator = 0;
+          i_indicator < nIndicators;
+          i_indicator++
         ) {
-          indices.push({ paneIndex, tierIndex, laneIndex, indicatorIndex });
+          indices.push({ i_pane, i_tier, i_lane, i_indicator });
         }
       }
     }
@@ -70,8 +70,8 @@ export function maxSlicesPerPie(
 export function showsIndicatorHeaders(
   data: PieDataTransformed,
   mergedStyle: MergedPieStyle,
-): data is PieDataTransformed & { indicator: DataAxis } {
-  return data.indicator !== undefined && data.indicator.headers.length >= 2 &&
+): data is PieDataTransformed & { indicator: DataDimension } {
+  return data.indicator !== undefined && data.indicator.members.length >= 2 &&
     !mergedStyle.pie.indicators.hideHeaders;
 }
 
@@ -82,9 +82,9 @@ export function measureIndicatorHeaderHeight(
   slotW: number,
 ): number {
   let maxH = 0;
-  for (const header of data.indicator?.headers ?? []) {
+  for (const member of data.indicator?.members ?? []) {
     const mText = rc.mText(
-      header.label,
+      member.label,
       mergedStyle.pie.text.indicatorHeaders,
       Math.max(slotW, 1),
     );
@@ -106,15 +106,16 @@ type SlotObjectiveContext = {
 function slotScaleAt(
   ctx: SlotObjectiveContext,
   c: number,
-  plotW: number,
-  plotH: number,
+  subChartWidth: number,
+  subChartHeight: number,
 ): number {
   const { rc, data, mergedStyle, labelBudget } = ctx;
-  const n = slotHeaders(data.indicator).length;
+  const n = getDimensionMembers(data.indicator).length;
   const ind = mergedStyle.pie.indicators;
-  const { nGCols, nGRows } = calculatePaneGrid(n, c);
-  const slotW = (plotW - (nGCols - 1) * ind.gapX) / nGCols;
-  const slotH = (plotH - (nGRows - 1) * ind.gapY) / nGRows;
+  const nSlotCols = c;
+  const nSlotRows = computeNRows(n, c);
+  const slotW = (subChartWidth - (nSlotCols - 1) * ind.gapX) / nSlotCols;
+  const slotH = (subChartHeight - (nSlotRows - 1) * ind.gapY) / nSlotRows;
   const headerAllowance = showsIndicatorHeaders(data, mergedStyle)
     ? ind.headerGap + measureIndicatorHeaderHeight(rc, data, mergedStyle, slotW)
     : 0;
@@ -133,20 +134,20 @@ function slotScaleAt(
 
 // The measure pass's "auto" column count: the wrap that maximises the
 // achievable content scale in the sub-chart it was actually given. Not a
-// fewer-columns rule — calculatePaneGrid trades columns for rows, so in a
+// fewer-columns rule — a slot grid trades columns for rows, so in a
 // wide, short sub-chart fewer columns is strictly worse.
 export function bestSlotColsAt(
   ctx: SlotObjectiveContext,
-  plotW: number,
-  plotH: number,
+  subChartWidth: number,
+  subChartHeight: number,
   preferred?: number,
 ): number {
-  const n = slotHeaders(ctx.data.indicator).length;
+  const n = getDimensionMembers(ctx.data.indicator).length;
   if (n <= 1) return 1;
   let bestC = 1;
   let bestS = -Infinity;
   for (let c = 1; c <= n; c++) {
-    const s = slotScaleAt(ctx, c, plotW, plotH);
+    const s = slotScaleAt(ctx, c, subChartWidth, subChartHeight);
     if (s > bestS + SLOT_SCALE_TIE_EPSILON) {
       bestC = c;
       bestS = s;
@@ -169,14 +170,15 @@ export function bestSlotColsAt(
 export function idealSubChartHeightAt(
   ctx: SlotObjectiveContext,
   c: number,
-  cellW: number,
+  subChartWidth: number,
   contentFloor: number,
 ): number {
   const { rc, data, mergedStyle, labelBudget } = ctx;
-  const n = slotHeaders(data.indicator).length;
+  const n = getDimensionMembers(data.indicator).length;
   const ind = mergedStyle.pie.indicators;
-  const { nGCols, nGRows } = calculatePaneGrid(n, c);
-  const slotW = (cellW - (nGCols - 1) * ind.gapX) / nGCols;
+  const nSlotCols = c;
+  const nSlotRows = computeNRows(n, c);
+  const slotW = (subChartWidth - (nSlotCols - 1) * ind.gapX) / nSlotCols;
   const headerAllowance = showsIndicatorHeaders(data, mergedStyle)
     ? ind.headerGap + measureIndicatorHeaderHeight(rc, data, mergedStyle, slotW)
     : 0;
@@ -194,7 +196,8 @@ export function idealSubChartHeightAt(
   const slotContentH = mergedStyle.pie.outsideLabelPlacement === "nearest"
     ? contentH + labelBudget.vertical
     : Math.max(contentH, labelBudget.vertical);
-  return nGRows * (slotContentH + headerAllowance) + (nGRows - 1) * ind.gapY;
+  return nSlotRows * (slotContentH + headerAllowance) +
+    (nSlotRows - 1) * ind.gapY;
 }
 
 // The ideal pass's "auto" column count: the self-consistent wrap — the
@@ -206,7 +209,7 @@ export function idealSubChartHeightAt(
 // ideal height. Finite: n arithmetic evaluations, no search, no measure call.
 export function resolveIdealSlotCols(
   ctx: SlotObjectiveContext,
-  cellW: number,
+  subChartWidth: number,
   contentFloor: number,
 ): number {
   // An explicit nCols wins even at n = 1 — the measure pass honours it first
@@ -214,11 +217,11 @@ export function resolveIdealSlotCols(
   // ideal height is computed for a grid the measure pass will not draw.
   const explicit = ctx.mergedStyle.pie.indicators.nCols;
   if (explicit !== "auto") return explicit;
-  const n = slotHeaders(ctx.data.indicator).length;
+  const n = getDimensionMembers(ctx.data.indicator).length;
   if (n <= 1) return 1;
   for (let c = 1; c <= n; c++) {
-    const impliedH = idealSubChartHeightAt(ctx, c, cellW, contentFloor);
-    if (bestSlotColsAt(ctx, cellW, impliedH) === c) {
+    const impliedH = idealSubChartHeightAt(ctx, c, subChartWidth, contentFloor);
+    if (bestSlotColsAt(ctx, subChartWidth, impliedH) === c) {
       return c;
     }
   }

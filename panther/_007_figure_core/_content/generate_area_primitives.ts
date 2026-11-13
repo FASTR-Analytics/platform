@@ -21,25 +21,25 @@ import {
 } from "./content_generation_types.ts";
 
 function zeroLineMirrorCoords(
-  valCoords: Coordinates,
+  valueCoords: Coordinates,
   subChartRcd: RectCoordsDims,
-  gridStrokeWidth: number,
+  gridLineStrokeWidth: number,
   orientation: "vertical" | "horizontal",
   valueClearanceStart: number,
 ): Coordinates {
   if (orientation === "horizontal") {
-    // Horizontal: baseline is the valueMin grid line (left edge of the plot
-    // area plus the start-side overhang clearance).
+    // Horizontal: baseline is the valueMin grid line (left edge of the sub-chart
+    // plus the start-side overhang clearance).
     return new Coordinates([
-      subChartRcd.x() + valueClearanceStart - gridStrokeWidth / 2,
-      valCoords.y(),
+      subChartRcd.x() + valueClearanceStart - gridLineStrokeWidth / 2,
+      valueCoords.y(),
     ]);
   }
-  // Vertical: baseline is the valueMin grid line (bottom edge of the plot
-  // area minus the start-side overhang clearance).
+  // Vertical: baseline is the valueMin grid line (bottom edge of the sub-chart
+  // minus the start-side overhang clearance).
   return new Coordinates([
-    valCoords.x(),
-    subChartRcd.bottomY() - valueClearanceStart + gridStrokeWidth / 2,
+    valueCoords.x(),
+    subChartRcd.bottomY() - valueClearanceStart + gridLineStrokeWidth / 2,
   ]);
 }
 
@@ -50,7 +50,7 @@ export function generateAreaPrimitives(
   const s = ctx.contentStyle;
 
   const seriesInfos = Array.from(
-    { length: ctx.nSeries },
+    { length: ctx.nSerieses },
     (_, i) => buildSeriesInfo(ctx, i, mapped),
   );
 
@@ -63,10 +63,10 @@ export function generateAreaPrimitives(
     }
   > = new Map();
 
-  for (const i_val of ctx.slotOrder) {
-    for (let i_series = 0; i_series < ctx.nSeries; i_series++) {
-      const mappedVal = mapped[i_series][i_val];
-      if (mappedVal === undefined) continue;
+  for (const i_value of ctx.slotOrder) {
+    for (let i_series = 0; i_series < ctx.nSerieses; i_series++) {
+      const mappedValue = mapped[i_series][i_value];
+      if (mappedValue === undefined) continue;
 
       const seriesInfo = seriesInfos[i_series];
       const areaStyle = s.areas?.getStyle(seriesInfo);
@@ -81,9 +81,9 @@ export function generateAreaPrimitives(
       }
 
       const areaData = areaSeriesData.get(i_series)!;
-      areaData.coords.push(mappedVal.coords);
-      areaData.values.push(mappedVal.val);
-      areaData.valueIndices.push(i_val);
+      areaData.coords.push(mappedValue.coords);
+      areaData.values.push(mappedValue.value);
+      areaData.valueIndices.push(i_value);
     }
   }
 
@@ -93,7 +93,7 @@ export function generateAreaPrimitives(
     for (const [i_series, areaData] of areaSeriesData.entries()) {
       const seriesInfo: ChartSeriesInfo = {
         ...seriesInfos[i_series],
-        nVals: areaData.coords.length,
+        nValues: areaData.coords.length,
       };
 
       const areaStyle = s.areas.getStyle(seriesInfo);
@@ -102,10 +102,10 @@ export function generateAreaPrimitives(
       const areas: { coords: Coordinates[] }[] = [];
       let currentCoords: Coordinates[] = [];
 
-      for (let i_val = 0; i_val < areaData.coords.length; i_val++) {
-        const mappedValThisSeries =
-          mapped[i_series][areaData.valueIndices[i_val]];
-        if (mappedValThisSeries === undefined) {
+      for (let i_value = 0; i_value < areaData.coords.length; i_value++) {
+        const mappedValueThisSeries =
+          mapped[i_series][areaData.valueIndices[i_value]];
+        if (mappedValueThisSeries === undefined) {
           if (!s.areas.joinAcrossGaps && currentCoords.length > 0) {
             areas.push({ coords: currentCoords });
             currentCoords = [];
@@ -116,9 +116,9 @@ export function generateAreaPrimitives(
         let mirrorCoords: Coordinates | undefined;
         if (areaStyle.to === "zero-line") {
           mirrorCoords = zeroLineMirrorCoords(
-            mappedValThisSeries.coords,
+            mappedValueThisSeries.coords,
             ctx.subChartRcd,
-            ctx.gridStrokeWidth,
+            ctx.gridLineStrokeWidth,
             ctx.orientation,
             ctx.valueClearance.start,
           );
@@ -126,19 +126,19 @@ export function generateAreaPrimitives(
           const otherSeries = mapped[i_series - 1];
           if (!otherSeries) {
             mirrorCoords = zeroLineMirrorCoords(
-              mappedValThisSeries.coords,
+              mappedValueThisSeries.coords,
               ctx.subChartRcd,
-              ctx.gridStrokeWidth,
+              ctx.gridLineStrokeWidth,
               ctx.orientation,
               ctx.valueClearance.start,
             );
-          } else if (otherSeries[areaData.valueIndices[i_val]]) {
-            mirrorCoords = otherSeries[areaData.valueIndices[i_val]]!.coords;
+          } else if (otherSeries[areaData.valueIndices[i_value]]) {
+            mirrorCoords = otherSeries[areaData.valueIndices[i_value]]!.coords;
           }
         } else if (areaStyle.to === "previous-series-or-skip") {
           const otherSeries = mapped[i_series - 1];
-          if (otherSeries?.[areaData.valueIndices[i_val]]) {
-            mirrorCoords = otherSeries[areaData.valueIndices[i_val]]!.coords;
+          if (otherSeries?.[areaData.valueIndices[i_value]]) {
+            mirrorCoords = otherSeries[areaData.valueIndices[i_value]]!.coords;
           }
         } else {
           throw new Error("Should not be possible");
@@ -152,7 +152,7 @@ export function generateAreaPrimitives(
           continue;
         }
 
-        currentCoords.unshift(mappedValThisSeries.coords);
+        currentCoords.unshift(mappedValueThisSeries.coords);
         currentCoords.push(mirrorCoords);
       }
 
@@ -173,7 +173,7 @@ export function generateAreaPrimitives(
           type: "chart-area-series",
           key:
             `area-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}-${i_area}`,
-          item: chartSeriesItem(ctx.itemAxes, seriesInfo),
+          item: chartSeriesItem(ctx.itemDataDimensions, seriesInfo),
           part: "body",
           bounds,
           hitBounds: bounds,
@@ -228,13 +228,13 @@ function generateDiffPairPrimitives(
   let currentCoords: Coordinates[] = [];
 
   let prevOrderOfA: undefined | "over" | "under" | "equal" = undefined;
-  let prevMappedValA: MappedValueCoordinate | undefined = undefined;
-  let prevMappedValB: MappedValueCoordinate | undefined = undefined;
+  let prevMappedValueA: MappedValueCoordinate | undefined = undefined;
+  let prevMappedValueB: MappedValueCoordinate | undefined = undefined;
 
-  for (const i_val of ctx.slotOrder) {
-    const mappedValA = seriesA[i_val];
-    const mappedValB = seriesB[i_val];
-    if (mappedValA === undefined || mappedValB === undefined) {
+  for (const i_value of ctx.slotOrder) {
+    const mappedValueA = seriesA[i_value];
+    const mappedValueB = seriesB[i_value];
+    if (mappedValueA === undefined || mappedValueB === undefined) {
       if (
         currentCoords.length > 0 &&
         (prevOrderOfA === "over" || prevOrderOfA === "under")
@@ -246,13 +246,13 @@ function generateDiffPairPrimitives(
         currentCoords = [];
       }
       prevOrderOfA = undefined;
-      prevMappedValA = undefined;
-      prevMappedValB = undefined;
+      prevMappedValueA = undefined;
+      prevMappedValueB = undefined;
       continue;
     }
-    const thisOrder = mappedValA.val === mappedValB.val
+    const thisOrder = mappedValueA.value === mappedValueB.value
       ? "equal"
-      : mappedValA.val > mappedValB.val
+      : mappedValueA.value > mappedValueB.value
       ? "over"
       : "under";
 
@@ -260,42 +260,42 @@ function generateDiffPairPrimitives(
       if (thisOrder === "equal") {
         // Do nothing
       } else {
-        currentCoords.unshift(mappedValA.coords);
-        currentCoords.push(mappedValB.coords);
+        currentCoords.unshift(mappedValueA.coords);
+        currentCoords.push(mappedValueB.coords);
       }
     } else if (thisOrder === "equal") {
       if (prevOrderOfA === "equal") {
         // Do nothing
       } else {
-        currentCoords.push(mappedValA.coords);
+        currentCoords.push(mappedValueA.coords);
         if (currentCoords.length > 0) {
           areas.push({ coords: currentCoords, order: prevOrderOfA });
           currentCoords = [];
         }
       }
     } else if (prevOrderOfA === "equal") {
-      currentCoords.push(new Coordinates(prevMappedValA!.coords));
-      currentCoords.unshift(mappedValA.coords);
-      currentCoords.push(mappedValB.coords);
+      currentCoords.push(new Coordinates(prevMappedValueA!.coords));
+      currentCoords.unshift(mappedValueA.coords);
+      currentCoords.push(mappedValueB.coords);
     } else if (thisOrder === prevOrderOfA) {
-      currentCoords.unshift(mappedValA.coords);
-      currentCoords.push(mappedValB.coords);
+      currentCoords.unshift(mappedValueA.coords);
+      currentCoords.push(mappedValueB.coords);
     } else {
       let interception = getLineIntersection(
-        prevMappedValA!.coords,
-        mappedValA.coords,
-        prevMappedValB!.coords,
-        mappedValB.coords,
+        prevMappedValueA!.coords,
+        mappedValueA.coords,
+        prevMappedValueB!.coords,
+        mappedValueB.coords,
       );
       if (interception === false) {
-        const x1 = prevMappedValA!.coords.x();
-        const y1 = prevMappedValA!.coords.y();
-        const x2 = mappedValA.coords.x();
-        const y2 = mappedValA.coords.y();
-        const x3 = prevMappedValB!.coords.x();
-        const y3 = prevMappedValB!.coords.y();
-        const x4 = mappedValB.coords.x();
-        const y4 = mappedValB.coords.y();
+        const x1 = prevMappedValueA!.coords.x();
+        const y1 = prevMappedValueA!.coords.y();
+        const x2 = mappedValueA.coords.x();
+        const y2 = mappedValueA.coords.y();
+        const x3 = prevMappedValueB!.coords.x();
+        const y3 = prevMappedValueB!.coords.y();
+        const x4 = mappedValueB.coords.x();
+        const y4 = mappedValueB.coords.y();
         const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
         if (denom === 0) {
           interception = {
@@ -314,12 +314,12 @@ function generateDiffPairPrimitives(
       areas.push({ coords: currentCoords, order: prevOrderOfA });
       currentCoords = [];
       currentCoords.push(new Coordinates(interception));
-      currentCoords.unshift(mappedValA.coords);
-      currentCoords.push(mappedValB.coords);
+      currentCoords.unshift(mappedValueA.coords);
+      currentCoords.push(mappedValueB.coords);
     }
     prevOrderOfA = thisOrder;
-    prevMappedValA = mappedValA;
-    prevMappedValB = mappedValB;
+    prevMappedValueA = mappedValueA;
+    prevMappedValueB = mappedValueB;
   }
 
   if (
@@ -340,8 +340,8 @@ function generateDiffPairPrimitives(
       i_series,
       isFirstSeries: i_series === 0,
       isLastSeries: i_series === ctx.subChartInfo.nSerieses - 1,
-      seriesHeader: ctx.itemAxes.series?.headers[i_series],
-      nVals: 0,
+      seriesMember: ctx.itemDataDimensions.series?.members[i_series],
+      nValues: 0,
     };
     const areaStyle = areasStyle.getStyle(seriesInfo);
     const lineCoordArray = [...areas[i_area].coords, areas[i_area].coords[0]];
@@ -351,7 +351,7 @@ function generateDiffPairPrimitives(
       type: "chart-area-series",
       key:
         `area-diff-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_pair}-${order}-${i_area}`,
-      item: chartSeriesItem(ctx.itemAxes, seriesInfo),
+      item: chartSeriesItem(ctx.itemDataDimensions, seriesInfo),
       part: "body",
       bounds,
       hitBounds: bounds,

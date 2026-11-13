@@ -7,13 +7,13 @@ import { measureSurrounds } from "./_surrounds/measure_surrounds.ts";
 import { generateSurroundsPrimitives } from "./_surrounds/generate_surrounds_primitives.ts";
 import {
   CustomFigureStyle,
+  getDimensionMembers,
   type MeasuredText,
   type MergedChartStyleBase,
   Padding,
   type Primitive,
   RectCoordsDims,
   type RenderContext,
-  slotHeaders,
 } from "./deps.ts";
 import { resolveDefaultLegend } from "./_legend/utils.ts";
 import { measurePane } from "./measure_pane.ts";
@@ -42,7 +42,7 @@ export function measureChart<
   // Skip content-primitive generation; see measurePane. Probe-only.
   layoutOnly?: boolean,
 ): MeasuredChartBase<TInputs, TData, TStyle> {
-  const { caption, subCaption, footnote } = inputs;
+  const { title, subtitle, footnote } = inputs;
 
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
@@ -52,34 +52,34 @@ export function measureChart<
 
   const mergedStyle = config.mergedStyle;
   const transformedData = config.transformedData;
-  const dataProps = config.dataProps;
+  const dataDimensions = config.dataDimensions;
 
   const legend = config.resolvedLegend ??
-    resolveDefaultLegend(inputs.legend, dataProps.series);
+    resolveDefaultLegend(inputs.legend, dataDimensions.series);
 
   const measuredSurrounds = measureSurrounds(
     rc,
     rcdWithSurrounds,
     customFigureStyle,
-    caption,
-    subCaption,
+    title,
+    subtitle,
     footnote,
     legend,
-    dataProps.series,
+    dataDimensions.series,
   );
   const extraHeightDueToSurrounds = measuredSurrounds.extraHeightDueToSurrounds;
 
-  const contentRcd = measuredSurrounds.contentRcd;
+  const bodyRcd = measuredSurrounds.bodyRcd;
 
-  const { nGCols, nGRows } = config.paneGrid;
+  const { nCols: nPaneCols, nRows: nPaneRows } = config.paneGrid;
 
-  const paneWidth = (contentRcd.w() - (nGCols - 1) * mergedStyle.panes.gapX) /
-    nGCols;
-  const paneHeight = (contentRcd.h() - (nGRows - 1) * mergedStyle.panes.gapY) /
-    nGRows;
+  const paneWidth = (bodyRcd.w() - (nPaneCols - 1) * mergedStyle.panes.gapX) /
+    nPaneCols;
+  const paneHeight = (bodyRcd.h() - (nPaneRows - 1) * mergedStyle.panes.gapY) /
+    nPaneRows;
 
   const panePadding = new Padding(mergedStyle.panes.padding);
-  const nPanes = slotHeaders(dataProps.pane).length;
+  const nPanes = getDimensionMembers(dataDimensions.pane).length;
 
   // Pane headers wrap at their pane's width (per-pane under proportional OV
   // pane widths; the uniform width otherwise). The header strip is the
@@ -88,43 +88,43 @@ export function measureChart<
   const measurePaneHeaders = (
     paneWidths: number[] | undefined,
   ): {
-    mCellHeaders: MeasuredText[];
+    mPaneHeaders: MeasuredText[];
     headerStripByRow: number[];
   } => {
-    const mCellHeaders: MeasuredText[] = [];
-    const headerStripByRow: number[] = new Array(nGRows).fill(0);
-    if (!mergedStyle.panes.hideHeaders && dataProps.pane && nPanes > 1) {
-      dataProps.pane.headers.forEach((paneHeader, i) => {
+    const mPaneHeaders: MeasuredText[] = [];
+    const headerStripByRow: number[] = new Array(nPaneRows).fill(0);
+    if (!mergedStyle.panes.hideHeaders && dataDimensions.pane && nPanes > 1) {
+      dataDimensions.pane.members.forEach((paneMember, i) => {
         const m = rc.mText(
-          paneHeader.label,
+          paneMember.label,
           mergedStyle.text.paneHeaders,
           (paneWidths ? paneWidths[i] : paneWidth) - panePadding.totalPx(),
         );
-        mCellHeaders.push(m);
-        const row = Math.floor(i / nGCols);
+        mPaneHeaders.push(m);
+        const row = Math.floor(i / nPaneCols);
         headerStripByRow[row] = Math.max(
           headerStripByRow[row],
           m.dims.h() + mergedStyle.panes.headerGap,
         );
       });
     }
-    return { mCellHeaders, headerStripByRow };
+    return { mPaneHeaders, headerStripByRow };
   };
 
   const measureOnePane = (
     i_pane: number,
-    i_pane_row: number,
-    i_pane_col: number,
+    i_paneRow: number,
+    i_paneCol: number,
     paneOuterRcd: RectCoordsDims,
     headers: {
-      mCellHeaders: MeasuredText[];
+      mPaneHeaders: MeasuredText[];
       headerStripByRow: number[];
     },
-    slotT: number | undefined,
+    slotExtent: number | undefined,
     lo: boolean | undefined,
   ) => {
-    const headerStrip = headers.headerStripByRow[i_pane_row] ?? 0;
-    const paneContentRcd = new RectCoordsDims([
+    const headerStrip = headers.headerStripByRow[i_paneRow] ?? 0;
+    const paneInnerRcd = new RectCoordsDims([
       paneOuterRcd.x() + panePadding.pl(),
       paneOuterRcd.y() + panePadding.pt() + headerStrip,
       paneOuterRcd.w() - panePadding.totalPx(),
@@ -133,28 +133,28 @@ export function measureChart<
     return measurePane(rc, {
       indices: {
         pane: i_pane,
-        row: i_pane_row,
-        col: i_pane_col,
+        row: i_paneRow,
+        col: i_paneCol,
       },
       geometry: {
         outerRcd: paneOuterRcd,
-        contentRcd: paneContentRcd,
+        innerRcd: paneInnerRcd,
       },
-      paneHeader: headers.mCellHeaders.at(i_pane),
-      dataProps,
+      paneHeader: headers.mPaneHeaders.at(i_pane),
+      dataDimensions,
       data: transformedData,
       baseStyle: mergedStyle,
       xAxisConfig: config.xAxisConfig,
       yAxisConfig: config.yAxisConfig,
       orientation: config.orientation,
-      slotT,
+      slotExtent,
     }, lo);
   };
 
-  const uniformPaneOuterRcd = (i_pane_row: number, i_pane_col: number) =>
+  const uniformPaneOuterRcd = (i_paneRow: number, i_paneCol: number) =>
     new RectCoordsDims([
-      contentRcd.x() + i_pane_col * (paneWidth + mergedStyle.panes.gapX),
-      contentRcd.y() + i_pane_row * (paneHeight + mergedStyle.panes.gapY),
+      bodyRcd.x() + i_paneCol * (paneWidth + mergedStyle.panes.gapX),
+      bodyRcd.y() + i_paneRow * (paneHeight + mergedStyle.panes.gapY),
       paneWidth,
       paneHeight,
     ]);
@@ -167,14 +167,15 @@ export function measureChart<
   // Cross-pane proportional pane sizing (proportional.panes): engaged only
   // when the pane grid is alignment-safe for the orientation (OH varies pane
   // HEIGHT — safe only as a single column; OV varies pane WIDTH — safe only
-  // as a single row). Otherwise fall back to uniform pane sizing (per-band
-  // proportional layout still applies intra-pane) with a console note —
+  // as a single row). Otherwise fall back to uniform pane sizing (per-tier-or-lane
+  // Proportional layout still applies intra-pane) with a console note —
   // silent truncation would read as "did it" when it didn't.
   const isOH = config.orientation === "horizontal";
   const proportionalPanesRequested =
-    config.dataProps.proportionalPanes === true &&
-    config.dataProps.visibleIndicatorsByPaneBand !== undefined && nPanes > 1;
-  const gridSafeForProportional = isOH ? nGCols === 1 : nGRows === 1;
+    config.dataDimensions.proportionalPanes === true &&
+    config.dataDimensions.visibleIndicatorsByPaneTierOrLane !== undefined &&
+    nPanes > 1;
+  const gridSafeForProportional = isOH ? nPaneCols === 1 : nPaneRows === 1;
   if (
     proportionalPanesRequested && !gridSafeForProportional &&
     !layoutOnly && !warnedProportionalGridUnsafe
@@ -183,14 +184,14 @@ export function measureChart<
     console.warn(
       `[panther] proportional.panes skipped: the pane grid is not a single ${
         isOH ? "column" : "row"
-      } (cross-pane proportional sizing needs an alignment-safe grid); per-band proportional layout still applies within each pane`,
+      } (cross-pane proportional sizing needs an alignment-safe grid); per-tier-or-lane proportional layout still applies within each pane`,
     );
   }
 
   let proportionalDone = false;
   if (proportionalPanesRequested && gridSafeForProportional) {
     // Pass 1: today's uniform split, layout-only, harvesting each pane's
-    // overhead (pane extent − free plot extent) from the returned layouts.
+    // overhead (pane extent − free category-axis extent) from the returned layouts.
     // Overheads are stable across the re-split: OH overheads depend on
     // widths (unchanged when heights are redistributed); OV overheads (per-
     // pane y-axis width) depend on tick counts driven by the fixed pane
@@ -211,49 +212,52 @@ export function measureChart<
         ).layout,
       );
     }
-    if (pass1.every((l) => l.proportionalSlotTotal !== undefined)) {
-      // Solve the chart-global slotT from the ACTUAL bounds: total free
+    if (pass1.every((l) => l.nProportionalSlots !== undefined)) {
+      // Solve the chart-global slotExtent from the ACTUAL bounds: total free
       // extent is conserved across the re-split, so
-      // slotT = (Σ_p free_p − Σ_p strokes_p) / Σ_p slots_p.
+      // slotExtent = (Σ_p free_p − Σ_p strokes_p) / Σ_p slots_p.
       const centered = isOH
         ? config.yAxisConfig.type === "text" &&
           config.yAxisConfig.axisStyle.tickPosition === "center"
         : config.xAxisConfig.type === "text" &&
           config.xAxisConfig.axisStyle.tickPosition === "center";
-      const gsw = mergedStyle.grid.gridStrokeWidth;
-      const slots = pass1.map((l) => l.proportionalSlotTotal ?? 0);
-      const bands = pass1.map((l) => l.proportionalBandCount ?? 0);
+      const gsw = mergedStyle.grid.gridLineStrokeWidth;
+      const slots = pass1.map((l) => l.nProportionalSlots ?? 0);
+      const tiersOrLanes = pass1.map((l) => l.nProportionalTiersOrLanes ?? 0);
       const free = pass1.map((l, i) =>
-        (isOH ? l.subChartAreaHeight : l.subChartAreaWidth) * bands[i]
+        (isOH ? l.uniformSubChartHeight : l.uniformSubChartWidth) *
+        tiersOrLanes[i]
       );
-      const strokes = slots.map((s, i) => centered ? 0 : gsw * (s + bands[i]));
+      const strokes = slots.map((s, i) =>
+        centered ? 0 : gsw * (s + tiersOrLanes[i])
+      );
       const freeTotal = free.reduce((a, b) => a + b, 0);
       const strokesTotal = strokes.reduce((a, b) => a + b, 0);
-      const slotsTotal = slots.reduce((a, b) => a + b, 0);
-      const slotT = Math.max(
+      const nSlots = slots.reduce((a, b) => a + b, 0);
+      const slotExtent = Math.max(
         0,
-        (freeTotal - strokesTotal) / Math.max(1, slotsTotal),
+        (freeTotal - strokesTotal) / Math.max(1, nSlots),
       );
       const uniformExtent = isOH ? paneHeight : paneWidth;
       const extents = free.map((f, i) =>
-        uniformExtent - f + slotT * slots[i] + strokes[i]
+        uniformExtent - f + slotExtent * slots[i] + strokes[i]
       );
 
       // Pass 2: per-pane extents at cumulative offsets with the shared
-      // slotT. OV pane headers re-wrap at their pane's solved width.
+      // slotExtent. OV pane headers re-wrap at their pane's solved width.
       const pass2Headers = isOH ? uniformHeaders : measurePaneHeaders(extents);
-      let cursor = isOH ? contentRcd.y() : contentRcd.x();
+      let cursor = isOH ? bodyRcd.y() : bodyRcd.x();
       for (let i_pane = 0; i_pane < nPanes; i_pane++) {
         const outer = isOH
           ? new RectCoordsDims([
-            contentRcd.x(),
+            bodyRcd.x(),
             cursor,
             paneWidth,
             extents[i_pane],
           ])
           : new RectCoordsDims([
             cursor,
-            contentRcd.y(),
+            bodyRcd.y(),
             extents[i_pane],
             paneHeight,
           ]);
@@ -265,13 +269,13 @@ export function measureChart<
           isOH ? 0 : i_pane,
           outer,
           pass2Headers,
-          slotT,
+          slotExtent,
           layoutOnly,
         );
         panePrimitives.push(...panePrimList);
         paneLayouts.push({
           ...layout,
-          proportionalPanesAxis: isOH ? "height" : "width",
+          proportionalPanesDirection: isOH ? "height" : "width",
         });
       }
       proportionalDone = true;
@@ -279,18 +283,18 @@ export function measureChart<
   }
 
   if (!proportionalDone) {
-    for (let i_pane_row = 0; i_pane_row < nGRows; i_pane_row++) {
-      for (let i_pane_col = 0; i_pane_col < nGCols; i_pane_col++) {
-        const i_pane = i_pane_row * nGCols + i_pane_col;
+    for (let i_paneRow = 0; i_paneRow < nPaneRows; i_paneRow++) {
+      for (let i_paneCol = 0; i_paneCol < nPaneCols; i_paneCol++) {
+        const i_pane = i_paneRow * nPaneCols + i_paneCol;
         if (i_pane >= nPanes) {
           break;
         }
 
         const { primitives: panePrimList, layout } = measureOnePane(
           i_pane,
-          i_pane_row,
-          i_pane_col,
-          uniformPaneOuterRcd(i_pane_row, i_pane_col),
+          i_paneRow,
+          i_paneCol,
+          uniformPaneOuterRcd(i_paneRow, i_paneCol),
           uniformHeaders,
           undefined,
           layoutOnly,
@@ -307,15 +311,15 @@ export function measureChart<
   ];
 
   return {
-    item: inputs,
+    inputs,
     bounds: rcdWithSurrounds,
     measuredSurrounds,
     extraHeightDueToSurrounds,
     transformedData,
     customFigureStyle,
     mergedStyle,
-    caption,
-    subCaption,
+    title,
+    subtitle,
     footnote,
     legend,
     primitives,

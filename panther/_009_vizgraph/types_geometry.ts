@@ -11,7 +11,7 @@ export type Geometry = {
   bounds: Rect;
   nodes: Record<string, NodeGeom>;
   edges: Record<string, EdgeGeom>;
-  lanes: Record<string, LaneGeom>;
+  bands: Record<string, BandGeom>;
   groups: Record<string, GroupGeom>;
   hitAreas: HitArea[];
   warnings: LayoutWarning[];
@@ -41,7 +41,7 @@ export type Port = {
   offset: number;
 };
 
-export type LaneGeom = Rect & { header: Rect };
+export type BandGeom = Rect & { header: Rect };
 
 // outline: the unfolded box as edge-hug ring(s) — one closed rectilinear
 // polygon per connected component of the group's real content (member-node
@@ -61,7 +61,7 @@ export type HitArea = {
   rect: Rect;
   layer: number;
   insertSeq: number;
-  laneId?: string;
+  bandId?: string;
 };
 
 // Variable length, exactly the route's bends — never padded to a fixed count.
@@ -80,7 +80,7 @@ export type LayoutWarningCode =
   | "unsupported-option"
   | "ordering-finish-cap"
   | "span-violated"
-  | "lane-order"
+  | "band-order"
   | "shape-demoted";
 
 export type LayoutWarning = {

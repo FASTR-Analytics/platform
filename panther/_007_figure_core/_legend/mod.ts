@@ -8,4 +8,4 @@ export { type MeasuredLegend, measureLegend } from "./measure_legend.ts";
 export * from "./measure_scale_legend.ts";
 export { resolveAutoScaleLegend } from "./resolve_auto_scale_legend.ts";
 export * from "./scale_legend_types.ts";
-export { isArrayOfLegendItems, type LegendItem } from "./types.ts";
+export { isArrayOfLegendEntries, type LegendEntry } from "./types.ts";

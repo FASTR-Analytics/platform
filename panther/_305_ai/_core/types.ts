@@ -240,4 +240,10 @@ export type AIChatConfig = {
   // requireKind additionally makes an undeclared kind a boot-time throw.
   // Enforced on dynamic register() too. Strictly opt-in.
   approvalPolicy?: ApprovalPolicy;
+
+  // The most continuations one turn may run before it ends with a turn_limit
+  // notice: client tool rounds and pause_turn resumes share the one count. A
+  // positive integer; omit it for MAX_TURN_CONTINUATIONS. Construction throws
+  // on anything else.
+  maxTurnContinuations?: number;
 };

@@ -53,8 +53,8 @@ export function generateCascadeArrowPrimitives(
     let biggestDropoffIdx = -1;
     let biggestDropoff = 0;
     for (let i = 0; i < nArrows; i++) {
-      const fv = bars[i].meta.value.val;
-      const tv = bars[i + 1].meta.value.val;
+      const fv = bars[i].meta.value.value;
+      const tv = bars[i + 1].meta.value.value;
       if (fv === undefined || fv === 0 || tv === undefined) continue;
       const drop = fv - tv;
       if (drop > biggestDropoff) {
@@ -66,16 +66,16 @@ export function generateCascadeArrowPrimitives(
     for (let i = 0; i < nArrows; i++) {
       const fromBar = bars[i];
       const toBar = bars[i + 1];
-      const fromVal = fromBar.meta.value.val;
-      const toVal = toBar.meta.value.val;
+      const fromValue = fromBar.meta.value.value;
+      const toValue = toBar.meta.value.value;
 
-      if (fromVal === undefined || fromVal === 0 || toVal === undefined) {
+      if (fromValue === undefined || fromValue === 0 || toValue === undefined) {
         continue;
       }
 
-      const absDropoff = fromVal - toVal;
-      const relDropoff = absDropoff / fromVal;
-      const relRetention = toVal / fromVal;
+      const absDropoff = fromValue - toValue;
+      const relDropoff = absDropoff / fromValue;
+      const relRetention = toValue / fromValue;
 
       const cascadeArrowInfo: CascadeArrowInfo = {
         ...fromBar.meta.value,
@@ -83,8 +83,8 @@ export function generateCascadeArrowPrimitives(
         nArrows,
         isFirstArrow: i === 0,
         isLastArrow: i === nArrows - 1,
-        fromVal,
-        toVal,
+        fromValue,
+        toValue,
         absDropoff,
         relDropoff,
         relRetention,
@@ -131,7 +131,7 @@ function computeCascadeArrow(
   const diffY = toY - fromY;
   const lengthOfArrowWithGracefulTrunk = s.arrowHeadLength * 1.5;
 
-  const arrowGap = ((toX - fromX) * (1 - s.arrowLengthPctOfSpace)) / 2;
+  const arrowGap = ((toX - fromX) * (1 - s.arrowLengthFractionOfSpace)) / 2;
 
   let pathSegments: PathSegment[];
   let arrowEndX: number;
@@ -312,7 +312,7 @@ function computeCascadeArrow(
   return {
     type: "chart-cascade-arrow",
     key:
-      `chart-cascade-arrow-${fromBar.meta.value.i_pane}-${fromBar.meta.value.i_tier}-${fromBar.meta.value.i_lane}-${fromBar.meta.value.i_series}-${fromBar.meta.value.i_val}`,
+      `chart-cascade-arrow-${fromBar.meta.value.i_pane}-${fromBar.meta.value.i_tier}-${fromBar.meta.value.i_lane}-${fromBar.meta.value.i_series}-${fromBar.meta.value.i_value}`,
     item: fromBar.item,
     part: "link",
     bounds,

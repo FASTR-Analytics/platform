@@ -9,7 +9,7 @@ export type CoverTreatmentConfig = {
   name: string;
   background: PaletteSlot;
   title: PaletteSlot;
-  subTitle: PaletteSlot;
+  subtitle: PaletteSlot;
   author: PaletteSlot;
   date: PaletteSlot;
   splitAdjust: SplitAdjustment;
@@ -20,7 +20,7 @@ const COVER_TREATMENTS: Record<string, CoverTreatmentConfig> = {
     name: "Bold",
     background: "primary",
     title: "primaryContent",
-    subTitle: "primaryContentMuted",
+    subtitle: "primaryContentMuted",
     author: "primaryContentMuted",
     date: "primaryContentMuted",
     splitAdjust: { brighten: 0.15 },
@@ -29,7 +29,7 @@ const COVER_TREATMENTS: Record<string, CoverTreatmentConfig> = {
   //   name: "Elegant",
   //   background: "primary",
   //   title: "base200",
-  //   subTitle: "primaryContentMuted",
+  //   subtitle: "primaryContentMuted",
   //   author: "primaryContentMuted",
   //   date: "primaryContentMuted",
   //   splitAdjust: { brighten: 0.15 },
@@ -38,7 +38,7 @@ const COVER_TREATMENTS: Record<string, CoverTreatmentConfig> = {
     name: "Muted",
     background: "primary",
     title: "base300",
-    subTitle: "primaryContentMuted",
+    subtitle: "primaryContentMuted",
     author: "primaryContentMuted",
     date: "primaryContentMuted",
     splitAdjust: { brighten: 0.15 },
@@ -47,7 +47,7 @@ const COVER_TREATMENTS: Record<string, CoverTreatmentConfig> = {
     name: "Light",
     background: "base300",
     title: "primary",
-    subTitle: "baseContentMuted",
+    subtitle: "baseContentMuted",
     author: "baseContentMuted",
     date: "baseContentMuted",
     splitAdjust: { darken: 0.05 },
@@ -56,7 +56,7 @@ const COVER_TREATMENTS: Record<string, CoverTreatmentConfig> = {
     name: "Lighter",
     background: "base200",
     title: "primary",
-    subTitle: "baseContentMuted",
+    subtitle: "baseContentMuted",
     author: "baseContentMuted",
     date: "baseContentMuted",
     splitAdjust: { darken: 0.05 },
@@ -65,7 +65,7 @@ const COVER_TREATMENTS: Record<string, CoverTreatmentConfig> = {
     name: "White",
     background: "base100",
     title: "primary",
-    subTitle: "baseContentMuted",
+    subtitle: "baseContentMuted",
     author: "baseContentMuted",
     date: "baseContentMuted",
     splitAdjust: { darken: 0.03 },
@@ -74,7 +74,7 @@ const COVER_TREATMENTS: Record<string, CoverTreatmentConfig> = {
     name: "Pure",
     background: "base100",
     title: "baseContent",
-    subTitle: "baseContentMuted",
+    subtitle: "baseContentMuted",
     author: "baseContentMuted",
     date: "baseContentMuted",
     splitAdjust: { darken: 0.03 },

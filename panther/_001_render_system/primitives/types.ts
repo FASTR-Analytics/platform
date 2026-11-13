@@ -12,7 +12,7 @@ import type {
   ColorAdjustmentStrategy,
   ColorKeyOrString,
   Coordinates,
-  HeaderItem,
+  DimensionMember,
   Padding,
   RectCoordsDims,
 } from "../deps.ts";
@@ -50,14 +50,14 @@ export const Z_INDEX = {
   CONTENT_POINT: 600,
   LABEL: 700,
   LEGEND: 800,
-  CAPTION: 900,
+  FIGURE_TEXT: 900,
   // Cascade defaults
   CASCADE_ARROW: 550,
   // Map defaults
   MAP_REGION: 300,
   // Pie defaults
   PIE_SLICE: 300,
-  // Figure labels (map regions, pie slices) — above all figure content
+  // Figure labels (map areas, pie slices) — above all figure content
   FIGURE_LABEL: 750,
   // Sankey defaults
   SANKEY_LINK: 300,
@@ -253,11 +253,11 @@ export type ChartErrorBarPrimitive =
     | { orientation: "horizontal"; centerY: number; ubX: number; lbX: number }
   );
 
-export type ChartConfidenceBandPrimitive =
+export type ChartErrorBandPrimitive =
   & BasePrimitive
   & Hittable<"body">
   & {
-    type: "chart-confidence-band";
+    type: "chart-error-band";
     meta: {
       series: ChartSeriesInfo;
     };
@@ -296,15 +296,15 @@ export type ChartAxisPrimitive =
   & {
     type: "chart-axis";
     meta: {
-      axisType: "x-text" | "x-period" | "x-scale" | "y-scale" | "y-text";
-      paneIndex: number;
+      axisType: "x-text" | "x-period" | "x-value" | "y-value" | "y-text";
+      i_pane: number;
       // An x-axis serves one lane and every tier; a y-axis one tier and every
       // lane.
-      tierIndex?: number;
-      laneIndex?: number;
-      paneHeader?: HeaderItem;
-      tierHeader?: HeaderItem;
-      laneHeader?: HeaderItem;
+      i_tier?: number;
+      i_lane?: number;
+      paneMember?: DimensionMember;
+      tierMember?: DimensionMember;
+      laneMember?: DimensionMember;
     };
     // Pure data - fully serializable. A tick whose label names one indicator
     // or one period carries that member's identity.
@@ -316,12 +316,10 @@ export type ChartAxisPrimitive =
         label?: {
           mText: MeasuredText;
           position: Coordinates;
-          alignment: {
-            h: "left" | "center" | "right";
-            v: "top" | "middle" | "bottom";
-          };
+          alignH: AlignH;
+          alignV: AlignV;
         };
-        value: number | string | HeaderItem;
+        value: number | string | DimensionMember;
       }
     >;
     axisLine: { coords: Coordinates[]; style: LineStyle };
@@ -329,7 +327,8 @@ export type ChartAxisPrimitive =
     axisLabel?: {
       mText: MeasuredText;
       position: Coordinates;
-      alignment: { h: AlignH; v: AlignV };
+      alignH: AlignH;
+      alignV: AlignV;
     };
   };
 
@@ -339,14 +338,13 @@ export type ChartGridPrimitive =
   & {
     type: "chart-grid";
     meta: {
-      paneIndex: number;
-      tierIndex: number;
-      laneIndex: number;
-      paneHeader?: HeaderItem;
-      tierHeader?: HeaderItem;
-      laneHeader?: HeaderItem;
+      i_pane: number;
+      i_tier: number;
+      i_lane: number;
+      paneMember?: DimensionMember;
+      tierMember?: DimensionMember;
+      laneMember?: DimensionMember;
     };
-    plotAreaRcd: RectCoordsDims;
     horizontalLines: { y: number; tickValue?: number }[];
     verticalLines: { x: number; tickValue?: number }[];
     style: {
@@ -357,29 +355,27 @@ export type ChartGridPrimitive =
     };
   };
 
-export type ChartLabelPrimitive =
+export type ChartHeaderPrimitive =
   & BasePrimitive
   & Hittable<"header">
   & {
-    type: "chart-label";
+    type: "chart-header";
     meta: {
-      labelType: "pane" | "tier" | "lane" | "indicator";
-      paneIndex: number;
-      tierIndex?: number; // Only for tier and indicator labels
-      laneIndex?: number; // Only for lane and indicator labels
-      indicatorIndex?: number; // Only for indicator labels
-      paneHeader?: HeaderItem;
-      tierHeader?: HeaderItem;
-      laneHeader?: HeaderItem;
-      indicatorHeader?: HeaderItem;
+      headerType: "pane" | "tier" | "lane" | "indicator";
+      i_pane: number;
+      i_tier?: number; // Only for tier and indicator headers
+      i_lane?: number; // Only for lane and indicator headers
+      i_indicator?: number; // Only for indicator headers
+      paneMember?: DimensionMember;
+      tierMember?: DimensionMember;
+      laneMember?: DimensionMember;
+      indicatorMember?: DimensionMember;
     };
     mText: MeasuredText;
-    // The slot the text is aligned in; bounds is the painted text box.
-    anchorRcd: RectCoordsDims;
-    alignment: {
-      h: "left" | "center" | "right";
-      v: "top" | "middle" | "bottom";
-    };
+    // The align rect; bounds is the painted text box.
+    alignRcd: RectCoordsDims;
+    alignH: AlignH;
+    alignV: AlignV;
   };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -429,19 +425,19 @@ export type SankeyLinkPrimitive =
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-export type MapRegionPrimitive =
+export type MapAreaPrimitive =
   & BasePrimitive
   & Hittable<"body">
   & {
-    type: "map-region";
+    type: "map-area";
     meta: {
       featureId: string;
-      paneIndex: number;
-      tierIndex: number;
-      laneIndex: number;
-      paneHeader?: HeaderItem;
-      tierHeader?: HeaderItem;
-      laneHeader?: HeaderItem;
+      i_pane: number;
+      i_tier: number;
+      i_lane: number;
+      paneMember?: DimensionMember;
+      tierMember?: DimensionMember;
+      laneMember?: DimensionMember;
       value?: number;
     };
     pathSegments: PathSegment[];
@@ -464,15 +460,15 @@ export type PieSlicePrimitive =
   & {
     type: "pie-slice";
     meta: {
-      seriesHeader: HeaderItem | undefined;
-      paneIndex: number;
-      tierIndex: number;
-      laneIndex: number;
-      indicatorIndex: number;
-      paneHeader?: HeaderItem;
-      tierHeader?: HeaderItem;
-      laneHeader?: HeaderItem;
-      indicatorHeader?: HeaderItem;
+      seriesMember: DimensionMember | undefined;
+      i_pane: number;
+      i_tier: number;
+      i_lane: number;
+      i_indicator: number;
+      paneMember?: DimensionMember;
+      tierMember?: DimensionMember;
+      laneMember?: DimensionMember;
+      indicatorMember?: DimensionMember;
       value: number;
       share: number;
       isRemainder: boolean;
@@ -493,22 +489,20 @@ export type PieSlicePrimitive =
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-export type FigureCaptionPrimitive =
+export type FigureTextPrimitive =
   & BasePrimitive
   & Hittable<"label">
   & {
-    type: "figure-caption";
+    type: "figure-text";
     meta: {
-      captionType: "subtitle" | "footnote" | "caption";
-      paneIndex?: number; // Captions can be figure-level (no pane) or pane-level
+      textType: "title" | "subtitle" | "footnote";
+      i_pane?: number; // A figure text can be figure-level (no pane) or pane-level
     };
     mText: MeasuredText;
-    // The slot the text is aligned in; bounds is the painted text box.
-    anchorRcd: RectCoordsDims;
-    alignment: {
-      h: "left" | "center" | "right";
-      v: "top" | "middle" | "bottom";
-    };
+    // The align rect; bounds is the painted text box.
+    alignRcd: RectCoordsDims;
+    alignH: AlignH;
+    alignV: AlignV;
   };
 
 export type FigureLegendPrimitive =
@@ -517,14 +511,14 @@ export type FigureLegendPrimitive =
   & {
     type: "figure-legend";
     meta: {
-      paneIndex?: number; // Optional - can be figure-level or pane-level
+      i_pane?: number; // Optional - can be figure-level or pane-level
     };
     // Pure data - fully serializable. An entry that names a series carries
     // that series' identity.
-    items: Array<
+    entries: Array<
       & NestedIdentity
       & {
-        seriesHeader: HeaderItem | undefined;
+        seriesMember: DimensionMember | undefined;
         mText: MeasuredText;
         labelPosition: Coordinates;
         symbol:
@@ -554,15 +548,15 @@ export type FigureLabelPrimitive =
     type: "figure-label";
     meta: {
       id: string;
-      paneIndex: number;
-      tierIndex: number;
-      laneIndex: number;
+      i_pane: number;
+      i_tier: number;
+      i_lane: number;
       // Pie only: which pie in the sub-chart's indicator grid. Absent for map.
-      indicatorIndex?: number;
-      paneHeader?: HeaderItem;
-      tierHeader?: HeaderItem;
-      laneHeader?: HeaderItem;
-      indicatorHeader?: HeaderItem;
+      i_indicator?: number;
+      paneMember?: DimensionMember;
+      tierMember?: DimensionMember;
+      laneMember?: DimensionMember;
+      indicatorMember?: DimensionMember;
       placement: "inside" | "outside";
     };
     // The rect the label was placed within; bounds is the label box, with its
@@ -570,10 +564,8 @@ export type FigureLabelPrimitive =
     hostRcd: RectCoordsDims;
     mText: MeasuredText;
     position: Coordinates;
-    alignment: {
-      h: "left" | "center" | "right";
-      v: "top" | "middle" | "bottom";
-    };
+    alignH: AlignH;
+    alignV: AlignV;
     halo?: LabelHalo;
     leaderLine?: {
       from: Coordinates;
@@ -639,20 +631,17 @@ export type TableCellPrimitive =
     meta: {
       i_row: number;
       i_col: number;
-      rowHeader: HeaderItem | undefined;
-      colHeader: HeaderItem | undefined;
-      rowGroupHeader: HeaderItem | undefined;
-      colGroupHeader: HeaderItem | undefined;
+      rowMember: DimensionMember | undefined;
+      colMember: DimensionMember | undefined;
+      rowGroupMember: DimensionMember | undefined;
+      colGroupMember: DimensionMember | undefined;
     };
     backgroundColor: ColorKeyOrString | "none";
     mText: MeasuredText;
-    // A RectCoordsDims textPosition is the padding-adjusted content box; rText
-    // resolves the anchor from it per textAlignH/textAlignV (same mechanism as
-    // FigureCaptionPrimitive/ChartLabelPrimitive anchorRcd). A plain
-    // Coordinates is a pre-computed anchor point.
-    textPosition: Coordinates | RectCoordsDims;
-    textAlignH: "left" | "center" | "right";
-    textAlignV: "top" | "middle" | "bottom";
+    // The align rect is the padding-adjusted content box.
+    alignRcd: RectCoordsDims;
+    alignH: AlignH;
+    alignV: AlignV;
   };
 
 export type TableRowHeaderPrimitive =
@@ -664,13 +653,13 @@ export type TableRowHeaderPrimitive =
       i_row: number | "group-header";
       label: string;
       isGroupHeader: boolean;
-      header: HeaderItem | undefined;
+      member: DimensionMember | undefined;
     };
     backgroundColor: ColorKeyOrString | "none";
     mText: MeasuredText;
-    textPosition: Coordinates | RectCoordsDims;
-    textAlignH: "left" | "center" | "right";
-    textAlignV: "top" | "middle" | "bottom";
+    alignRcd: RectCoordsDims;
+    alignH: AlignH;
+    alignV: AlignV;
   };
 
 export type TableColHeaderPrimitive =
@@ -683,14 +672,20 @@ export type TableColHeaderPrimitive =
       label: string;
       isGroupHeader: boolean;
       i_colGroup?: number;
-      header: HeaderItem | undefined;
+      member: DimensionMember | undefined;
     };
     backgroundColor: ColorKeyOrString | "none";
-    mText?: MeasuredText;
-    textPosition?: Coordinates | RectCoordsDims;
-    textAlignH: "left" | "center" | "right";
-    textAlignV: "top" | "middle" | "bottom";
-  };
+    alignH: AlignH;
+    alignV: AlignV;
+  }
+  & (
+    | { mText?: undefined }
+    // A group or rotated header's text sits at a point.
+    | (
+      & { mText: MeasuredText }
+      & ({ position: Coordinates } | { alignRcd: RectCoordsDims })
+    )
+  );
 
 export type TableBorderPrimitive =
   & BasePrimitive
@@ -720,11 +715,11 @@ export type TableGridPrimitive =
     };
   };
 
-export type TableHeaderAxisPrimitive =
+export type TableHeaderBorderPrimitive =
   & BasePrimitive
   & Decoration
   & {
-    type: "table-header-axis";
+    type: "table-header-border";
     meta: Record<PropertyKey, never>;
     horizontalLines: { y: number; x1: number; x2: number }[];
     verticalLines: { x: number; y1: number; y2: number }[];
@@ -774,13 +769,15 @@ export type ShapeRectPrimitive = ShapeBase & {
   style: RectStyle;
 };
 
-export type ShapeTextPrimitive = ShapeBase & {
-  type: "shape-text";
-  mText: MeasuredText;
-  position: Coordinates | RectCoordsDims;
-  alignH: AlignH;
-  alignV: AlignV;
-};
+export type ShapeTextPrimitive =
+  & ShapeBase
+  & {
+    type: "shape-text";
+    mText: MeasuredText;
+    alignH: AlignH;
+    alignV: AlignV;
+  }
+  & ({ position: Coordinates } | { alignRcd: RectCoordsDims });
 
 export type ShapePathPrimitive = ShapeBase & {
   type: "shape-path";
@@ -823,14 +820,14 @@ export type Primitive =
   | ChartConnectorPrimitive
   | ChartBarPrimitive
   | ChartErrorBarPrimitive
-  | ChartConfidenceBandPrimitive
+  | ChartErrorBandPrimitive
   | ChartCascadeArrowPrimitive
   // Chart structure (coarse-grained)
   | ChartAxisPrimitive
   | ChartGridPrimitive
-  | ChartLabelPrimitive
+  | ChartHeaderPrimitive
   // Figure primitives (shared by every figure)
-  | FigureCaptionPrimitive
+  | FigureTextPrimitive
   | FigureLegendPrimitive
   | FigureScaleLegendGradientPrimitive
   | FigureScaleLegendSteppedPrimitive
@@ -839,7 +836,7 @@ export type Primitive =
   | SankeyNodePrimitive
   | SankeyLinkPrimitive
   // Map primitives
-  | MapRegionPrimitive
+  | MapAreaPrimitive
   // Pie primitives
   | PieSlicePrimitive
   // Table primitives
@@ -848,7 +845,7 @@ export type Primitive =
   | TableColHeaderPrimitive
   | TableBorderPrimitive
   | TableGridPrimitive
-  | TableHeaderAxisPrimitive
+  | TableHeaderBorderPrimitive
   // Annotation primitives
   | AnnotationRectPrimitive
   // Shapes (scene elements lowered)

@@ -149,17 +149,17 @@ export type BuildFieldOptions = {
   // this separately: the exact query costs ~8us against the raster's ~0.05us,
   // so tying the two together made a 47-label map cell spend 20 seconds in
   // 2.5 million exact queries that a 1 DU raster answer would have served.
-  exactBand?: number;
+  exactDistance?: number;
 };
 
 // The raster alone is out by roughly the pitch (measured: 0.93 DU at a 1 DU
 // pitch), which is 8% of a 12 DU clearance and would show as labels sitting
 // unevenly off the shape. Rather than pay 4x the grid to halve that, every
-// query within the band that placement actually reads — anywhere from just
+// query within the distance that placement actually reads — anywhere from just
 // inside the silhouette out past the clearance — is answered EXACTLY against
 // the real segments. The raster is left to serve the two queries that are
 // happy with it: the sign, and the deep-interior maximum.
-const EXACT_BAND_PAD_CELLS = 2;
+const EXACT_DISTANCE_PAD_CELLS = 2;
 
 type SegmentIndex = {
   // Segment endpoints, flattened: [ax, ay, bx, by, ...].
@@ -245,7 +245,11 @@ function pointSegmentDistance(
 
 // Exact distance to the nearest segment, searching buckets outward until the
 // ring already searched cannot contain anything closer.
-function exactDistance(index: SegmentIndex, x: number, y: number): number {
+function distanceToNearestSegment(
+  index: SegmentIndex,
+  x: number,
+  y: number,
+): number {
   const { cell, cols, rows, originX, originY, seg, buckets } = index;
   const cx = Math.floor((x - originX) / cell);
   const cy = Math.floor((y - originY) / cell);
@@ -348,7 +352,8 @@ export function buildDistanceField(
     Math.max(1, Math.ceil((cols * pitch) / (pitch * 4))),
     Math.max(1, Math.ceil((rows * pitch) / (pitch * 4))),
   );
-  const exactBand = (opts.exactBand ?? margin) + EXACT_BAND_PAD_CELLS * pitch;
+  const exactDistance = (opts.exactDistance ?? margin) +
+    EXACT_DISTANCE_PAD_CELLS * pitch;
 
   let cachedMax: { point: Point; distance: number } | undefined;
   let maxComputed = false;
@@ -375,8 +380,8 @@ export function buildDistanceField(
       // Far from the boundary the raster is fine and the exact query would be
       // wasted work. Near it, take the sign from the raster (robust) and the
       // magnitude from the real segments (exact).
-      if (Math.abs(raster) > exactBand) return raster;
-      const exact = exactDistance(index, x, y);
+      if (Math.abs(raster) > exactDistance) return raster;
+      const exact = distanceToNearestSegment(index, x, y);
       if (!Number.isFinite(exact)) return raster;
       return raster < 0 ? -exact : exact;
     },

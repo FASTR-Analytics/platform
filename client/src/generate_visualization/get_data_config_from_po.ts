@@ -3,7 +3,7 @@ import {
   BLANK_SENTINEL,
   ChartOHJsonDataConfig,
   ChartOVJsonDataConfig,
-  HeaderSortConfig,
+  MemberSortConfig,
   PieJsonDataConfig,
   TableJsonDataConfig,
   TimeseriesJsonDataConfig,
@@ -166,7 +166,7 @@ function resolveAdminAreaLabel(
 // Pinning by raw id is a no-op on axes without these ids.
 function getRollupAwareSort(
   config: PresentationObjectConfig,
-): HeaderSortConfig {
+): MemberSortConfig {
   if (!isRollupActive(config)) {
     return "by-label";
   }
@@ -202,7 +202,7 @@ function getCustomOrderSort(
   config: PresentationObjectConfig,
   customOrder: string[],
   axisProp: DisaggregationOption | "--v" | undefined,
-): HeaderSortConfig {
+): MemberSortConfig {
   if (isRollupActive(config) && getRollupDimension(config) === axisProp) {
     return getRollupPosition(config) === "top"
       ? { byIdOrder: [...ROLLUP_PIN_IDS, ...customOrder] }
@@ -216,7 +216,7 @@ function getCustomOrderSort(
 // period axis wrong:
 //   - "by-label" compares the text getDateLabelReplacements produced, so a
 //     month axis reads Apr, Feb, Jan, Jun.
-//   - { byIdOrder: indicatorIds } matches no period id, so every header ties
+//   - { byIdOrder: indicatorIds } matches no period id, so every member ties
 //     at POSITIVE_INFINITY and falls through to sortByIdOrder's
 //     localeCompare(label) tie-break: identically alphabetical.
 //
@@ -247,7 +247,7 @@ function getCustomOrderSort(
 // it is harmless only because that path uses parseInt.
 function getPeriodAxisSort(
   prop: string | undefined,
-): HeaderSortConfig | undefined {
+): MemberSortConfig | undefined {
   return prop !== undefined && PERIOD_DISAGGREGATION_OPTIONS.has(prop)
     ? "by-id"
     : undefined;
@@ -258,8 +258,8 @@ function getPeriodAxisSort(
 // every figure axis routes through here. Precedence:
 //
 //   1. An absent axis gets NO sort. Load-bearing for tables: panther's group
-//      promotion carries `itemSort ?? groupSort`, so a sort supplied for an
-//      absent item axis would discard the group's own sort.
+//      promotion carries `memberSort ?? groupSort`, so a sort supplied for an
+//      absent member axis would discard the group's own sort.
 //   2. "--v" gets NO sort: panther emits value props in declared order, and
 //      the module author's declared order IS the natural order of the
 //      value-props dimension.
@@ -285,7 +285,7 @@ export function getAxisSort(
   config: PresentationObjectConfig,
   axisProp: DisaggregationOption | "--v" | undefined,
   catalogIdOrder: string[],
-): HeaderSortConfig | undefined {
+): MemberSortConfig | undefined {
   if (axisProp === undefined || axisProp === "--v") {
     return undefined;
   }
@@ -546,7 +546,7 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
       jsonArray,
     ),
     membership: { indicator: "unbalanced", lane: "unbalanced" },
-    proportional: { bands: true, panes: true },
+    proportional: { lanes: true, panes: true },
   };
 }
 
@@ -666,6 +666,6 @@ export function getChartOHJsonDataConfigFromPresentationObjectConfig(
       jsonArray,
     ),
     membership: { indicator: "unbalanced", tier: "unbalanced" },
-    proportional: { bands: true, panes: true },
+    proportional: { tiers: true, panes: true },
   };
 }

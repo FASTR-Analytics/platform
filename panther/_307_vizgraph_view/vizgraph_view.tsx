@@ -32,8 +32,8 @@ import type {
 } from "./deps.ts";
 import type {
   VizGraphViewApi,
+  VizGraphViewBandInfo,
   VizGraphViewGroupInfo,
-  VizGraphViewLaneInfo,
   VizGraphViewNodeInfo,
   VizGraphViewProps,
 } from "./types.ts";
@@ -54,7 +54,7 @@ const EMPTY_GEOMETRY: Geometry = {
   bounds: { x: 0, y: 0, w: 0, h: 0 },
   nodes: {},
   edges: {},
-  lanes: {},
+  bands: {},
   groups: {},
   hitAreas: [],
   warnings: [],
@@ -104,7 +104,7 @@ export function VizGraphView(p: VizGraphViewProps) {
       !frame().geometry.groups[id].folded
     )
   );
-  const laneIds = createMemo(() => Object.keys(frame().geometry.lanes));
+  const bandIds = createMemo(() => Object.keys(frame().geometry.bands));
 
   // Renderer style stays out of the engine: thickness is model data the view
   // paints; color/dash stay CSS-themed. Carries last-known values so removed
@@ -197,22 +197,22 @@ export function VizGraphView(p: VizGraphViewProps) {
       );
   }
 
-  function measuredLanes(model: GraphModel): boolean {
-    return p.laneContent !== undefined &&
-      (model.lanes ?? []).some((l) => l.label === undefined);
+  function measuredBands(model: GraphModel): boolean {
+    return p.bandContent !== undefined &&
+      (model.bands ?? []).some((l) => l.label === undefined);
   }
 
   function needsHeaderMeasure(model: GraphModel): boolean {
-    return measuredGroups(model) || measuredLanes(model);
+    return measuredGroups(model) || measuredBands(model);
   }
 
-  // Group and lane headers are measured like nodes but BEFORE layout
-  // (GroupIn.label / LaneIn.label are data the engine reserves a row for):
+  // Group and band headers are measured like nodes but BEFORE layout
+  // (GroupIn.label / BandIn.label are data the engine reserves a row for):
   // pass 1 lays the model out as given (unsized headers absent), which
-  // yields every group's first-layer strip width and every lane's natural
+  // yields every group's first-layer strip width and every band's natural
   // width; pass 2 measures each header wrapped at that width and lays out
   // again, so the reserved row always matches the rendered height and a
-  // header never widens its lane. Header width never feeds layout, so the
+  // header never widens its band. Header width never feeds layout, so the
   // widths of pass 2 equal pass 1's: exactly one extra layout,
   // deterministic.
   function layoutModel(
@@ -237,22 +237,22 @@ export function VizGraphView(p: VizGraphViewProps) {
           stripWidths.get(id) ?? Number.POSITIVE_INFINITY,
         )
       : undefined;
-    const measureLane = measuredLanes(model)
+    const measureBand = measuredBands(model)
       ? (id: string) => {
-        const lane = provisional.lanes[id];
+        const band = provisional.bands[id];
         return m.measureElement(
           () => (
-            <div class="ui-vizgraph-lane-probe">
-              {laneBody(probeLaneInfo(id))}
+            <div class="ui-vizgraph-band-probe">
+              {bandBody(probeBandInfo(id))}
             </div>
           ),
-          lane === undefined
+          band === undefined
             ? Number.POSITIVE_INFINITY
-            : Math.max(0, lane.w - 2 * pad),
+            : Math.max(0, band.w - 2 * pad),
         );
       }
       : undefined;
-    return layout(withHeaderSizes(model, measureGroup, measureLane), options);
+    return layout(withHeaderSizes(model, measureGroup, measureBand), options);
   }
 
   function runTransition(from: Geometry, to: Geometry, tr: Transition): void {
@@ -390,24 +390,24 @@ export function VizGraphView(p: VizGraphViewProps) {
       : groupContent(info);
   }
 
-  function laneInfo(id: string): VizGraphViewLaneInfo {
+  function bandInfo(id: string): VizGraphViewBandInfo {
     return {
       id,
       get geom() {
-        return frame().geometry.lanes[id];
+        return frame().geometry.bands[id];
       },
     };
   }
 
-  function probeLaneInfo(id: string): VizGraphViewLaneInfo {
+  function probeBandInfo(id: string): VizGraphViewBandInfo {
     return { id, geom: undefined };
   }
 
-  function laneBody(info: VizGraphViewLaneInfo): JSX.Element {
-    const laneContent = p.laneContent;
-    return laneContent === undefined
-      ? <div class="ui-vizgraph-lane-header-default">{info.id}</div>
-      : laneContent(info);
+  function bandBody(info: VizGraphViewBandInfo): JSX.Element {
+    const bandContent = p.bandContent;
+    return bandContent === undefined
+      ? <div class="ui-vizgraph-band-header-default">{info.id}</div>
+      : bandContent(info);
   }
 
   return (
@@ -423,30 +423,30 @@ export function VizGraphView(p: VizGraphViewProps) {
         }}
       >
         <g
-          class="ui-vizgraph-lanes"
+          class="ui-vizgraph-bands"
           opacity={frame().groupOpacity}
           style={{ "pointer-events": "none" }}
         >
-          <For each={laneIds()}>
+          <For each={bandIds()}>
             {(id) => (
               <g>
                 <rect
-                  class="ui-vizgraph-lane"
-                  x={frame().geometry.lanes[id].x}
-                  y={frame().geometry.lanes[id].y}
-                  width={frame().geometry.lanes[id].w}
-                  height={frame().geometry.lanes[id].h}
+                  class="ui-vizgraph-band"
+                  x={frame().geometry.bands[id].x}
+                  y={frame().geometry.bands[id].y}
+                  width={frame().geometry.bands[id].w}
+                  height={frame().geometry.bands[id].h}
                 />
-                <Show when={frame().geometry.lanes[id].header.h > 0}>
+                <Show when={frame().geometry.bands[id].header.h > 0}>
                   <foreignObject
-                    x={frame().geometry.lanes[id].header.x}
-                    y={frame().geometry.lanes[id].header.y}
-                    width={frame().geometry.lanes[id].header.w}
-                    height={frame().geometry.lanes[id].header.h}
+                    x={frame().geometry.bands[id].header.x}
+                    y={frame().geometry.bands[id].header.y}
+                    width={frame().geometry.bands[id].header.w}
+                    height={frame().geometry.bands[id].header.h}
                     style={{ overflow: "visible" }}
                   >
-                    <div class="ui-vizgraph-lane-header">
-                      {laneBody(laneInfo(id))}
+                    <div class="ui-vizgraph-band-header">
+                      {bandBody(bandInfo(id))}
                     </div>
                   </foreignObject>
                 </Show>
@@ -556,7 +556,7 @@ type MeasureHeader = (id: string) => { w: number; h: number };
 function withHeaderSizes(
   model: GraphModel,
   measureGroup: MeasureHeader | undefined,
-  measureLane: MeasureHeader | undefined,
+  measureBand: MeasureHeader | undefined,
 ): GraphModel {
   return {
     ...model,
@@ -566,8 +566,8 @@ function withHeaderSizes(
           ? { ...g, label: measureGroup(g.id) }
           : g
       ),
-    lanes: measureLane === undefined ? model.lanes : (model.lanes ?? []).map(
-      (l) => l.label === undefined ? { ...l, label: measureLane(l.id) } : l,
+    bands: measureBand === undefined ? model.bands : (model.bands ?? []).map(
+      (l) => l.label === undefined ? { ...l, label: measureBand(l.id) } : l,
     ),
   };
 }

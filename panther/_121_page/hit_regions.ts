@@ -16,12 +16,12 @@ import type {
 export type PageHitTargetText = {
   type:
     | "coverTitle"
-    | "coverSubTitle"
+    | "coverSubtitle"
     | "coverAuthor"
     | "coverDate"
     | "coverWatermark"
     | "sectionTitle"
-    | "sectionSubTitle"
+    | "sectionSubtitle"
     | "sectionWatermark"
     | "headerText"
     | "subHeaderText"

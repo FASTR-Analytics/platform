@@ -31,7 +31,7 @@ export function measureMarkdown(
     _debug,
   );
   return {
-    item: input,
+    inputs: input,
     bounds: result.bounds,
     markdownItems: result.items,
   };

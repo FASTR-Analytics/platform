@@ -23,8 +23,8 @@ export type FigureFitReport = {
 };
 
 // Base interface for measured objects
-export type Measured<TItem> = {
-  item: TItem;
+export type Measured<TInputs> = {
+  inputs: TInputs;
   bounds: RectCoordsDims;
   // Set by shrink-to-fit when the content shrank to the min-font floor and still
   // does not fit its frame. Undefined/false means it fit (possibly after shrinking).
@@ -43,13 +43,13 @@ export type HeightConstraints = {
 };
 
 // Synchronous renderer interface
-export type Renderer<TItem, TMeasured extends Measured<TItem>> = {
-  isType(item: unknown): item is TItem;
+export type Renderer<TInputs, TMeasured extends Measured<TInputs>> = {
+  isType(inputs: unknown): inputs is TInputs;
 
   measure(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: TItem,
+    inputs: TInputs,
   ): TMeasured;
 
   render(rc: RenderContext, measured: TMeasured): void;
@@ -57,24 +57,24 @@ export type Renderer<TItem, TMeasured extends Measured<TItem>> = {
   measureAndRender(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: TItem,
+    inputs: TInputs,
   ): void;
 
   getIdealHeight(
     rc: RenderContext,
     width: number,
-    item: TItem,
+    inputs: TInputs,
   ): HeightConstraints;
 };
 
 // Asynchronous renderer interface
-export type AsyncRenderer<TItem, TMeasured extends Measured<TItem>> = {
-  isType(item: unknown): item is TItem;
+export type AsyncRenderer<TInputs, TMeasured extends Measured<TInputs>> = {
+  isType(inputs: unknown): inputs is TInputs;
 
   measure(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: TItem,
+    inputs: TInputs,
   ): Promise<TMeasured>;
 
   render(rc: RenderContext, measured: TMeasured): Promise<void>;
@@ -82,12 +82,12 @@ export type AsyncRenderer<TItem, TMeasured extends Measured<TItem>> = {
   measureAndRender(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: TItem,
+    inputs: TInputs,
   ): Promise<void>;
 
   getIdealHeight(
     rc: RenderContext,
     width: number,
-    item: TItem,
+    inputs: TInputs,
   ): Promise<HeightConstraints>;
 };

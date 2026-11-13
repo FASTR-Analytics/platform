@@ -40,7 +40,7 @@ export function measureFreeform(
 
   return {
     type: "freeform",
-    item: inputs,
+    inputs,
     bounds: rcdOuter,
     style,
     overflow: content.overflow,

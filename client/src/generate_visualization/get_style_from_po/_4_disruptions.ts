@@ -15,8 +15,8 @@ import {
 } from "lib";
 import {
   formatIndicatorValue,
-  getScaleTickLabelFormatter,
   getTextStyle,
+  getValueAxisTickLabelFormatter,
 } from "./_0_common";
 
 export function buildDisruptionsChartStyle(
@@ -37,7 +37,7 @@ export function buildDisruptionsChartStyle(
       nCols: config.s.nColsInCellDisplay,
     },
     xPeriodAxis: { calendar },
-    yScaleAxis: {
+    yValueAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
       max: config.s.forceYMax1 && formatAs === "percent" ? 1 : undefined,
       min: config.s.forceYMinAuto
@@ -45,7 +45,7 @@ export function buildDisruptionsChartStyle(
         : allowNegativeScale
         ? "auto-zero"
         : undefined,
-      tickLabelFormatter: getScaleTickLabelFormatter(formatAs),
+      tickLabelFormatter: getValueAxisTickLabelFormatter(formatAs),
     },
     content: {
       points: { func: { show: false } },
@@ -60,7 +60,11 @@ export function buildDisruptionsChartStyle(
           dataLabel: { show: config.s.showDataLabelsLineCharts },
         }),
         textFormatter: (info: ChartValueInfo) =>
-          formatIndicatorValue(info.val, formatAs, config.s.decimalPlaces ?? 0),
+          formatIndicatorValue(
+            info.value,
+            formatAs,
+            config.s.decimalPlaces ?? 0,
+          ),
       },
       areas: {
         func: { show: true },

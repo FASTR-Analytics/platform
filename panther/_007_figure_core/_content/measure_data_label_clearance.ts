@@ -9,7 +9,7 @@ import {
   type RenderContext,
   type TextInfoUnkeyed,
 } from "../deps.ts";
-import type { ChartItemAxes } from "../chart_items.ts";
+import type { ChartItemDataDimensions } from "../chart_items.ts";
 import { NO_OVERHANG_CLEARANCE, type ValueRange } from "../types.ts";
 import {
   buildDataLabelTextStyle,
@@ -45,37 +45,37 @@ function decorationOutset(
 }
 
 // How much end-side overhang clearance the data labels of one sub-chart
-// need so they stay inside the plot area. Mirrors the label geometry of
+// need so they stay inside the sub-chart. Mirrors the label geometry of
 // generate_bar_primitives / generate_point_primitives / generate_line_primitives.
 //
 // For a label anchored at value fraction f (of the clearance-adjusted range)
 // that extends `extent` past its anchor toward the value-axis end, the label
-// top stays inside the plot when
+// top stays inside the sub-chart when
 //   ce + (H - cs - ce) * (1 - f) >= extent
 // which solves in closed form to
 //   ce >= (extent - (H - cs) * (1 - f)) / f
-// where H is the plot extent along the value axis and cs the start-side
+// where H is the value axis extent and cs the start-side
 // clearance (already fixed by the tick labels).
 export function measureDataLabelEndClearance(p: {
   rc: RenderContext;
-  seriesVals: (number | undefined)[][];
+  seriesValues: (number | undefined)[][];
   valueRange: ValueRange;
   orientation: "vertical" | "horizontal";
   contentStyle: MergedContentStyle;
   dataLabelsTextStyle: TextInfoUnkeyed;
-  plotValueExtent: number;
+  valueAxisExtent: number;
   startClearance: number;
-  categoryIncrement: number;
-  nVals: number;
+  slotExtent: number;
+  nValues: number;
   slotOrder: number[];
   subChartInfo: ContentGenerationContext["subChartInfo"];
-  itemAxes: ChartItemAxes;
+  itemDataDimensions: ChartItemDataDimensions;
 }): number {
   const s = p.contentStyle;
   const isHorizontal = p.orientation === "horizontal";
-  const { minVal, maxVal } = p.valueRange;
-  const range = maxVal - minVal;
-  if (range <= 0 || p.plotValueExtent <= 0) {
+  const { valueMin, valueMax } = p.valueRange;
+  const range = valueMax - valueMin;
+  if (range <= 0 || p.valueAxisExtent <= 0) {
     return 0;
   }
 
@@ -83,60 +83,60 @@ export function measureDataLabelEndClearance(p: {
     rc: p.rc,
     subChartRcd: new RectCoordsDims({ x: 0, y: 0, w: 0, h: 0 }),
     subChartInfo: p.subChartInfo,
-    nVals: p.nVals,
+    nValues: p.nValues,
     slotOrder: p.slotOrder,
-    nSeries: p.seriesVals.length,
+    nSerieses: p.seriesValues.length,
     orientation: p.orientation,
-    categoryIncrement: p.categoryIncrement,
-    gridStrokeWidth: 0,
-    itemAxes: p.itemAxes,
+    slotExtent: p.slotExtent,
+    gridLineStrokeWidth: 0,
+    itemDataDimensions: p.itemDataDimensions,
     contentStyle: s,
     dataLabelsTextStyle: p.dataLabelsTextStyle,
     valueRange: p.valueRange,
     valueClearance: NO_OVERHANG_CLEARANCE,
   };
 
-  const labelOwner = resolveDataLabelOwnership(p.seriesVals, ctx);
+  const labelOwner = resolveDataLabelOwnership(p.seriesValues, ctx);
   const seriesInfos = Array.from(
-    { length: ctx.nSeries },
-    (_, i) => buildSeriesInfo(ctx, i, p.seriesVals),
+    { length: ctx.nSerieses },
+    (_, i) => buildSeriesInfo(ctx, i, p.seriesValues),
   );
 
   let needed = 0;
-  const consider = (anchorVal: number, extent: number) => {
+  const consider = (anchorValue: number, extent: number) => {
     if (extent <= 0) {
       return;
     }
-    const f = Math.min(1, (anchorVal - minVal) / range);
+    const f = Math.min(1, (anchorValue - valueMin) / range);
     if (f <= 0) {
       return;
     }
-    const ce = (extent - (p.plotValueExtent - p.startClearance) * (1 - f)) / f;
+    const ce = (extent - (p.valueAxisExtent - p.startClearance) * (1 - f)) / f;
     if (ce > needed) {
       needed = ce;
     }
   };
 
-  for (let i_val = 0; i_val < p.nVals; i_val++) {
-    for (let i_series = 0; i_series < ctx.nSeries; i_series++) {
-      const val = p.seriesVals[i_series]?.[i_val];
-      if (val === undefined) {
+  for (let i_value = 0; i_value < p.nValues; i_value++) {
+    for (let i_series = 0; i_series < ctx.nSerieses; i_series++) {
+      const value = p.seriesValues[i_series]?.[i_value];
+      if (value === undefined) {
         continue;
       }
-      const owner = labelOwner[i_series][i_val];
+      const owner = labelOwner[i_series][i_value];
       if (owner === "none") {
         continue;
       }
 
       const seriesInfo = seriesInfos[i_series];
-      const valueInfo = buildValueInfo(ctx, seriesInfo, val, i_val);
+      const valueInfo = buildValueInfo(ctx, seriesInfo, value, i_value);
 
       if (owner === "points") {
         const pointStyle = s.points.getStyle(valueInfo);
         const dl = pointStyle.dataLabel;
         const labelStr = s.points.textFormatter !== "none"
           ? s.points.textFormatter(valueInfo)
-          : String(val);
+          : String(value);
         if (!labelStr.trim() && !hasDecoration(dl)) {
           continue;
         }
@@ -159,7 +159,7 @@ export function measureDataLabelEndClearance(p: {
             : pos === "left" || pos === "right"
             ? mText.dims.h() / 2 + decorationOutset(dl, "top")
             : 0);
-        consider(val, extent);
+        consider(value, extent);
         continue;
       }
 
@@ -168,7 +168,7 @@ export function measureDataLabelEndClearance(p: {
         const dl = lineStyle.dataLabel;
         const labelStr = s.lines.textFormatter !== "none"
           ? s.lines.textFormatter(valueInfo)
-          : String(val);
+          : String(value);
         if (!labelStr.trim() && !hasDecoration(dl)) {
           continue;
         }
@@ -180,7 +180,7 @@ export function measureDataLabelEndClearance(p: {
         const extent = isHorizontal
           ? dl.offset + mText.dims.w() + decorationOutset(dl, "right")
           : dl.offset + mText.dims.h() + decorationOutset(dl, "top");
-        consider(val, extent);
+        consider(value, extent);
         continue;
       }
 
@@ -194,8 +194,8 @@ export function measureDataLabelEndClearance(p: {
 
       if (isStackLike) {
         let isTopOfStack = true;
-        for (let s_idx = i_series + 1; s_idx < ctx.nSeries; s_idx++) {
-          if (p.seriesVals[s_idx]?.[i_val] !== undefined) {
+        for (let s_idx = i_series + 1; s_idx < ctx.nSerieses; s_idx++) {
+          if (p.seriesValues[s_idx]?.[i_value] !== undefined) {
             isTopOfStack = false;
             break;
           }
@@ -207,41 +207,41 @@ export function measureDataLabelEndClearance(p: {
 
       const labelStr = s.bars.textFormatter !== "none"
         ? s.bars.textFormatter(valueInfo)
-        : String(val);
+        : String(value);
       if (!labelStr.trim() && !hasDecoration(dl)) {
         continue;
       }
 
       // Value-axis position of the labeled bar's value end.
-      let anchorVal: number;
+      let anchorValue: number;
       if (stacking === "stacked") {
         let total = 0;
-        for (let s_idx = 0; s_idx < ctx.nSeries; s_idx++) {
-          const v = p.seriesVals[s_idx]?.[i_val];
+        for (let s_idx = 0; s_idx < ctx.nSerieses; s_idx++) {
+          const v = p.seriesValues[s_idx]?.[i_value];
           if (v !== undefined) {
             total += v;
           }
         }
-        anchorVal = total;
+        anchorValue = total;
       } else if (stacking === "diff" && i_series > 0) {
-        const prev = p.seriesVals[i_series - 1]?.[i_val];
-        anchorVal = prev !== undefined ? Math.max(prev, val) : val;
+        const prev = p.seriesValues[i_series - 1]?.[i_value];
+        anchorValue = prev !== undefined ? Math.max(prev, value) : value;
       } else {
-        anchorVal = val;
+        anchorValue = value;
       }
 
       // Vertical bar labels wrap to the bar thickness (mirrors barRcd.w()).
       let textMaxWidth = 9999;
       if (!isHorizontal) {
-        const indicatorSlotThickness = p.categoryIncrement *
+        const barGroupThickness = p.slotExtent *
           BAR_PROP_INDICATOR;
         textMaxWidth = isStackLike
           ? Math.min(
-            indicatorSlotThickness * BAR_PROP_SERIES,
+            barGroupThickness * BAR_PROP_SERIES,
             s.bars.maxBarWidth,
           )
           : Math.min(
-            (indicatorSlotThickness / Math.max(1, ctx.nSeries)) *
+            (barGroupThickness / Math.max(1, ctx.nSerieses)) *
               BAR_PROP_SERIES,
             s.bars.maxBarWidth,
           );
@@ -254,7 +254,7 @@ export function measureDataLabelEndClearance(p: {
       const extent = isHorizontal
         ? dl.offset + mText.dims.w() + decorationOutset(dl, "right")
         : dl.offset + mText.dims.h() + decorationOutset(dl, "top");
-      consider(anchorVal, extent);
+      consider(anchorValue, extent);
     }
   }
 

@@ -6,7 +6,7 @@
 import type {
   Coordinates,
   DataLabelStyle,
-  HeaderItem,
+  DimensionMember,
   MeasuredText,
   PrimitiveItem,
   RectCoordsDims,
@@ -30,8 +30,8 @@ export type LabelCandidate = {
   // it goes outside.
   anchor: Coordinates;
   // Where an outside label's leader line starts. Defaults to `anchor`, which
-  // is right when the anchor is inside the element (map: the region centroid,
-  // so the line visibly crosses the region). A figure whose anchor is not on
+  // is right when the anchor is inside the element (map: the map area's centroid,
+  // so the line visibly crosses the map area). A figure whose anchor is not on
   // its own silhouette sets this to the point that IS — a pie slice's anchor
   // is at mid-radius, but its leader must start on the arc.
   leaderOrigin?: Coordinates;
@@ -63,7 +63,7 @@ export type LabelGeometry = {
   // Left/right split for outside labels.
   centerX: number;
   // Vertical extent outside labels stack within.
-  outsideBand: { minY: number; maxY: number };
+  outsideStrip: { minY: number; maxY: number };
   // The figure's silhouette edge at a given y, so outside labels sit against
   // the shape rather than a bounding box. Always returns a number — the
   // adapter owns its own fallback.
@@ -94,13 +94,13 @@ export type LabelGeometry = {
 
 export type FigureLabelMeta = {
   keyPrefix: string;
-  paneIndex: number;
-  tierIndex: number;
-  laneIndex: number;
+  i_pane: number;
+  i_tier: number;
+  i_lane: number;
   // Pie only: which pie in the sub-chart's indicator grid. Absent for map.
-  indicatorIndex?: number;
-  paneHeader?: HeaderItem;
-  tierHeader?: HeaderItem;
-  laneHeader?: HeaderItem;
-  indicatorHeader?: HeaderItem;
+  i_indicator?: number;
+  paneMember?: DimensionMember;
+  tierMember?: DimensionMember;
+  laneMember?: DimensionMember;
+  indicatorMember?: DimensionMember;
 };

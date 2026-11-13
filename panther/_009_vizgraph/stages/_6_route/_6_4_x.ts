@@ -12,9 +12,9 @@ import type { ResolvedSpan } from "../../_internal/regions.ts";
 import { spanColumnExtras } from "../../_internal/regions.ts";
 import { gutterBasePad, gutterReserve } from "./_6_3_tracks.ts";
 
-// Step 6.4 — x with track lanes: column x positions, reserving width in each
+// Step 6.4 — x with tracks: column x positions, reserving width in each
 // gutter for its track bundle (gutterReserve). Interior gutters keep
-// layerGap as the base margin, plus laneGap at span boundaries; the
+// layerGap as the base margin, plus bandGap at span boundaries; the
 // outermost gutters (left of the first column, right of the last) are
 // zero-width unless tracks live there. A span's floor (its minSize or
 // header block) widens its columns evenly — nodes stay centered in their
@@ -57,7 +57,7 @@ export function assignX(
       trackCounts,
       gutterThickness,
       spacing,
-      proper.laneBoundaries,
+      proper.bandBoundaries,
     );
   const naturalW = proper.layers.map((layer) =>
     Math.max(0, ...layer.map((p) => p.w))
@@ -69,7 +69,7 @@ export function assignX(
   let x = 0;
   for (let g = 0; g < layerCount + 1; g++) {
     trackBaseX[g] = x +
-      gutterBasePad(g, layerCount, spacing, proper.laneBoundaries);
+      gutterBasePad(g, layerCount, spacing, proper.bandBoundaries);
     x += gutter(g);
     if (g < layerCount) {
       columnX[g] = x;

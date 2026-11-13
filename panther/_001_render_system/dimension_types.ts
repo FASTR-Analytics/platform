@@ -5,65 +5,68 @@
 
 import { BLANK_LABEL, BLANK_SENTINEL, t3 } from "./deps.ts";
 
-export type HeaderItem = {
+export type DimensionMember = {
   id: string;
   label: string;
 };
 
-// A slot's dimension, named, with its members. A slot with no dimension
-// configured has no axis.
-export type DataAxis = {
-  dimension: string;
-  headers: HeaderItem[];
+// A dimension: a column a figure splits by, named by its prop, with its
+// members. A pane, tier, lane, series or indicator with no prop has none.
+export type DataDimension = {
+  name: string;
+  members: DimensionMember[];
 };
 
 // Dimension names for data whose author named none: `--` marks a name panther
-// supplies, as `--v` names the axis of value columns.
+// supplies, as `--v` names the dimension of value columns.
 export const MARKDOWN_TABLE_ROW_DIMENSION = "--row";
 export const MARKDOWN_TABLE_COLUMN_DIMENSION = "--column";
 
-// The members a slot lays out: an unsplit slot (no axis) is one member with no
-// header.
-export function slotHeaders(
-  axis: DataAxis | undefined,
-): (HeaderItem | undefined)[] {
-  return axis?.headers ?? [undefined];
+// The members to lay out: a dimension's members, or one position with no
+// member when no prop is given.
+export function getDimensionMembers(
+  dimension: DataDimension | undefined,
+): (DimensionMember | undefined)[] {
+  return dimension?.members ?? [undefined];
 }
 
-// Per-axis membership policy for chart layout dimensions. "balanced" (the
-// default) gives every pane the full global header set on that axis;
-// "unbalanced" lets each pane show only the headers it has data for.
+// Per-dimension membership policy for chart layout dimensions. "balanced" (the
+// default) gives every pane the full global member set of that dimension;
+// "unbalanced" lets each pane show only the members it has data for.
 // Raggedness is allowed only along a chart's categorical (text-axis)
-// direction — the scale direction stays balanced.
-export type AxisMembership = "balanced" | "unbalanced";
+// direction — the value direction stays balanced.
+export type DimensionMembership = "balanced" | "unbalanced";
 
-export type HeaderSortFunc = (a: HeaderItem, b: HeaderItem) => number;
+export type MemberSortFunc = (a: DimensionMember, b: DimensionMember) => number;
 
-export type HeaderSortConfig =
-  | HeaderSortFunc
+export type MemberSortConfig =
+  | MemberSortFunc
   | "by-label"
   | "by-id"
   | { byIdOrder: string[] }
   | { byLabelOrder: string[] }
   | { base?: "by-label" | "by-id"; first?: string[]; last?: string[] };
 
-export function isBlankHeader(h: HeaderItem): boolean {
+export function isBlankMember(h: DimensionMember): boolean {
   return h.id === BLANK_SENTINEL;
 }
 
-export function compareBlankLast(a: HeaderItem, b: HeaderItem): number {
-  return Number(isBlankHeader(a)) - Number(isBlankHeader(b));
+export function compareBlankLast(
+  a: DimensionMember,
+  b: DimensionMember,
+): number {
+  return Number(isBlankMember(a)) - Number(isBlankMember(b));
 }
 
-export function sortByLabel(a: HeaderItem, b: HeaderItem): number {
+export function sortByLabel(a: DimensionMember, b: DimensionMember): number {
   return compareBlankLast(a, b) || a.label.localeCompare(b.label);
 }
 
-export function sortById(a: HeaderItem, b: HeaderItem): number {
+export function sortById(a: DimensionMember, b: DimensionMember): number {
   return compareBlankLast(a, b) || a.id.localeCompare(b.id);
 }
 
-export function sortByIdOrder(order: string[]): HeaderSortFunc {
+export function sortByIdOrder(order: string[]): MemberSortFunc {
   const rank = new Map(order.map((id, i) => [id, i]));
   return (a, b) => {
     const ai = rank.get(a.id) ?? Number.POSITIVE_INFINITY;
@@ -75,7 +78,7 @@ export function sortByIdOrder(order: string[]): HeaderSortFunc {
   };
 }
 
-export function sortByLabelOrder(order: string[]): HeaderSortFunc {
+export function sortByLabelOrder(order: string[]): MemberSortFunc {
   const rank = new Map(order.map((label, i) => [label, i]));
   return (a, b) => {
     const ai = rank.get(a.label) ?? Number.POSITIVE_INFINITY;
@@ -91,10 +94,10 @@ export function sortByPinned(
   base: "by-label" | "by-id" | undefined,
   first: string[],
   last: string[],
-): HeaderSortFunc {
+): MemberSortFunc {
   // No base: items outside the pinned buckets compare equal, so a stable sort
   // preserves their existing order — a pin-only sort.
-  const baseFunc: HeaderSortFunc = base === "by-id"
+  const baseFunc: MemberSortFunc = base === "by-id"
     ? sortById
     : base === "by-label"
     ? sortByLabel
@@ -126,8 +129,8 @@ export function sortByPinned(
 }
 
 function resolveSortFunc(
-  config: HeaderSortConfig | undefined,
-): HeaderSortFunc {
+  config: MemberSortConfig | undefined,
+): MemberSortFunc {
   if (config === undefined) {
     return compareBlankLast;
   }
@@ -152,17 +155,17 @@ function resolveSortFunc(
   throw new Error("Invalid sort config");
 }
 
-export function toHeaderItem(
+export function toDimensionMember(
   id: string | undefined,
   label: string | undefined,
-): HeaderItem | undefined {
+): DimensionMember | undefined {
   return id === undefined ? undefined : { id, label: label ?? id };
 }
 
-export function createHeaderItem(
+export function createDimensionMember(
   id: string,
   labelReplacements: Record<string, string> | undefined,
-): HeaderItem {
+): DimensionMember {
   return {
     id,
     label: labelReplacements?.[id] ??
@@ -170,16 +173,16 @@ export function createHeaderItem(
   };
 }
 
-export function createHeaderItems(
+export function createDimensionMembers(
   ids: string[],
   labelReplacements: Record<string, string> | undefined,
-): HeaderItem[] {
-  return ids.map((id) => createHeaderItem(id, labelReplacements));
+): DimensionMember[] {
+  return ids.map((id) => createDimensionMember(id, labelReplacements));
 }
 
-export function sortHeaderItems(
-  items: HeaderItem[],
-  sortConfig: HeaderSortConfig | undefined,
-): HeaderItem[] {
+export function sortDimensionMembers(
+  items: DimensionMember[],
+  sortConfig: MemberSortConfig | undefined,
+): DimensionMember[] {
   return [...items].sort(resolveSortFunc(sortConfig));
 }

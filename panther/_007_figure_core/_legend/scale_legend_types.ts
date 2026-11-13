@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { ColorKeyOrString } from "../deps.ts";
-import type { LegendItem } from "./types.ts";
+import type { LegendEntry } from "./types.ts";
 
 export type ScaleLegendGradientConfig = {
   type: "gradient";
@@ -45,7 +45,7 @@ export type ScaleLegendConfig =
   | ScaleLegendGradientAutoConfig
   | ScaleLegendSteppedAutoConfig;
 
-export type LegendInput = LegendItem[] | string[] | ScaleLegendConfig;
+export type LegendInput = LegendEntry[] | string[] | ScaleLegendConfig;
 
 export type ConcreteScaleLegendConfig =
   | ScaleLegendGradientConfig

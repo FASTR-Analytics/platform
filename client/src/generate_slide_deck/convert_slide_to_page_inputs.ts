@@ -119,14 +119,14 @@ export function buildStyleForSlide(
         letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1,
       },
-      coverSubTitle: {
+      coverSubtitle: {
         font: getFont(
           fontFamily,
           coverFontSizes.subTitleBold,
           coverFontSizes.subTitleItalic,
           false,
         ),
-        color: presetStyle.text!.coverSubTitle!.color,
+        color: presetStyle.text!.coverSubtitle!.color,
         relFontSize: (coverFontSizes.subTitleTextRelFontSize ?? 6) / 2,
         letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1.1,
@@ -165,14 +165,14 @@ export function buildStyleForSlide(
         letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1.05,
       },
-      sectionSubTitle: {
+      sectionSubtitle: {
         font: getFont(
           fontFamily,
           sectionFontSizes.sectionSubTitleBold,
           sectionFontSizes.sectionSubTitleItalic,
           false,
         ),
-        color: presetStyle.text!.sectionSubTitle!.color,
+        color: presetStyle.text!.sectionSubtitle!.color,
         relFontSize: (sectionFontSizes.smallerSectionTextRelFontSize ?? 5) / 2,
         letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1.1,
@@ -222,7 +222,7 @@ export function buildStyleForSlide(
       },
       logosPlacement: presetStyle.cover!.logosPlacement,
       titleBottomPadding: presetStyle.cover!.titleBottomPadding,
-      subTitleBottomPadding: presetStyle.cover!.subTitleBottomPadding,
+      subtitleBottomPadding: presetStyle.cover!.subtitleBottomPadding,
       authorBottomPadding: presetStyle.cover!.authorBottomPadding,
       alignH: presetStyle.cover!.alignH,
       alignV: presetStyle.cover!.alignV,
@@ -329,7 +329,7 @@ export async function convertSlideToPageInputs(
       data: {
         type: "cover",
         title: slide.title,
-        subTitle: slide.subtitle,
+        subtitle: slide.subtitle,
         author: slide.presenter,
         date: slide.date,
         titleLogos,
@@ -346,7 +346,7 @@ export async function convertSlideToPageInputs(
       data: {
         type: "section",
         sectionTitle: slide.sectionTitle,
-        sectionSubTitle: slide.sectionSubtitle,
+        sectionSubtitle: slide.sectionSubtitle,
         style,
         watermark,
         overlay: backgroundDetail.overlay,

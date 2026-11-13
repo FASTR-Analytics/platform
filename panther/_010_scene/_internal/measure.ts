@@ -31,7 +31,7 @@ const PROBE_HEIGHT = 9999;
 // DU of its frame, with the narrowest width its frame can take at scale 1
 // (the declared or natural frame width; the layout's floor under the
 // engine). `fitW` is the content width over the rung's scale, the width the
-// frame would have at scale 1 to fill the content rect; a producer that
+// frame would have at scale 1 to fill the body rect; a producer that
 // builds once ignores it.
 export type SceneFit = { scene: Scene; minW: number };
 export type SceneSource = (fitW: number) => SceneFit;
@@ -39,40 +39,44 @@ export type SceneSource = (fitW: number) => SceneFit;
 function surroundsAt(
   rc: RenderContext,
   bounds: RectCoordsDims,
-  item: FigureInputsBase,
+  inputs: FigureInputsBase,
   fitScale: number,
 ): { cs: CustomFigureStyle; ms: MeasuredSurrounds } {
-  const cs = new CustomFigureStyle(item.style, fitScale, item.autofitSurrounds);
+  const cs = new CustomFigureStyle(
+    inputs.style,
+    fitScale,
+    inputs.autofitSurrounds,
+  );
   const ms = measureSurrounds(
     rc,
     bounds,
     cs,
-    item.caption,
-    item.subCaption,
-    item.footnote,
-    item.legend,
+    inputs.title,
+    inputs.subtitle,
+    inputs.footnote,
+    inputs.legend,
   );
   return { cs, ms };
 }
 
-// The scaled frame centred in the content rect where it underfills; where it
-// overfills (cramped) it starts at the content rect's corner and overflows.
+// The scaled frame centred in the body rect where it underfills; where it
+// overfills (cramped) it starts at the body rect's corner and overflows.
 function layoutScene<I extends FigureInputsBase>(
   rc: RenderContext,
   bounds: RectCoordsDims,
-  item: I,
+  inputs: I,
   scene: Scene,
   sf: number,
 ): MeasuredSceneFigure<I> {
-  const { cs, ms } = surroundsAt(rc, bounds, item, sf);
-  const content = ms.contentRcd;
+  const { cs, ms } = surroundsAt(rc, bounds, inputs, sf);
+  const content = ms.bodyRcd;
   const origin = {
     x: content.x() + Math.max(0, (content.w() - scene.frame.w * sf) / 2),
     y: content.y() + Math.max(0, (content.h() - scene.frame.h * sf) / 2),
   };
   const shapes = lowerScene(rc, scene, sf, origin, cs.getMergedSceneStyle());
   return {
-    item,
+    inputs,
     bounds,
     measuredSurrounds: ms,
     extraHeightDueToSurrounds: ms.extraHeightDueToSurrounds,
@@ -94,7 +98,7 @@ function sizeAtScale(
   ms: MeasuredSurrounds,
   k: number,
 ): { minWidth: number; idealHeight: number } {
-  const contentW = ms.contentRcd.w();
+  const contentW = ms.bodyRcd.w();
   const frameW = fit.minW * k;
   return {
     minWidth: contentW - frameW === 0
@@ -115,28 +119,28 @@ export type SceneSourceFactory = (
 export function measureSceneFigure<I extends FigureInputsBase>(
   rc: RenderContext,
   bounds: RectCoordsDims,
-  item: I,
+  inputs: I,
   makeSource: SceneSourceFactory,
 ): MeasuredSceneFigure<I> {
-  const { cs: cs1, ms: ms1 } = surroundsAt(rc, bounds, item, 1);
+  const { cs: cs1, ms: ms1 } = surroundsAt(rc, bounds, inputs, 1);
   const source = makeSource(
     rc,
     cs1.getMergedSceneStyle(),
-    ms1.contentRcd.w(),
+    ms1.bodyRcd.w(),
   );
-  const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+  const autofitOpts = resolveFigureAutofitOptions(inputs.autofit);
   if (!autofitOpts) {
     return layoutScene(
       rc,
       bounds,
-      item,
-      source(ms1.contentRcd.w()).scene,
+      inputs,
+      source(ms1.bodyRcd.w()).scene,
       1,
     );
   }
   const fitAt = memoizeByScale((k: number) => {
-    const ms = k === 1 ? ms1 : surroundsAt(rc, bounds, item, k).ms;
-    return { ms, fit: source(ms.contentRcd.w() / k) };
+    const ms = k === 1 ? ms1 : surroundsAt(rc, bounds, inputs, k).ms;
+    return { ms, fit: source(ms.bodyRcd.w() / k) };
   });
   const getSizeAtScale = memoizeByScale((k: number) => {
     const { ms, fit } = fitAt(k);
@@ -156,7 +160,7 @@ export function measureSceneFigure<I extends FigureInputsBase>(
   const measured = layoutScene(
     rc,
     bounds,
-    item,
+    inputs,
     fitAt(fitScale).fit.scene,
     fitScale,
   );
@@ -173,22 +177,22 @@ export function measureSceneFigure<I extends FigureInputsBase>(
 export function getSceneFigureIdealHeight(
   rc: RenderContext,
   width: number,
-  item: FigureInputsBase,
+  inputs: FigureInputsBase,
   makeSource: SceneSourceFactory,
 ): HeightConstraints {
   const probe = new RectCoordsDims({ x: 0, y: 0, w: width, h: PROBE_HEIGHT });
-  const { cs: cs1, ms: ms1 } = surroundsAt(rc, probe, item, 1);
+  const { cs: cs1, ms: ms1 } = surroundsAt(rc, probe, inputs, 1);
   const source = makeSource(
     rc,
     cs1.getMergedSceneStyle(),
-    ms1.contentRcd.w(),
+    ms1.bodyRcd.w(),
   );
-  const fit1 = source(ms1.contentRcd.w());
+  const fit1 = source(ms1.bodyRcd.w());
   const minComfortableWidth = sizeAtScale(fit1, probe, ms1, 1).minWidth;
   const neededScalingToFitWidth = width >= minComfortableWidth
     ? 1
     : width / minComfortableWidth;
-  const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+  const autofitOpts = resolveFigureAutofitOptions(inputs.autofit);
   if (!autofitOpts) {
     const idealH = fit1.scene.frame.h + ms1.extraHeightDueToSurrounds;
     return {
@@ -210,9 +214,9 @@ export function getSceneFigureIdealHeight(
   // the height the figure will take at this width, found on the same ladder
   // measureSceneFigure searches, so the block fits the picture.
   const probeAt = memoizeByScale((k: number) => {
-    const ms = k === 1 ? ms1 : surroundsAt(rc, probe, item, k).ms;
+    const ms = k === 1 ? ms1 : surroundsAt(rc, probe, inputs, k).ms;
     return sizeAtScale(
-      k === 1 ? fit1 : source(ms.contentRcd.w() / k),
+      k === 1 ? fit1 : source(ms.bodyRcd.w() / k),
       probe,
       ms,
       k,

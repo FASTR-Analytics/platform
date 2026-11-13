@@ -428,7 +428,7 @@ export type SlicePathParams = {
   // Half of it is taken off each of this slice's own radial edges, as a
   // constant PERPENDICULAR distance from the boundary ray — so a gap is a
   // parallel-sided channel of exactly this width the whole way out, and the
-  // slice reads as a band rather than a wedge whose gap fans open at the rim.
+  // gap stays even rather than fanning open at the rim.
   sliceGap: number;
 };
 
@@ -480,7 +480,7 @@ function resolveSliceInset(p: SlicePathParams): SliceInset | undefined {
 //
 // The closing segment is explicit on purpose: PathSegment has no closePath, and
 // while canvas fill() auto-closes, stroke() does not — a stroked slice would
-// otherwise be missing its closing edge. (Map regions get away with it only
+// otherwise be missing its closing edge. (Map areas get away with it only
 // because GeoJSON polygon rings repeat their first coordinate by spec.)
 export function buildSlicePath(p: SlicePathParams): PathSegment[] {
   const { cx, cy, innerR, outerR, startAngle, endAngle } = p;

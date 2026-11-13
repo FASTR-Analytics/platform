@@ -6,10 +6,10 @@ Core visualization framework providing the foundational rendering system for all
 
 The heart of the Panther visualization system, providing shared infrastructure for all Figure types:
 
-- **Primitive system**: Low-level rendering instructions (points, lines, bars, areas, nodes, edges, axes, grids, captions, legends)
+- **Primitive system**: Low-level rendering instructions (points, lines, bars, areas, nodes, edges, axes, grids, figure texts, legends)
 - **Renderer pattern**: Common `measure()` and `render()` interface
 - **Styling infrastructure**: Consistent style merging across all figures
-- **Surrounds**: Titles, subtitles, footnotes, captions (shared by all figures)
+- **Surrounds**: Titles, subtitles, footnotes (shared by all figures)
 - **Legend**: Measurement and primitive generation for legends
 
 **Chart-specific features** (used by Timeseries and ChartOV):
@@ -55,13 +55,13 @@ renderFigurePrimitives(rc, measured.primitives);
 
 **Chart primitives** (ChartOV, Timeseries):
 
-- `ChartAxisPrimitive`, `ChartGridPrimitive`, `ChartLabelPrimitive`, `ChartDataPointPrimitive`, `ChartLineSeriesPrimitive`, `ChartAreaSeriesPrimitive`, `ChartConnectorPrimitive`, `ChartBarPrimitive`, `ChartErrorBarPrimitive`, `ChartConfidenceBandPrimitive`, `ChartCascadeArrowPrimitive`
+- `ChartAxisPrimitive`, `ChartGridPrimitive`, `ChartHeaderPrimitive`, `ChartDataPointPrimitive`, `ChartLineSeriesPrimitive`, `ChartAreaSeriesPrimitive`, `ChartConnectorPrimitive`, `ChartBarPrimitive`, `ChartErrorBarPrimitive`, `ChartErrorBandPrimitive`, `ChartCascadeArrowPrimitive`
 
-**Figure primitives** (every figure): `FigureCaptionPrimitive`, `FigureLegendPrimitive`, `FigureScaleLegendGradientPrimitive`, `FigureScaleLegendSteppedPrimitive`, `FigureLabelPrimitive`
+**Figure primitives** (every figure): `FigureTextPrimitive`, `FigureLegendPrimitive`, `FigureScaleLegendGradientPrimitive`, `FigureScaleLegendSteppedPrimitive`, `FigureLabelPrimitive`
 
 **Shape primitives** (`shape-rect`, `shape-text`, `shape-path`, `shape-image`): the generic shapes a scene element lowers to (`_010_scene`), each keyed under its element and painted with an optional ambient `opacity`.
 
-**Table**: Uses surrounds primitives for captions/legend
+**Table**: Uses surrounds primitives for the figure's texts and legend
 
 ## Key Concepts
 
@@ -69,7 +69,7 @@ renderFigurePrimitives(rc, measured.primitives);
 
 Charts are composed of:
 
-- **Plot area**: Where data is drawn
+- **sub-chart**: Where data is drawn
 - **Axes**: X and Y axis with labels and ticks
 - **Legend**: Color/shape keys for data series
 - **Surrounds**: Titles, subtitles, footnotes, sources
@@ -115,7 +115,7 @@ measurePane<TData>(
 ### Primitives Generation
 
 ```typescript
-// Generate surrounds primitives (captions + legend)
+// Generate surrounds primitives (figure texts + legend)
 generateSurroundsPrimitives(
   mSurrounds: MeasuredSurrounds,
 ): Primitive[]
@@ -134,7 +134,7 @@ renderFigurePrimitives(
 measureXAxis(...): MeasuredXAxis
 
 // Y-axis measurement
-measureYScaleAxis(...): MeasuredYScaleAxis
+measureYValueAxis(...): MeasuredYValueAxis
 
 // Axis types
 type XAxisType = "period" | "text" | "scale";
@@ -149,7 +149,7 @@ Note: Axis rendering is now handled via primitives (no direct rendering function
 measureLegend(
   rc: RenderContext,
   width: number,
-  legendItems: LegendItem[],
+  legendEntries: LegendEntry[],
 ): MeasuredLegend
 
 // Legend primitives generated via generateSurroundsPrimitives()
@@ -162,10 +162,10 @@ measureSurrounds(
   rc: RenderContext,
   bounds: RectCoordsDims,
   style: CustomFigureStyle,
-  caption?: string,
-  subCaption?: string,
+  title?: string,
+  subtitle?: string,
   footnote?: string | string[],
-  legendItems?: LegendItem[],
+  legendEntries?: LegendEntry[],
 ): MeasuredSurrounds
 
 // Surrounds primitives generated via generateSurroundsPrimitives()
@@ -179,7 +179,7 @@ import { measureChart, renderFigurePrimitives } from "@timroberton/panther";
 // Define chart inputs
 const chartInputs = {
   chartData: data,
-  caption: "Monthly Sales",
+  title: "Monthly Sales",
   style: chartStyle,
 };
 
@@ -208,7 +208,7 @@ renderFigurePrimitives(renderContext, measured.primitives);
 
 ### `_axes/`
 
-Axis measurement and primitive generation for period, text, and scale axes.
+Axis measurement and primitive generation for period, text, and value axes.
 
 ### `_content/`
 
@@ -220,7 +220,7 @@ Legend measurement and primitive generation.
 
 ### `_surrounds/`
 
-Surrounds measurement and primitive generation (captions + legend).
+Surrounds measurement and primitive generation (figure texts + legend).
 
 ### Root files
 

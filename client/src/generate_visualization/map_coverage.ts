@@ -27,7 +27,7 @@ function getMapCoverage(data: MapDataTransformed): MapCoverage {
   }
   const boundaries = new Set<string>();
   for (const feature of data.geoFeatures) {
-    const id = feature.properties?.[data.area.matchProp];
+    const id = feature.properties?.[data.mapArea.matchProp];
     if (id !== undefined && id !== null && id !== "") {
       boundaries.add(String(id));
     }

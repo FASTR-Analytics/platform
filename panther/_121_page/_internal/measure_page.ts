@@ -21,9 +21,9 @@ import type { MeasuredPage, PageInputs } from "../types.ts";
 export function measurePage(
   rc: RenderContext,
   bounds: RectCoordsDims,
-  item: PageInputs,
+  inputs: PageInputs,
 ): MeasuredPage {
-  const pageStyle = new CustomPageStyle(item.style);
+  const pageStyle = new CustomPageStyle(inputs.style);
   const fullPageBounds = bounds;
 
   let boundsForPageType: RectCoordsDims = bounds;
@@ -31,28 +31,28 @@ export function measurePage(
   let splitImageBounds: RectCoordsDims | undefined;
   let splitBackground: PageBackgroundStyle | undefined;
 
-  const splitConfig = getSplitConfig(item.type, pageStyle);
+  const splitConfig = getSplitConfig(inputs.type, pageStyle);
 
   if (splitConfig.placement !== "none") {
     const split = computeSplitBounds(bounds, splitConfig);
     boundsForPageType = split.contentBounds;
     splitImageBounds = split.splitBounds;
     splitBackground = splitConfig.background;
-    if (item.splitImage) {
+    if (inputs.splitImage) {
       measuredSplitImage = ImageRenderer.measure(rc, split.splitBounds, {
-        image: item.splitImage,
+        image: inputs.splitImage,
         fit: "cover",
       });
     }
   }
 
   let result: MeasuredPage;
-  switch (item.type) {
+  switch (inputs.type) {
     case "cover": {
       const style = pageStyle.getMergedCoverStyle();
-      const mWatermark: MeasuredText | undefined = item.watermark?.trim()
+      const mWatermark: MeasuredText | undefined = inputs.watermark?.trim()
         ? rc.mText(
-          item.watermark.trim(),
+          inputs.watermark.trim(),
           style.text.watermark,
           fullPageBounds.w(),
         )
@@ -60,7 +60,7 @@ export function measurePage(
       result = measureCover(
         rc,
         boundsForPageType,
-        item,
+        inputs,
         style,
         fullPageBounds,
         measuredSplitImage,
@@ -70,9 +70,9 @@ export function measurePage(
     }
     case "section": {
       const style = pageStyle.getMergedSectionStyle();
-      const mWatermark: MeasuredText | undefined = item.watermark?.trim()
+      const mWatermark: MeasuredText | undefined = inputs.watermark?.trim()
         ? rc.mText(
-          item.watermark.trim(),
+          inputs.watermark.trim(),
           style.text.watermark,
           fullPageBounds.w(),
         )
@@ -80,7 +80,7 @@ export function measurePage(
       result = measureSection(
         rc,
         boundsForPageType,
-        item,
+        inputs,
         style,
         fullPageBounds,
         measuredSplitImage,
@@ -90,9 +90,9 @@ export function measurePage(
     }
     case "freeform": {
       const style = pageStyle.getMergedFreeformStyle();
-      const mWatermark: MeasuredText | undefined = item.watermark?.trim()
+      const mWatermark: MeasuredText | undefined = inputs.watermark?.trim()
         ? rc.mText(
-          item.watermark.trim(),
+          inputs.watermark.trim(),
           style.text.watermark,
           fullPageBounds.w(),
         )
@@ -100,7 +100,7 @@ export function measurePage(
       result = measureFreeform(
         rc,
         boundsForPageType,
-        item,
+        inputs,
         style,
         fullPageBounds,
         measuredSplitImage,
@@ -109,7 +109,7 @@ export function measurePage(
       break;
     }
     default: {
-      const _exhaustive: never = item;
+      const _exhaustive: never = inputs;
       throw new Error(`Unknown page type: ${_exhaustive}`);
     }
   }

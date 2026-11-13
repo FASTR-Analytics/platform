@@ -37,7 +37,7 @@ export function renderSectionSlide(
   createCanvasRenderContext: CreateCanvasRenderContext,
 ): PptxSlide {
   const slide = pptx.addSlide() as unknown as PptxSlide;
-  const item = measured.item;
+  const inputs = measured.inputs;
   const bounds = measured.bounds;
   const s = measured.style;
 
@@ -69,7 +69,7 @@ export function renderSectionSlide(
   if (measured.measuredSplitImage) {
     const splitImg = measured.measuredSplitImage;
     const imgDataUrl = imageToDataUrl(
-      splitImg.item.image as HTMLImageElement,
+      splitImg.inputs.image as HTMLImageElement,
       createCanvasRenderContext,
     );
     slide.addImage({
@@ -82,9 +82,9 @@ export function renderSectionSlide(
   }
 
   // Overlay image
-  if (item.overlay) {
+  if (inputs.overlay) {
     const overlayDataUrl = imageToDataUrl(
-      item.overlay,
+      inputs.overlay,
       createCanvasRenderContext,
     );
     slide.addImage({
@@ -101,12 +101,12 @@ export function renderSectionSlide(
   const sectionTitleH = measured.mSectionTitle
     ? measured.mSectionTitle.dims.h()
     : 0;
-  const sectionSubTitleH = measured.mSectionSubTitle
-    ? measured.mSectionSubTitle.dims.h()
+  const sectionSubtitleH = measured.mSectionSubtitle
+    ? measured.mSectionSubtitle.dims.h()
     : 0;
 
   const totalH = sectionTitleH +
-    (sectionSubTitleH > 0 ? s.sectionTitleBottomPadding + sectionSubTitleH : 0);
+    (sectionSubtitleH > 0 ? s.sectionTitleBottomPadding + sectionSubtitleH : 0);
   let currentY = getStartY(bounds, padding, s.alignV, totalH);
 
   // Render each text element at its measured position
@@ -122,10 +122,10 @@ export function renderSectionSlide(
     currentY += sectionTitleH + s.sectionTitleBottomPadding;
   }
 
-  if (measured.mSectionSubTitle && sectionSubTitleH > 0) {
+  if (measured.mSectionSubtitle && sectionSubtitleH > 0) {
     addMeasuredTextToSlide(
       slide,
-      measured.mSectionSubTitle,
+      measured.mSectionSubtitle,
       bounds,
       padding,
       s.alignH,
@@ -134,9 +134,9 @@ export function renderSectionSlide(
   }
 
   // Watermark
-  if (item.watermark) {
-    const mText = rc.mText(item.watermark, s.text.watermark, bounds.w());
-    slide.addText(item.watermark, {
+  if (inputs.watermark) {
+    const mText = rc.mText(inputs.watermark, s.text.watermark, bounds.w());
+    slide.addText(inputs.watermark, {
       x: pixelsToInches(bounds.x()),
       y: pixelsToInches(bounds.centerY() - mText.dims.h() / 2),
       w: pixelsToInches(bounds.w()),

@@ -398,7 +398,7 @@ function chainLoops(segs: RawSegment[]): Point[][] {
 
 // Extracting from the raster puts each vertex within about a pitch of the true
 // level set. Pull it onto the exact level by stepping along the field gradient:
-// the field is exact in this band (see distance_field.ts), so a few Newton
+// the field is exact within this distance (see distance_field.ts), so a few Newton
 // steps land the vertex on the real curve rather than the rasterised one.
 const REFINE_TOLERANCE_DU = 0.01;
 

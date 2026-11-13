@@ -141,9 +141,9 @@ function measureStepped(
     boundaries.push(step.max);
   }
 
-  const labelMeasurements = boundaries.map((val) =>
+  const labelMeasurements = boundaries.map((value) =>
     rc.mText(
-      formatLabel(val, config.labelFormatter),
+      formatLabel(value, config.labelFormatter),
       s.text,
       Number.POSITIVE_INFINITY,
     )

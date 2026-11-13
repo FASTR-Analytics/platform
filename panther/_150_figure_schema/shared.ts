@@ -3,18 +3,18 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { slotHeaders, z } from "./deps.ts";
+import { getDimensionMembers, z } from "./deps.ts";
 import type {
-  AxisMembership,
-  ChartScaleAxisLimits,
-  ChartScaleAxisLimitsEntry,
-  ChartScaleAxisPaneLimits,
-  DataAxis,
-  HeaderItem,
-  HeaderSortConfig,
-  HeaderSortFunc,
+  ChartValueAxisLimits,
+  ChartValueAxisLimitsEntry,
+  ChartValueAxisPaneLimits,
+  DataDimension,
+  DimensionMember,
+  DimensionMembership,
   JsonArray,
   JsonArrayItem,
+  MemberSortConfig,
+  MemberSortFunc,
   PeriodType,
   UncertaintyConfig,
 } from "./deps.ts";
@@ -23,7 +23,7 @@ import type {
 // (the _010_* types remain the single source of truth). A type change the
 // schema does not track fails `deno task typecheck`. Mutual assignability
 // rather than strict identity: identity distinguishes intersection types
-// (e.g. ChartScaleAxisPaneLimits) from their flattened object equivalents.
+// (e.g. ChartValueAxisPaneLimits) from their flattened object equivalents.
 export type Conforms<A, B> = [A] extends [B] ? [B] extends [A] ? true
   : false
   : false;
@@ -62,32 +62,37 @@ export const zValues5D: z.ZodType<(number | undefined)[][][][][]> = z.array(
   z.array(z.array(z.array(z.array(zValueCell)))),
 );
 
-export const zChartBounds = z.object({
+export const zChartUncertainty = z.object({
   ub: zValues5D,
   lb: zValues5D,
 });
 
-export const zHeaderItem = z.object({
+export const zDimensionMember = z.object({
   id: z.string(),
   label: z.string(),
 });
-const _zHeaderItemConforms: Conforms<z.infer<typeof zHeaderItem>, HeaderItem> =
-  true;
+const _zDimensionMemberConforms: Conforms<
+  z.infer<typeof zDimensionMember>,
+  DimensionMember
+> = true;
 
-export const zHeaderItems = z.array(zHeaderItem);
+export const zDimensionMembers = z.array(zDimensionMember);
 
-export const zDataAxis = z.object({
-  dimension: z.string(),
-  headers: zHeaderItems,
+export const zDataDimension = z.object({
+  name: z.string(),
+  members: zDimensionMembers,
 });
-const _zDataAxisConforms: Conforms<z.infer<typeof zDataAxis>, DataAxis> = true;
+const _zDataDimensionConforms: Conforms<
+  z.infer<typeof zDataDimension>,
+  DataDimension
+> = true;
 
-const zHeaderSortFunc = z.custom<HeaderSortFunc>(
+const zMemberSortFunc = z.custom<MemberSortFunc>(
   (v) => typeof v === "function",
 );
 
-export const zHeaderSortConfig: z.ZodType<HeaderSortConfig> = z.union([
-  zHeaderSortFunc,
+export const zMemberSortConfig: z.ZodType<MemberSortConfig> = z.union([
+  zMemberSortFunc,
   z.literal("by-label"),
   z.literal("by-id"),
   z.object({ byIdOrder: z.array(z.string()) }),
@@ -112,9 +117,9 @@ export const zJsonArray: z.ZodType<JsonArray> = z.array(zJsonArrayItem);
 export const zUncertaintyConfig: z.ZodType<UncertaintyConfig> = z.union([
   z.object({
     uncertaintyProp: z.string(),
-    peValue: z.string(),
-    ubValue: z.string(),
-    lbValue: z.string(),
+    peMemberId: z.string(),
+    ubMemberId: z.string(),
+    lbMemberId: z.string(),
   }),
   z.object({
     ubValueProps: z.array(z.string()),
@@ -122,25 +127,31 @@ export const zUncertaintyConfig: z.ZodType<UncertaintyConfig> = z.union([
   }),
 ]);
 
-export const zAxisMembership = z.enum(["balanced", "unbalanced"]);
-const _zAxisMembershipConforms: Conforms<
-  z.infer<typeof zAxisMembership>,
-  AxisMembership
+export const zDimensionMembership = z.enum(["balanced", "unbalanced"]);
+const _zDimensionMembershipConforms: Conforms<
+  z.infer<typeof zDimensionMembership>,
+  DimensionMembership
 > = true;
 
 // Per-pane masks (global indices; array order is the slot order) on the
 // transformed-data types (indicators, tiers, or lanes).
 export const zVisibleByPane = z.array(z.array(z.number()));
 
-// Per-(pane, band) visible indicator subsets for proportional band layout,
-// indexed [pane][global band index][visible global indicator indices].
-export const zVisibleByPaneBand = z.array(zVisibleByPane);
+// Per-(pane, tier or lane) visible indicator subsets for proportional layout,
+// indexed [pane][global tier or lane index][visible global indicator indices].
+export const zVisibleByPaneTierOrLane = z.array(zVisibleByPane);
 
-// Proportional (ragged-table) layout config. strict: a stray key must error,
+// Proportional (ragged-table) layout configs. strict: a stray key must error,
 // not be silently stripped — see validateChartProportional for the rule
-// (panes implies bands; { bands: false, panes: true } is rejected there).
-export const zChartProportional = z.strictObject({
-  bands: z.boolean().optional(),
+// (panes implies the tier-or-lane key; { lanes: false, panes: true } is
+// rejected there).
+export const zChartOVProportional = z.strictObject({
+  lanes: z.boolean().optional(),
+  panes: z.boolean().optional(),
+});
+
+export const zChartOHProportional = z.strictObject({
+  tiers: z.boolean().optional(),
   panes: z.boolean().optional(),
 });
 
@@ -148,56 +159,57 @@ export const zPeriodType = z.enum(["year-month", "year-quarter", "year"]);
 const _zPeriodTypeConforms: Conforms<z.infer<typeof zPeriodType>, PeriodType> =
   true;
 
-export const zChartScaleAxisLimitsEntry = z.object({
+export const zChartValueAxisLimitsEntry = z.object({
   valueMin: z.number(),
   valueMax: z.number(),
 });
-const _zChartScaleAxisLimitsEntryConforms: Conforms<
-  z.infer<typeof zChartScaleAxisLimitsEntry>,
-  ChartScaleAxisLimitsEntry
+const _zChartValueAxisLimitsEntryConforms: Conforms<
+  z.infer<typeof zChartValueAxisLimitsEntry>,
+  ChartValueAxisLimitsEntry
 > = true;
 
-export const zChartScaleAxisPaneLimits = z.object({
+export const zChartValueAxisPaneLimits = z.object({
   valueMin: z.number(),
   valueMax: z.number(),
-  tierLimits: z.array(zChartScaleAxisLimitsEntry),
-  laneLimits: z.array(zChartScaleAxisLimitsEntry),
+  tierLimits: z.array(zChartValueAxisLimitsEntry),
+  laneLimits: z.array(zChartValueAxisLimitsEntry),
 });
-const _zChartScaleAxisPaneLimitsConforms: Conforms<
-  z.infer<typeof zChartScaleAxisPaneLimits>,
-  ChartScaleAxisPaneLimits
+const _zChartValueAxisPaneLimitsConforms: Conforms<
+  z.infer<typeof zChartValueAxisPaneLimits>,
+  ChartValueAxisPaneLimits
 > = true;
 
-export const zChartScaleAxisLimits = z.object({
-  paneLimits: z.array(zChartScaleAxisPaneLimits),
+export const zChartValueAxisLimits = z.object({
+  paneLimits: z.array(zChartValueAxisPaneLimits),
 });
-const _zChartScaleAxisLimitsConforms: Conforms<
-  z.infer<typeof zChartScaleAxisLimits>,
-  ChartScaleAxisLimits
+const _zChartValueAxisLimitsConforms: Conforms<
+  z.infer<typeof zChartValueAxisLimits>,
+  ChartValueAxisLimits
 > = true;
 
 // Mirrors the malformed-limits condition in the consumer migration gate
 // (pre-2026 blobs stored truncated tierLimits, e.g. length 1 on a 3-tier
-// chart): every per-pane tierLimits/laneLimits array must match the header
+// chart): every per-pane tierLimits/laneLimits array must match the member
 // counts, so those blobs fail and trigger the upgrader.
-export function chartLimitsMatchHeaders(d: {
-  pane?: DataAxis;
-  tier?: DataAxis;
-  lane?: DataAxis;
-  scaleAxisLimits: ChartScaleAxisLimits;
+export function chartLimitsMatchMembers(d: {
+  pane?: DataDimension;
+  tier?: DataDimension;
+  lane?: DataDimension;
+  valueAxisLimits: ChartValueAxisLimits;
 }): boolean {
   return (
-    d.scaleAxisLimits.paneLimits.length === slotHeaders(d.pane).length &&
-    d.scaleAxisLimits.paneLimits.every(
+    d.valueAxisLimits.paneLimits.length ===
+      getDimensionMembers(d.pane).length &&
+    d.valueAxisLimits.paneLimits.every(
       (p) =>
-        p.tierLimits.length === slotHeaders(d.tier).length &&
-        p.laneLimits.length === slotHeaders(d.lane).length,
+        p.tierLimits.length === getDimensionMembers(d.tier).length &&
+        p.laneLimits.length === getDimensionMembers(d.lane).length,
     )
   );
 }
 
 export const CHART_LIMITS_LENGTH_MESSAGE =
-  "scaleAxisLimits pane/tier/lane lengths must match headers";
+  "valueAxisLimits pane/tier/lane lengths must match members";
 
 // Present-and-object, nothing more — for deliberately unvalidated members.
 // The validator must reject undefined: a validator accepting undefined would

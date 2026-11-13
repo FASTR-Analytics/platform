@@ -9,13 +9,13 @@ import type { RegionIndex, ResolvedSpan } from "../../_internal/regions.ts";
 import type { LayoutWarning } from "../../types_geometry.ts";
 import type { RankResult } from "./_1_1_rank.ts";
 
-// Step 1.2: span claims resolved against the layers. Each lane / span
+// Step 1.2: span claims resolved against the layers. Each band / span
 // group takes the contiguous layer-index range of its members, then keeps
 // its claim only if (1) every node in that range is a member (exclusive
-// along the flow axis — otherwise a lane box would lie) and (2) it is
+// along the flow axis — otherwise a band box would lie) and (2) it is
 // nested-or-disjoint against every earlier survivor (spans form a laminar
 // family). Violations are warnings, never throws; a dropped claim leaves
-// the drawing exactly as it would be without it. Lanes listed out of flow
+// the drawing exactly as it would be without it. Bands listed out of flow
 // order keep their claims and warn.
 export const spansStep: PipelineStep = {
   id: "1.2",
@@ -85,15 +85,15 @@ export function resolveSpans(
     }
     resolved.push({ region, fromLayerIndex, toLayerIndex });
   }
-  const lanes = resolved.filter((span) => span.region.source === "lane");
-  for (let i = 1; i < lanes.length; i++) {
-    if (lanes[i].fromLayerIndex < lanes[i - 1].fromLayerIndex) {
+  const bands = resolved.filter((span) => span.region.source === "band");
+  for (let i = 1; i < bands.length; i++) {
+    if (bands[i].fromLayerIndex < bands[i - 1].fromLayerIndex) {
       warnings.push({
-        code: "lane-order",
-        message: `lane "${lanes[i].region.id}" is listed after "${
-          lanes[i - 1].region.id
+        code: "band-order",
+        message: `band "${bands[i].region.id}" is listed after "${
+          bands[i - 1].region.id
         }" but its layers come first`,
-        ids: [lanes[i - 1].region.id, lanes[i].region.id],
+        ids: [bands[i - 1].region.id, bands[i].region.id],
       });
     }
   }

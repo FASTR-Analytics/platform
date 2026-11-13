@@ -15,7 +15,7 @@ import { crossingsAround, swap } from "./crossings.ts";
 const MAX_FINISH_ROUNDS = 32;
 
 // Step 3.3 — the ordering finish (DOC_VIZGRAPH_ORDERING.md): after the
-// sweeps and the contiguity companion, alternate dummy-band alignment and
+// sweeps and the contiguity companion, alternate dummy-run alignment and
 // the contiguity-safe transpose until neither changes. The quiet exit
 // CERTIFIES the joint fixpoint, which is what keeps relayout byte-identical:
 // on an adopted prior ordering both passes verify as no-ops, so the stored
@@ -36,9 +36,9 @@ export function finishOrdering(
   warnings: LayoutWarning[],
 ): void {
   for (let round = 0; round < MAX_FINISH_ROUNDS; round++) {
-    const bandsChanged = alignDummyBands(proper);
+    const runsChanged = alignDummyRuns(proper);
     const transposed = transposeFinish(proper, groupIndex);
-    if (!bandsChanged && !transposed) {
+    if (!runsChanged && !transposed) {
       return;
     }
   }
@@ -49,16 +49,16 @@ export function finishOrdering(
   });
 }
 
-// The dummy-band alignment policy (DOC_VIZGRAPH_ORDERING.md): each maximal
+// The dummy-run alignment policy (DOC_VIZGRAPH_ORDERING.md): each maximal
 // run of consecutive dummies re-sorts by chain-neighbor barycenter (mean of
 // the chain neighbors' current orders), ties keeping the incoming order.
-// The sweeps order dummy bands only as far as the crossing signal reaches —
-// on a crossing-count plateau a band can keep its seed order and scissor
-// its own chains; aligning to the neighbors straightens the chains. A band's
+// The sweeps order dummy runs only as far as the crossing signal reaches —
+// on a crossing-count plateau a run can keep its seed order and scissor
+// its own chains; aligning to the neighbors straightens the chains. A run's
 // re-sort is kept only when it does not increase crossings (the guard that
 // makes the ordering finish converge instead of undoing transpose wins).
 // Never moves a real node, so it cannot disturb group contiguity.
-export function alignDummyBands(proper: ProperGraph): boolean {
+export function alignDummyRuns(proper: ProperGraph): boolean {
   const layers = proper.layers;
   let changed = false;
   for (let i = 0; i < layers.length; i++) {
@@ -86,14 +86,14 @@ export function alignDummyBands(proper: ProperGraph): boolean {
             ) / neighbors.length,
           );
         }
-        const band = [...original].sort((a, b) =>
+        const run = [...original].sort((a, b) =>
           keys.get(a)! - keys.get(b)! || a.order - b.order
         );
-        if (band.some((pnode, k) => pnode !== original[k])) {
+        if (run.some((pnode, k) => pnode !== original[k])) {
           const before = crossingsAround(layers, i);
-          placeBand(layer, start, band);
+          placeDummyRun(layer, start, run);
           if (crossingsAround(layers, i) > before) {
-            placeBand(layer, start, original);
+            placeDummyRun(layer, start, original);
           } else {
             changed = true;
           }
@@ -105,10 +105,10 @@ export function alignDummyBands(proper: ProperGraph): boolean {
   return changed;
 }
 
-function placeBand(layer: PNode[], start: number, band: PNode[]): void {
-  for (let k = 0; k < band.length; k++) {
-    layer[start + k] = band[k];
-    band[k].order = start + k;
+function placeDummyRun(layer: PNode[], start: number, run: PNode[]): void {
+  for (let k = 0; k < run.length; k++) {
+    layer[start + k] = run[k];
+    run[k].order = start + k;
   }
 }
 
@@ -118,7 +118,7 @@ function placeBand(layer: PNode[], start: number, band: PNode[]): void {
 // contiguity (a dummy may swap with anything; two real nodes only when they
 // share the same group path). The sweeps' own transpose runs BEFORE the
 // contiguity companion, so orderings it could never see — dummies inside
-// group spans, band-aligned chains — are re-optimized here. Loops to its
+// group spans, run-aligned chains — are re-optimized here. Loops to its
 // fixpoint: every accepted swap strictly lowers the total, so it terminates.
 export function transposeFinish(
   proper: ProperGraph,

@@ -27,10 +27,10 @@ export type PlacementPlan = PlacementPass[];
 
 // The clearance every pass must keep between two order-adjacent nodes:
 // the base gap plus whatever group-box padding each side reserves (PNode
-// pads). The base gap is dummy-aware: two dummies are edge lanes in a
+// pads). The base gap is dummy-aware: two dummies are edge tracks in a
 // cable run and take the track-scale trackGap; any pair with a real box on
 // either side keeps the box-scale nodeGap (the house look stays loose
-// between boxes, and the first lane keeps full breathing room against
+// between boxes, and the first track keeps full breathing room against
 // content). With no groups and no dummies this is exactly nodeGap.
 export function requiredGap(
   above: PNode,

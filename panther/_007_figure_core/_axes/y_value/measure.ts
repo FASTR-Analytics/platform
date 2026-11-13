@@ -6,61 +6,61 @@
 import {
   buildAutoFormatter,
   type MergedGridStyle,
-  type MergedYScaleAxisStyle,
+  type MergedYValueAxisStyle,
   type RectCoordsDims,
   type RenderContext,
   toAbbrevAuto,
 } from "../../deps.ts";
 import { SIZING_SAMPLE } from "../../dimension_helpers.ts";
 import type {
-  ChartScaleAxisLimits,
+  ChartValueAxisLimits,
   YAxisWidthInfoBase,
-  YScaleAxisWidthInfo,
+  YValueAxisWidthInfo,
 } from "../../types.ts";
 import { getGoodAxisTickValues } from "../get_good_axis_tick_values.ts";
-import { resolveScaleAxisLimits } from "../resolve_scale_axis_limits.ts";
+import { resolveValueAxisLimits } from "../resolve_value_axis_limits.ts";
 
-function measureYScaleAxisLabelAndLabelGapWidth(
+function measureYValueAxisLabelAndGapWidth(
   rc: RenderContext,
   axisLabel: string | undefined,
-  sy: MergedYScaleAxisStyle,
+  sy: MergedYValueAxisStyle,
 ): number {
   if (!axisLabel) return 0;
   return rc.mText(
     axisLabel,
-    sy.text.yScaleAxisLabel,
+    sy.text.yValueAxisLabel,
     Number.POSITIVE_INFINITY,
     { rotation: "anticlockwise" },
-  ).dims.w() + sy.labelGap;
+  ).dims.w() + sy.axisLabelGap;
 }
 
-function measureYScaleAxisWidth(
+function measureYValueAxisWidth(
   rc: RenderContext,
   axisLabel: string | undefined,
-  sy: MergedYScaleAxisStyle,
+  sy: MergedYValueAxisStyle,
   sg: MergedGridStyle,
   tickLabelW: number,
   tierHeaderAndLabelGapWidth: number,
 ): number {
   if (sy.exactAxisX !== "none") return sy.exactAxisX + sg.axisStrokeWidth;
   return tierHeaderAndLabelGapWidth +
-    measureYScaleAxisLabelAndLabelGapWidth(rc, axisLabel, sy) +
-    tickLabelW + sy.tickLabelGap + sy.tickWidth + sg.axisStrokeWidth;
+    measureYValueAxisLabelAndGapWidth(rc, axisLabel, sy) +
+    tickLabelW + sy.tickLabelGap + sy.tickLength + sg.axisStrokeWidth;
 }
 
-export function estimateMinYScaleAxisWidth(
+export function estimateMinYValueAxisWidth(
   rc: RenderContext,
   axisLabel: string | undefined,
-  sy: MergedYScaleAxisStyle,
+  sy: MergedYValueAxisStyle,
   sg: MergedGridStyle,
   tierHeaderAndLabelGapWidth: number,
 ): number {
   const sampleLabel = rc.mText(
-    SIZING_SAMPLE.scaleTickWide,
-    sy.text.yScaleAxisTickLabels,
+    SIZING_SAMPLE.valueAxisTickWide,
+    sy.text.yValueAxisTickLabels,
     Infinity,
   );
-  return measureYScaleAxisWidth(
+  return measureYValueAxisWidth(
     rc,
     axisLabel,
     sy,
@@ -70,22 +70,22 @@ export function estimateMinYScaleAxisWidth(
   );
 }
 
-export function measureYScaleAxisWidthInfo(
+export function measureYValueAxisWidthInfo(
   rc: RenderContext,
-  dy: ChartScaleAxisLimits,
+  dy: ChartValueAxisLimits,
   axisLabel: string | undefined,
-  sy: MergedYScaleAxisStyle,
+  sy: MergedYValueAxisStyle,
   sg: MergedGridStyle,
-  contentRcd: RectCoordsDims,
+  innerRcd: RectCoordsDims,
   i_pane: number,
   tierHeaderAndLabelGapWidth: number,
-  tierCount: number,
-): YScaleAxisWidthInfo {
-  const guessSubChartH = (contentRcd.h() * 0.8) / tierCount;
+  nTiers: number,
+): YValueAxisWidthInfo {
+  const guessSubChartH = (innerRcd.h() * 0.8) / nTiers;
   const yAxisTickLabelH = rc
     .mText(
-      SIZING_SAMPLE.scaleTickPct,
-      sy.text.yScaleAxisTickLabels,
+      SIZING_SAMPLE.valueAxisTickPct,
+      sy.text.yValueAxisTickLabels,
       Number.POSITIVE_INFINITY,
     )
     .dims.h();
@@ -99,14 +99,14 @@ export function measureYScaleAxisWidthInfo(
     ? formatterOption
     : undefined;
 
-  const yAxisTickValues = Array.from({ length: tierCount }, (_, i_tier) => {
+  const yAxisTickValues = Array.from({ length: nTiers }, (_, i_tier) => {
     const dataMin = sy.allowIndividualTierLimits
       ? (dy.paneLimits[i_pane].tierLimits[i_tier]?.valueMin ?? 0)
       : dy.paneLimits[i_pane].valueMin;
     const dataMax = sy.allowIndividualTierLimits
       ? (dy.paneLimits[i_pane].tierLimits[i_tier]?.valueMax ?? 1)
       : dy.paneLimits[i_pane].valueMax;
-    const { minVal, maxVal } = resolveScaleAxisLimits(
+    const { valueMin, valueMax } = resolveValueAxisLimits(
       sy.min,
       sy.max,
       i_pane,
@@ -114,8 +114,8 @@ export function measureYScaleAxisWidthInfo(
       dataMax,
     );
     return getGoodAxisTickValues(
-      maxVal,
-      minVal,
+      valueMax,
+      valueMin,
       guessMaxNTicks,
       formatterForUniquenessCheck,
     );
@@ -129,19 +129,19 @@ export function measureYScaleAxisWidthInfo(
       : toAbbrevAuto;
 
   let maxYTickWidth = 0;
-  for (const rowYTickVals of yAxisTickValues) {
-    for (const tickVal of rowYTickVals) {
-      const tickLabel = tickLabelFormatter(tickVal);
+  for (const rowYTickValues of yAxisTickValues) {
+    for (const tickValue of rowYTickValues) {
+      const tickLabel = tickLabelFormatter(tickValue);
       const mTickLabel = rc.mText(
         tickLabel,
-        sy.text.yScaleAxisTickLabels,
+        sy.text.yValueAxisTickLabels,
         9999,
       );
       maxYTickWidth = Math.max(maxYTickWidth, mTickLabel.dims.w());
     }
   }
 
-  const widthIncludingYAxisStrokeWidth = measureYScaleAxisWidth(
+  const widthIncludingYAxisStrokeWidth = measureYValueAxisWidth(
     rc,
     axisLabel,
     sy,
@@ -159,32 +159,32 @@ export function measureYScaleAxisWidthInfo(
   };
 }
 
-export function measureYScaleAxis(
+export function measureYValueAxis(
   topHeightForLaneHeaders: number,
-  xAxisAreaHeightIncludingStroke: number,
+  xAxisHeightIncludingStroke: number,
   yAxisWidthInfo: YAxisWidthInfoBase,
   tiers: { paddingTop: number; paddingBottom: number; gapY: number },
-  contentRcd: RectCoordsDims,
-  tierCount: number,
+  innerRcd: RectCoordsDims,
+  nTiers: number,
   tierHeaderAndLabelGapHeight: number,
 ): {
   yAxisRcd: RectCoordsDims;
-  subChartAreaHeight: number;
+  uniformSubChartHeight: number;
 } {
   const my = yAxisWidthInfo;
 
-  const yAxisRcd = contentRcd.getAdjusted((prev) => ({
+  const yAxisRcd = innerRcd.getAdjusted((prev) => ({
     y: prev.y() + topHeightForLaneHeaders,
     w: my.widthIncludingYAxisStrokeWidth,
-    h: prev.h() - (topHeightForLaneHeaders + xAxisAreaHeightIncludingStroke),
+    h: prev.h() - (topHeightForLaneHeaders + xAxisHeightIncludingStroke),
   }));
 
-  const subChartAreaHeight = (yAxisRcd.h() -
+  const uniformSubChartHeight = (yAxisRcd.h() -
     (tiers.paddingTop +
-      (tierCount - 1) * tiers.gapY +
+      (nTiers - 1) * tiers.gapY +
       tiers.paddingBottom +
-      tierCount * tierHeaderAndLabelGapHeight)) /
-    tierCount;
+      nTiers * tierHeaderAndLabelGapHeight)) /
+    nTiers;
 
-  return { yAxisRcd, subChartAreaHeight };
+  return { yAxisRcd, uniformSubChartHeight };
 }

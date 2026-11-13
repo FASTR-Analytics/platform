@@ -6,11 +6,12 @@
 import {
   calculateChartIdealHeight,
   calculateChartMinWidth,
-  calculateMinLabelPlotExtent,
+  calculateMinLabelSubChartExtent,
   type ChartComponentSizes,
   computeFloorScale,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
+  getDimensionMembers,
   type HeightConstraints,
   type LegendInput,
   measureChartWithAutofit,
@@ -22,7 +23,6 @@ import {
   resolveFigureAutofitOptions,
   resolvePaneGrid,
   SIZING_SAMPLE,
-  slotHeaders,
 } from "./deps.ts";
 import type { MeasuredPie, PieInputs } from "./types.ts";
 import { getPieDataTransformed } from "./get_pie_data.ts";
@@ -39,21 +39,21 @@ import { measurePie } from "./_internal/measure_pie.ts";
 import { renderPie } from "./_internal/render_pie.ts";
 
 export const PieRenderer: Renderer<PieInputs, MeasuredPie> = {
-  isType(item: unknown): item is PieInputs {
-    return typeof item === "object" && item !== null &&
-      "figureType" in item && item.figureType === "pie";
+  isType(inputs: unknown): inputs is PieInputs {
+    return typeof inputs === "object" && inputs !== null &&
+      "figureType" in inputs && inputs.figureType === "pie";
   },
 
   measure(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: PieInputs,
+    inputs: PieInputs,
   ): MeasuredPie {
     return measureChartWithAutofit(
       rc,
       bounds,
-      item,
-      (scale) => getPieComponentSizes(rc, item, scale),
+      inputs,
+      (scale) => getPieComponentSizes(rc, inputs, scale),
       measurePie,
     );
   },
@@ -65,32 +65,32 @@ export const PieRenderer: Renderer<PieInputs, MeasuredPie> = {
   measureAndRender(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: PieInputs,
+    inputs: PieInputs,
   ): void {
-    this.render(rc, this.measure(rc, bounds, item));
+    this.render(rc, this.measure(rc, bounds, inputs));
   },
 
   getIdealHeight(
     rc: RenderContext,
     width: number,
-    item: PieInputs,
+    inputs: PieInputs,
   ): HeightConstraints {
-    return getPieIdealHeight(rc, width, item);
+    return getPieIdealHeight(rc, width, inputs);
   },
 };
 
 export function getPieComponentSizes(
   rc: RenderContext,
-  item: PieInputs,
+  inputs: PieInputs,
   scale: number,
 ): ChartComponentSizes {
   const customFigureStyle = new CustomFigureStyle(
-    item.style,
+    inputs.style,
     scale,
-    item.autofitSurrounds,
+    inputs.autofitSurrounds,
   );
   const mergedStyle = customFigureStyle.getMergedPieStyle();
-  const transformedData = getPieDataTransformed(item.data);
+  const transformedData = getPieDataTransformed(inputs.data);
 
   // Measured from the (scaled) data-label style, so the floor shrinks with
   // the style scale. The floors are not equal per direction:
@@ -108,12 +108,12 @@ export function getPieComponentSizes(
   // The gap term is geometry: the rim is π·d and each slice
   // boundary removes a sliceGap channel. A necessary bound, not a guarantee;
   // it contributes nothing at the default sliceGap 0.
-  const minLabelPlotExtent = calculateMinLabelPlotExtent(
+  const minLabelSubChartExtent = calculateMinLabelSubChartExtent(
     rc,
     mergedStyle.text.dataLabels,
   );
   const minSlotDiameter = Math.max(
-    minLabelPlotExtent,
+    minLabelSubChartExtent,
     mergedStyle.pie.sliceGap > 0
       ? maxSlicesPerPie(transformedData, mergedStyle) *
         mergedStyle.pie.sliceGap / Math.PI
@@ -131,7 +131,7 @@ export function getPieComponentSizes(
   // ceil(sqrt(n)). That overstates the demand for a wide, short
   // frame — conservative in the safe direction: an overstated floor only
   // makes autofit shrink type marginally earlier than it had to.
-  const nIndicators = slotHeaders(transformedData.indicator).length;
+  const nIndicators = getDimensionMembers(transformedData.indicator).length;
   const nSlotCols = Math.ceil(Math.sqrt(nIndicators));
   const nSlotRows = Math.ceil(nIndicators / nSlotCols);
   const ind = mergedStyle.pie.indicators;
@@ -147,16 +147,16 @@ export function getPieComponentSizes(
 
   // Categorical, not a scale legend: the swatches are the slices.
   const resolvedLegendLabels: LegendInput | undefined = resolveDefaultLegend(
-    item.legend,
+    inputs.legend,
     transformedData.series,
   );
 
   return {
     customFigureStyle,
     mergedStyle,
-    nLanes: slotHeaders(transformedData.lane).length,
-    nTiers: slotHeaders(transformedData.tier).length,
-    nPanes: slotHeaders(transformedData.pane).length,
+    nLanes: getDimensionMembers(transformedData.lane).length,
+    nTiers: getDimensionMembers(transformedData.tier).length,
+    nPanes: getDimensionMembers(transformedData.pane).length,
     minSubChartWidth: nSlotCols * (minSlotDiameter + labelBudget.horizontal) +
       (nSlotCols - 1) * ind.gapX,
     // The vertical demand COMBINES differently by placer: under
@@ -178,7 +178,7 @@ export function getPieComponentSizes(
       .dims.h(),
     minYAxisWidth: 0,
     // The 4th argument matters: without it the estimator synthesizes
-    // { id: label, label } headers, so a seriesColorFunc keyed on .id with
+    // { id: label, label } members, so a seriesColorFunc keyed on .id with
     // labelReplacements active would estimate the wrong width.
     surroundsMinWidth: estimateMinSurroundsWidth(
       rc,
@@ -211,59 +211,64 @@ export function getPieComponentSizes(
 function getPieIdealHeight(
   rc: RenderContext,
   width: number,
-  item: PieInputs,
+  inputs: PieInputs,
 ): HeightConstraints {
-  const info = getPieComponentSizes(rc, item, 1);
+  const info = getPieComponentSizes(rc, inputs, 1);
   const paneGrid = resolvePaneGrid(info, width);
-  const { nGCols } = paneGrid;
+  const { nCols: nPaneCols } = paneGrid;
 
   const laneGapsWidth = (info.nLanes - 1) * info.mergedStyle.lanes.gapX *
-    nGCols;
-  const paneGapsWidth = (nGCols - 1) * info.mergedStyle.panes.gapX;
+    nPaneCols;
+  const paneGapsWidth = (nPaneCols - 1) * info.mergedStyle.panes.gapX;
   const lanePaddingWidth =
     (info.mergedStyle.lanes.paddingLeft + info.mergedStyle.lanes.paddingRight) *
-    nGCols;
-  const cellW = (width -
+    nPaneCols;
+  const subChartWidth = (width -
     info.surroundsMinWidth -
     laneGapsWidth -
     paneGapsWidth -
     lanePaddingWidth) /
-    (nGCols * info.nLanes);
+    (nPaneCols * info.nLanes);
 
-  const transformedData = getPieDataTransformed(item.data);
+  const transformedData = getPieDataTransformed(inputs.data);
   const mergedStyle = new CustomFigureStyle(
-    item.style,
+    inputs.style,
     1,
-    item.autofitSurrounds,
+    inputs.autofitSurrounds,
   )
     .getMergedPieStyle();
-  const contentFloor = calculateMinLabelPlotExtent(
+  const contentFloor = calculateMinLabelSubChartExtent(
     rc,
     mergedStyle.text.dataLabels,
   );
 
   const ctx = buildSlotObjectiveContext(rc, transformedData, mergedStyle);
-  const idealCols = resolveIdealSlotCols(ctx, cellW, contentFloor);
-  const cellH = idealSubChartHeightAt(ctx, idealCols, cellW, contentFloor);
+  const idealCols = resolveIdealSlotCols(ctx, subChartWidth, contentFloor);
+  const subChartHeight = idealSubChartHeightAt(
+    ctx,
+    idealCols,
+    subChartWidth,
+    contentFloor,
+  );
 
   const idealH = calculateChartIdealHeight(
     rc,
     width,
-    { ...info, minSubChartHeight: cellH },
-    item,
+    { ...info, minSubChartHeight: subChartHeight },
+    inputs,
     paneGrid,
   );
 
   const minComfortableWidth = calculateChartMinWidth(info);
 
   // minH is derived from the real floor at the autofit floor scale, exactly
-  // as the scale-axis charts derive theirs, never idealH × 0.5, which would
+  // as the value-axis charts derive theirs, never idealH × 0.5, which would
   // both hide a missing clamp (the layouter never allocates below it) and
   // overstate the true floor by ~4x. getPieComponentSizes'
   // minSubChartHeight IS the legibility floor, so the shared decomposition at
   // floorScale is the whole derivation. With autofit off, type cannot shrink,
-  // and the natural height is the minimum — the scale-axis convention.
-  const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+  // and the natural height is the minimum — the value-axis convention.
+  const autofitOpts = resolveFigureAutofitOptions(inputs.autofit);
   let minH = idealH;
   if (autofitOpts) {
     const floorScale = computeFloorScale({
@@ -272,12 +277,12 @@ function getPieIdealHeight(
       baseFontSizeDu: info.customFigureStyle.baseFontSize,
       minFontSizeDu: autofitOpts.minFontSizeDu,
     });
-    const infoFloor = getPieComponentSizes(rc, item, floorScale);
+    const infoFloor = getPieComponentSizes(rc, inputs, floorScale);
     minH = calculateChartIdealHeight(
       rc,
       width,
       infoFloor,
-      item,
+      inputs,
       resolvePaneGrid(infoFloor, width),
     );
   }

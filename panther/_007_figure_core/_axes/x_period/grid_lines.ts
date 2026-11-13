@@ -9,12 +9,12 @@ import { isLargePeriod } from "./helpers.ts";
 import type { XPeriodAxisMeasuredInfo } from "./types.ts";
 
 export function calculateVerticalGridLinesForLaneXPeriod(
-  plotAreaRcd: RectCoordsDims,
+  subChartRcd: RectCoordsDims,
   xPeriodAxisMeasuredInfo: XPeriodAxisMeasuredInfo,
   periodType: PeriodType,
   timeMin: number,
   nTimePoints: number,
-  gridStrokeWidth: number,
+  gridLineStrokeWidth: number,
   showEveryNthTick: number,
   calendar: CalendarType,
 ): { x: number; tickValue?: number }[] {
@@ -22,23 +22,23 @@ export function calculateVerticalGridLinesForLaneXPeriod(
   const verticalGridLines: { x: number; tickValue?: number }[] = [];
 
   let currentX = mx.periodAxisType === "year-centered"
-    ? plotAreaRcd.x()
-    : plotAreaRcd.x() + gridStrokeWidth / 2;
+    ? subChartRcd.x()
+    : subChartRcd.x() + gridLineStrokeWidth / 2;
 
-  for (let i_val = 0; i_val < nTimePoints; i_val++) {
-    const time = timeMin + i_val;
+  for (let i_value = 0; i_value < nTimePoints; i_value++) {
+    const time = timeMin + i_value;
     const period = getPeriodIdFromTime(time, periodType);
     const isLargeTick = mx.periodAxisType !== "year-centered" &&
-      (i_val === 0 || isLargePeriod(period, periodType, calendar));
+      (i_value === 0 || isLargePeriod(period, periodType, calendar));
 
     if (isLargeTick) {
       verticalGridLines.push({ x: currentX, tickValue: period });
     } else {
       if (mx.periodAxisSmallTickH !== "none") {
         if (mx.periodAxisType === "year-centered") {
-          if (i_val % showEveryNthTick === 0) {
+          if (i_value % showEveryNthTick === 0) {
             verticalGridLines.push({
-              x: currentX + mx.periodIncrementWidth / 2,
+              x: currentX + mx.slotExtent / 2,
               tickValue: period,
             });
           }
@@ -47,13 +47,15 @@ export function calculateVerticalGridLinesForLaneXPeriod(
     }
 
     currentX += mx.periodAxisType === "year-centered"
-      ? mx.periodIncrementWidth
-      : gridStrokeWidth + mx.periodIncrementWidth;
+      ? mx.slotExtent
+      : gridLineStrokeWidth + mx.slotExtent;
   }
 
   // Add final grid line at right edge (only for non-centered period axis)
   if (mx.periodAxisType !== "year-centered") {
-    verticalGridLines.push({ x: plotAreaRcd.rightX() - gridStrokeWidth / 2 });
+    verticalGridLines.push({
+      x: subChartRcd.rightX() - gridLineStrokeWidth / 2,
+    });
   }
 
   return verticalGridLines;

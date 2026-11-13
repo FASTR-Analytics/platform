@@ -3,20 +3,20 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { OverhangClearance, YScaleAxisWidthInfo } from "../../types.ts";
-import { getScaleAxisTickPositions } from "../scale_tick_positions.ts";
+import type { OverhangClearance, YValueAxisWidthInfo } from "../../types.ts";
+import { getValueAxisTickPositions } from "../value_axis_tick_positions.ts";
 
 export function calculateHorizontalGridLinesForTier(
   i_tier: number,
-  yScaleAxisWidthInfo: YScaleAxisWidthInfo,
-  plotAreaY: number,
-  plotAreaHeight: number,
+  yValueAxisWidthInfo: YValueAxisWidthInfo,
+  subChartY: number,
+  subChartHeight: number,
   clearance: OverhangClearance,
 ): { y: number; tickValue: number }[] {
-  const ticks = yScaleAxisWidthInfo.yAxisTickValues[i_tier];
-  const positions = getScaleAxisTickPositions(
-    plotAreaY,
-    plotAreaHeight,
+  const ticks = yValueAxisWidthInfo.yAxisTickValues[i_tier];
+  const positions = getValueAxisTickPositions(
+    subChartY,
+    subChartHeight,
     ticks.length,
     clearance,
     "y",

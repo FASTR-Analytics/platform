@@ -83,14 +83,11 @@ import type {
 } from "../deps.ts";
 import { ProposalPreviewBody } from "./_renderers/approval.tsx";
 import type { AIChatConfig, DisplayItem } from "../_core/types.ts";
+import { resolveMaxTurnContinuations } from "../_core/validate_config.ts";
 import type { AIChatSettingsValues } from "./ai_chat_settings_panel.tsx";
 import { ConversationsContext } from "./use_conversations.ts";
 
 const SETTINGS_KEY_PREFIX = "panther-ai-settings";
-
-// Safety cap on turn continuations (client tool loops and server-tool
-// pause_turn resumptions) so a pathological loop can't run unbounded.
-const MAX_TURN_CONTINUATIONS = 24;
 
 // Turn-flow decision logic (ephemeral-section wire rendering, stop-reason
 // classification, cancelled-tool-result synthesis, error classification)
@@ -269,6 +266,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   // into every other scope in the session.
   const modelConfig: AnthropicModelConfig = resolveModelConfig(
     config.modelConfig,
+  );
+
+  const maxTurnContinuations = resolveMaxTurnContinuations(
+    config.maxTurnContinuations,
   );
 
   const settingsScope = config.settingsScope ?? config.scope;
@@ -1421,7 +1422,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     const continuation = classifyTurnContinuation(
       finalMessage.stop_reason,
       depth,
-      MAX_TURN_CONTINUATIONS,
+      maxTurnContinuations,
       finalMessage.stop_details,
     );
 

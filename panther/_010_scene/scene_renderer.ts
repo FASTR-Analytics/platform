@@ -20,14 +20,14 @@ import type { SceneSourceFactory } from "./_internal/measure.ts";
 
 // The scene is built once, at scale 1, in the declared frame or at the content
 // width at scale 1; shrinking never rebuilds it.
-function sceneSource(item: SceneInputs): SceneSourceFactory {
+function sceneSource(inputs: SceneInputs): SceneSourceFactory {
   return (rc, style, contentW) => {
     let built: { scene: Scene; minW: number } | undefined;
     return () => {
       if (built === undefined) {
-        const fw = item.frame?.w ?? contentW;
-        const builder = new SceneBuilder(rc, style, fw, item.frame?.h);
-        item.build(builder);
+        const fw = inputs.frame?.w ?? contentW;
+        const builder = new SceneBuilder(rc, style, fw, inputs.frame?.h);
+        inputs.build(builder);
         built = { scene: builder.scene(), minW: fw };
       }
       return built;
@@ -36,17 +36,17 @@ function sceneSource(item: SceneInputs): SceneSourceFactory {
 }
 
 export const SceneRenderer: Renderer<SceneInputs, MeasuredScene> = {
-  isType(item: unknown): item is SceneInputs {
-    return typeof item === "object" && item !== null &&
-      "figureType" in item && item.figureType === "scene";
+  isType(inputs: unknown): inputs is SceneInputs {
+    return typeof inputs === "object" && inputs !== null &&
+      "figureType" in inputs && inputs.figureType === "scene";
   },
 
   measure(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: SceneInputs,
+    inputs: SceneInputs,
   ): MeasuredScene {
-    return measureSceneFigure(rc, bounds, item, sceneSource(item));
+    return measureSceneFigure(rc, bounds, inputs, sceneSource(inputs));
   },
 
   render(rc: RenderContext, measured: MeasuredScene): void {
@@ -57,16 +57,16 @@ export const SceneRenderer: Renderer<SceneInputs, MeasuredScene> = {
   measureAndRender(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: SceneInputs,
+    inputs: SceneInputs,
   ): void {
-    this.render(rc, this.measure(rc, bounds, item));
+    this.render(rc, this.measure(rc, bounds, inputs));
   },
 
   getIdealHeight(
     rc: RenderContext,
     width: number,
-    item: SceneInputs,
+    inputs: SceneInputs,
   ): HeightConstraints {
-    return getSceneFigureIdealHeight(rc, width, item, sceneSource(item));
+    return getSceneFigureIdealHeight(rc, width, inputs, sceneSource(inputs));
   },
 };

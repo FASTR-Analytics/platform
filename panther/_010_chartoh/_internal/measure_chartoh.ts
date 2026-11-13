@@ -48,7 +48,7 @@ export function measureChartOH(
   > = {
     mergedStyle,
     transformedData,
-    dataProps: {
+    dataDimensions: {
       pane: transformedData.pane,
       tier: transformedData.tier,
       lane: transformedData.lane,
@@ -56,18 +56,19 @@ export function measureChartOH(
       indicator: transformedData.indicator,
       visibleIndicatorsByPane: transformedData.visibleIndicatorsByPane,
       visibleTiersByPane: transformedData.visibleTiersByPane,
-      visibleIndicatorsByPaneBand: transformedData.visibleIndicatorsByPaneBand,
+      visibleIndicatorsByPaneTierOrLane:
+        transformedData.visibleIndicatorsByPaneTier,
       proportionalPanes: transformedData.proportionalPanes,
     },
     xAxisConfig: {
-      type: "scale",
-      axisStyle: mergedStyle.xScaleAxis,
-      axisData: transformedData.scaleAxisLimits,
-      axisLabel: transformedData.xScaleAxisLabel,
+      type: "value",
+      axisStyle: mergedStyle.xValueAxis,
+      axisData: transformedData.valueAxisLimits,
+      axisLabel: transformedData.xValueAxisLabel,
     },
     yAxisConfig: {
       type: "text",
-      indicatorHeaders: transformedData.indicator.headers,
+      indicatorMembers: transformedData.indicator.members,
       axisStyle: mergedStyle.yTextAxis,
     },
     orientation: "horizontal",

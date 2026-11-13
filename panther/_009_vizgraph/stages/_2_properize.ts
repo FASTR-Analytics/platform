@@ -45,13 +45,13 @@ export function properizeStage(
   zones: ResolvedZone[],
 ): ProperGraph {
   const layerCount = rank.layerValueByIndex.length;
-  const laneBoundaries: boolean[] = new Array(layerCount + 1).fill(false);
+  const bandBoundaries: boolean[] = new Array(layerCount + 1).fill(false);
   for (const span of spans) {
     if (span.fromLayerIndex > 0) {
-      laneBoundaries[span.fromLayerIndex] = true;
+      bandBoundaries[span.fromLayerIndex] = true;
     }
     if (span.toLayerIndex < layerCount - 1) {
-      laneBoundaries[span.toLayerIndex + 1] = true;
+      bandBoundaries[span.toLayerIndex + 1] = true;
     }
   }
   const layers: PNode[][] = Array.from({ length: layerCount }, () => []);
@@ -161,7 +161,7 @@ export function properizeStage(
     crossLayerEdges,
     innermostGroupByNodeId,
     groupChainById: groupIndex.chainByGroupId,
-    laneBoundaries,
+    bandBoundaries,
     zones,
     coherentRank: new Map(),
     groupRuns: new Map(),

@@ -12,18 +12,18 @@ export {
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export {
   buildItem,
-  createHeaderItem,
-  slotCoordinate,
-  sortHeaderItems,
-  toHeaderItem,
+  createDimensionMember,
+  itemCoordinate,
+  sortDimensionMembers,
+  toDimensionMember,
   Z_INDEX,
 } from "../_001_render_system/mod.ts";
 export type {
-  HeaderItem,
-  HeaderSortConfig,
+  DimensionMember,
   HeightConstraints,
   Measured,
   MeasuredText,
+  MemberSortConfig,
   Primitive,
   RenderContext,
   Renderer,
@@ -54,7 +54,7 @@ export {
   renderFigureBackground,
   renderFigurePrimitives,
   resolveFigureAutofitOptions,
-  validateSlotDimensions,
+  validateDimensionProps,
 } from "../_007_figure_core/mod.ts";
 export type {
   FigureInputsBase,
@@ -62,4 +62,5 @@ export type {
   JsonArrayItem,
   LegendInput,
   MeasuredSurrounds,
+  ValueRange,
 } from "../_007_figure_core/mod.ts";

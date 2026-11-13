@@ -48,7 +48,7 @@ export function measureTimeseries(
   > = {
     mergedStyle,
     transformedData,
-    dataProps: {
+    dataDimensions: {
       pane: transformedData.pane,
       tier: transformedData.tier,
       lane: transformedData.lane,
@@ -56,17 +56,17 @@ export function measureTimeseries(
     },
     xAxisConfig: {
       type: "period",
-      dimension: transformedData.period.dimension,
+      dimension: transformedData.period.name,
       periodType: transformedData.period.periodType,
       nTimePoints: transformedData.period.nTimePoints,
       timeMin: transformedData.period.timeMin,
       axisStyle: mergedStyle.xPeriodAxis,
     },
     yAxisConfig: {
-      type: "scale",
-      axisStyle: mergedStyle.yScaleAxis,
-      axisData: transformedData.scaleAxisLimits,
-      axisLabel: transformedData.yScaleAxisLabel,
+      type: "value",
+      axisStyle: mergedStyle.yValueAxis,
+      axisData: transformedData.valueAxisLimits,
+      axisLabel: transformedData.yValueAxisLabel,
     },
     orientation: "vertical",
     paneGrid,

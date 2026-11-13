@@ -18,7 +18,7 @@ import type { EphemeralSection } from "./types.ts";
 // The view-label section always includes the stable view id alongside the
 // human label — gate messages, auto-decline strings, and catalog annotations
 // (which all name ids) share one key with the per-turn context, and the label
-// stays human flavor (the HeaderItem id/label philosophy). A null label means
+// stays human flavor (the DimensionMember id/label philosophy). A null label means
 // the consumer's label function threw (a torn-down view context must never
 // fail a turn) — render the bare-id form.
 

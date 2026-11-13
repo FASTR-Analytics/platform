@@ -10,7 +10,7 @@ import {
   type ChartSeriesInfo,
   computeBoundsForPath,
   Coordinates,
-  type HeaderItem,
+  type DimensionMember,
   type LineStyle,
   type Primitive,
   Z_INDEX,
@@ -27,9 +27,9 @@ const MIN_VISIBLE_LINE = 2;
 
 type Endpoint = {
   coord: Coordinates;
-  val: number;
+  value: number;
   i_series: number;
-  seriesHeader: HeaderItem | undefined;
+  seriesMember: DimensionMember | undefined;
   pointRadius: number;
 };
 
@@ -41,15 +41,15 @@ export function generateConnectorPrimitives(
   const s = ctx.contentStyle;
   const cs = s.connectors;
   const seriesInfos = Array.from(
-    { length: ctx.nSeries },
+    { length: ctx.nSerieses },
     (_, i) => buildSeriesInfo(ctx, i, mapped),
   );
 
-  for (let i_val = 0; i_val < ctx.nVals; i_val++) {
-    const endpoints = collectEndpoints(mapped, i_val, ctx, seriesInfos);
+  for (let i_value = 0; i_value < ctx.nValues; i_value++) {
+    const endpoints = collectEndpoints(mapped, i_value, ctx, seriesInfos);
     if (endpoints.length < 2) continue;
 
-    const info = buildConnectorInfo(endpoints, i_val, ctx);
+    const info = buildConnectorInfo(endpoints, i_value, ctx);
     const style = cs.getStyle(info);
     if (!style.show) continue;
 
@@ -72,8 +72,8 @@ export function generateConnectorPrimitives(
     primitives.push({
       type: "chart-connector",
       key:
-        `connector-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_val}`,
-      item: chartConnectorItem(ctx.itemAxes, info),
+        `connector-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_value}`,
+      item: chartConnectorItem(ctx.itemDataDimensions, info),
       part: "link",
       bounds,
       hitBounds: bounds,
@@ -91,7 +91,7 @@ export function generateConnectorPrimitives(
 
 function collectEndpoints(
   mapped: MappedValueCoordinate[][],
-  i_val: number,
+  i_value: number,
   ctx: ContentGenerationContext,
   seriesInfos: ChartSeriesInfo[],
 ): Endpoint[] {
@@ -99,19 +99,24 @@ function collectEndpoints(
   const s = ctx.contentStyle;
   const joinAcrossGaps = s.connectors.joinAcrossGaps;
 
-  for (let i_series = 0; i_series < ctx.nSeries; i_series++) {
-    const m = mapped[i_series][i_val];
+  for (let i_series = 0; i_series < ctx.nSerieses; i_series++) {
+    const m = mapped[i_series][i_value];
     if (m === undefined) {
       if (!joinAcrossGaps && endpoints.length > 0) break;
       continue;
     }
-    const valueInfo = buildValueInfo(ctx, seriesInfos[i_series], m.val, i_val);
+    const valueInfo = buildValueInfo(
+      ctx,
+      seriesInfos[i_series],
+      m.value,
+      i_value,
+    );
     const pointStyle = s.points.getStyle(valueInfo);
     endpoints.push({
       coord: m.coords,
-      val: m.val,
+      value: m.value,
       i_series,
-      seriesHeader: ctx.itemAxes.series?.headers[i_series],
+      seriesMember: ctx.itemDataDimensions.series?.members[i_series],
       pointRadius: pointStyle.show ? pointStyle.radius : 0,
     });
   }
@@ -121,30 +126,30 @@ function collectEndpoints(
 
 function buildConnectorInfo(
   endpoints: Endpoint[],
-  i_val: number,
+  i_value: number,
   ctx: ContentGenerationContext,
 ): ChartConnectorInfo {
   return {
-    i_val,
-    isFirstVal: i_val === ctx.slotOrder[0],
-    isLastVal: i_val === ctx.slotOrder[ctx.slotOrder.length - 1],
-    valueMin: ctx.valueRange.minVal,
-    valueMax: ctx.valueRange.maxVal,
-    nVals: ctx.nVals,
+    i_value,
+    isFirstValue: i_value === ctx.slotOrder[0],
+    isLastValue: i_value === ctx.slotOrder[ctx.slotOrder.length - 1],
+    valueMin: ctx.valueRange.valueMin,
+    valueMax: ctx.valueRange.valueMax,
+    nValues: ctx.nValues,
     nSerieses: ctx.subChartInfo.nSerieses,
-    seriesValArrays: ctx.subChartInfo.seriesValArrays,
+    seriesValueArrays: ctx.subChartInfo.seriesValueArrays,
     i_pane: ctx.subChartInfo.i_pane,
     nPanes: ctx.subChartInfo.nPanes,
-    paneHeader: ctx.subChartInfo.paneHeader,
+    paneMember: ctx.subChartInfo.paneMember,
     i_tier: ctx.subChartInfo.i_tier,
     nTiers: ctx.subChartInfo.nTiers,
-    tierHeader: ctx.subChartInfo.tierHeader,
+    tierMember: ctx.subChartInfo.tierMember,
     i_lane: ctx.subChartInfo.i_lane,
     nLanes: ctx.subChartInfo.nLanes,
-    laneHeader: ctx.subChartInfo.laneHeader,
+    laneMember: ctx.subChartInfo.laneMember,
     seriesIndices: endpoints.map((e) => e.i_series),
-    seriesHeaders: endpoints.map((e) => e.seriesHeader),
-    values: endpoints.map((e) => e.val),
+    seriesMembers: endpoints.map((e) => e.seriesMember),
+    values: endpoints.map((e) => e.value),
   };
 }
 

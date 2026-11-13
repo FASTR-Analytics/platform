@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  HeaderItem,
+  DimensionMember,
   MergedGridStyle,
   MergedYTextAxisStyle,
   RectCoordsDims,
@@ -20,7 +20,7 @@ function measureYTextAxisWidth(
   tierHeaderAndLabelGapWidth: number,
 ): number {
   return tierHeaderAndLabelGapWidth + tickLabelW + sy.tickLabelGap +
-    sy.tickWidth + sg.axisStrokeWidth;
+    sy.tickLength + sg.axisStrokeWidth;
 }
 
 export function estimateMinYTextAxisWidth(
@@ -44,16 +44,16 @@ export function estimateMinYTextAxisWidth(
 
 export function measureYTextAxisWidthInfo(
   rc: RenderContext,
-  indicatorHeaders: HeaderItem[],
+  indicatorMembers: DimensionMember[],
   sy: MergedYTextAxisStyle,
   sg: MergedGridStyle,
-  contentRcd: RectCoordsDims,
+  innerRcd: RectCoordsDims,
   tierHeaderAndLabelGapWidth: number,
 ): YTextAxisWidthInfo {
-  const maxWidth = contentRcd.w() * sy.maxTickLabelWidthAsPctOfChart;
+  const maxWidth = innerRcd.w() * sy.maxTickLabelWidthFractionOfPane;
   let maxTickLabelW = 0;
   let maxTickLabelH = 0;
-  for (const h of indicatorHeaders) {
+  for (const h of indicatorMembers) {
     const m = rc.mText(h.label, sy.text.yTextAxisTickLabels, maxWidth);
     if (m.dims.w() > maxTickLabelW) maxTickLabelW = m.dims.w();
     if (m.dims.h() > maxTickLabelH) maxTickLabelH = m.dims.h();
@@ -69,6 +69,6 @@ export function measureYTextAxisWidthInfo(
     widthIncludingYAxisStrokeWidth,
     halfYAxisTickLabelH: maxTickLabelH / 2,
     maxTickLabelW,
-    nIndicators: indicatorHeaders.length,
+    nIndicators: indicatorMembers.length,
   };
 }

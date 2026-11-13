@@ -5,7 +5,7 @@
 
 import type {
   Decoration,
-  HeaderItem,
+  DimensionMember,
   Hittable,
   ItemCoordinate,
   MergedPieStyle,
@@ -13,15 +13,15 @@ import type {
   PieSlicePrimitive,
   PieSliceStyle,
   PrimitiveItem,
-  SubChartHeaders,
+  SubChartMembers,
 } from "../deps.ts";
 import {
   buildItem,
   computeBoundsForPath,
-  getSubChartHeaders,
+  getDimensionMembers,
+  getSubChartMembers,
+  itemCoordinate,
   pathSegmentPoints,
-  slotCoordinate,
-  slotHeaders,
   subChartItemCoordinates,
   Z_INDEX,
 } from "../deps.ts";
@@ -39,7 +39,7 @@ import {
 // pass can place candidates without redoing the angle math.
 export type LaidOutSlice = {
   i_series: number;
-  seriesHeader: HeaderItem | undefined;
+  seriesMember: DimensionMember | undefined;
   // Undefined for the remainder, which stands for no series.
   item: PrimitiveItem | undefined;
   angles: SliceAngles;
@@ -50,9 +50,9 @@ export type LaidOutSlice = {
   info: PieSliceInfo;
 };
 
-// An unsplit series has no header, so its one slice is named by its index.
+// An unsplit series has no member, so its one slice is named by its index.
 export function sliceId(slice: LaidOutSlice): string {
-  return slice.seriesHeader?.id ?? String(slice.i_series);
+  return slice.seriesMember?.id ?? String(slice.i_series);
 }
 
 export type PieGeometry = {
@@ -73,33 +73,33 @@ export type LaidOutPie = {
 };
 
 export type PieIndices = {
-  paneIndex: number;
-  tierIndex: number;
-  laneIndex: number;
-  indicatorIndex: number;
+  i_pane: number;
+  i_tier: number;
+  i_lane: number;
+  i_indicator: number;
 };
 
-export type PieHeaders = SubChartHeaders & {
-  indicatorHeader: HeaderItem | undefined;
+export type PieMembers = SubChartMembers & {
+  indicatorMember: DimensionMember | undefined;
 };
 
-export function getPieHeaders(
+export function getPieMembers(
   data: PieDataTransformed,
   indices: PieIndices,
-): PieHeaders {
+): PieMembers {
   return {
-    ...getSubChartHeaders(data, indices),
-    indicatorHeader: data.indicator?.headers[indices.indicatorIndex],
+    ...getSubChartMembers(data, indices),
+    indicatorMember: data.indicator?.members[indices.i_indicator],
   };
 }
 
 export function pieItemCoordinates(
   data: PieDataTransformed,
-  headers: PieHeaders,
+  members: PieMembers,
 ): ItemCoordinate[] {
   return [
-    ...subChartItemCoordinates(data, headers),
-    slotCoordinate(data.indicator?.dimension, headers.indicatorHeader),
+    ...subChartItemCoordinates(data, members),
+    itemCoordinate(data.indicator?.name, members.indicatorMember),
   ];
 }
 
@@ -112,17 +112,17 @@ export function layOutPie(
   indices: PieIndices,
   geometry: PieGeometry,
 ): LaidOutPie {
-  const { paneIndex, tierIndex, laneIndex } = indices;
-  const seriesValArrays = data.values[paneIndex][tierIndex][laneIndex];
-  const nSerieses = slotHeaders(data.series).length;
-  const pieCoordinates = pieItemCoordinates(data, getPieHeaders(data, indices));
+  const { i_pane, i_tier, i_lane } = indices;
+  const seriesValueArrays = data.values[i_pane][i_tier][i_lane];
+  const nSerieses = getDimensionMembers(data.series).length;
+  const pieCoordinates = pieItemCoordinates(data, getPieMembers(data, indices));
   const pieItem = buildItem(pieCoordinates);
 
   // undefined values are OMITTED (not drawn as zero-angle slices), matching
   // tensor-fill semantics elsewhere.
   const defined: { i_series: number; value: number }[] = [];
   for (let i_series = 0; i_series < nSerieses; i_series++) {
-    const v = seriesValArrays[i_series]?.[indices.indicatorIndex];
+    const v = seriesValueArrays[i_series]?.[indices.i_indicator];
     if (v !== undefined) {
       defined.push({ i_series, value: v });
     }
@@ -167,12 +167,12 @@ export function layOutPie(
       d.value / resolved.declaredTotal,
       resolved.declaredTotal,
     );
-    const seriesHeader = data.series?.headers[d.i_series];
+    const seriesMember = data.series?.members[d.i_series];
     return {
       i_series: d.i_series,
-      seriesHeader,
+      seriesMember,
       item: buildItem([
-        slotCoordinate(data.series?.dimension, seriesHeader),
+        itemCoordinate(data.series?.name, seriesMember),
         ...pieCoordinates,
       ]),
       angles: laidOut[i],
@@ -199,7 +199,7 @@ export function layOutPie(
     const remainderStyle = mergedStyle.content.slices.getStyle(info);
     slices.push({
       i_series: -1,
-      seriesHeader: REMAINDER_HEADER,
+      seriesMember: REMAINDER_HEADER,
       item: undefined,
       angles: laidOut[laidOut.length - 1],
       value: remainderValue,
@@ -224,7 +224,7 @@ export function layOutPie(
   };
 }
 
-const REMAINDER_HEADER: HeaderItem = {
+const REMAINDER_HEADER: DimensionMember = {
   id: "--remainder",
   label: "",
 };
@@ -237,31 +237,31 @@ function buildPieSliceInfo(
   share: number,
   total: number,
 ): PieSliceInfo {
-  const { paneIndex, tierIndex, laneIndex, indicatorIndex } = indices;
-  const nSerieses = slotHeaders(data.series).length;
-  const nIndicators = slotHeaders(data.indicator).length;
+  const { i_pane, i_tier, i_lane, i_indicator } = indices;
+  const nSerieses = getDimensionMembers(data.series).length;
+  const nIndicators = getDimensionMembers(data.indicator).length;
   return {
     i_series,
     isFirstSeries: i_series === 0,
     isLastSeries: i_series === nSerieses - 1,
-    seriesHeader: data.series?.headers[i_series],
+    seriesMember: data.series?.members[i_series],
     nSerieses,
-    // values[pane][tier][lane] IS the seriesValArrays shape ChartSeriesInfo
+    // values[pane][tier][lane] IS the seriesValueArrays shape ChartSeriesInfo
     // wants — the payoff of keeping the 5-D tensor.
-    seriesValArrays: data.values[paneIndex][tierIndex][laneIndex],
-    nVals: nIndicators,
-    i_indicator: indicatorIndex,
+    seriesValueArrays: data.values[i_pane][i_tier][i_lane],
+    nValues: nIndicators,
+    i_indicator,
     nIndicators,
-    indicatorHeader: data.indicator?.headers[indicatorIndex],
-    i_pane: paneIndex,
-    nPanes: slotHeaders(data.pane).length,
-    paneHeader: data.pane?.headers[paneIndex],
-    i_tier: tierIndex,
-    nTiers: slotHeaders(data.tier).length,
-    tierHeader: data.tier?.headers[tierIndex],
-    i_lane: laneIndex,
-    nLanes: slotHeaders(data.lane).length,
-    laneHeader: data.lane?.headers[laneIndex],
+    indicatorMember: data.indicator?.members[i_indicator],
+    i_pane,
+    nPanes: getDimensionMembers(data.pane).length,
+    paneMember: data.pane?.members[i_pane],
+    i_tier,
+    nTiers: getDimensionMembers(data.tier).length,
+    tierMember: data.tier?.members[i_tier],
+    i_lane,
+    nLanes: getDimensionMembers(data.lane).length,
+    laneMember: data.lane?.members[i_lane],
     value,
     share,
     total,
@@ -272,7 +272,7 @@ export function generatePieSlicePrimitives(
   pie: LaidOutPie,
   mergedStyle: MergedPieStyle,
   indices: PieIndices,
-  headers: PieHeaders,
+  members: PieMembers,
 ): PieSlicePrimitive[] {
   const { cx, cy, innerR, outerR } = pie.geometry;
   const primitives: PieSlicePrimitive[] = [];
@@ -303,7 +303,7 @@ export function generatePieSlicePrimitives(
     primitives.push({
       type: "pie-slice",
       key:
-        `pie-slice-${indices.paneIndex}-${indices.tierIndex}-${indices.laneIndex}-${indices.indicatorIndex}-${
+        `pie-slice-${indices.i_pane}-${indices.i_tier}-${indices.i_lane}-${indices.i_indicator}-${
           slice.isRemainder ? "remainder" : sliceId(slice)
         }`,
       item: slice.item,
@@ -311,12 +311,12 @@ export function generatePieSlicePrimitives(
       bounds,
       zIndex: Z_INDEX.PIE_SLICE,
       meta: {
-        seriesHeader: slice.seriesHeader,
-        paneIndex: indices.paneIndex,
-        tierIndex: indices.tierIndex,
-        laneIndex: indices.laneIndex,
-        indicatorIndex: indices.indicatorIndex,
-        ...headers,
+        seriesMember: slice.seriesMember,
+        i_pane: indices.i_pane,
+        i_tier: indices.i_tier,
+        i_lane: indices.i_lane,
+        i_indicator: indices.i_indicator,
+        ...members,
         value: slice.value,
         share: slice.share,
         isRemainder: slice.isRemainder,

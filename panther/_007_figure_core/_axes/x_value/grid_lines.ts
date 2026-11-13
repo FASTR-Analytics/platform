@@ -4,20 +4,20 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { OverhangClearance } from "../../types.ts";
-import { getScaleAxisTickPositions } from "../scale_tick_positions.ts";
-import type { XScaleAxisHeightInfo } from "./types.ts";
+import { getValueAxisTickPositions } from "../value_axis_tick_positions.ts";
+import type { XValueAxisHeightInfo } from "./types.ts";
 
-export function calculateVerticalGridLinesForLaneXScale(
+export function calculateVerticalGridLinesForLaneXValue(
   i_lane: number,
-  xScaleHeightInfo: XScaleAxisHeightInfo,
-  plotAreaX: number,
-  plotAreaWidth: number,
+  xValueAxisHeightInfo: XValueAxisHeightInfo,
+  subChartX: number,
+  subChartWidth: number,
   clearance: OverhangClearance,
 ): { x: number; tickValue: number }[] {
-  const ticks = xScaleHeightInfo.xAxisTickValues[i_lane];
-  const positions = getScaleAxisTickPositions(
-    plotAreaX,
-    plotAreaWidth,
+  const ticks = xValueAxisHeightInfo.xAxisTickValues[i_lane];
+  const positions = getValueAxisTickPositions(
+    subChartX,
+    subChartWidth,
     ticks.length,
     clearance,
     "x",

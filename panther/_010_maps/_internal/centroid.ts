@@ -115,19 +115,19 @@ export function bboxOfScreenRings(
   return { minX, minY, maxX, maxY };
 }
 
-// The pole of inaccessibility: the interior point furthest from the region's
+// The pole of inaccessibility: the interior point furthest from the map area's
 // own boundary, with the room around it.
 //
 // The area-weighted centroid is the wrong anchor for a label and wrong in a way
 // that shows: for a crescent, a ring, or a country whose mass is split across
-// islands it falls OUTSIDE the region it names. The pole is inside by
+// islands it falls OUTSIDE the map area it names. The pole is inside by
 // construction, and it is the point with the most room around it, which is
 // exactly what a label wants.
-export type RegionPole = {
+export type MapAreaPole = {
   point: { x: number; y: number };
-  // Does a w x h box centred on the pole lie entirely inside the region? This
+  // Does a w x h box centred on the pole lie entirely inside the map area? This
   // is the room that actually exists — a bounding box massively overstates it
-  // for anything non-convex, which is how labels were kept inside regions they
+  // for anything non-convex, which is how labels were kept inside map areas they
   // could not fit in.
   fitsBox: (w: number, h: number) => boolean;
 };
@@ -135,15 +135,15 @@ export type RegionPole = {
 // The pole is scale-equivariant, so it is read off a NORMALISED copy of the
 // rings and mapped back. That is not a nicety: unit-scale projections span a
 // fraction of a DU, where any sensible raster pitch gives a 2x2 grid. The
-// extent and pitch below fix the answer's resolution at ~1% of a region's
+// extent and pitch below fix the answer's resolution at ~1% of a map area's
 // longer side, which is far finer than the question — the pole only has to be
 // inside and roughly central, and the capacity only has to judge a label.
 const POLE_NORMALISED_EXTENT = 192;
 const POLE_PITCH = 2;
 
-export function computeRegionPole(
+export function computeMapAreaPole(
   rings: ScreenRings,
-): RegionPole | undefined {
+): MapAreaPole | undefined {
   const bbox = bboxOfScreenRings(rings);
   if (!bbox) return undefined;
   const extent = Math.max(bbox.maxX - bbox.minX, bbox.maxY - bbox.minY);
@@ -158,11 +158,11 @@ export function computeRegionPole(
     margin: 0,
     // Nothing here ever reads outside the shape, so the exact-segment
     // refinement past the boundary would be built and thrown away.
-    exactBand: 0,
+    exactDistance: 0,
   });
 
   const max = field.interiorMax();
-  // A region too thin for a single sample to land inside it. The caller keeps
+  // A map area too thin for a single sample to land inside it. The caller keeps
   // the centroid rather than inventing a point.
   if (!max) return undefined;
 

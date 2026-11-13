@@ -30,11 +30,11 @@ export function validate(model: GraphModel): ValidationReport {
 
   checkDuplicateIds(issues, "node", model.nodes.map((n) => n.id));
   checkDuplicateIds(issues, "edge", model.edges.map((e) => e.id));
-  checkDuplicateIds(issues, "lane", (model.lanes ?? []).map((l) => l.id));
+  checkDuplicateIds(issues, "band", (model.bands ?? []).map((l) => l.id));
   checkDuplicateIds(issues, "group", (model.groups ?? []).map((g) => g.id));
 
   const nodeIds = new Set(model.nodes.map((n) => n.id));
-  const laneIds = new Set((model.lanes ?? []).map((l) => l.id));
+  const bandIds = new Set((model.bands ?? []).map((l) => l.id));
   const groupIds = new Set((model.groups ?? []).map((g) => g.id));
 
   for (const edge of model.edges) {
@@ -51,12 +51,12 @@ export function validate(model: GraphModel): ValidationReport {
   }
 
   for (const node of model.nodes) {
-    if (node.laneId !== undefined && !laneIds.has(node.laneId)) {
+    if (node.bandId !== undefined && !bandIds.has(node.bandId)) {
       issues.push({
         severity: "error",
         code: "dangling-ref",
-        message: `Node "${node.id}" references unknown lane "${node.laneId}"`,
-        ids: [node.id, node.laneId],
+        message: `Node "${node.id}" references unknown band "${node.bandId}"`,
+        ids: [node.id, node.bandId],
       });
     }
     if (node.groupId !== undefined && !groupIds.has(node.groupId)) {

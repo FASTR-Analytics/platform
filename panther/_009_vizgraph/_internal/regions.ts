@@ -11,8 +11,8 @@ import type { GroupIndex } from "../transform/derive.ts";
 // tree). Two
 // claims, both built on the collapsed model like the group index:
 // - a SPAN (build order a): a contiguous, EXCLUSIVE layer range along the
-//   flow axis. Two sources, one machinery — a LANE (membership by
-//   node.laneId; drawn as a lane box at [7]) and a GROUP with `span`
+//   flow axis. Two sources, one machinery — a BAND (membership by
+//   node.bandId; drawn as a band box at [7]) and a GROUP with `span`
 //   (membership by the nesting chain; constrains layers and gutters only —
 //   its rendering stays the hug ring). Resolved to layer ranges by step 1.2.
 // - a ZONE (build order b): a GROUP with `zone` — its members own a
@@ -23,7 +23,7 @@ import type { GroupIndex } from "../transform/derive.ts";
 //   zone-reserve placement pass; drawn at [7].
 export type SpanRegion = {
   id: string;
-  source: "lane" | "group";
+  source: "band" | "group";
   memberIds: string[];
   label: { w: number; h: number } | undefined;
   minSize: number | undefined;
@@ -65,20 +65,20 @@ export function buildRegionIndex(
   groupIndex: GroupIndex,
 ): RegionIndex {
   const spans: SpanRegion[] = [];
-  const seenLanes = new Set<string>();
-  for (const lane of model.lanes ?? []) {
-    if (seenLanes.has(lane.id)) {
+  const seenBands = new Set<string>();
+  for (const band of model.bands ?? []) {
+    if (seenBands.has(band.id)) {
       continue;
     }
-    seenLanes.add(lane.id);
+    seenBands.add(band.id);
     spans.push({
-      id: lane.id,
-      source: "lane",
-      memberIds: model.nodes.filter((n) => n.laneId === lane.id).map((n) =>
+      id: band.id,
+      source: "band",
+      memberIds: model.nodes.filter((n) => n.bandId === band.id).map((n) =>
         n.id
       ),
-      label: lane.label,
-      minSize: lane.minSize,
+      label: band.label,
+      minSize: band.minSize,
     });
   }
   const membersOf = (groupId: string): string[] =>

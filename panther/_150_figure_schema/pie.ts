@@ -12,9 +12,9 @@ import type {
 } from "./deps.ts";
 import {
   type Conforms,
-  zDataAxis,
-  zHeaderSortConfig,
+  zDataDimension,
   zJsonArray,
+  zMemberSortConfig,
   zValues5D,
 } from "./shared.ts";
 
@@ -33,11 +33,11 @@ export const zPieJsonDataConfig = z.object({
   labelReplacements: z.record(z.string(), z.string()).optional(),
   sort: z
     .object({
-      series: zHeaderSortConfig.optional(),
-      indicator: zHeaderSortConfig.optional(),
-      pane: zHeaderSortConfig.optional(),
-      tier: zHeaderSortConfig.optional(),
-      lane: zHeaderSortConfig.optional(),
+      series: zMemberSortConfig.optional(),
+      indicator: zMemberSortConfig.optional(),
+      pane: zMemberSortConfig.optional(),
+      tier: zMemberSortConfig.optional(),
+      lane: zMemberSortConfig.optional(),
     })
     .optional(),
   sortSeriesValues: z.enum(["ascending", "descending", "none"]).optional(),
@@ -61,12 +61,12 @@ const _zPieDataJsonConforms: Conforms<
 
 export const zPieDataTransformed = z.object({
   isTransformed: z.literal(true),
-  series: zDataAxis.optional(),
-  indicator: zDataAxis.optional(),
-  pane: zDataAxis.optional(),
-  tier: zDataAxis.optional(),
-  lane: zDataAxis.optional(),
-  // [pane][tier][lane][series][indicator] — the last axis is the repeat
+  series: zDataDimension.optional(),
+  indicator: zDataDimension.optional(),
+  pane: zDataDimension.optional(),
+  tier: zDataDimension.optional(),
+  lane: zDataDimension.optional(),
+  // [pane][tier][lane][series][indicator] — the last index is the repeat
   // dimension (length 1 with no indicatorProp).
   values: zValues5D,
   total: zPieTotal,

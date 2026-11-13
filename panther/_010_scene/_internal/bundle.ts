@@ -40,13 +40,13 @@ export type DiagramBundle = {
   layoutAt: (fitWidth: number) => DiagramGeometry;
 };
 
-// A lane header wraps at the lane's own natural width: the widest member per
+// A band header wraps at the band's own natural width: the widest member per
 // layer, summed with the ideal layer gaps between its layers, so the header
-// never widens the lane and the reserved row and the drawn text agree.
+// never widens the band and the reserved row and the drawn text agree.
 // Members without a layer cannot be assigned to columns before layout, so
-// the widest member stands in; a memberless lane falls back to the global
+// the widest member stands in; a memberless band falls back to the global
 // text cap.
-function laneLabelWrapWidths(
+function bandLabelWrapWidths(
   data: DiagramData,
   spacing: Spacing,
   maxTextW: number,
@@ -154,7 +154,7 @@ function unscaledSpacing(
   return {
     nodeGap: merged.nodeGap * k,
     layerGap: scaleGap(merged.layerGap, k),
-    laneGap: scaleGap(merged.laneGap, k),
+    bandGap: scaleGap(merged.bandGap, k),
     trackGap: merged.trackGap * k,
     portGap: scaleGap(merged.portGap, k),
     portMargin: merged.portMargin * k,
@@ -209,7 +209,7 @@ export function buildDiagramBundle(
   );
   const inset = s.regions.labelInset;
   const groupWrap = groupLabelWrapWidths(data, maxTextW, measureNode);
-  const laneWrap = laneLabelWrapWidths(data, spacing, maxTextW, measureNode);
+  const bandWrap = bandLabelWrapWidths(data, spacing, maxTextW, measureNode);
 
   const modelGroups = (data.groups ?? []).map((group) => {
     const folded = group.folded === true;
@@ -245,13 +245,13 @@ export function buildDiagramBundle(
     };
   });
 
-  const modelLanes = (data.bands ?? []).map((band) => {
+  const modelBands = (data.bands ?? []).map((band) => {
     let label: { w: number; h: number } | undefined;
     if (band.label !== undefined) {
       const mt = rc.mText(
         band.label,
         s.text.regionLabel,
-        laneWrap.get(band.id)! + TEXT_WIDTH_EPS,
+        bandWrap.get(band.id)! + TEXT_WIDTH_EPS,
       );
       label = { w: mt.dims.w() + 2 * inset, h: mt.dims.h() + 2 * inset };
     }
@@ -265,7 +265,7 @@ export function buildDiagramBundle(
       layer: node.layer,
       seq: node.seq,
       groupId: node.groupId,
-      laneId: node.bandId,
+      bandId: node.bandId,
     })),
     edges: [...connectors.values()].map((c) => ({
       id: c.id,
@@ -274,7 +274,7 @@ export function buildDiagramBundle(
       weight: c.weight,
       thickness: c.thickness,
     })),
-    lanes: modelLanes.length > 0 ? modelLanes : undefined,
+    bands: modelBands.length > 0 ? modelBands : undefined,
     groups: modelGroups.length > 0 ? modelGroups : undefined,
     constraints: layoutSpec.constraints,
   };
@@ -326,7 +326,7 @@ function toDiagramGeometry(g: Geometry): DiagramGeometry {
     connectors[id] = path(e.path);
   }
   const bands: DiagramGeometry["bands"] = {};
-  for (const [id, l] of Object.entries(g.lanes)) {
+  for (const [id, l] of Object.entries(g.bands)) {
     bands[id] = { rect: rect(l), header: rect(l.header) };
   }
   const groups: DiagramGeometry["groups"] = {};

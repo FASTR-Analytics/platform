@@ -29,30 +29,30 @@ export function generatePointPrimitives(
   const primitives: Primitive[] = [];
   const s = ctx.contentStyle;
   const seriesInfos = Array.from(
-    { length: ctx.nSeries },
+    { length: ctx.nSerieses },
     (_, i) => buildSeriesInfo(ctx, i, mapped),
   );
 
-  for (let i_val = 0; i_val < ctx.nVals; i_val++) {
-    for (let i_series = 0; i_series < ctx.nSeries; i_series++) {
-      const mappedVal = mapped[i_series][i_val];
-      if (mappedVal === undefined) continue;
+  for (let i_value = 0; i_value < ctx.nValues; i_value++) {
+    for (let i_series = 0; i_series < ctx.nSerieses; i_series++) {
+      const mappedValue = mapped[i_series][i_value];
+      if (mappedValue === undefined) continue;
 
       const valueInfo = buildValueInfo(
         ctx,
         seriesInfos[i_series],
-        mappedVal.val,
-        i_val,
+        mappedValue.value,
+        i_value,
       );
       const pointStyle = s.points.getStyle(valueInfo);
       if (!pointStyle.show) continue;
 
       let dataLabel: DataLabel | undefined;
-      if (labelOwner[i_series][i_val] === "points") {
+      if (labelOwner[i_series][i_value] === "points") {
         const dl = pointStyle.dataLabel;
         const labelStr = s.points.textFormatter !== "none"
           ? s.points.textFormatter(valueInfo)
-          : String(mappedVal.val);
+          : String(mappedValue.value);
 
         const textStyle = buildDataLabelTextStyle(ctx.dataLabelsTextStyle, dl);
 
@@ -61,8 +61,8 @@ export function generatePointPrimitives(
         const hasDecoration = halo !== undefined;
 
         if (labelStr.trim() || hasDecoration) {
-          const cx = mappedVal.coords.x();
-          const cy = mappedVal.coords.y();
+          const cx = mappedValue.coords.x();
+          const cy = mappedValue.coords.y();
           const off = pointStyle.radius + dl.offset;
           const pos = pointStyle.dataLabelPosition === "top"
             ? new Coordinates([cx, cy - off])
@@ -72,7 +72,7 @@ export function generatePointPrimitives(
             ? new Coordinates([cx - off, cy])
             : pointStyle.dataLabelPosition === "right"
             ? new Coordinates([cx + off, cy])
-            : mappedVal.coords;
+            : mappedValue.coords;
           const alignH = pointStyle.dataLabelPosition === "left"
             ? "right" as const
             : pointStyle.dataLabelPosition === "right"
@@ -94,8 +94,8 @@ export function generatePointPrimitives(
       }
 
       const pointBounds = new RectCoordsDims({
-        x: mappedVal.coords.x() - pointStyle.radius,
-        y: mappedVal.coords.y() - pointStyle.radius,
+        x: mappedValue.coords.x() - pointStyle.radius,
+        y: mappedValue.coords.y() - pointStyle.radius,
         w: pointStyle.radius * 2,
         h: pointStyle.radius * 2,
       });
@@ -103,15 +103,15 @@ export function generatePointPrimitives(
       primitives.push({
         type: "chart-data-point",
         key:
-          `point-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}-${i_val}`,
-        item: chartValueItem(ctx.itemAxes, valueInfo),
+          `point-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}-${i_value}`,
+        item: chartValueItem(ctx.itemDataDimensions, valueInfo),
         part: "marker",
         bounds: pointBounds,
         hitBounds: pointBounds,
         zIndex: Z_INDEX.CONTENT_POINT,
         meta: { value: valueInfo },
         annotationGroup: pointStyle.annotationGroup,
-        coords: mappedVal.coords,
+        coords: mappedValue.coords,
         style: pointStyle,
         dataLabel,
       });

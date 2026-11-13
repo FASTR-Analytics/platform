@@ -30,7 +30,7 @@ scale: (config.s.scale ?? DEFAULT) * 2                         // ×2 for a smal
 // ✅ DO: author the real DU sizes, once, in the global style
 setGlobalStyle({
   baseText: { fontSize: 14 },                                  // DUs, in the 1000-wide frame
-  figure: { text: { caption: { relFontSize: 1.2 } } },
+  figure: { text: { title: { relFontSize: 1.2 } } },
 })
 // then render the same inputs everywhere, unchanged
 ```

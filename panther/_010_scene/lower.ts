@@ -57,7 +57,7 @@ import {
   TEXT_WIDTH_EPS,
 } from "./_internal/box_layout.ts";
 
-// Maps every element into the content rect (x' = origin.x + x × sf, sizes ×
+// Maps every element into the body rect (x' = origin.x + x × sf, sizes ×
 // sf, text re-measured at sf) and emits shapes sub-keyed under the element,
 // back to front, each carrying the element's z.
 export function lowerScene(
@@ -330,7 +330,7 @@ function lowerRegion(ctx: LowerContext, el: RegionElement): Primitive[] {
   const labelStyle = getAdjustedText(style.text.regionLabel, el.label?.style);
   const label = (
     mText: MeasuredText,
-    position: Coordinates | RectCoordsDims,
+    position: Coordinates,
     alignH: AlignH,
     alignV: AlignV,
   ) => {
@@ -539,7 +539,7 @@ function lowerText(ctx: LowerContext, el: TextElement): Primitive[] {
       `${el.key}/text`,
       el.z ?? Z_INDEX.SCENE_ELEMENT,
       mText,
-      { position: rect, alignH: el.alignH, alignV: el.alignV },
+      { alignRcd: rect, alignH: el.alignH, alignV: el.alignV },
     ),
   ];
 }
@@ -630,11 +630,9 @@ function textPrimitive(
   key: string,
   z: number,
   mText: MeasuredText,
-  placement: {
-    position: Coordinates | RectCoordsDims;
-    alignH: AlignH;
-    alignV: AlignV;
-  },
+  placement:
+    & ({ position: Coordinates } | { alignRcd: RectCoordsDims })
+    & { alignH: AlignH; alignV: AlignV },
 ): ShapeTextPrimitive {
   return {
     type: "shape-text",
@@ -649,14 +647,12 @@ function textPrimitive(
 
 function textBounds(
   mText: MeasuredText,
-  placement: {
-    position: Coordinates | RectCoordsDims;
-    alignH: AlignH;
-    alignV: AlignV;
-  },
+  placement:
+    & ({ position: Coordinates } | { alignRcd: RectCoordsDims })
+    & { alignH: AlignH; alignV: AlignV },
 ): RectCoordsDims {
-  if (placement.position instanceof RectCoordsDims) {
-    return placement.position;
+  if ("alignRcd" in placement) {
+    return placement.alignRcd;
   }
   const w = mText.dims.w();
   const h = mText.dims.h();

@@ -438,6 +438,9 @@ const MODEL_NOT_FOUND_MESSAGE =
   "Model not found or unavailable. Check the model in AI settings.";
 const CONTEXT_EXCEEDED_MESSAGE =
   "Conversation too long — context window exceeded";
+// Closes the details of both turn_limit notices: the turn's work is kept, so
+// what the user can do is send again.
+const TURN_LIMIT_NEXT_STEP = "Send a new message to carry on.";
 
 type StopDetailsLike = { explanation?: string | null } | null;
 
@@ -483,7 +486,7 @@ export function classifyTurnContinuation(
         noticeType: "turn_limit",
         message: "Stopped: too many turn continuations",
         details:
-          `The model paused and resumed more than ${maxContinuations} times in one turn.`,
+          `The model paused and resumed more than ${maxContinuations} times in one turn. ${TURN_LIMIT_NEXT_STEP}`,
       };
     }
     return { kind: "resume-pause-turn" };
@@ -495,7 +498,7 @@ export function classifyTurnContinuation(
         noticeType: "turn_limit",
         message: "Stopped: too many tool calls in one turn",
         details:
-          `The model requested tools more than ${maxContinuations} times in one turn.`,
+          `The model requested tools more than ${maxContinuations} times in one turn. ${TURN_LIMIT_NEXT_STEP}`,
       };
     }
     return { kind: "run-tools" };

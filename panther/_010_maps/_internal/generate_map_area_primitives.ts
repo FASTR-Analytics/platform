@@ -4,12 +4,13 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  MapRegionInfoFunc,
-  MapRegionPrimitive,
-  MapRegionStyle,
+  MapAreaInfoFunc,
+  MapAreaPrimitive,
+  MapAreaStyle,
   Primitive,
   PrimitiveItem,
-  SubChartHeaders,
+  SubChartMembers,
+  ValueRange,
 } from "../deps.ts";
 import {
   buildItem,
@@ -27,49 +28,52 @@ import { getFeatureMatchKey } from "./label_shared.ts";
 // A feature the cell will actually draw, with its style resolved ONCE (with
 // the real value range) — the same resolution the label pass reads, so the
 // two can never disagree.
-export type ShownMapRegion = {
+export type ShownMapArea = {
   feature: GeoJSONFeature;
   featureId: string;
-  // The region's area member in its sub-chart, which its label names too.
+  // The map area's member in its sub-chart, which its label names too.
   item: PrimitiveItem | undefined;
   value: number | undefined;
-  style: MapRegionStyle;
+  style: MapAreaStyle;
 };
 
-export function resolveShownRegions(
+export function resolveShownMapAreas(
   geoFeatures: GeoJSONFeature[],
   valueMap: Record<string, number | undefined>,
-  valueRange: { min: number; max: number },
-  slots: Pick<MapDataTransformed, "area" | "pane" | "tier" | "lane">,
-  getStyle: MapRegionInfoFunc<MapRegionStyle>,
-  paneIndex: number,
-  tierIndex: number,
-  laneIndex: number,
-  headers: SubChartHeaders,
-): ShownMapRegion[] {
-  const shown: ShownMapRegion[] = [];
-  const cellCoordinates = subChartItemCoordinates(slots, headers);
+  valueRange: ValueRange,
+  dimensions: Pick<MapDataTransformed, "mapArea" | "pane" | "tier" | "lane">,
+  getStyle: MapAreaInfoFunc<MapAreaStyle>,
+  i_pane: number,
+  i_tier: number,
+  i_lane: number,
+  members: SubChartMembers,
+): ShownMapArea[] {
+  const shown: ShownMapArea[] = [];
+  const subChartCoordinates = subChartItemCoordinates(dimensions, members);
   for (const feature of geoFeatures) {
-    const featureId = getFeatureMatchKey(feature, slots.area.matchProp);
+    const featureId = getFeatureMatchKey(feature, dimensions.mapArea.matchProp);
     const value = valueMap[featureId];
 
     const style = getStyle({
       featureId,
       value,
-      valueMin: valueRange.min,
-      valueMax: valueRange.max,
+      valueMin: valueRange.valueMin,
+      valueMax: valueRange.valueMax,
       featureProperties: feature.properties,
-      paneIndex,
-      tierIndex,
-      laneIndex,
-      ...headers,
+      i_pane,
+      i_tier,
+      i_lane,
+      ...members,
     });
 
     if (!style.show) continue;
     shown.push({
       feature,
       featureId,
-      item: buildItem([[slots.area.dimension, featureId], ...cellCoordinates]),
+      item: buildItem([
+        [dimensions.mapArea.name, featureId],
+        ...subChartCoordinates,
+      ]),
       value,
       style,
     });
@@ -77,13 +81,13 @@ export function resolveShownRegions(
   return shown;
 }
 
-export function generateMapRegionPrimitives(
-  shown: ShownMapRegion[],
+export function generateMapAreaPrimitives(
+  shown: ShownMapArea[],
   fitted: FittedProjection,
-  indices: { paneIndex: number; tierIndex: number; laneIndex: number },
-  headers: SubChartHeaders,
+  indices: { i_pane: number; i_tier: number; i_lane: number },
+  members: SubChartMembers,
 ): Primitive[] {
-  const { paneIndex, tierIndex, laneIndex } = indices;
+  const { i_pane, i_tier, i_lane } = indices;
   const regionPrimitives: Primitive[] = [];
 
   for (const { feature, featureId, item, value, style } of shown) {
@@ -95,9 +99,9 @@ export function generateMapRegionPrimitives(
       pathSegmentPoints(pathSegments),
       hasStroke ? style.strokeWidth : 0,
     );
-    const prim: MapRegionPrimitive = {
-      type: "map-region",
-      key: `map-region-${paneIndex}-${tierIndex}-${laneIndex}-${featureId}`,
+    const prim: MapAreaPrimitive = {
+      type: "map-area",
+      key: `map-area-${i_pane}-${i_tier}-${i_lane}-${featureId}`,
       item,
       part: "body",
       bounds,
@@ -105,10 +109,10 @@ export function generateMapRegionPrimitives(
       zIndex: Z_INDEX.MAP_REGION,
       meta: {
         featureId,
-        paneIndex,
-        tierIndex,
-        laneIndex,
-        ...headers,
+        i_pane,
+        i_tier,
+        i_lane,
+        ...members,
         value,
       },
       pathSegments,

@@ -95,7 +95,7 @@ export function buildTransitionFrame(
       },
       nodes,
       edges,
-      lanes: moving ? from.lanes : to.lanes,
+      bands: moving ? from.bands : to.bands,
       groups: moving ? from.groups : to.groups,
       // The settled target's hit areas and order record: mid-tween positions
       // never matched either geometry, so the target is the only coherent

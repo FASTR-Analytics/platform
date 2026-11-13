@@ -4,8 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  MergedXScaleAxisStyle,
-  MergedYScaleAxisStyle,
+  MergedXValueAxisStyle,
+  MergedYValueAxisStyle,
   RenderContext,
   TextInfoUnkeyed,
 } from "./deps.ts";
@@ -15,18 +15,18 @@ import type { ChartComponentSizes } from "./chart_size_helpers.ts";
 // out: wide enough to stand in for the typical case, not the worst.
 export const SIZING_SAMPLE = {
   sixDigits: "999,999",
-  scaleTickWide: "100,000",
-  scaleTickPct: "100%",
+  valueAxisTickWide: "100,000",
+  valueAxisTickPct: "100%",
   textTick: "Category",
   periodTick: "2024",
   paneHeader: "Region 001",
 } as const;
 export const PANE_HEADER_SAMPLE_MAX_W = 400;
 
-export type PaneGrid = { nGCols: number; nGRows: number };
+export type PaneGrid = { nCols: number; nRows: number };
 
-export function calculatePaneGrid(nPanes: number, nGCols: number): PaneGrid {
-  return { nGCols, nGRows: Math.ceil(nPanes / nGCols) };
+export function computeNRows(n: number, nCols: number): number {
+  return Math.ceil(n / nCols);
 }
 
 // One grid column at its legibility floor: a pane's sub-charts across its
@@ -53,20 +53,21 @@ export function resolvePaneGrid(
 ): PaneGrid {
   const nPanes = info.nPanes;
   const { nCols, minWidth, gapX } = info.mergedStyle.panes;
-  if (nCols !== "auto") return calculatePaneGrid(nPanes, nCols);
+  if (nCols !== "auto") return { nCols, nRows: computeNRows(nPanes, nCols) };
   const available = frameWidth - info.surroundsMinWidth;
   const columnTarget = Math.max(calculateColumnMinWidth(info), minWidth);
   const fit = Math.floor((available + gapX) / (columnTarget + gapX));
-  return calculatePaneGrid(nPanes, Math.max(1, Math.min(nPanes, fit)));
+  const nFitCols = Math.max(1, Math.min(nPanes, fit));
+  return { nCols: nFitCols, nRows: computeNRows(nPanes, nFitCols) };
 }
 
 export function calculateMinSubChartHeight(
   rc: RenderContext,
-  yScaleAxisStyle: MergedYScaleAxisStyle,
+  yValueAxisStyle: MergedYValueAxisStyle,
 ): number {
   const tickLabelHeight = rc.mText(
     SIZING_SAMPLE.sixDigits,
-    yScaleAxisStyle.text.yScaleAxisTickLabels,
+    yValueAxisStyle.text.yValueAxisTickLabels,
     Infinity,
   ).dims.h();
   // 2 tick labels + 2× spacing between them
@@ -75,30 +76,30 @@ export function calculateMinSubChartHeight(
 
 export function calculateMinSubChartWidth(
   rc: RenderContext,
-  xScaleAxisStyle: MergedXScaleAxisStyle,
+  xValueAxisStyle: MergedXValueAxisStyle,
 ): number {
   const tickLabelWidth = rc.mText(
     SIZING_SAMPLE.sixDigits,
-    xScaleAxisStyle.text.xScaleAxisTickLabels,
+    xValueAxisStyle.text.xValueAxisTickLabels,
     Infinity,
   ).dims.w();
   // Mirror of calculateMinSubChartHeight: 2 tick labels + 2× spacing
   return tickLabelWidth * 4;
 }
 
-// Legibility floor for figures whose plot area contains no axis — only data
-// labels (the zero-way figures: map, pie). Both extents come from this one
+// Legibility floor for figures whose sub-chart contains no axis — only data
+// labels (the charts with no axes: map, pie). Both extents come from this one
 // call: their cells have no axis direction to distinguish, and a pie cell is
 // square (radius = min(w, h) / 2), so width and height are the same quantity.
 //
-// The multiplier is a CALIBRATION, not a derivation. The scale-axis siblings
+// The multiplier is a CALIBRATION, not a derivation. The value-axis siblings
 // above use 4 because "2 tick labels + 2× spacing" is a real geometry; a
-// label-only plot area has no such stack. 3 reproduces the hand-tuned 50 that
+// label-only sub-chart has no such stack. 3 reproduces the hand-tuned 50 that
 // map shipped with (17pt label height × 3 = 51 at the default style), so this
 // preserves the calibration while fixing what was actually wrong with it:
 // it was a magic number, and being a literal it did not shrink with the style
 // scale — so shrink-to-fit could never lower a map's floor.
-export function calculateMinLabelPlotExtent(
+export function calculateMinLabelSubChartExtent(
   rc: RenderContext,
   dataLabelsTextStyle: TextInfoUnkeyed,
 ): number {

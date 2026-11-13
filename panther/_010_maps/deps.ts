@@ -9,17 +9,17 @@ export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export {
   buildItem,
   computeBoundsForPath,
+  getDimensionMembers,
   pathSegmentPoints,
-  slotHeaders,
   Z_INDEX,
 } from "../_001_render_system/mod.ts";
 export type {
-  DataAxis,
-  HeaderSortConfig,
+  DataDimension,
   HeightConstraints,
-  MapRegionInfo,
-  MapRegionInfoFunc,
-  MapRegionPrimitive,
+  MapAreaInfo,
+  MapAreaInfoFunc,
+  MapAreaPrimitive,
+  MemberSortConfig,
   PathSegment,
   Primitive,
   PrimitiveItem,
@@ -28,25 +28,25 @@ export type {
 } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type {
+  MapAreaStyle,
   MapDataLabelMode,
-  MapRegionStyle,
   MergedMapStyle,
   OutsideLabelPlacement,
 } from "../_003_figure_style/mod.ts";
 export {
-  buildDataAxis,
+  buildDataDimension,
   buildDataLabelTextStyle,
   buildDistanceField,
   calculateChartIdealHeight,
   calculateChartMinWidth,
-  calculateMinLabelPlotExtent,
+  calculateMinLabelSubChartExtent,
   computeFloorScale,
   estimateMinSurroundsWidth,
   fieldTrack,
   generateResolvedFigureLabelPrimitives,
   getDimensionId,
-  getHeaderIndex,
-  getSubChartHeaders,
+  getMemberIndex,
+  getSubChartMembers,
   isAutoScaleLegendConfig,
   measureChart,
   measureChartWithAutofit,
@@ -62,7 +62,7 @@ export {
   scaledTrack,
   solveContentScale,
   subChartItemCoordinates,
-  validateSlotDimensions,
+  validateDimensionProps,
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartComponentSizes,
@@ -81,5 +81,6 @@ export type {
   Point,
   Ring,
   SimplifiedChartConfig,
-  SubChartHeaders,
+  SubChartMembers,
+  ValueRange,
 } from "../_007_figure_core/mod.ts";

@@ -29,4 +29,4 @@ export type {
   ChartValueInfo,
   ChartValueInfoFunc,
 } from "./chart_info_types.ts";
-export type { HeaderItem } from "./header_types.ts";
+export type { DimensionMember } from "./dimension_types.ts";

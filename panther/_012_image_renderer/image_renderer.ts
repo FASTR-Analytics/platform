@@ -65,11 +65,11 @@ export type MeasuredImage = Measured<ImageInputs> & {
 // =============================================================================
 
 export const ImageRenderer: Renderer<ImageInputs, MeasuredImage> = {
-  isType(item: unknown): item is ImageInputs {
-    if (typeof item !== "object" || item === null || !("image" in item)) {
+  isType(inputs: unknown): inputs is ImageInputs {
+    if (typeof inputs !== "object" || inputs === null || !("image" in inputs)) {
       return false;
     }
-    const img = (item as ImageInputs).image;
+    const img = (inputs as ImageInputs).image;
     return typeof img === "string" ||
       (typeof HTMLImageElement !== "undefined" &&
         img instanceof HTMLImageElement) ||
@@ -83,23 +83,23 @@ export const ImageRenderer: Renderer<ImageInputs, MeasuredImage> = {
   measureAndRender(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: ImageInputs,
+    inputs: ImageInputs,
   ): void {
-    const measured = measureImage(rc, bounds, item);
+    const measured = measureImage(rc, bounds, inputs);
     renderImage(rc, measured);
   },
 
   getIdealHeight(
     _rc: RenderContext,
     width: number,
-    item: ImageInputs,
+    inputs: ImageInputs,
   ): HeightConstraints {
-    const imgW = typeof item.image === "string"
-      ? item.width!
-      : item.image.width;
-    const imgH = typeof item.image === "string"
-      ? item.height!
-      : item.image.height;
+    const imgW = typeof inputs.image === "string"
+      ? inputs.width!
+      : inputs.image.width;
+    const imgH = typeof inputs.image === "string"
+      ? inputs.height!
+      : inputs.image.height;
     const aspectRatio = imgH / imgW;
     const idealH = width * aspectRatio;
     return { minH: 0, idealH, maxH: Infinity };
@@ -113,15 +113,17 @@ export const ImageRenderer: Renderer<ImageInputs, MeasuredImage> = {
 function measureImage(
   _rc: RenderContext,
   bounds: RectCoordsDims,
-  item: ImageInputs,
+  inputs: ImageInputs,
 ): MeasuredImage {
-  const fit = item.fit ?? "contain";
-  const align = item.align ?? "center";
+  const fit = inputs.fit ?? "contain";
+  const align = inputs.align ?? "center";
 
-  const imgW = typeof item.image === "string" ? item.width! : item.image.width;
-  const imgH = typeof item.image === "string"
-    ? item.height!
-    : item.image.height;
+  const imgW = typeof inputs.image === "string"
+    ? inputs.width!
+    : inputs.image.width;
+  const imgH = typeof inputs.image === "string"
+    ? inputs.height!
+    : inputs.image.height;
   const imgAspect = imgW / imgH;
   const boundsAspect = bounds.w() / bounds.h();
 
@@ -149,7 +151,7 @@ function measureImage(
     // IMPORTANT: Source cropping only works with HTMLImageElement, not data URL strings.
     // For data URLs, cover falls back to fill behavior (image stretched to bounds).
     // See ImageInputs type documentation for full explanation and workarounds.
-    if (typeof item.image !== "string") {
+    if (typeof inputs.image !== "string") {
       // Calculate which portion of source image to use (centered crop)
       if (imgAspect > boundsAspect) {
         // Image is wider - crop horizontally
@@ -194,7 +196,7 @@ function measureImage(
   }
 
   return {
-    item,
+    inputs,
     bounds: new RectCoordsDims({ x: drawX, y: drawY, w: drawW, h: drawH }),
     drawX,
     drawY,
@@ -216,7 +218,7 @@ function renderImage(rc: RenderContext, measured: MeasuredImage): void {
   ) {
     // Use 9-param version for source cropping (cover mode)
     rc.rImage(
-      measured.item.image,
+      measured.inputs.image,
       measured.srcX,
       measured.srcY,
       measured.srcW,
@@ -229,7 +231,7 @@ function renderImage(rc: RenderContext, measured: MeasuredImage): void {
   } else {
     // Use 5-param version (contain/fill modes)
     rc.rImage(
-      measured.item.image,
+      measured.inputs.image,
       measured.drawX,
       measured.drawY,
       measured.drawW,

@@ -163,7 +163,7 @@ function measureWithAutofit(
   const cramped = measured.bounds.h() > bounds.h();
   return {
     ...measured,
-    item: input,
+    inputs: input,
     autofitScale: optimalScale,
     cramped,
   };
@@ -173,12 +173,12 @@ export const MarkdownRenderer: Renderer<
   MarkdownRendererInput,
   MeasuredMarkdown
 > = {
-  isType(item: unknown): item is MarkdownRendererInput {
+  isType(inputs: unknown): inputs is MarkdownRendererInput {
     return (
-      typeof item === "object" &&
-      item !== null &&
-      "markdown" in item &&
-      typeof (item as MarkdownRendererInput).markdown === "string"
+      typeof inputs === "object" &&
+      inputs !== null &&
+      "markdown" in inputs &&
+      typeof (inputs as MarkdownRendererInput).markdown === "string"
     );
   },
 

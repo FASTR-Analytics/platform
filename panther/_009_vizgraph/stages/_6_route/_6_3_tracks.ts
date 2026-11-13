@@ -46,8 +46,8 @@ export function maxThicknessPerGutter(
 }
 
 // One gutter's full width: interior gutters carry layerGap as the base
-// margin (half each side of the track bundle), plus laneGap where the gutter
-// is a span boundary (a lane or span group starts or ends there); the
+// margin (half each side of the track bundle), plus bandGap where the gutter
+// is a span boundary (a band or span group starts or ends there); the
 // outermost two are zero-width unless tracks live there. Track pitch widens
 // by the gutter's max edge thickness so thick edges on adjacent tracks keep
 // trackGap clear.
@@ -57,33 +57,33 @@ export function gutterReserve(
   trackCounts: number[],
   gutterThickness: number[],
   spacing: ResolvedSpacing,
-  laneBoundaries: boolean[],
+  bandBoundaries: boolean[],
 ): number {
-  const basePad = gutterBasePad(g, layerCount, spacing, laneBoundaries);
+  const basePad = gutterBasePad(g, layerCount, spacing, bandBoundaries);
   return basePad * 2 +
     trackCounts[g] * (spacing.trackGap + gutterThickness[g]);
 }
 
 // Half the gutter's base margin — what sits on each side of its track
-// bundle. Adding laneGap only at boundary gutters keeps every other gutter's
+// bundle. Adding bandGap only at boundary gutters keeps every other gutter's
 // arithmetic byte-identical to the span-free engine (+0 is exact).
 export function gutterBasePad(
   g: number,
   layerCount: number,
   spacing: ResolvedSpacing,
-  laneBoundaries: boolean[],
+  bandBoundaries: boolean[],
 ): number {
   if (g === 0 || g === layerCount) {
     return 0;
   }
-  return (spacing.layerGap + (laneBoundaries[g] ? spacing.laneGap : 0)) / 2;
+  return (spacing.layerGap + (bandBoundaries[g] ? spacing.bandGap : 0)) / 2;
 }
 
 // Interval packing per gutter, re-expressed from viz-positions
 // sortAndCollapseSegmentTracks: normal hops (forward/backward) are ordered by
 // a direction-aware comparator — down-goers bottommost-left-entry first,
 // up-goers topmost first, down before up — so an edge's entry run never
-// crosses a track ordered before it. Around runs pack into their own band
+// crosses a track ordered before it. Around runs pack into their own strip
 // AFTER the normals (nearer the layer they wrap), longest first. Each item is
 // placed directly above its highest conflicting track (not first-fit), which
 // keeps conflicting pairs in comparator order. Straight-through hops claim
@@ -167,9 +167,9 @@ export function packTracks(
   return trackCounts;
 }
 
-// NO band translation: the track band sits centered in its gutter, so bends
+// NO strip translation: the track strip sits centered in its gutter, so bends
 // happen midway through the layer space, always. A "fan hug" policy that
-// translated the band against the fan's node lived here 2026-07-10 →
+// translated the strip against the fan's node lived here 2026-07-10 →
 // 2026-07-12; it was built on a misreading of Tim's fan-symmetry instruction
 // (the real ask is alignFanColumns below) and removed — bends near a node
 // need a reason, and a fan is not one (DOC_VIZGRAPH_ROUTING.md decision
@@ -219,7 +219,7 @@ function alignFanColumns(normals: TrackItem[]): void {
     // Propose the re-anchored assignment, then apply it ONLY if it is
     // provably collision-free (2026-07-12): the clean-packing check above
     // guarantees safety only in the compressed regime, where the tiny port
-    // band makes every above/below pair disjoint. Measured under a fan-ness
+    // strip makes every above/below pair disjoint. Measured under a fan-ness
     // experiment: without this check, re-anchored pairs of roomy fans and
     // out-fans produced 10 same-column OVERLAPS across the corpus (contract
     // clause 1). Verify the proposal against real track occupancy with
@@ -347,8 +347,8 @@ function fanOfItem(
 // pairs keep the caller's sort order. Returns the number of tracks used;
 // assigned indices are offset by baseIndex. TRACK_PACK_PAD is waived
 // between opposite-group hops of the same fan (balanced fanning): their
-// intervals are disjoint (split by the port band), and sharing the column
-// is exactly what a roomy band gets for free — the k-th above and k-th
+// intervals are disjoint (split by the port strip), and sharing the column
+// is exactly what a roomy strip gets for free — the k-th above and k-th
 // below pair up because both groups are comparator-sorted
 // nearest-source-first. Half-thickness clearance still applies, so thick
 // pairs that would visually merge stay apart.

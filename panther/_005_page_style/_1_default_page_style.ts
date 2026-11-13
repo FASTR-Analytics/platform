@@ -38,7 +38,7 @@ const _DS = {
       gap: 30,
     }),
     titleBottomPadding: 30,
-    subTitleBottomPadding: 30,
+    subtitleBottomPadding: 30,
     authorBottomPadding: 30,
     alignH: typed<AlignH>("center"),
     alignV: typed<AlignV>("middle"),

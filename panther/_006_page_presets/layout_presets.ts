@@ -48,7 +48,7 @@ const LAYOUT_PRESETS = {
         gapX: 20,
       },
       titleBottomPadding: 20,
-      subTitleBottomPadding: 20,
+      subtitleBottomPadding: 20,
       authorBottomPadding: 20,
     },
     section: {
@@ -100,7 +100,7 @@ const LAYOUT_PRESETS = {
         gapX: 20,
       },
       titleBottomPadding: 20,
-      subTitleBottomPadding: 20,
+      subtitleBottomPadding: 20,
       authorBottomPadding: 20,
     },
     section: {
@@ -152,7 +152,7 @@ const LAYOUT_PRESETS = {
         gapX: 20,
       },
       titleBottomPadding: 20,
-      subTitleBottomPadding: 20,
+      subtitleBottomPadding: 20,
       authorBottomPadding: 20,
     },
     section: {
@@ -205,7 +205,7 @@ const LAYOUT_PRESETS = {
         gapX: 20,
       },
       titleBottomPadding: 20,
-      subTitleBottomPadding: 20,
+      subtitleBottomPadding: 20,
       authorBottomPadding: 20,
     },
     section: {

@@ -85,8 +85,8 @@ export function collectPieLabelSpecs(
 
     const text = formatter !== "none"
       ? formatter(slice.info)
-      : slice.seriesHeader
-      ? `${slice.seriesHeader.label} ${autoPercent(slice.share)}`
+      : slice.seriesMember
+      ? `${slice.seriesMember.label} ${autoPercent(slice.share)}`
       : autoPercent(slice.share);
     if (!text) continue;
 
@@ -174,7 +174,7 @@ const PIE_UNTANGLES_LEADERS = false;
 // CONSEQUENCE of the shape, never the model.
 //
 // A partial sweep (a gauge) keeps the whole circle here, along with
-// `outsideBand` and `circleEdgeAtY` below: the outside-label FRAME stays
+// `outsideStrip` and `circleEdgeAtY` below: the outside-label FRAME stays
 // notionally circular even when the drawn sector is not. That is conservative,
 // not wrong — anchors come from slice mid-angles so they stay inside the sweep,
 // and `pieExtentsAt` measures the boxes the placer actually produced, so sizing
@@ -207,7 +207,7 @@ export function buildPieLabelGeometry(
   return {
     hostRcd: slotRcd,
     centerX: cx,
-    outsideBand: { minY: cy - outerR, maxY: cy + outerR },
+    outsideStrip: { minY: cy - outerR, maxY: cy + outerR },
     outsideEdgeAtY: (side, y) => circleEdgeAtY(cx, cy, outerR, side, y),
     outsideClearance: mergedStyle.pie.calloutMargin,
     untangleLeaders: PIE_UNTANGLES_LEADERS,
@@ -293,7 +293,7 @@ export function placePieOutsideBoxesAt(
     }),
     {
       centerX: cx,
-      outsideBand: { minY: cy - s, maxY: cy + s },
+      outsideStrip: { minY: cy - s, maxY: cy + s },
       outsideEdgeAtY: (side, y) => circleEdgeAtY(cx, cy, s, side, y),
       outsideClearance: calloutMargin,
     },

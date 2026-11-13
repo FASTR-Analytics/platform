@@ -42,7 +42,7 @@ export function renderCoverSlide(
   createCanvasRenderContext: CreateCanvasRenderContext,
 ): PptxSlide {
   const slide = pptx.addSlide() as unknown as PptxSlide;
-  const item = measured.item;
+  const inputs = measured.inputs;
   const bounds = measured.bounds;
   const s = measured.style;
 
@@ -74,7 +74,7 @@ export function renderCoverSlide(
   if (measured.measuredSplitImage) {
     const splitImg = measured.measuredSplitImage;
     const imgDataUrl = imageToDataUrl(
-      splitImg.item.image as HTMLImageElement,
+      splitImg.inputs.image as HTMLImageElement,
       createCanvasRenderContext,
     );
     slide.addImage({
@@ -87,9 +87,9 @@ export function renderCoverSlide(
   }
 
   // Overlay image
-  if (item.overlay) {
+  if (inputs.overlay) {
     const overlayDataUrl = imageToDataUrl(
-      item.overlay,
+      inputs.overlay,
       createCanvasRenderContext,
     );
     slide.addImage({
@@ -101,14 +101,14 @@ export function renderCoverSlide(
     });
   }
 
-  const hasLogos = item.titleLogos && item.titleLogos.length > 0;
+  const hasLogos = inputs.titleLogos && inputs.titleLogos.length > 0;
   const isFixed = isFixedPlacement(s.logosPlacement);
 
   if (hasLogos && isFixed) {
     renderFixedLogosCover(
       slide,
       bounds,
-      item.titleLogos!,
+      inputs.titleLogos!,
       s,
       measured,
       createCanvasRenderContext,
@@ -117,7 +117,7 @@ export function renderCoverSlide(
     renderFlowCover(
       slide,
       bounds,
-      hasLogos ? item.titleLogos : undefined,
+      hasLogos ? inputs.titleLogos : undefined,
       s,
       measured,
       createCanvasRenderContext,
@@ -125,9 +125,9 @@ export function renderCoverSlide(
   }
 
   // Watermark
-  if (item.watermark) {
-    const mText = rc.mText(item.watermark, s.text.watermark, bounds.w());
-    slide.addText(item.watermark, {
+  if (inputs.watermark) {
+    const mText = rc.mText(inputs.watermark, s.text.watermark, bounds.w());
+    slide.addText(inputs.watermark, {
       x: pixelsToInches(bounds.x()),
       y: pixelsToInches(bounds.centerY() - mText.dims.h() / 2),
       w: pixelsToInches(bounds.w()),
@@ -206,11 +206,11 @@ function renderFixedLogosCover(
     s.alignH,
     s.alignV,
     measured.mTitle,
-    measured.mSubTitle,
+    measured.mSubtitle,
     measured.mAuthor,
     measured.mDate,
     s.titleBottomPadding,
-    s.subTitleBottomPadding,
+    s.subtitleBottomPadding,
     s.authorBottomPadding,
   );
 }
@@ -251,8 +251,8 @@ function renderFlowCover(
   addItem("title", measured.mTitle?.dims.h() ?? 0, s.titleBottomPadding);
   addItem(
     "subtitle",
-    measured.mSubTitle?.dims.h() ?? 0,
-    s.subTitleBottomPadding,
+    measured.mSubtitle?.dims.h() ?? 0,
+    s.subtitleBottomPadding,
   );
   addItem("author", measured.mAuthor?.dims.h() ?? 0, s.authorBottomPadding);
   addItem("date", measured.mDate?.dims.h() ?? 0, 0);
@@ -299,10 +299,10 @@ function renderFlowCover(
         s.alignH,
         currentY,
       );
-    } else if (item.type === "subtitle" && measured.mSubTitle) {
+    } else if (item.type === "subtitle" && measured.mSubtitle) {
       addTextToSlide(
         slide,
-        measured.mSubTitle,
+        measured.mSubtitle,
         bounds,
         padding,
         s.alignH,
@@ -342,7 +342,7 @@ function renderContentStack(
   alignH: AlignH,
   alignV: AlignV,
   mTitle?: MeasuredText,
-  mSubTitle?: MeasuredText,
+  mSubtitle?: MeasuredText,
   mAuthor?: MeasuredText,
   mDate?: MeasuredText,
   titleGap: number = 0,
@@ -353,7 +353,7 @@ function renderContentStack(
   const items: StackItem[] = [];
 
   if (mTitle) items.push({ mText: mTitle, gap: titleGap });
-  if (mSubTitle) items.push({ mText: mSubTitle, gap: subtitleGap });
+  if (mSubtitle) items.push({ mText: mSubtitle, gap: subtitleGap });
   if (mAuthor) items.push({ mText: mAuthor, gap: authorGap });
   if (mDate) items.push({ mText: mDate, gap: 0 });
 

@@ -18,7 +18,7 @@ import {
   RectCoordsDims,
   type RenderContext,
   type Renderer,
-  resolveScaleAxisPlotHeight,
+  resolveValueAxisSubChartHeight,
 } from "./deps.ts";
 import type {
   MeasuredTimeseries,
@@ -31,14 +31,14 @@ import type {
 function buildTimeseriesProbe(
   rc: RenderContext,
   width: number,
-  item: TimeseriesInputs,
+  inputs: TimeseriesInputs,
   data: TimeseriesDataTransformed,
 ): (probeH: number, paneGrid: PaneGrid, scale?: number) => PaneLayout[] {
   return (probeH, paneGrid, scale) =>
     measureTimeseries(
       rc,
       new RectCoordsDims([0, 0, width, probeH]),
-      item,
+      inputs,
       paneGrid,
       scale,
       data,
@@ -49,19 +49,19 @@ function buildTimeseriesProbe(
 function measureTS(
   rc: RenderContext,
   bounds: RectCoordsDims,
-  item: TimeseriesInputs,
+  inputs: TimeseriesInputs,
 ): MeasuredTimeseries {
-  const data = getTimeseriesSizingData(item);
+  const data = getTimeseriesSizingData(inputs);
   const w = bounds.w();
   return measureChartWithAutofit(
     rc,
     bounds,
-    item,
-    (scale) => getTimeseriesComponentSizes(rc, item, data, scale),
+    inputs,
+    (scale) => getTimeseriesComponentSizes(rc, inputs, data, scale),
     (rc2, b, inp, paneGrid, fitScale) =>
       measureTimeseries(rc2, b, inp, paneGrid, fitScale, data),
-    buildTimeseriesProbe(rc, w, item, data),
-    resolveScaleAxisPlotHeight,
+    buildTimeseriesProbe(rc, w, inputs, data),
+    resolveValueAxisSubChartHeight,
   );
 }
 
@@ -69,17 +69,17 @@ export const TimeseriesRenderer: Renderer<
   TimeseriesInputs,
   MeasuredTimeseries
 > = {
-  isType(item: unknown): item is TimeseriesInputs {
-    return typeof item === "object" && item !== null &&
-      "figureType" in item && item.figureType === "timeseries";
+  isType(inputs: unknown): inputs is TimeseriesInputs {
+    return typeof inputs === "object" && inputs !== null &&
+      "figureType" in inputs && inputs.figureType === "timeseries";
   },
 
   measure(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: TimeseriesInputs,
+    inputs: TimeseriesInputs,
   ): MeasuredTimeseries {
-    return measureTS(rc, bounds, item);
+    return measureTS(rc, bounds, inputs);
   },
 
   render(rc: RenderContext, mTimeseries: MeasuredTimeseries) {
@@ -89,24 +89,24 @@ export const TimeseriesRenderer: Renderer<
   measureAndRender(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: TimeseriesInputs,
+    inputs: TimeseriesInputs,
   ): void {
-    renderTimeseries(rc, measureTS(rc, bounds, item));
+    renderTimeseries(rc, measureTS(rc, bounds, inputs));
   },
 
   getIdealHeight(
     rc: RenderContext,
     width: number,
-    item: TimeseriesInputs,
+    inputs: TimeseriesInputs,
   ): HeightConstraints {
-    const data = getTimeseriesSizingData(item);
+    const data = getTimeseriesSizingData(inputs);
     return getChartHeightConstraintsByMeasure(
       rc,
       width,
-      item,
-      (scale) => getTimeseriesComponentSizes(rc, item, data, scale),
-      buildTimeseriesProbe(rc, width, item, data),
-      resolveScaleAxisPlotHeight,
+      inputs,
+      (scale) => getTimeseriesComponentSizes(rc, inputs, data, scale),
+      buildTimeseriesProbe(rc, width, inputs, data),
+      resolveValueAxisSubChartHeight,
     );
   },
 };

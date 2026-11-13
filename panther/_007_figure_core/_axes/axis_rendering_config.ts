@@ -11,9 +11,9 @@ import type { YAxisWidthInfo } from "../types.ts";
 import type { YTextAxisWidthInfo } from "./y_text/types.ts";
 
 export type AxisRenderingConfig = {
-  categoryIncrement: number;
+  slotExtent: number;
   isCentered: boolean;
-  nVals: number;
+  nValues: number;
 };
 
 export function getXAxisRenderConfig(
@@ -24,31 +24,31 @@ export function getXAxisRenderConfig(
     case "text": {
       const mx = xAxisMeasuredInfo as XTextAxisMeasuredInfo;
       return {
-        categoryIncrement: mx.indicatorAreaInnerWidth,
+        slotExtent: mx.slotExtent,
         isCentered: xAxisConfig.axisStyle.tickPosition === "center",
-        nVals: xAxisConfig.indicatorHeaders.length,
+        nValues: xAxisConfig.indicatorMembers.length,
       };
     }
     case "period": {
       const mx = xAxisMeasuredInfo as XPeriodAxisMeasuredInfo;
       return {
-        categoryIncrement: mx.periodIncrementWidth,
+        slotExtent: mx.slotExtent,
         isCentered: mx.periodAxisType === "year-centered",
-        nVals: xAxisConfig.nTimePoints,
+        nValues: xAxisConfig.nTimePoints,
       };
     }
-    case "scale":
+    case "value":
       throw new Error(
-        "X-scale is a value axis, not a category axis — use getYAxisRenderConfig for horizontal category layout",
+        "The x value axis is not a category axis — use getYAxisRenderConfig for horizontal category layout",
       );
     case "none":
-      return { categoryIncrement: 0, isCentered: false, nVals: 0 };
+      return { slotExtent: 0, isCentered: false, nValues: 0 };
   }
 }
 
 // Horizontal content uses Y-text as the category axis. The caller fills in
-// categoryIncrement from subChartAreaHeight/nIndicators (this function can't
-// compute it — the plot area dimensions aren't known here).
+// slotExtent from uniformSubChartHeight/nIndicators (this function can't
+// compute it — the sub-chart dimensions aren't known here).
 export function getYAxisRenderConfig(
   yAxisConfig: YAxisConfig,
   yAxisWidthInfo: YAxisWidthInfo,
@@ -57,16 +57,16 @@ export function getYAxisRenderConfig(
     case "text": {
       const my = yAxisWidthInfo as YTextAxisWidthInfo;
       return {
-        categoryIncrement: 0, // caller sets using subChartAreaHeight / nIndicators
+        slotExtent: 0, // caller sets using uniformSubChartHeight / nIndicators
         isCentered: yAxisConfig.axisStyle.tickPosition === "center",
-        nVals: my.nIndicators,
+        nValues: my.nIndicators,
       };
     }
-    case "scale":
+    case "value":
       throw new Error(
-        "Y-scale is a value axis, not a category axis — use getXAxisRenderConfig for vertical category layout",
+        "The y value axis is not a category axis — use getXAxisRenderConfig for vertical category layout",
       );
     case "none":
-      return { categoryIncrement: 0, isCentered: false, nVals: 0 };
+      return { slotExtent: 0, isCentered: false, nValues: 0 };
   }
 }

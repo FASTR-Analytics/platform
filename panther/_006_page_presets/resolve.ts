@@ -138,7 +138,7 @@ function resolveCoverStyle(
     logosSizing: layout.cover.logosSizing,
     logosPlacement: layout.cover.logosPlacement,
     titleBottomPadding: layout.cover.titleBottomPadding,
-    subTitleBottomPadding: layout.cover.subTitleBottomPadding,
+    subtitleBottomPadding: layout.cover.subtitleBottomPadding,
     authorBottomPadding: layout.cover.authorBottomPadding,
     alignH: layout.cover.alignH,
     alignV: layout.cover.alignV,
@@ -281,11 +281,11 @@ function resolveTextStyles(
 ): TextColorStyles {
   return {
     coverTitle: { color: getSlotColor(coverTreatment.title, preset) },
-    coverSubTitle: { color: getSlotColor(coverTreatment.subTitle, preset) },
+    coverSubtitle: { color: getSlotColor(coverTreatment.subtitle, preset) },
     coverAuthor: { color: getSlotColor(coverTreatment.author, preset) },
     coverDate: { color: getSlotColor(coverTreatment.date, preset) },
     sectionTitle: { color: getSlotColor(coverTreatment.title, preset) },
-    sectionSubTitle: { color: getSlotColor(coverTreatment.subTitle, preset) },
+    sectionSubtitle: { color: getSlotColor(coverTreatment.subtitle, preset) },
     header: { color: getSlotColor(freeformTreatment.header.text, preset) },
     subHeader: { color: getSlotColor(freeformTreatment.header.text, preset) },
     date: { color: getSlotColor(freeformTreatment.header.text, preset) },

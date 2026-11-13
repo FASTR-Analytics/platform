@@ -111,14 +111,14 @@ export function resolveTableHeadersTransformed(
       }
     }
 
-    const colCells = (colIndex: number): SliceCell[] =>
+    const colCells = (i_col: number): SliceCell[] =>
       rowIndexOrder.map((ri) => ({
-        value: normalizeN(nMatrix[ri]?.[colIndex]),
+        value: normalizeN(nMatrix[ri]?.[i_col]),
         excluded: excludedRows.has(ri),
       }));
-    const rowCells = (rowIndex: number): SliceCell[] =>
+    const rowCells = (i_row: number): SliceCell[] =>
       colIndexOrder.map((ci) => ({
-        value: normalizeN(nMatrix[rowIndex]?.[ci]),
+        value: normalizeN(nMatrix[i_row]?.[ci]),
         excluded: excludedCols.has(ci),
       }));
 
@@ -148,7 +148,7 @@ export function resolveTableHeadersTransformed(
     id: string | undefined,
     label: string,
     index: number | undefined,
-    itemCount: number,
+    nRowsOrCols: number,
     isGroupHeader: boolean,
     sampleN: TableHeaderSampleN | undefined,
   ): string => {
@@ -159,7 +159,7 @@ export function resolveTableHeadersTransformed(
       id,
       label,
       index,
-      itemCount,
+      nRowsOrCols,
       isGroupHeader,
       ...(sampleN !== undefined ? { sampleN } : {}),
     };

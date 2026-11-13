@@ -24,7 +24,7 @@ export function getMapJsonDataConfigFromPresentationObjectConfig(
 
   const valueProp = effectiveValueProps[0] ?? "value";
 
-  const areaProp = getDisaggregatorDisplayProp(
+  const mapAreaProp = getDisaggregatorDisplayProp(
     resultsValue,
     config,
     ["mapArea"],
@@ -52,8 +52,8 @@ export function getMapJsonDataConfigFromPresentationObjectConfig(
 
   const dataConfig: MapJsonDataConfig = {
     valueProp,
-    areaProp,
-    areaMatchProp: "area_id",
+    mapAreaProp,
+    mapAreaMatchProp: "area_id",
     paneProp,
     tierProp,
     laneProp,

@@ -764,12 +764,12 @@ function renderHover(
 function isTextHitTarget(target: PageHitTarget): boolean {
   return [
     "coverTitle",
-    "coverSubTitle",
+    "coverSubtitle",
     "coverAuthor",
     "coverDate",
     "coverWatermark",
     "sectionTitle",
-    "sectionSubTitle",
+    "sectionSubtitle",
     "sectionWatermark",
     "headerText",
     "subHeaderText",

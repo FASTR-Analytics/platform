@@ -71,13 +71,13 @@ export type MergedCoverStyle = {
   logosSizing: LogosSizing;
   logosPlacement: LogosPlacement;
   titleBottomPadding: number;
-  subTitleBottomPadding: number;
+  subtitleBottomPadding: number;
   authorBottomPadding: number;
   alignH: AlignH;
   alignV: AlignV;
   text: {
     coverTitle: TextInfoUnkeyed;
-    coverSubTitle: TextInfoUnkeyed;
+    coverSubtitle: TextInfoUnkeyed;
     coverAuthor: TextInfoUnkeyed;
     coverDate: TextInfoUnkeyed;
     pageNumber: TextInfoUnkeyed;
@@ -96,7 +96,7 @@ export type MergedSectionStyle = {
   alignV: AlignV;
   text: {
     sectionTitle: TextInfoUnkeyed;
-    sectionSubTitle: TextInfoUnkeyed;
+    sectionSubtitle: TextInfoUnkeyed;
     pageNumber: TextInfoUnkeyed;
     watermark: TextInfoUnkeyed;
   };

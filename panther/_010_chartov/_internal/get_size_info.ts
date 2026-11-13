@@ -8,15 +8,15 @@ import {
   type ChartComponentSizes,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
-  estimateMinYScaleAxisWidth,
+  estimateMinYValueAxisWidth,
   estimateTierHeaderAndLabelGapWidth,
-  maxProportionalPanePlotExtent,
-  maxVisibleCount,
+  getDimensionMembers,
+  maxNVisible,
+  maxProportionalPaneCategoryAxisExtent,
   PANE_HEADER_SAMPLE_MAX_W,
   type RenderContext,
   resolveDefaultLegend,
   SIZING_SAMPLE,
-  slotHeaders,
   splitIntoBreakableChunks,
 } from "../deps.ts";
 import { getChartOVDataTransformed } from "../get_chartov_data.ts";
@@ -53,7 +53,7 @@ export function getChartOVComponentSizes(
     .dims.h();
   const xAxisHeight = ms.grid.axisStrokeWidth +
     xAxisTickH +
-    ms.xTextAxis.tickHeight +
+    ms.xTextAxis.tickLength +
     ms.xTextAxis.tickLabelGap;
 
   const paneHeaderHeight = rc
@@ -65,8 +65,8 @@ export function getChartOVComponentSizes(
     .dims.h();
 
   const textStyle = ms.xTextAxis.text.xTextAxisTickLabels;
-  const indicatorHeaders = data.indicator.headers;
-  const nIndicators = indicatorHeaders.length;
+  const indicatorMembers = data.indicator.members;
+  const nIndicators = indicatorMembers.length;
 
   // Per-column width floor for the x-text axis. The renderer draws the labels
   // differently depending on rotation, so the floor must too (see the sizing
@@ -79,51 +79,51 @@ export function getChartOVComponentSizes(
   // beyond the widest chunk: a vertical label long enough to wrap past the height
   // cap has a taller footprint than one line; that rare short-chart case is not
   // floored here.)
-  let perColumnWidth = 0;
+  let minSlotExtent = 0;
   if (ms.xTextAxis.verticalTickLabels) {
-    for (const header of indicatorHeaders) {
-      const lineH = rc.mText(header.label, textStyle, Infinity).dims.h();
-      perColumnWidth = Math.max(perColumnWidth, lineH);
+    for (const member of indicatorMembers) {
+      const lineH = rc.mText(member.label, textStyle, Infinity).dims.h();
+      minSlotExtent = Math.max(minSlotExtent, lineH);
     }
   } else {
-    for (const header of indicatorHeaders) {
-      const chunks = header.label.split("\n").flatMap(splitIntoBreakableChunks);
+    for (const member of indicatorMembers) {
+      const chunks = member.label.split("\n").flatMap(splitIntoBreakableChunks);
       for (const chunk of chunks) {
         const mText = rc.mText(chunk.trimEnd(), textStyle, Infinity);
-        perColumnWidth = Math.max(perColumnWidth, mText.dims.w());
+        minSlotExtent = Math.max(minSlotExtent, mText.dims.w());
       }
     }
   }
 
   // Unbalanced membership: reserve width for the fullest pane, not the
-  // global union. perColumnWidth stays measured from the global label set
+  // global union. minSlotExtent stays measured from the global label set
   // (a safe upper bound for any pane's subset).
-  const nIndicatorSlots = maxVisibleCount(
+  const nSlots = maxNVisible(
     data.visibleIndicatorsByPane,
     nIndicators,
   );
-  const gridStrokeWidth = ms.grid.gridStrokeWidth;
+  const gridLineStrokeWidth = ms.grid.gridLineStrokeWidth;
   // Unbalanced lane membership: reserve width for the fullest pane.
-  const nLanes = maxVisibleCount(
+  const nLanes = maxNVisible(
     data.visibleLanesByPane,
-    slotHeaders(data.lane).length,
+    getDimensionMembers(data.lane).length,
   );
-  // Proportional band layout: the width floor is the fullest pane's TOTAL
-  // (slotT-model: Σ over its bands of visible counts × column width +
+  // Proportional tier-or-lane layout: the width floor is the fullest pane's TOTAL
+  // (slotExtent-model: Σ over its tiers or lanes of visible counts × column width +
   // strokes), expressed per-lane so the uniform decomposition (× nLanes)
-  // recovers the pane total. Otherwise the shipped per-band × band-count
+  // recovers the pane total. Otherwise the shipped per-tier-or-lane × tier-or-lane count
   // model.
-  const minSubChartWidth = data.visibleIndicatorsByPaneBand
-    ? maxProportionalPanePlotExtent(
-      data.visibleIndicatorsByPaneBand,
-      perColumnWidth,
+  const minSubChartWidth = data.visibleIndicatorsByPaneLane
+    ? maxProportionalPaneCategoryAxisExtent(
+      data.visibleIndicatorsByPaneLane,
+      minSlotExtent,
       ms.xTextAxis.tickPosition === "center",
-      gridStrokeWidth,
+      gridLineStrokeWidth,
     ) / Math.max(1, nLanes)
     : ms.xTextAxis.tickPosition === "center"
-    ? nIndicatorSlots * perColumnWidth
-    : nIndicatorSlots * perColumnWidth +
-      gridStrokeWidth * (nIndicatorSlots + 1);
+    ? nSlots * minSlotExtent
+    : nSlots * minSlotExtent +
+      gridLineStrokeWidth * (nSlots + 1);
 
   const resolvedLegendLabels = resolveDefaultLegend(
     inputs.legend,
@@ -134,16 +134,16 @@ export function getChartOVComponentSizes(
     customFigureStyle: cs,
     mergedStyle: ms,
     nLanes,
-    nTiers: slotHeaders(data.tier).length,
-    nPanes: slotHeaders(data.pane).length,
+    nTiers: getDimensionMembers(data.tier).length,
+    nPanes: getDimensionMembers(data.pane).length,
     minSubChartWidth,
-    minSubChartHeight: calculateMinSubChartHeight(rc, ms.yScaleAxis),
+    minSubChartHeight: calculateMinSubChartHeight(rc, ms.yValueAxis),
     xAxisHeight,
     paneHeaderHeight,
-    minYAxisWidth: estimateMinYScaleAxisWidth(
+    minYAxisWidth: estimateMinYValueAxisWidth(
       rc,
-      data.yScaleAxisLabel,
-      ms.yScaleAxis,
+      data.yValueAxisLabel,
+      ms.yValueAxis,
       ms.grid,
       estimateTierHeaderAndLabelGapWidth(rc, data.tier, data.lane, ms),
     ),
@@ -156,8 +156,8 @@ export function getChartOVComponentSizes(
     resolvedLegendLabels,
     // Proportional layout: per-slot width floor + tick mode for the ragged
     // width decomposition (proportional OV pane widths sum per-pane totals).
-    minSlotWidth: data.visibleIndicatorsByPaneBand ? perColumnWidth : undefined,
-    slotTicksCentered: data.visibleIndicatorsByPaneBand
+    minSlotExtent: data.visibleIndicatorsByPaneLane ? minSlotExtent : undefined,
+    slotTicksCentered: data.visibleIndicatorsByPaneLane
       ? ms.xTextAxis.tickPosition === "center"
       : undefined,
   };

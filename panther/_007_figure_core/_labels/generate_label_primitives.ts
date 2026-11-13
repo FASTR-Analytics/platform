@@ -92,8 +92,8 @@ export function withFigureLabelBounds(
   const box = labelBoxRcd(
     label.mText,
     label.position,
-    label.alignment.h,
-    label.alignment.v,
+    label.alignH,
+    label.alignV,
     label.halo?.padding,
   );
   const leader = label.leaderLine;
@@ -163,7 +163,7 @@ function flankLeadersCross(
 }
 
 // Pure outside placement for both flanks: split on centerX, greedy-stack each
-// side within the band (gap apart), then push each label against the
+// side within the strip (gap apart), then push each label against the
 // silhouette edge at its final y, outsideClearance away. Returns boxes in
 // input order.
 //
@@ -176,7 +176,7 @@ export function placeOutsideBoxes(
   inputs: OutsideLabelInput[],
   geometry: Pick<
     LabelGeometry,
-    "centerX" | "outsideBand" | "outsideEdgeAtY" | "outsideClearance"
+    "centerX" | "outsideStrip" | "outsideEdgeAtY" | "outsideClearance"
   >,
   gap: number,
   untangleLeaders = false,
@@ -218,7 +218,7 @@ export function placeOutsideBoxes(
           };
         },
       );
-      resolveOutsideCollisions(labels, geometry.outsideBand, gap);
+      resolveOutsideCollisions(labels, geometry.outsideStrip, gap);
 
       // One clean column per flank: every label sits against the side's EXTREME
       // silhouette edge rather than its own scanline's, so the near edges align
@@ -374,7 +374,8 @@ function placeInside(
       ...baseLabelPrimitive(l.candidate, geometry, meta, "inside"),
       mText: l.candidate.mText,
       position: new Coordinates([l.x, l.y]),
-      alignment: { h: "center" as const, v: "middle" as const },
+      alignH: "center" as const,
+      alignV: "middle" as const,
       halo: buildLabelHalo(l.candidate.dataLabel),
     })
   );
@@ -431,7 +432,7 @@ function placeOutsideNearest(
     // straight run from the anchor actually reaches the label. `touch` is the
     // point nearest the SILHOUETTE, which is the same thing only when the
     // anchor lies inward of the label — true for a pie slice, false for a map
-    // region whose anchor is deep inside a coastline. Measured on Kenya before
+    // map area whose anchor is deep inside a coastline. Measured on Kenya before
     // this change: 13 of 16 leaders ended on a CORNER of their label, and the
     // trim never fired because a line ending AT a corner enters nowhere.
     const leaderLine = leaderLength > geometry.outsideClearance
@@ -448,7 +449,8 @@ function placeOutsideNearest(
       ...baseLabelPrimitive(candidate, geometry, meta, "outside"),
       mText: candidate.mText,
       position: new Coordinates([box.position.x, box.position.y]),
-      alignment: { h: box.align.h, v: box.align.v },
+      alignH: box.align.h,
+      alignV: box.align.v,
       halo: buildLabelHalo(dl),
       leaderLine,
     });
@@ -498,7 +500,8 @@ function placeOutside(
       ...baseLabelPrimitive(candidate, geometry, meta, "outside"),
       mText: candidate.mText,
       position: labelCoords,
-      alignment: { h: "left" as const, v: "middle" as const },
+      alignH: "left" as const,
+      alignV: "middle" as const,
       halo: buildLabelHalo(dl),
       leaderLine: {
         from: candidate.leaderOrigin ?? candidate.anchor,
@@ -523,33 +526,34 @@ function baseLabelPrimitive(
   | "hitBounds"
   | "mText"
   | "position"
-  | "alignment"
+  | "alignH"
+  | "alignV"
   | "halo"
   | "leaderLine"
 > {
-  const indicatorPart = meta.indicatorIndex === undefined
+  const indicatorPart = meta.i_indicator === undefined
     ? ""
-    : `-${meta.indicatorIndex}`;
+    : `-${meta.i_indicator}`;
   return {
     type: "figure-label",
     key:
-      `${meta.keyPrefix}-${meta.paneIndex}-${meta.tierIndex}-${meta.laneIndex}${indicatorPart}-${candidate.id}`,
+      `${meta.keyPrefix}-${meta.i_pane}-${meta.i_tier}-${meta.i_lane}${indicatorPart}-${candidate.id}`,
     item: candidate.item,
     part: "label",
     hostRcd: geometry.hostRcd,
     zIndex: Z_INDEX.FIGURE_LABEL,
     meta: {
       id: candidate.id,
-      paneIndex: meta.paneIndex,
-      tierIndex: meta.tierIndex,
-      laneIndex: meta.laneIndex,
-      ...(meta.indicatorIndex === undefined
+      i_pane: meta.i_pane,
+      i_tier: meta.i_tier,
+      i_lane: meta.i_lane,
+      ...(meta.i_indicator === undefined
         ? {}
-        : { indicatorIndex: meta.indicatorIndex }),
-      paneHeader: meta.paneHeader,
-      tierHeader: meta.tierHeader,
-      laneHeader: meta.laneHeader,
-      indicatorHeader: meta.indicatorHeader,
+        : { i_indicator: meta.i_indicator }),
+      paneMember: meta.paneMember,
+      tierMember: meta.tierMember,
+      laneMember: meta.laneMember,
+      indicatorMember: meta.indicatorMember,
       placement,
     },
   };

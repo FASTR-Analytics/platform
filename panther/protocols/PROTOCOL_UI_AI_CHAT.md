@@ -142,6 +142,8 @@ if (import.meta.env.DEV) validateAIChatConfig(config);
 
 Every navigation sync site calls the controller: the tab effect (`setView(TAB_TO_VIEW[tab()])` from a typed `Record<TabOption, ViewId>` so a new tab fails typecheck), and each editor's mount/teardown. If the app has switchable scopes (projects/workspaces) in one SPA session, the scope root calls `appViewController.clearInteractionLog()` on mount.
 
+`maxTurnContinuations` caps one turn: the most tool rounds and `pause_turn` resumes it may run before it ends with a `turn_limit` notice, which tells the user to send a new message to carry on. Omit it for panther's default of 100, and pass a positive integer only when a surface's turns need a different cap. `validateAIChatConfig` throws on anything else.
+
 ### Approval tool
 
 ```tsx

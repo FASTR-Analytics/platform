@@ -70,9 +70,9 @@ export type ProperGraph = {
   // sorts by; what the zone machinery compares coherent units with).
   groupChainById: Map<string, string[]>;
   // Per gutter (0..layerCount): true where a resolved span starts or ends;
-  // the gutter arithmetic adds laneGap there. All false without
+  // the gutter arithmetic adds bandGap there. All false without
   // spans; the outermost two are never boundaries.
-  laneBoundaries: boolean[];
+  bandBoundaries: boolean[];
   // Zone regions resolved to layer-index ranges; empty
   // without zones. The zone-reserve pass and void-bound read them.
   zones: ResolvedZone[];
@@ -103,7 +103,7 @@ export type PipelineState = {
   rank?: RankResult;
   // Written by step 1.2 (skipped without span regions): the surviving span
   // claims as layer-index ranges — properize marks their boundary gutters,
-  // stage 4/6 widen columns to their floors, [7] derives lane boxes.
+  // stage 4/6 widen columns to their floors, [7] derives band boxes.
   spans?: ResolvedSpan[];
   // Written by step 1.3 (skipped without zone regions): each zone's
   // layer-index range — properize hands them to the placement passes.

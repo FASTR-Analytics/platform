@@ -9,14 +9,14 @@ import {
   type MergedLegendStyle,
   type RenderContext,
 } from "../deps.ts";
-import type { LegendItem } from "./types.ts";
-import { getLegendItemsInGroups } from "./utils.ts";
+import type { LegendEntry } from "./types.ts";
+import { getLegendEntriesInGroups } from "./utils.ts";
 
 export type MeasuredLegend = {
   dimensions: Dimensions;
   groups: {
     allMeasuredLines: MeasuredText[];
-    legendItemsThisGroup: LegendItem[];
+    legendEntriesThisGroup: LegendEntry[];
     wThisGroupLabels: number;
   }[];
   colorBoxWidthOrPointWidth: number;
@@ -25,38 +25,40 @@ export type MeasuredLegend = {
 
 export function measureLegend(
   rc: RenderContext,
-  legendItems: LegendItem[],
+  legendEntries: LegendEntry[],
   s: MergedLegendStyle,
   availableWidth?: number,
 ): MeasuredLegend {
-  const orderedItems = s.reverseOrder ? legendItems.toReversed() : legendItems;
-  const anyPoints = legendItems.some(
-    (li) =>
-      li.pointStyle !== undefined &&
-      li.pointStyle !== "as-block" &&
-      li.pointStyle !== "as-line",
+  const orderedEntries = s.reverseOrder
+    ? legendEntries.toReversed()
+    : legendEntries;
+  const anyPoints = legendEntries.some(
+    (entry) =>
+      entry.pointStyle !== undefined &&
+      entry.pointStyle !== "as-block" &&
+      entry.pointStyle !== "as-line",
   );
   const colorBoxWidthOrPointWidth = anyPoints
     ? s.legendPointRadius * 2 + s.legendPointStrokeWidth
     : s.legendColorBoxWidth;
 
-  // Helper function to measure with a specific items per column value and text style
-  function measureWithItemsPerColumn(
-    itemsPerColumn: number | number[],
+  // Helper function to measure with a specific entries per column value and text style
+  function measureWithEntriesPerColumn(
+    entriesPerColumn: number | number[],
     textStyle = s.text,
   ) {
-    const legendItemsInGroups = getLegendItemsInGroups(
-      orderedItems,
-      itemsPerColumn,
+    const legendEntriesInGroups = getLegendEntriesInGroups(
+      orderedEntries,
+      entriesPerColumn,
     );
     let legendW = 0;
     let legendH = 0;
-    const groups = legendItemsInGroups.map((legendItemsThisGroup) => {
+    const groups = legendEntriesInGroups.map((legendEntriesThisGroup) => {
       let wThisGroupLabels = 0;
       let hThisGroup = 0;
-      const allMeasuredLines = legendItemsThisGroup.map((legendItem) => {
+      const allMeasuredLines = legendEntriesThisGroup.map((legendEntry) => {
         const m = rc.mText(
-          legendItem.label,
+          legendEntry.label,
           textStyle,
           Number.POSITIVE_INFINITY,
         );
@@ -64,42 +66,43 @@ export function measureLegend(
         hThisGroup += m.dims.h();
         return m;
       });
-      hThisGroup += (legendItemsThisGroup.length - 1) * s.legendItemVerticalGap;
+      hThisGroup += (legendEntriesThisGroup.length - 1) *
+        s.legendEntryVerticalGap;
       legendW += colorBoxWidthOrPointWidth + s.legendLabelGap +
         wThisGroupLabels;
       legendH = Math.max(legendH, hThisGroup);
-      return { allMeasuredLines, legendItemsThisGroup, wThisGroupLabels };
+      return { allMeasuredLines, legendEntriesThisGroup, wThisGroupLabels };
     });
     legendW += (groups.length - 1) * (2 * s.legendLabelGap);
     return { legendW, legendH, groups };
   }
 
   // Initial measurement
-  let result = measureWithItemsPerColumn(s.maxLegendItemsInOneColumn);
+  let result = measureWithEntriesPerColumn(s.maxLegendEntriesInOneColumn);
 
   // If width constraint provided and exceeded, and max is a number (not array), try to fit
   if (
     availableWidth !== undefined &&
     result.legendW > availableWidth &&
-    typeof s.maxLegendItemsInOneColumn === "number"
+    typeof s.maxLegendEntriesInOneColumn === "number"
   ) {
-    let itemsPerColumn = s.maxLegendItemsInOneColumn;
+    let entriesPerColumn = s.maxLegendEntriesInOneColumn;
     while (
       result.legendW > availableWidth &&
-      itemsPerColumn < legendItems.length
+      entriesPerColumn < legendEntries.length
     ) {
-      itemsPerColumn++;
-      result = measureWithItemsPerColumn(itemsPerColumn);
+      entriesPerColumn++;
+      result = measureWithEntriesPerColumn(entriesPerColumn);
     }
 
-    // If still exceeds width even with all items in one column, shrink text to fit
+    // If still exceeds width even with all entries in one column, shrink text to fit
     if (result.legendW > availableWidth) {
       const scaleFactor = availableWidth / result.legendW;
       const scaledTextStyle = {
         ...s.text,
         fontSize: s.text.fontSize * scaleFactor,
       };
-      result = measureWithItemsPerColumn(itemsPerColumn, scaledTextStyle);
+      result = measureWithEntriesPerColumn(entriesPerColumn, scaledTextStyle);
     }
   }
 

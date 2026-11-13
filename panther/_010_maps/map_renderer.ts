@@ -6,12 +6,13 @@
 import {
   calculateChartIdealHeight,
   calculateChartMinWidth,
-  calculateMinLabelPlotExtent,
+  calculateMinLabelSubChartExtent,
   type ChartComponentSizes,
   computeFloorScale,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
-  getSubChartHeaders,
+  getDimensionMembers,
+  getSubChartMembers,
   type HeightConstraints,
   isAutoScaleLegendConfig,
   type LegendInput,
@@ -22,7 +23,6 @@ import {
   resolveAutoScaleLegend,
   resolveFigureAutofitOptions,
   resolvePaneGrid,
-  slotHeaders,
 } from "./deps.ts";
 import type { MapDataTransformed, MapInputs, MeasuredMap } from "./types.ts";
 import type { MergedMapStyle } from "./deps.ts";
@@ -38,25 +38,25 @@ import {
   calculateMapLabelFloorBudget,
   type MapLabelFloorBudget,
 } from "./_internal/generate_map_label_primitives.ts";
-import { resolveShownRegions } from "./_internal/generate_map_region_primitives.ts";
+import { resolveShownMapAreas } from "./_internal/generate_map_area_primitives.ts";
 import { getFeatureMatchKey } from "./_internal/label_shared.ts";
 
 export const MapRenderer: Renderer<MapInputs, MeasuredMap> = {
-  isType(item: unknown): item is MapInputs {
-    return typeof item === "object" && item !== null &&
-      "figureType" in item && item.figureType === "map";
+  isType(inputs: unknown): inputs is MapInputs {
+    return typeof inputs === "object" && inputs !== null &&
+      "figureType" in inputs && inputs.figureType === "map";
   },
 
   measure(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: MapInputs,
+    inputs: MapInputs,
   ): MeasuredMap {
     return measureChartWithAutofit(
       rc,
       bounds,
-      item,
-      (scale) => getMapComponentSizes(rc, item, scale),
+      inputs,
+      (scale) => getMapComponentSizes(rc, inputs, scale),
       measureMap,
     );
   },
@@ -68,65 +68,65 @@ export const MapRenderer: Renderer<MapInputs, MeasuredMap> = {
   measureAndRender(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: MapInputs,
+    inputs: MapInputs,
   ): void {
-    const measured = this.measure(rc, bounds, item);
+    const measured = this.measure(rc, bounds, inputs);
     this.render(rc, measured);
   },
 
   getIdealHeight(
     rc: RenderContext,
     width: number,
-    item: MapInputs,
+    inputs: MapInputs,
   ): HeightConstraints {
-    return getMapIdealHeight(rc, width, item);
+    return getMapIdealHeight(rc, width, inputs);
   },
 };
 
 export function getMapComponentSizes(
   rc: RenderContext,
-  item: MapInputs,
+  inputs: MapInputs,
   scale: number,
 ): ChartComponentSizes {
   const customFigureStyle = new CustomFigureStyle(
-    item.style,
+    inputs.style,
     scale,
-    item.autofitSurrounds,
+    inputs.autofitSurrounds,
   );
   const mergedStyle = customFigureStyle.getMergedMapStyle();
-  const transformedData = getMapDataTransformed(item.data);
+  const transformedData = getMapDataTransformed(inputs.data);
   // Measured from the (scaled) data-label style, so the floor shrinks with
   // the style scale. Outside labels add width (the flank gutters) and can add
   // height (a flank stack taller than the map) — both label terms are
   // unwrapped, so each floor stays proportional to the scale (monotone) and
   // free of any cell dependence.
-  const minLabelPlotExtent = calculateMinLabelPlotExtent(
+  const minLabelSubChartExtent = calculateMinLabelSubChartExtent(
     rc,
     mergedStyle.text.dataLabels,
   );
   const labelBudget = calculateMapFloorBudget(rc, transformedData, mergedStyle);
   const resolvedLegendLabels: LegendInput | undefined =
-    isAutoScaleLegendConfig(item.legend)
+    isAutoScaleLegendConfig(inputs.legend)
       ? resolveAutoScaleLegend(
-        item.legend,
+        inputs.legend,
         customFigureStyle.getValuesColorFunc(),
         transformedData.valueRange,
       )
-      : item.legend;
+      : inputs.legend;
 
   return {
     customFigureStyle,
     mergedStyle,
-    nLanes: slotHeaders(transformedData.lane).length,
-    nTiers: slotHeaders(transformedData.tier).length,
-    nPanes: slotHeaders(transformedData.pane).length,
-    minSubChartWidth: minLabelPlotExtent + labelBudget.horizontal,
+    nLanes: getDimensionMembers(transformedData.lane).length,
+    nTiers: getDimensionMembers(transformedData.tier).length,
+    nPanes: getDimensionMembers(transformedData.pane).length,
+    minSubChartWidth: minLabelSubChartExtent + labelBudget.horizontal,
     // The vertical demand COMBINES differently by placer: under
     // flank it is a stack the cell must be tall enough for; under nearest the
     // labels sit above and below the content, so it is additive.
     minSubChartHeight: mergedStyle.map.outsideLabelPlacement === "nearest"
-      ? minLabelPlotExtent + labelBudget.vertical
-      : Math.max(minLabelPlotExtent, labelBudget.vertical),
+      ? minLabelSubChartExtent + labelBudget.vertical
+      : Math.max(minLabelSubChartExtent, labelBudget.vertical),
     xAxisHeight: 0,
     paneHeaderHeight: 0,
     minYAxisWidth: 0,
@@ -146,38 +146,38 @@ function calculateMapFloorBudget(
 ): MapLabelFloorBudget {
   const projectionFn = getProjectionFn(mergedStyle.map.projection);
   const cells: Parameters<typeof calculateMapLabelFloorBudget>[1] = [];
-  const nPanes = slotHeaders(data.pane).length;
-  const nTiers = slotHeaders(data.tier).length;
-  const nLanes = slotHeaders(data.lane).length;
-  for (let paneIndex = 0; paneIndex < nPanes; paneIndex++) {
-    for (let tierIndex = 0; tierIndex < nTiers; tierIndex++) {
-      for (let laneIndex = 0; laneIndex < nLanes; laneIndex++) {
-        const valueMap = data.valueMaps[paneIndex][tierIndex][laneIndex];
-        const headers = getSubChartHeaders(data, {
-          paneIndex,
-          tierIndex,
-          laneIndex,
+  const nPanes = getDimensionMembers(data.pane).length;
+  const nTiers = getDimensionMembers(data.tier).length;
+  const nLanes = getDimensionMembers(data.lane).length;
+  for (let i_pane = 0; i_pane < nPanes; i_pane++) {
+    for (let i_tier = 0; i_tier < nTiers; i_tier++) {
+      for (let i_lane = 0; i_lane < nLanes; i_lane++) {
+        const valueMap = data.valueMaps[i_pane][i_tier][i_lane];
+        const members = getSubChartMembers(data, {
+          i_pane,
+          i_tier,
+          i_lane,
         });
         const fitting = featuresForFit(
           data.geoFeatures,
           valueMap,
-          data.area.matchProp,
+          data.mapArea.matchProp,
           mergedStyle.map.fit,
         );
         cells.push({
-          shown: resolveShownRegions(
+          shown: resolveShownMapAreas(
             data.geoFeatures,
             valueMap,
             data.valueRange,
             data,
-            mergedStyle.content.mapRegions.getStyle,
-            paneIndex,
-            tierIndex,
-            laneIndex,
-            headers,
+            mergedStyle.content.mapAreas.getStyle,
+            i_pane,
+            i_tier,
+            i_lane,
+            members,
           ),
-          indices: { paneIndex, tierIndex, laneIndex },
-          headers,
+          indices: { i_pane, i_tier, i_lane },
+          members,
           unitFitted: fitProjectionAtScale(fitting, projectionFn, 1, 0, 0),
         });
       }
@@ -187,25 +187,25 @@ function calculateMapFloorBudget(
 }
 
 // The content ASPECT is the projection's, so the ideal height derives the
-// per-cell width from the same terms calculateChartMinWidth uses, subtracts
+// per-sub-chart width from the same terms calculateChartMinWidth uses, subtracts
 // the horizontal label budget, applies the aspect to what remains, adds the
 // vertical label demand back, and lets the shared helper add gaps, padding
 // and a measured surrounds height. maxH stays Infinity — a map fills freely.
 function getMapIdealHeight(
   rc: RenderContext,
   width: number,
-  item: MapInputs,
+  inputs: MapInputs,
 ): HeightConstraints {
-  const info = getMapComponentSizes(rc, item, 1);
-  const transformedData = getMapDataTransformed(item.data);
-  const mergedStyle = new CustomFigureStyle(item.style).getMergedMapStyle();
+  const info = getMapComponentSizes(rc, inputs, 1);
+  const transformedData = getMapDataTransformed(inputs.data);
+  const mergedStyle = new CustomFigureStyle(inputs.style).getMergedMapStyle();
   const projectionFn = getProjectionFn(mergedStyle.map.projection);
 
   // Aspect from the union of every cell's fitting features, so
-  // "only-regions-in-data" shapes the ideal height the way it shapes cells.
-  const fittingUnion = mergedStyle.map.fit === "only-regions-in-data"
+  // "only-map-areas-in-data" shapes the ideal height the way it shapes cells.
+  const fittingUnion = mergedStyle.map.fit === "only-map-areas-in-data"
     ? transformedData.geoFeatures.filter((f) => {
-      const key = getFeatureMatchKey(f, transformedData.area.matchProp);
+      const key = getFeatureMatchKey(f, transformedData.mapArea.matchProp);
       return transformedData.valueMaps.some((pane) =>
         pane.some((tier) => tier.some((valueMap) => key in valueMap))
       );
@@ -217,22 +217,22 @@ function getMapIdealHeight(
     : 1;
 
   const paneGrid = resolvePaneGrid(info, width);
-  const { nGCols } = paneGrid;
+  const { nCols: nPaneCols } = paneGrid;
   const laneGapsWidth = (info.nLanes - 1) * info.mergedStyle.lanes.gapX *
-    nGCols;
-  const paneGapsWidth = (nGCols - 1) * info.mergedStyle.panes.gapX;
+    nPaneCols;
+  const paneGapsWidth = (nPaneCols - 1) * info.mergedStyle.panes.gapX;
   const lanePaddingWidth =
     (info.mergedStyle.lanes.paddingLeft + info.mergedStyle.lanes.paddingRight) *
-    nGCols;
-  const cellW = (width -
+    nPaneCols;
+  const subChartWidth = (width -
     info.surroundsMinWidth -
     laneGapsWidth -
     paneGapsWidth -
     lanePaddingWidth) /
-    (nGCols * info.nLanes);
+    (nPaneCols * info.nLanes);
 
   const labelBudget = calculateMapFloorBudget(rc, transformedData, mergedStyle);
-  const contentFloor = calculateMinLabelPlotExtent(
+  const contentFloor = calculateMinLabelSubChartExtent(
     rc,
     mergedStyle.text.dataLabels,
   );
@@ -240,29 +240,32 @@ function getMapIdealHeight(
   // The content gets what is left of the cell after the label gutters and is
   // never squeezed below the legibility floor. The height then combines by
   // placer, exactly as minSubChartHeight does above.
-  const contentW = Math.max(cellW - labelBudget.horizontal, contentFloor);
+  const contentW = Math.max(
+    subChartWidth - labelBudget.horizontal,
+    contentFloor,
+  );
   const contentH = contentW / aspectRatio;
-  const cellH = mergedStyle.map.outsideLabelPlacement === "nearest"
+  const subChartHeight = mergedStyle.map.outsideLabelPlacement === "nearest"
     ? Math.max(contentH, contentFloor) + labelBudget.vertical
     : Math.max(contentH, labelBudget.vertical, contentFloor);
 
   const idealH = calculateChartIdealHeight(
     rc,
     width,
-    { ...info, minSubChartHeight: cellH },
-    item,
+    { ...info, minSubChartHeight: subChartHeight },
+    inputs,
     paneGrid,
   );
 
   const minComfortableWidth = calculateChartMinWidth(info);
 
   // minH is derived from the real floor at the autofit floor scale, exactly
-  // as the scale-axis charts derive theirs, never idealH × 0.5.
+  // as the value-axis charts derive theirs, never idealH × 0.5.
   // getMapComponentSizes' minSubChartHeight IS the legibility floor, so
   // the shared decomposition at floorScale is the whole derivation. With
   // autofit off, type cannot shrink and the natural height is the minimum —
-  // the scale-axis convention.
-  const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+  // the value-axis convention.
+  const autofitOpts = resolveFigureAutofitOptions(inputs.autofit);
   let minH = idealH;
   if (autofitOpts) {
     const floorScale = computeFloorScale({
@@ -271,12 +274,12 @@ function getMapIdealHeight(
       baseFontSizeDu: info.customFigureStyle.baseFontSize,
       minFontSizeDu: autofitOpts.minFontSizeDu,
     });
-    const infoFloor = getMapComponentSizes(rc, item, floorScale);
+    const infoFloor = getMapComponentSizes(rc, inputs, floorScale);
     minH = calculateChartIdealHeight(
       rc,
       width,
       infoFloor,
-      item,
+      inputs,
       resolvePaneGrid(infoFloor, width),
     );
   }

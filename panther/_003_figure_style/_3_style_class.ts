@@ -30,10 +30,10 @@ import type {
   MergedTableStyle,
   MergedTimeseriesStyle,
   MergedXPeriodAxisStyle,
-  MergedXScaleAxisStyle,
   MergedXTextAxisStyle,
-  MergedYScaleAxisStyle,
+  MergedXValueAxisStyle,
   MergedYTextAxisStyle,
+  MergedYValueAxisStyle,
 } from "./_3_merged_style_return_types.ts";
 import {
   type FontInfo,
@@ -53,11 +53,11 @@ import {
   getAreaStyleFunc,
   getBarStyleFunc,
   getCascadeArrowStyleFunc,
-  getConfidenceBandStyleFunc,
   getConnectorStyleFunc,
+  getErrorBandStyleFunc,
   getErrorBarStyleFunc,
   getLineStyleFunc,
-  getMapRegionStyleFunc,
+  getMapAreaStyleFunc,
   getPieSliceStyleFunc,
   getPointStyleFunc,
   getTableCellStyleFunc,
@@ -77,7 +77,7 @@ export class CustomFigureStyle {
 
   // fitScale is the shrink-to-fit factor (default 1, set only by shrink-to-fit).
   // It is the only internal size multiplier; there is no `scale`.
-  // Surrounds (caption/subCaption/footnote text + padding) are pinned at full
+  // Surrounds (title/subtitle/footnote text + padding) are pinned at full
   // size by default while the body still scales; set autofitSurrounds=true to
   // make them scale with the body. The legend always scales with the body.
   constructor(
@@ -118,7 +118,7 @@ export class CustomFigureStyle {
     const sf = this._sf;
     // Surrounds scale/base: pinned independently of the body when
     // autofitSurrounds is false; otherwise equal to sf. Applies to
-    // caption/subCaption/footnote text + their padding/gaps. NOT legendGap or
+    // title/subtitle/footnote text + their padding/gaps. NOT legendGap or
     // the legend, which ride the body scale.
     const sfSur = this._sfSurrounds;
     const c = this._c;
@@ -127,10 +127,10 @@ export class CustomFigureStyle {
     const baseTextSur = this._baseTextSurrounds;
     return {
       text: {
-        caption: getTextInfo(c.text?.caption, g.text?.caption, baseTextSur),
-        subCaption: getTextInfo(
-          c.text?.subCaption,
-          g.text?.subCaption,
+        title: getTextInfo(c.text?.title, g.text?.title, baseTextSur),
+        subtitle: getTextInfo(
+          c.text?.subtitle,
+          g.text?.subtitle,
           baseTextSur,
         ),
         footnote: getTextInfo(c.text?.footnote, g.text?.footnote, baseTextSur),
@@ -148,17 +148,17 @@ export class CustomFigureStyle {
         g.surrounds?.padding,
         d.surrounds.padding,
       ),
-      captionGap: ms(
+      titleGap: ms(
         sfSur,
-        c.surrounds?.captionGap,
-        g.surrounds?.captionGap,
-        d.surrounds.captionGap,
+        c.surrounds?.titleGap,
+        g.surrounds?.titleGap,
+        d.surrounds.titleGap,
       ),
-      subCaptionTopPadding: ms(
+      subtitleTopPadding: ms(
         sfSur,
-        c.surrounds?.subCaptionTopPadding,
-        g.surrounds?.subCaptionTopPadding,
-        d.surrounds.subCaptionTopPadding,
+        c.surrounds?.subtitleTopPadding,
+        g.surrounds?.subtitleTopPadding,
+        d.surrounds.subtitleTopPadding,
       ),
       footnoteGap: ms(
         sfSur,
@@ -177,15 +177,15 @@ export class CustomFigureStyle {
         g.surrounds?.legendPosition,
         d.surrounds.legendPosition,
       ),
-      captionAlignH: m(
-        c.surrounds?.captionAlignH,
-        g.surrounds?.captionAlignH,
-        d.surrounds.captionAlignH,
+      titleAlignH: m(
+        c.surrounds?.titleAlignH,
+        g.surrounds?.titleAlignH,
+        d.surrounds.titleAlignH,
       ),
-      subCaptionAlignH: m(
-        c.surrounds?.subCaptionAlignH,
-        g.surrounds?.subCaptionAlignH,
-        d.surrounds.subCaptionAlignH,
+      subtitleAlignH: m(
+        c.surrounds?.subtitleAlignH,
+        g.surrounds?.subtitleAlignH,
+        d.surrounds.subtitleAlignH,
       ),
       footnoteAlignH: m(
         c.surrounds?.footnoteAlignH,
@@ -211,10 +211,10 @@ export class CustomFigureStyle {
         g.seriesColorFunc,
         d.seriesColorFunc,
       ),
-      maxLegendItemsInOneColumn: m(
-        c.legend?.maxLegendItemsInOneColumn,
-        g.legend?.maxLegendItemsInOneColumn,
-        d.legend.maxLegendItemsInOneColumn,
+      maxLegendEntriesInOneColumn: m(
+        c.legend?.maxLegendEntriesInOneColumn,
+        g.legend?.maxLegendEntriesInOneColumn,
+        d.legend.maxLegendEntriesInOneColumn,
       ),
       legendColorBoxWidth: ms(
         sf,
@@ -222,11 +222,11 @@ export class CustomFigureStyle {
         g.legend?.legendColorBoxWidth,
         d.legend.legendColorBoxWidth,
       ),
-      legendItemVerticalGap: ms(
+      legendEntryVerticalGap: ms(
         sf,
-        c.legend?.legendItemVerticalGap,
-        g.legend?.legendItemVerticalGap,
-        d.legend.legendItemVerticalGap,
+        c.legend?.legendEntryVerticalGap,
+        g.legend?.legendEntryVerticalGap,
+        d.legend.legendEntryVerticalGap,
       ),
       legendLabelGap: ms(
         sf,
@@ -412,10 +412,10 @@ export class CustomFigureStyle {
           d.tiers.paddingBottom,
         ),
         gapY: ms(sf, c.tiers?.gapY, g.tiers?.gapY, d.tiers.gapY),
-        maxHeaderWidthAsPctOfChart: m(
-          c.tiers?.maxHeaderWidthAsPctOfChart,
-          g.tiers?.maxHeaderWidthAsPctOfChart,
-          d.tiers.maxHeaderWidthAsPctOfChart,
+        maxHeaderWidthFractionOfPane: m(
+          c.tiers?.maxHeaderWidthFractionOfPane,
+          g.tiers?.maxHeaderWidthFractionOfPane,
+          d.tiers.maxHeaderWidthFractionOfPane,
         ),
         headerAlignH: m(
           c.tiers?.headerAlignH,
@@ -448,10 +448,10 @@ export class CustomFigureStyle {
 
   private getMergedIdealHeightStyle(): MergedIdealHeightStyle {
     return {
-      idealPlotHeight: m(
-        this._c.idealHeight?.idealPlotHeight,
-        this._g.idealHeight?.idealPlotHeight,
-        this._d.idealHeight.idealPlotHeight,
+      idealSubChartHeight: m(
+        this._c.idealHeight?.idealSubChartHeight,
+        this._g.idealHeight?.idealSubChartHeight,
+        this._d.idealHeight.idealSubChartHeight,
       ),
       idealRowThickness: m(
         this._c.idealHeight?.idealRowThickness,
@@ -469,7 +469,7 @@ export class CustomFigureStyle {
   getMergedChartOVStyle(): MergedChartOVStyle {
     return {
       ...this.getMergedChartStyleBase(),
-      yScaleAxis: this.getMergedYScaleAxisStyle(),
+      yValueAxis: this.getMergedYValueAxisStyle(),
       xTextAxis: this.getMergedXTextAxisStyle(),
     };
   }
@@ -477,7 +477,7 @@ export class CustomFigureStyle {
   getMergedChartOHStyle(): MergedChartOHStyle {
     return {
       ...this.getMergedChartStyleBase(),
-      xScaleAxis: this.getMergedXScaleAxisStyle(),
+      xValueAxis: this.getMergedXValueAxisStyle(),
       yTextAxis: this.getMergedYTextAxisStyle(),
     };
   }
@@ -485,7 +485,7 @@ export class CustomFigureStyle {
   getMergedTimeseriesStyle(): MergedTimeseriesStyle {
     return {
       ...this.getMergedChartStyleBase(),
-      yScaleAxis: this.getMergedYScaleAxisStyle(),
+      yValueAxis: this.getMergedYValueAxisStyle(),
       xPeriodAxis: this.getMergedXPeriodAxisStyle(),
     };
   }
@@ -848,7 +848,7 @@ export class CustomFigureStyle {
     };
   }
 
-  private getMergedYScaleAxisStyle(): MergedYScaleAxisStyle {
+  private getMergedYValueAxisStyle(): MergedYValueAxisStyle {
     const c = this._c;
     const g = this._g;
     const d = this._d;
@@ -856,57 +856,57 @@ export class CustomFigureStyle {
     const baseText = this._baseText;
     return {
       text: {
-        yScaleAxisTickLabels: getTextInfo(
-          c.text?.yScaleAxisTickLabels,
-          g.text?.yScaleAxisTickLabels,
+        yValueAxisTickLabels: getTextInfo(
+          c.text?.yValueAxisTickLabels,
+          g.text?.yValueAxisTickLabels,
           baseText,
         ),
-        yScaleAxisLabel: getTextInfo(
-          c.text?.yScaleAxisLabel,
-          g.text?.yScaleAxisLabel,
+        yValueAxisLabel: getTextInfo(
+          c.text?.yValueAxisLabel,
+          g.text?.yValueAxisLabel,
           baseText,
         ),
       },
-      max: m(c.yScaleAxis?.max, g.yScaleAxis?.max, d.yScaleAxis.max),
-      min: m(c.yScaleAxis?.min, g.yScaleAxis?.min, d.yScaleAxis.min),
-      labelGap: ms(
+      max: m(c.yValueAxis?.max, g.yValueAxis?.max, d.yValueAxis.max),
+      min: m(c.yValueAxis?.min, g.yValueAxis?.min, d.yValueAxis.min),
+      axisLabelGap: ms(
         sf,
-        c.yScaleAxis?.labelGap,
-        g.yScaleAxis?.labelGap,
-        d.yScaleAxis.labelGap,
+        c.yValueAxis?.axisLabelGap,
+        g.yValueAxis?.axisLabelGap,
+        d.yValueAxis.axisLabelGap,
       ),
-      tickWidth: ms(
+      tickLength: ms(
         sf,
-        c.yScaleAxis?.tickWidth,
-        g.yScaleAxis?.tickWidth,
-        d.yScaleAxis.tickWidth,
+        c.yValueAxis?.tickLength,
+        g.yValueAxis?.tickLength,
+        d.yValueAxis.tickLength,
       ),
       tickLabelGap: ms(
         sf,
-        c.yScaleAxis?.tickLabelGap,
-        g.yScaleAxis?.tickLabelGap,
-        d.yScaleAxis.tickLabelGap,
+        c.yValueAxis?.tickLabelGap,
+        g.yValueAxis?.tickLabelGap,
+        d.yValueAxis.tickLabelGap,
       ),
       tickLabelFormatter: m(
-        c.yScaleAxis?.tickLabelFormatter,
-        g.yScaleAxis?.tickLabelFormatter,
-        d.yScaleAxis.tickLabelFormatter,
+        c.yValueAxis?.tickLabelFormatter,
+        g.yValueAxis?.tickLabelFormatter,
+        d.yValueAxis.tickLabelFormatter,
       ),
       tickLabelAlignment: m(
-        c.yScaleAxis?.tickLabelAlignment,
-        g.yScaleAxis?.tickLabelAlignment,
-        d.yScaleAxis.tickLabelAlignment,
+        c.yValueAxis?.tickLabelAlignment,
+        g.yValueAxis?.tickLabelAlignment,
+        d.yValueAxis.tickLabelAlignment,
       ),
       allowIndividualTierLimits: m(
-        c.yScaleAxis?.allowIndividualTierLimits,
-        g.yScaleAxis?.allowIndividualTierLimits,
-        d.yScaleAxis.allowIndividualTierLimits,
+        c.yValueAxis?.allowIndividualTierLimits,
+        g.yValueAxis?.allowIndividualTierLimits,
+        d.yValueAxis.allowIndividualTierLimits,
       ),
       exactAxisX: msOrNone(
         sf,
-        c.yScaleAxis?.exactAxisX,
-        g.yScaleAxis?.exactAxisX,
-        d.yScaleAxis.exactAxisX,
+        c.yValueAxis?.exactAxisX,
+        g.yValueAxis?.exactAxisX,
+        d.yValueAxis.exactAxisX,
       ),
     };
   }
@@ -930,11 +930,11 @@ export class CustomFigureStyle {
         g.xTextAxis?.verticalTickLabels,
         d.xTextAxis.verticalTickLabels,
       ),
-      tickHeight: ms(
+      tickLength: ms(
         sf,
-        c.xTextAxis?.tickHeight,
-        g.xTextAxis?.tickHeight,
-        d.xTextAxis.tickHeight,
+        c.xTextAxis?.tickLength,
+        g.xTextAxis?.tickLength,
+        d.xTextAxis.tickLength,
       ),
       tickPosition: m(
         c.xTextAxis?.tickPosition,
@@ -947,10 +947,10 @@ export class CustomFigureStyle {
         g.xTextAxis?.tickLabelGap,
         d.xTextAxis.tickLabelGap,
       ),
-      maxTickLabelHeightAsPctOfChart: m(
-        c.xTextAxis?.maxTickLabelHeightAsPctOfChart,
-        g.xTextAxis?.maxTickLabelHeightAsPctOfChart,
-        d.xTextAxis.maxTickLabelHeightAsPctOfChart,
+      maxTickLabelHeightFractionOfPane: m(
+        c.xTextAxis?.maxTickLabelHeightFractionOfPane,
+        g.xTextAxis?.maxTickLabelHeightFractionOfPane,
+        d.xTextAxis.maxTickLabelHeightFractionOfPane,
       ),
     };
   }
@@ -999,7 +999,7 @@ export class CustomFigureStyle {
     };
   }
 
-  private getMergedXScaleAxisStyle(): MergedXScaleAxisStyle {
+  private getMergedXValueAxisStyle(): MergedXValueAxisStyle {
     const sf = this._sf;
     const c = this._c;
     const g = this._g;
@@ -1007,57 +1007,57 @@ export class CustomFigureStyle {
     const baseText = this._baseText;
     return {
       text: {
-        xScaleAxisTickLabels: getTextInfo(
-          c.text?.xScaleAxisTickLabels,
-          g.text?.xScaleAxisTickLabels,
+        xValueAxisTickLabels: getTextInfo(
+          c.text?.xValueAxisTickLabels,
+          g.text?.xValueAxisTickLabels,
           baseText,
         ),
-        xScaleAxisLabel: getTextInfo(
-          c.text?.xScaleAxisLabel,
-          g.text?.xScaleAxisLabel,
+        xValueAxisLabel: getTextInfo(
+          c.text?.xValueAxisLabel,
+          g.text?.xValueAxisLabel,
           baseText,
         ),
       },
-      max: m(c.xScaleAxis?.max, g.xScaleAxis?.max, d.xScaleAxis.max),
-      min: m(c.xScaleAxis?.min, g.xScaleAxis?.min, d.xScaleAxis.min),
-      labelGap: ms(
+      max: m(c.xValueAxis?.max, g.xValueAxis?.max, d.xValueAxis.max),
+      min: m(c.xValueAxis?.min, g.xValueAxis?.min, d.xValueAxis.min),
+      axisLabelGap: ms(
         sf,
-        c.xScaleAxis?.labelGap,
-        g.xScaleAxis?.labelGap,
-        d.xScaleAxis.labelGap,
+        c.xValueAxis?.axisLabelGap,
+        g.xValueAxis?.axisLabelGap,
+        d.xValueAxis.axisLabelGap,
       ),
-      tickHeight: ms(
+      tickLength: ms(
         sf,
-        c.xScaleAxis?.tickHeight,
-        g.xScaleAxis?.tickHeight,
-        d.xScaleAxis.tickHeight,
+        c.xValueAxis?.tickLength,
+        g.xValueAxis?.tickLength,
+        d.xValueAxis.tickLength,
       ),
       tickLabelGap: ms(
         sf,
-        c.xScaleAxis?.tickLabelGap,
-        g.xScaleAxis?.tickLabelGap,
-        d.xScaleAxis.tickLabelGap,
+        c.xValueAxis?.tickLabelGap,
+        g.xValueAxis?.tickLabelGap,
+        d.xValueAxis.tickLabelGap,
       ),
       tickLabelFormatter: m(
-        c.xScaleAxis?.tickLabelFormatter,
-        g.xScaleAxis?.tickLabelFormatter,
-        d.xScaleAxis.tickLabelFormatter,
+        c.xValueAxis?.tickLabelFormatter,
+        g.xValueAxis?.tickLabelFormatter,
+        d.xValueAxis.tickLabelFormatter,
       ),
       tickLabelAlignment: m(
-        c.xScaleAxis?.tickLabelAlignment,
-        g.xScaleAxis?.tickLabelAlignment,
-        d.xScaleAxis.tickLabelAlignment,
+        c.xValueAxis?.tickLabelAlignment,
+        g.xValueAxis?.tickLabelAlignment,
+        d.xValueAxis.tickLabelAlignment,
       ),
       allowIndividualLaneLimits: m(
-        c.xScaleAxis?.allowIndividualLaneLimits,
-        g.xScaleAxis?.allowIndividualLaneLimits,
-        d.xScaleAxis.allowIndividualLaneLimits,
+        c.xValueAxis?.allowIndividualLaneLimits,
+        g.xValueAxis?.allowIndividualLaneLimits,
+        d.xValueAxis.allowIndividualLaneLimits,
       ),
       exactAxisY: msOrNone(
         sf,
-        c.xScaleAxis?.exactAxisY,
-        g.xScaleAxis?.exactAxisY,
-        d.xScaleAxis.exactAxisY,
+        c.xValueAxis?.exactAxisY,
+        g.xValueAxis?.exactAxisY,
+        d.xValueAxis.exactAxisY,
       ),
     };
   }
@@ -1076,11 +1076,11 @@ export class CustomFigureStyle {
           baseText,
         ),
       },
-      tickWidth: ms(
+      tickLength: ms(
         sf,
-        c.yTextAxis?.tickWidth,
-        g.yTextAxis?.tickWidth,
-        d.yTextAxis.tickWidth,
+        c.yTextAxis?.tickLength,
+        g.yTextAxis?.tickLength,
+        d.yTextAxis.tickLength,
       ),
       tickLabelGap: ms(
         sf,
@@ -1105,10 +1105,10 @@ export class CustomFigureStyle {
         g.yTextAxis?.paddingBottom,
         d.yTextAxis.paddingBottom,
       ),
-      maxTickLabelWidthAsPctOfChart: m(
-        c.yTextAxis?.maxTickLabelWidthAsPctOfChart,
-        g.yTextAxis?.maxTickLabelWidthAsPctOfChart,
-        d.yTextAxis.maxTickLabelWidthAsPctOfChart,
+      maxTickLabelWidthFractionOfPane: m(
+        c.yTextAxis?.maxTickLabelWidthFractionOfPane,
+        g.yTextAxis?.maxTickLabelWidthFractionOfPane,
+        d.yTextAxis.maxTickLabelWidthFractionOfPane,
       ),
     };
   }
@@ -1118,24 +1118,28 @@ export class CustomFigureStyle {
     const g = this._g;
     const d = this._d;
     return {
-      showGrid: m(c.grid?.showGrid, g.grid?.showGrid, d.grid.showGrid),
+      showGridLines: m(
+        c.grid?.showGridLines,
+        g.grid?.showGridLines,
+        d.grid.showGridLines,
+      ),
       axisStrokeWidth: ms(
         this._sf,
         c.grid?.axisStrokeWidth,
         g.grid?.axisStrokeWidth,
         d.grid.axisStrokeWidth,
       ),
-      gridStrokeWidth: ms(
+      gridLineStrokeWidth: ms(
         this._sf,
-        c.grid?.gridStrokeWidth,
-        g.grid?.gridStrokeWidth,
-        d.grid.gridStrokeWidth,
+        c.grid?.gridLineStrokeWidth,
+        g.grid?.gridLineStrokeWidth,
+        d.grid.gridLineStrokeWidth,
       ),
       axisColor: getColor(
         m(c.grid?.axisColor, g.grid?.axisColor, d.grid.axisColor),
       ),
-      gridColor: getColor(
-        m(c.grid?.gridColor, g.grid?.gridColor, d.grid.gridColor),
+      gridLineColor: getColor(
+        m(c.grid?.gridLineColor, g.grid?.gridLineColor, d.grid.gridLineColor),
       ),
       backgroundColor: getColor(
         m(
@@ -1264,8 +1268,8 @@ export class CustomFigureStyle {
       errorBars: {
         getStyle: getErrorBarStyleFunc(sf, c, g, d),
       },
-      confidenceBands: {
-        getStyle: getConfidenceBandStyleFunc(sf, c, g, d),
+      errorBands: {
+        getStyle: getErrorBandStyleFunc(sf, c, g, d),
       },
       cascadeArrows: {
         text: {
@@ -1295,12 +1299,12 @@ export class CustomFigureStyle {
           d.content.connectors.arrowheadFitFallback,
         ),
       },
-      mapRegions: {
-        getStyle: getMapRegionStyleFunc(sf, c, g, d),
+      mapAreas: {
+        getStyle: getMapAreaStyleFunc(sf, c, g, d),
         textFormatter: m(
-          c.content?.mapRegions?.textFormatter,
-          g.content?.mapRegions?.textFormatter,
-          d.content.mapRegions.textFormatter,
+          c.content?.mapAreas?.textFormatter,
+          g.content?.mapAreas?.textFormatter,
+          d.content.mapAreas.textFormatter,
         ),
       },
       slices: {

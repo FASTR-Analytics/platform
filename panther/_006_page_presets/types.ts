@@ -63,7 +63,7 @@ export type LayoutPresetConfig = {
     logosPlacement: LogosPlacementOptions;
     logosSizing: LogosSizingOptions;
     titleBottomPadding: number;
-    subTitleBottomPadding: number;
+    subtitleBottomPadding: number;
     authorBottomPadding: number;
   };
 
@@ -102,7 +102,7 @@ export type LayoutPresetConfig = {
 export type CoverSurface = {
   background: PaletteSlot;
   title: PaletteSlot;
-  subTitle: PaletteSlot;
+  subtitle: PaletteSlot;
   author: PaletteSlot;
   date: PaletteSlot;
 };
@@ -110,7 +110,7 @@ export type CoverSurface = {
 export type SectionSurface = {
   background: PaletteSlot;
   title: PaletteSlot;
-  subTitle: PaletteSlot;
+  subtitle: PaletteSlot;
 };
 
 export type HeaderSurface = {
@@ -135,11 +135,11 @@ export type ContentSurface = {
 
 export type TextColorStyles = {
   coverTitle: { color: string };
-  coverSubTitle: { color: string };
+  coverSubtitle: { color: string };
   coverAuthor: { color: string };
   coverDate: { color: string };
   sectionTitle: { color: string };
-  sectionSubTitle: { color: string };
+  sectionSubtitle: { color: string };
   header: { color: string };
   subHeader: { color: string };
   date: { color: string };

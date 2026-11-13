@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type JsonArray, transformOneWayChartJson } from "./deps.ts";
+import { type JsonArray, transformChartOVOrOHJson } from "./deps.ts";
 import {
   type ChartOVData,
   type ChartOVDataTransformed,
@@ -40,20 +40,20 @@ export function getChartOVDataJsonTransformed(
 ): ChartOVDataTransformed {
   const {
     visibleIndicatorsByPane,
-    visibleBandAxisByPane,
-    visibleIndicatorsByPaneBand,
+    visibleTiersOrLanesByPane,
+    visibleIndicatorsByPaneTierOrLane,
     proportionalPanes,
     ...core
-  } = transformOneWayChartJson(jsonArray, jsonDataConfig, stacked, {
+  } = transformChartOVOrOHJson(jsonArray, jsonDataConfig, stacked, {
     figureName: "ChartOV",
-    bandAxis: "lane",
+    tierOrLaneDimension: "lane",
   });
   return {
     ...core,
-    yScaleAxisLabel: jsonDataConfig.yScaleAxisLabel?.trim(),
+    yValueAxisLabel: jsonDataConfig.yValueAxisLabel?.trim(),
     visibleIndicatorsByPane,
-    visibleLanesByPane: visibleBandAxisByPane,
-    visibleIndicatorsByPaneBand,
+    visibleLanesByPane: visibleTiersOrLanesByPane,
+    visibleIndicatorsByPaneLane: visibleIndicatorsByPaneTierOrLane,
     proportionalPanes,
   };
 }

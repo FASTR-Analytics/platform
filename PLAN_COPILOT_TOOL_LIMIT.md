@@ -1,10 +1,10 @@
 # PLAN: Copilot tool limit
 
-Status: steps 1 to 5 are DONE. Step 6, the last, cannot start until a sync of panther has landed in this app, and that sync is panther's to make ("Why step 6 cannot start yet").
+Status: steps 1 to 5 are DONE. Step 6, the last, can start: the sync that brought panther's figure renames to this app (the panther repo's `TERMINOLOGY.md` step 3) brought the cap with it.
 
-A copilot turn stopped with "Stopped: too many tool calls in one turn" once the model had asked for tools in more than 24 replies, and a deck was where users reached it. This plan made a deck's reads and writes take few rounds (one read for any number of slides, write results that state what the write left, a brief that stops ordering read-backs and says calls can share a reply), and raised panther's cap to 100 with a per-consumer override. The app's own half is built and in use. The cap of 100 is built in panther and is not in this app yet: this app's copy of panther still caps a turn at 24.
+A copilot turn stopped with "Stopped: too many tool calls in one turn" once the model had asked for tools in more than 24 replies, and a deck was where users reached it. This plan made a deck's reads and writes take few rounds (one read for any number of slides, write results that state what the write left, a brief that stops ordering read-backs and says calls can share a reply), and raised panther's cap to 100 with a per-consumer override. The app's own half is built and in use. The cap of 100 is in this app's copy of panther; SYSTEM_13 still states 24.
 
-**Next step: Do 6, once its start condition holds.**
+**Next step: Do 6.**
 
 Branch: `main`. Repo: this one. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "The panther engine". Start when: this tree is clean. Step 6 also needs `rg -q maxTurnContinuations panther/_305_ai/_core/types.ts` to exit 0 in this repo.
 
@@ -24,13 +24,7 @@ What steps 1 to 3 built is described in the standing docs: SYSTEM_13 "Tools, vie
 
 ### Remaining
 
-- **Step 6 (§4), cannot start yet:** once this app's copy of panther holds the cap, SYSTEM_13's "The panther engine" states it, and the close commit deletes this file.
-
-### Why step 6 cannot start yet
-
-- The sync copies panther's whole working tree, never one change. Panther's tree also holds its figure renames (the panther repo's `TERMINOLOGY.md`, "Reaching these names", step 1: `yScaleAxis` to `yValueAxis`, `val` to `value`, `showGrid` to `showGridLines`, `seriesHeader` and the rest), which this app's code does not follow yet.
-- Tried on 2026-11-12: `./sync wb-fastr --no-commit` copied panther at `4577a951`. `deno fmt --check` and the server check passed. The client check failed with 85 errors in 18 files under `client/src/`, every one a renamed figure name, none in the AI chat. Nothing of it was committed.
-- The sync that brings the renames to this app is `TERMINOLOGY.md`'s step 3 ("Migrate the stored-config keys in the consumers ... and sync, one commit per consumer"), which follows its step 2, a ruling of Tim's. That sync carries the cap with it, because panther's tree already holds it. This plan does not run a sync.
+- **Step 6 (§4):** SYSTEM_13's "The panther engine" states the cap this app's copy of panther holds, and the close commit deletes this file.
 
 ## §0 How to work this plan
 
@@ -44,8 +38,7 @@ Vocabulary:
 
 ## §1 The problem
 
-- **This app's copy of panther still caps a turn at 24 rounds.** `MAX_TURN_CONTINUATIONS = 24` is in `panther/_305_ai/_components/_create_ai_chat.ts`, and the notice at the cap does not say that a new message carries on. Steps 1 to 3 cut the rounds a deck needs, so a turn reaches the cap far later than it did, and the cap is still the old one.
-- **SYSTEM_13 "The panther engine" states the cap as 24.** It is true of the copy today and stops being true when the sync lands.
+- **SYSTEM_13 "The panther engine" states the cap as 24.** This app's copy of panther caps a turn at 100 (`MAX_TURN_CONTINUATIONS` in `panther/_305_ai/_core/validate_config.ts`), overridable by `AIChatConfig.maxTurnContinuations`.
 
 ## §2 The model
 

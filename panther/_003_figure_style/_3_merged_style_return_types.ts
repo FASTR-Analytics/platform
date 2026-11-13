@@ -17,7 +17,7 @@ import type {
   DiagramNodeInfo,
   DiagramTextInfo,
   LineStyle,
-  MapRegionInfoFunc,
+  MapAreaInfoFunc,
   Padding,
   PieSliceInfoFunc,
   PointStyle,
@@ -31,11 +31,11 @@ import type {
   AreaDiffPair,
   ArrowheadFitFallback,
   CascadeArrowStyle,
-  ConfidenceBandStyle,
   ConnectorStyle,
   DataLabelStyle,
+  ErrorBandStyle,
   ErrorBarStyle,
-  MapRegionStyle,
+  MapAreaStyle,
   PieSliceStyle,
   TableCellStyle,
   TableHeaderStyle,
@@ -44,19 +44,19 @@ import type { LegendPosition } from "./types.ts";
 
 export type MergedSurroundsStyle = {
   text: {
-    caption: TextInfoUnkeyed;
-    subCaption: TextInfoUnkeyed;
+    title: TextInfoUnkeyed;
+    subtitle: TextInfoUnkeyed;
     footnote: TextInfoUnkeyed;
   };
   backgroundColor: string | "none";
   padding: Padding;
-  captionGap: number;
-  subCaptionTopPadding: number;
+  titleGap: number;
+  subtitleTopPadding: number;
   footnoteGap: number;
   legendGap: number;
   legendPosition: LegendPosition;
-  captionAlignH: "left" | "center" | "right";
-  subCaptionAlignH: "left" | "center" | "right";
+  titleAlignH: "left" | "center" | "right";
+  subtitleAlignH: "left" | "center" | "right";
   footnoteAlignH: "left" | "center" | "right";
 
   // Nested style objects
@@ -66,9 +66,9 @@ export type MergedSurroundsStyle = {
 export type MergedLegendStyle = {
   text: TextInfoUnkeyed;
   seriesColorFunc: ChartSeriesInfoFunc<ColorKeyOrString>;
-  maxLegendItemsInOneColumn: number | number[];
+  maxLegendEntriesInOneColumn: number | number[];
   legendColorBoxWidth: number;
-  legendItemVerticalGap: number;
+  legendEntryVerticalGap: number;
   legendLabelGap: number;
   legendPointRadius: number;
   legendPointStrokeWidth: number;
@@ -91,11 +91,11 @@ export type MergedScaleLegendStyle = {
 };
 
 export type MergedIdealHeightStyle = {
-  // Natural per-subchart plot height (DU) for scale-axis charts (ChartOV,
-  // Timeseries), as a function of the number of vertically-stacked subchart
+  // Natural per-sub-chart sub-chart height (DU) for value-axis charts (ChartOV,
+  // Timeseries), as a function of the number of vertically-stacked sub-chart
   // rows (nPaneRows × nTiers). Decays so stacked grids stay bounded. Ignored by
   // ChartOH (category-driven) and Table (deterministic).
-  idealPlotHeight: (nSubchartRows: number) => number;
+  idealSubChartHeight: (nSubChartRows: number) => number;
   // Natural per-bar-row thickness (DU) for ChartOH, as a function of the
   // figure's total bar rows. Decays so dense category charts thin their bars.
   // Ignored by ChartOV, Timeseries, and Table.
@@ -124,15 +124,15 @@ export type MergedChartStyleBase = {
     paddingTop: number;
     paddingBottom: number;
     gapY: number;
-    maxHeaderWidthAsPctOfChart: number;
+    maxHeaderWidthFractionOfPane: number;
     headerAlignH: "left" | "center" | "right";
     headerAlignV: "top" | "middle";
     headerPosition:
       | "left"
       | "above-axis"
-      | "above-plot-area"
+      | "above-sub-chart"
       | "above-axis-if-no-lanes"
-      | "above-plot-area-if-no-lanes";
+      | "above-sub-chart-if-no-lanes";
     headerGap: number;
   };
   text: {
@@ -145,7 +145,7 @@ export type MergedChartStyleBase = {
 
 export type MapDataLabelMode = "none" | "centroid" | "callout" | "auto";
 
-// Collision policy for the shared figure-label solver (map regions, pie
+// Collision policy for the shared figure-label solver (map areas, pie
 // slices). Figure-wide, not per-element, so it lives on each figure's
 // structural style block (map.labelCollision, pie.labelCollision) rather than
 // on the content layer. `maxCentroidDisplacement` keeps its authored name: the
@@ -160,7 +160,7 @@ export type LabelCollisionConfig = {
 export type MergedMapStyle = MergedChartStyleBase & {
   map: {
     projection: "equirectangular" | "mercator" | "naturalEarth1";
-    fit: "all-regions" | "only-regions-in-data";
+    fit: "all-map-areas" | "only-map-areas-in-data";
     dataLabelMode: MapDataLabelMode;
     calloutMargin: number;
     labelCollision: LabelCollisionConfig;
@@ -178,8 +178,8 @@ export type MergedMapStyle = MergedChartStyleBase & {
 // both resolve to the shared LabelPlacement at measure time.
 export type PieLabelMode = "none" | "inside" | "outside" | "auto";
 
-// Which placer runs for labels that go outside. One type for both zero-way
-// figures — the policy is the same choice, and the placers are shared.
+// Which placer runs for labels that go outside. One type for both charts with
+// no axes — the policy is the same choice, and the placers are shared.
 export type OutsideLabelPlacement = "nearest" | "flank";
 
 export type MergedPieStyle = MergedChartStyleBase & {
@@ -223,12 +223,12 @@ export type MergedPieStyle = MergedChartStyleBase & {
 };
 
 export type MergedChartOVStyle = MergedChartStyleBase & {
-  yScaleAxis: MergedYScaleAxisStyle;
+  yValueAxis: MergedYValueAxisStyle;
   xTextAxis: MergedXTextAxisStyle;
 };
 
 export type MergedChartOHStyle = MergedChartStyleBase & {
-  xScaleAxis: MergedXScaleAxisStyle;
+  xValueAxis: MergedXValueAxisStyle;
   yTextAxis: MergedYTextAxisStyle;
 };
 
@@ -244,23 +244,23 @@ export type MergedYTextAxisStyle = {
   text: {
     yTextAxisTickLabels: TextInfoUnkeyed;
   };
-  tickWidth: number;
+  tickLength: number;
   tickLabelGap: number;
   tickPosition: "sides" | "center";
   paddingTop: number;
   paddingBottom: number;
-  maxTickLabelWidthAsPctOfChart: number;
+  maxTickLabelWidthFractionOfPane: number;
 };
 
-export type MergedXScaleAxisStyle = {
+export type MergedXValueAxisStyle = {
   text: {
-    xScaleAxisTickLabels: TextInfoUnkeyed;
-    xScaleAxisLabel: TextInfoUnkeyed;
+    xValueAxisTickLabels: TextInfoUnkeyed;
+    xValueAxisLabel: TextInfoUnkeyed;
   };
   max: number | "auto" | "auto-zero" | ((i_pane: number) => number);
   min: number | "auto" | "auto-zero" | ((i_pane: number) => number);
-  labelGap: number;
-  tickHeight: number;
+  axisLabelGap: number;
+  tickLength: number;
   tickLabelGap: number;
   tickLabelFormatter: TickLabelFormatterOption;
   tickLabelAlignment: "center" | "inset";
@@ -269,7 +269,7 @@ export type MergedXScaleAxisStyle = {
 };
 
 export type MergedTimeseriesStyle = MergedChartStyleBase & {
-  yScaleAxis: MergedYScaleAxisStyle;
+  yValueAxis: MergedYValueAxisStyle;
   xPeriodAxis: MergedXPeriodAxisStyle;
 };
 
@@ -309,11 +309,11 @@ export type MergedTableStyle = {
 };
 
 export type MergedGridStyle = {
-  showGrid: boolean;
+  showGridLines: boolean;
   axisStrokeWidth: number;
-  gridStrokeWidth: number;
+  gridLineStrokeWidth: number;
   axisColor: string;
-  gridColor: string;
+  gridLineColor: string;
   backgroundColor: string | "none";
 };
 
@@ -366,12 +366,12 @@ export type MergedContentStyle = {
     };
   };
   errorBars: MergedErrorBarStyle;
-  confidenceBands: MergedConfidenceBandStyle;
+  errorBands: MergedErrorBandStyle;
   cascadeArrows: MergedCascadeArrowStyle;
   connectors: MergedConnectorStyle;
-  mapRegions: {
-    getStyle: MapRegionInfoFunc<MapRegionStyle>;
-    textFormatter: MapRegionInfoFunc<string> | "none";
+  mapAreas: {
+    getStyle: MapAreaInfoFunc<MapAreaStyle>;
+    textFormatter: MapAreaInfoFunc<string> | "none";
   };
   slices: {
     getStyle: PieSliceInfoFunc<PieSliceStyle>;
@@ -383,8 +383,8 @@ export type MergedErrorBarStyle = {
   getStyle: ChartValueInfoFunc<ErrorBarStyle>;
 };
 
-export type MergedConfidenceBandStyle = {
-  getStyle: ChartSeriesInfoFunc<ConfidenceBandStyle>;
+export type MergedErrorBandStyle = {
+  getStyle: ChartSeriesInfoFunc<ErrorBandStyle>;
 };
 
 export type MergedConnectorStyle = {
@@ -393,15 +393,15 @@ export type MergedConnectorStyle = {
   arrowheadFitFallback: ArrowheadFitFallback;
 };
 
-export type MergedYScaleAxisStyle = {
+export type MergedYValueAxisStyle = {
   text: {
-    yScaleAxisTickLabels: TextInfoUnkeyed;
-    yScaleAxisLabel: TextInfoUnkeyed;
+    yValueAxisTickLabels: TextInfoUnkeyed;
+    yValueAxisLabel: TextInfoUnkeyed;
   };
   max: number | "auto" | "auto-zero" | ((i_pane: number) => number);
   min: number | "auto" | "auto-zero" | ((i_pane: number) => number);
-  labelGap: number;
-  tickWidth: number;
+  axisLabelGap: number;
+  tickLength: number;
   tickLabelGap: number;
   tickLabelFormatter: TickLabelFormatterOption;
   tickLabelAlignment: "center" | "inset";
@@ -414,10 +414,10 @@ export type MergedXTextAxisStyle = {
     xTextAxisTickLabels: TextInfoUnkeyed;
   };
   verticalTickLabels: boolean;
-  tickHeight: number;
+  tickLength: number;
   tickPosition: "sides" | "center";
   tickLabelGap: number;
-  maxTickLabelHeightAsPctOfChart: number;
+  maxTickLabelHeightFractionOfPane: number;
 };
 
 export type MergedXPeriodAxisStyle = {

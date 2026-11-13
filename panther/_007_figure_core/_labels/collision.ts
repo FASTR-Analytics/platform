@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 // Pure box arithmetic over label rectangles — no figure knowledge. Shared by
-// every figure that places labels (map regions, pie slices).
+// every figure that places labels (map areas, pie slices).
 export type CollisionLabel = {
   naturalX: number;
   naturalY: number;
@@ -19,7 +19,7 @@ export type CollisionLabel = {
   //
   // A caller supplies this to CHOOSE the order. Sorting by natural Y only
   // guarantees non-crossing leaders when the anchors share an x — true of a
-  // pie's slices, false of a map's regions (DOC_FIGURE_ARCHITECTURE, "Outside
+  // pie's slices, false of a map's map areas (DOC_FIGURE_ARCHITECTURE, "Outside
   // placement"). It has to displace the natural Y rather than merely re-sort
   // against it: leaving `naturalY` as
   // the greedy's floor means a label handed a slot ABOVE its own anchor cannot
@@ -30,7 +30,7 @@ export type CollisionLabel = {
 };
 
 // Outside labels: sort by natural Y, push down greedily, then shift the whole
-// stack back up if it overflows the band.
+// stack back up if it overflows the strip.
 export function resolveOutsideCollisions(
   labels: CollisionLabel[],
   bounds: { minY: number; maxY: number },

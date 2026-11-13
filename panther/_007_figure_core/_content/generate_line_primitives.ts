@@ -35,13 +35,13 @@ export function generateLinePrimitives(
   };
   const lineSeriesData: Map<number, { segments: LineSegment[] }> = new Map();
   const seriesInfos = Array.from(
-    { length: ctx.nSeries },
+    { length: ctx.nSerieses },
     (_, i) => buildSeriesInfo(ctx, i, mapped),
   );
 
-  for (const i_val of ctx.slotOrder) {
-    for (let i_series = 0; i_series < ctx.nSeries; i_series++) {
-      const mappedVal = mapped[i_series][i_val];
+  for (const i_value of ctx.slotOrder) {
+    for (let i_series = 0; i_series < ctx.nSerieses; i_series++) {
+      const mappedValue = mapped[i_series][i_value];
 
       const seriesInfo = seriesInfos[i_series];
       const lineStyle = s.lines.getStyle(seriesInfo);
@@ -60,7 +60,7 @@ export function generateLinePrimitives(
 
       const lineData = lineSeriesData.get(i_series)!;
 
-      if (mappedVal === undefined) {
+      if (mappedValue === undefined) {
         if (!s.lines.joinAcrossGaps) {
           const currentSeg = lineData.segments[lineData.segments.length - 1];
           if (currentSeg.coords.length > 0) {
@@ -76,16 +76,21 @@ export function generateLinePrimitives(
       }
 
       const currentSeg = lineData.segments[lineData.segments.length - 1];
-      currentSeg.coords.push(mappedVal.coords);
-      currentSeg.values.push(mappedVal.val);
-      currentSeg.valueIndices.push(i_val);
+      currentSeg.coords.push(mappedValue.coords);
+      currentSeg.values.push(mappedValue.value);
+      currentSeg.valueIndices.push(i_value);
 
-      if (labelOwner[i_series][i_val] === "lines") {
+      if (labelOwner[i_series][i_value] === "lines") {
         const dl = lineStyle.dataLabel;
-        const valueInfo = buildValueInfo(ctx, seriesInfo, mappedVal.val, i_val);
+        const valueInfo = buildValueInfo(
+          ctx,
+          seriesInfo,
+          mappedValue.value,
+          i_value,
+        );
         const labelStr = s.lines.textFormatter !== "none"
           ? s.lines.textFormatter(valueInfo)
-          : String(mappedVal.val);
+          : String(mappedValue.value);
 
         const textStyle = buildDataLabelTextStyle(ctx.dataLabelsTextStyle, dl);
 
@@ -101,8 +106,8 @@ export function generateLinePrimitives(
               ? {
                 mText,
                 position: new Coordinates([
-                  mappedVal.coords.x() + dl.offset,
-                  mappedVal.coords.y(),
+                  mappedValue.coords.x() + dl.offset,
+                  mappedValue.coords.y(),
                 ]),
                 alignH: "left",
                 alignV: "middle",
@@ -111,8 +116,8 @@ export function generateLinePrimitives(
               : {
                 mText,
                 position: new Coordinates([
-                  mappedVal.coords.x(),
-                  mappedVal.coords.y() - dl.offset,
+                  mappedValue.coords.x(),
+                  mappedValue.coords.y() - dl.offset,
                 ]),
                 alignH: "center",
                 alignV: "bottom",
@@ -129,7 +134,7 @@ export function generateLinePrimitives(
   for (const [i_series, lineData] of lineSeriesData.entries()) {
     const seriesInfo = {
       ...seriesInfos[i_series],
-      nVals: lineData.segments.reduce(
+      nValues: lineData.segments.reduce(
         (n: number, seg: LineSegment) => n + seg.coords.length,
         0,
       ),
@@ -145,7 +150,7 @@ export function generateLinePrimitives(
         type: "chart-line-series",
         key:
           `line-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}-${i_seg}`,
-        item: chartSeriesItem(ctx.itemAxes, seriesInfo),
+        item: chartSeriesItem(ctx.itemDataDimensions, seriesInfo),
         part: "body",
         bounds,
         hitBounds: bounds,
@@ -161,16 +166,18 @@ export function generateLinePrimitives(
       });
     }
 
-    const cbStyle = s.confidenceBands.getStyle(seriesInfo);
-    if (cbStyle.show && ctx.mappedBoundsUb && ctx.mappedBoundsLb) {
+    const errorBandStyle = s.errorBands.getStyle(seriesInfo);
+    if (
+      errorBandStyle.show && ctx.mappedUncertaintyUb && ctx.mappedUncertaintyLb
+    ) {
       const allValueIndices = lineData.segments.flatMap((seg: LineSegment) =>
         seg.valueIndices
       );
       const ubCoords: Coordinates[] = [];
       const lbCoords: Coordinates[] = [];
-      for (const i_val of allValueIndices) {
-        const ub = ctx.mappedBoundsUb[i_series]?.[i_val];
-        const lb = ctx.mappedBoundsLb[i_series]?.[i_val];
+      for (const i_value of allValueIndices) {
+        const ub = ctx.mappedUncertaintyUb[i_series]?.[i_value];
+        const lb = ctx.mappedUncertaintyLb[i_series]?.[i_value];
         if (ub && lb) {
           ubCoords.push(ub.coords);
           lbCoords.push(lb.coords);
@@ -181,10 +188,10 @@ export function generateLinePrimitives(
         closedPath.push(closedPath[0]);
         const bounds = computeBoundsForPath(closedPath);
         primitives.push({
-          type: "chart-confidence-band",
+          type: "chart-error-band",
           key:
-            `confidence-band-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}`,
-          item: chartSeriesItem(ctx.itemAxes, seriesInfo),
+            `error-band-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}`,
+          item: chartSeriesItem(ctx.itemDataDimensions, seriesInfo),
           part: "body",
           bounds,
           hitBounds: bounds,
@@ -192,8 +199,9 @@ export function generateLinePrimitives(
           meta: { series: seriesInfo },
           coords: closedPath,
           style: {
-            fillColor: cbStyle.fillColor,
-            fillColorAdjustmentStrategy: cbStyle.fillColorAdjustmentStrategy,
+            fillColor: errorBandStyle.fillColor,
+            fillColorAdjustmentStrategy:
+              errorBandStyle.fillColorAdjustmentStrategy,
           },
         });
       }

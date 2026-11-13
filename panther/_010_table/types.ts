@@ -6,12 +6,12 @@
 import type {
   CustomFigureStyle,
   FigureInputsBase,
-  HeaderSortConfig,
   JsonArray,
   LegendInput,
   Measured,
   MeasuredSurrounds,
   MeasuredText,
+  MemberSortConfig,
   MergedTableStyle,
   Primitive,
   RectCoordsDims,
@@ -19,6 +19,7 @@ import type {
   TableCellStyle,
   TableHeaderSampleN,
   TableHeaderStyle,
+  ValueRange,
 } from "./deps.ts";
 
 export type TableInputs = FigureInputsBase & {
@@ -53,15 +54,15 @@ export type TableJsonDataConfig = {
   //
   labelReplacements?: Record<string, string>;
   sort?: {
-    colGroup?: HeaderSortConfig;
-    col?: HeaderSortConfig;
-    rowGroup?: HeaderSortConfig;
-    row?: HeaderSortConfig;
+    colGroup?: MemberSortConfig;
+    col?: MemberSortConfig;
+    rowGroup?: MemberSortConfig;
+    row?: MemberSortConfig;
   };
   // Rows with these raw header ids are excluded from the per-column live
   // min/max passed to cell style funcs (e.g. so a total/roll-up row does not
   // stretch auto color-scale domains). Header sampleN digests additionally
-  // apply this on BOTH axes (perpendicular exclusion) — see TableHeaderSampleN.
+  // apply this on BOTH sides (perpendicular exclusion) — see TableHeaderSampleN.
   liveDomainExcludeIds?: string[];
   // Maps each valueProp to the prop holding its sample size (n). Explicit map,
   // no naming magic; per-value entries cover multi-value / --v tables.
@@ -76,9 +77,9 @@ export type TableJsonDataConfig = {
 
 export type TableDataTransformed = {
   isTransformed: true;
-  // An absent axis is one column (or row) without a header.
-  cols?: TableColAxis;
-  rows?: TableRowAxis;
+  // An absent dimension is one column (or row) without a header.
+  cols?: TableColDataDimensions;
+  rows?: TableRowDataDimensions;
   aoa: (string | number)[][];
   liveDomainExcludeIds?: string[];
   // Sample sizes, same orientation and final sorted index space as aoa.
@@ -115,17 +116,17 @@ export function isTableDataTransformed(
   return (d as TableDataTransformed).isTransformed === true;
 }
 
-// A table axis names its dimension and, when it is grouped, its group
+// A table side names its dimension and, when it is grouped, its group
 // dimension. A group's id and label are undefined exactly when groupDimension
 // is absent, which leaves one group. A member's label is undefined when it
 // shows no header (a positional row).
-export type TableColAxis = {
+export type TableColDataDimensions = {
   dimension: string;
   groupDimension?: string;
   groups: ColGroup[];
 };
 
-export type TableRowAxis = {
+export type TableRowDataDimensions = {
   dimension: string;
   groupDimension?: string;
   groups: RowGroup[];
@@ -155,7 +156,7 @@ export type RowGroupRow = {
   index: number;
 };
 
-// The groups a table lays out. An absent axis is one group holding one member
+// The groups a table lays out. An absent dimension is one group holding one member
 // with no header, so its member has no id.
 export type LaidOutColGroup = {
   id: string | undefined;
@@ -220,7 +221,7 @@ export type ColHeaderInfo = {
 };
 
 export type TableMeasuredInfo = {
-  contentRcd: RectCoordsDims;
+  bodyRcd: RectCoordsDims;
   rowCellPaddingT: number;
   rowCellPaddingB: number;
   maxY: number;
@@ -240,7 +241,7 @@ export type TableMeasuredInfo = {
   hasRowHeaders: boolean;
   hasRowGroupHeaders: boolean;
   rowHeadersInnerX: number;
-  colGroupHeaderAxisY: number;
+  colGroupHeaderGridLineY: number;
   extraTopPaddingForRows: number;
   extraBottomPaddingForRows: number;
 };
@@ -257,10 +258,10 @@ export type MeasuredTable = Measured<TableInputs> & {
   transformedData: TableDataTransformed;
   customFigureStyle: CustomFigureStyle;
   mergedStyle: MergedTableStyle;
-  columnMinMax: Map<number, { min: number; max: number }>;
+  columnMinMax: Map<number, ValueRange>;
   // Display data
-  caption?: string;
-  subCaption?: string;
+  title?: string;
+  subtitle?: string;
   footnote?: string | string[];
   legend?: LegendInput;
 };

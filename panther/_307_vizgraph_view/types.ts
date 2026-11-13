@@ -4,12 +4,12 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  BandGeom,
   FontInfo,
   Geometry,
   GraphModel,
   GroupGeom,
   JSX,
-  LaneGeom,
   LayoutOptions,
   NodeGeom,
   Transition,
@@ -32,9 +32,9 @@ export type VizGraphViewGroupInfo = {
   geom: GroupGeom | undefined;
 };
 
-export type VizGraphViewLaneInfo = {
+export type VizGraphViewBandInfo = {
   id: string;
-  geom: LaneGeom | undefined;
+  geom: BandGeom | undefined;
 };
 
 // Imperative surface for actions-map runners (DOC_VIZGRAPH_ARCHITECTURE.md): the
@@ -86,11 +86,11 @@ export type VizGraphViewProps = {
   // label size get the default header (the group id); groups without one get
   // no header row. Presence is read once (not reactive).
   groupContent?: (group: VizGraphViewGroupInfo) => JSX.Element;
-  // Lane header content (M5) — the same contract as groupContent: header
-  // body in the lane's header row AND the probe for lanes whose model entry
-  // has no `label` size (measured wrapped at the lane's natural width, so a
-  // header never widens its lane). Lane boxes are painted regardless.
-  laneContent?: (lane: VizGraphViewLaneInfo) => JSX.Element;
+  // Band header content (M5) — the same contract as groupContent: header
+  // body in the band's header row AND the probe for bands whose model entry
+  // has no `label` size (measured wrapped at the band's natural width, so a
+  // header never widens its band). Band boxes are painted regardless.
+  bandContent?: (band: VizGraphViewBandInfo) => JSX.Element;
   // Web fonts the measurer must await before the first layout.
   measureFonts?: FontInfo[];
   selected?: string[];

@@ -63,15 +63,15 @@ export function renderPage(
     );
   }
 
-  if (measured.item.pageNumber) {
+  if (measured.inputs.pageNumber) {
     renderPageNumberOverlay(rc, measured);
   }
 
-  if (measured.item.annotations?.length) {
+  if (measured.inputs.annotations?.length) {
     renderPageAnnotations(
       rc,
       measured.fullPageBounds,
-      measured.item.annotations,
+      measured.inputs.annotations,
       measured.style.alreadyScaledValue,
     );
   }
@@ -85,7 +85,7 @@ function renderPageNumberOverlay(
   const textStyle = measured.style.text.pageNumber;
   const pad = pageNumberStyle.padding;
   const fpb = measured.fullPageBounds;
-  const mText = rc.mText(measured.item.pageNumber!, textStyle, fpb.w() * 0.3);
+  const mText = rc.mText(measured.inputs.pageNumber!, textStyle, fpb.w() * 0.3);
 
   const [x, alignH] = pageNumberStyle.placement === "bottom-left"
     ? [fpb.x() + pad.pl(), "left" as const]

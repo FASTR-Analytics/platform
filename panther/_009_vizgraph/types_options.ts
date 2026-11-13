@@ -50,14 +50,14 @@ export type GapRange = { min: number; ideal: number };
 // compress freely regardless — the floor governs only the horizontal
 // segments joining left/right sides.
 //
-// laneGap is EXTRA gutter width at a span boundary (a gutter where a lane or
-// span group starts or ends), on top of layerGap, so lane boxes get
+// bandGap is EXTRA gutter width at a span boundary (a gutter where a band or
+// span group starts or ends), on top of layerGap, so band boxes get
 // daylight between them; pressure-responsive like layerGap (gaps-first —
 // both compress by the same fraction). A bare number means fixed.
 export type Spacing = {
   nodeGap: number;
   layerGap: number | GapRange;
-  laneGap: number | GapRange;
+  bandGap: number | GapRange;
   trackGap: number;
   portGap: number | GapRange;
   portMargin: number;
@@ -71,12 +71,12 @@ export type Spacing = {
 // portGap resolves to its ideal — the floor is read from portGapRange by the
 // port-gap floor and by assignPorts' compression).
 export type ResolvedSpacing =
-  & Omit<Spacing, "layerGap" | "laneGap" | "portGap">
+  & Omit<Spacing, "layerGap" | "bandGap" | "portGap">
   & {
     layerGap: number;
     layerGapRange: GapRange;
-    laneGap: number;
-    laneGapRange: GapRange;
+    bandGap: number;
+    bandGapRange: GapRange;
     portGap: number;
     portGapRange: GapRange;
   };
@@ -84,7 +84,7 @@ export type ResolvedSpacing =
 export const DEFAULT_SPACING: Spacing = {
   nodeGap: 24,
   layerGap: { min: 32, ideal: 80 },
-  laneGap: 40,
+  bandGap: 40,
   trackGap: 12,
   portGap: { min: 1, ideal: 16 },
   portMargin: 8,
@@ -97,18 +97,18 @@ export function resolveSpacing(
   const merged = { ...DEFAULT_SPACING, ...input };
   const lg = merged.layerGap;
   const layerGapRange = typeof lg === "number" ? { min: lg, ideal: lg } : lg;
-  const lane = merged.laneGap;
-  const laneGapRange = typeof lane === "number"
-    ? { min: lane, ideal: lane }
-    : lane;
+  const band = merged.bandGap;
+  const bandGapRange = typeof band === "number"
+    ? { min: band, ideal: band }
+    : band;
   const pg = merged.portGap;
   const portGapRange = typeof pg === "number" ? { min: pg, ideal: pg } : pg;
   return {
     ...merged,
     layerGap: layerGapRange.ideal,
     layerGapRange,
-    laneGap: laneGapRange.ideal,
-    laneGapRange,
+    bandGap: bandGapRange.ideal,
+    bandGapRange,
     portGap: portGapRange.ideal,
     portGapRange,
   };

@@ -4,8 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  getScaleAxisValueRange,
-  getXScaleAxisValueRange,
+  getValueAxisValueRange,
+  getXValueAxisValueRange,
 } from "./_axes/measure_y_axis.ts";
 import {
   getXAxisRenderConfig,
@@ -17,25 +17,33 @@ import {
 } from "./_axes/grid_lines.ts";
 import {
   generateXPeriodAxisPrimitive,
-  generateXScaleAxisPrimitive,
   generateXTextAxisPrimitive,
-  generateYScaleAxisPrimitive,
+  generateXValueAxisPrimitive,
   generateYTextAxisPrimitive,
+  generateYValueAxisPrimitive,
 } from "./_axes/generate_axis_primitives.ts";
 import { generateContentPrimitives } from "./_content/generate_content_primitives.ts";
 import { measureDataLabelEndClearance } from "./_content/measure_data_label_clearance.ts";
 import type { Primitive, RenderContext } from "./deps.ts";
-import { buildItem, RectCoordsDims, slotHeaders, Z_INDEX } from "./deps.ts";
-import type { ChartItemAxes } from "./chart_items.ts";
-import { subChartItemCoordinates } from "./sub_chart_headers.ts";
-import type { MeasurePaneConfig, PaneBandLayout } from "./measure_types.ts";
+import {
+  buildItem,
+  getDimensionMembers,
+  RectCoordsDims,
+  Z_INDEX,
+} from "./deps.ts";
+import type { ChartItemDataDimensions } from "./chart_items.ts";
+import { subChartItemCoordinates } from "./sub_chart_members.ts";
+import type {
+  MeasurePaneConfig,
+  PaneTierOrLaneLayout,
+} from "./measure_types.ts";
 import type { OverhangClearance } from "./types.ts";
 import { clampOverhangClearance, NO_OVERHANG_CLEARANCE } from "./types.ts";
 import type { XTextAxisMeasuredInfo } from "./_axes/x_text/types.ts";
 import type { XPeriodAxisMeasuredInfo } from "./_axes/x_period/types.ts";
-import type { XScaleAxisMeasuredInfo } from "./_axes/x_scale/types.ts";
+import type { XValueAxisMeasuredInfo } from "./_axes/x_value/types.ts";
 import type { YTextAxisWidthInfo } from "./_axes/y_text/types.ts";
-import type { YScaleAxisWidthInfo } from "./types.ts";
+import type { YValueAxisWidthInfo } from "./types.ts";
 import type { XAxisMeasuredInfo } from "./_axes/measure_x_axis.ts";
 import type { YAxisWidthInfo } from "./types.ts";
 
@@ -46,13 +54,12 @@ export function generatePaneContentPrimitives<TData>(
     yAxisWidthInfo: YAxisWidthInfo;
     xAxisMeasuredInfo: XAxisMeasuredInfo;
     yAxisRcd: RectCoordsDims;
-    subChartAreaHeight: number;
-    subChartAreaWidth: number;
+    uniformSubChartHeight: number;
+    uniformSubChartWidth: number;
     topHeightForLaneHeaders: number;
     tierHeaderAndLabelGapHeight: number;
-    // Proportional band layout for this pane (bands = tiers on OH, lanes on
-    // OV). Absent = uniform band extents (the shipped paths).
-    paneBands?: PaneBandLayout;
+    // Proportional tier-or-lane layout for this pane (tiers on OH, lanes on    // OV). Absent = uniform tier-or-lane extents (the shipped paths).
+    tierOrLaneLayout?: PaneTierOrLaneLayout;
   },
 ): Primitive[] {
   const allPrimitives: Primitive[] = [];
@@ -60,189 +67,189 @@ export function generatePaneContentPrimitives<TData>(
   const baseStyle = config.baseStyle;
   const xAxisConfig = config.xAxisConfig;
   const yAxisConfig = config.yAxisConfig;
-  const tierHeaders = slotHeaders(config.dataProps.tier);
-  const laneHeaders = slotHeaders(config.dataProps.lane);
-  const seriesHeaders = slotHeaders(config.dataProps.series);
-  const paneHeaders = slotHeaders(config.dataProps.pane);
+  const tierMembers = getDimensionMembers(config.dataDimensions.tier);
+  const laneMembers = getDimensionMembers(config.dataDimensions.lane);
+  const seriesMembers = getDimensionMembers(config.dataDimensions.series);
+  const paneMembers = getDimensionMembers(config.dataDimensions.pane);
   const orientation = config.orientation;
-  const itemAxes: ChartItemAxes = {
-    pane: config.dataProps.pane,
-    tier: config.dataProps.tier,
-    lane: config.dataProps.lane,
-    series: config.dataProps.series,
-    indicator: config.dataProps.indicator,
+  const itemDataDimensions: ChartItemDataDimensions = {
+    pane: config.dataDimensions.pane,
+    tier: config.dataDimensions.tier,
+    lane: config.dataDimensions.lane,
+    series: config.dataDimensions.series,
+    indicator: config.dataDimensions.indicator,
     period: xAxisConfig.type === "period"
       ? {
-        dimension: xAxisConfig.dimension,
+        name: xAxisConfig.dimension,
         periodType: xAxisConfig.periodType,
         timeMin: xAxisConfig.timeMin,
       }
       : undefined,
   };
 
-  // Plot area loop (tier × lane)
+  // sub-chart loop (tier × lane)
   const generatedYAxes = new Set<string>();
   const generatedXAxes = new Set<string>();
   const chartData = config.data as TData & {
     values: (number | undefined)[][][][][];
-    bounds?: {
+    uncertaintyValues?: {
       ub: (number | undefined)[][][][][];
       lb: (number | undefined)[][][][][];
     };
   };
 
   const subChartInfoFor = (i_tier: number, i_lane: number) => ({
-    nSerieses: seriesHeaders.length,
-    seriesValArrays: chartData.values[i_pane][i_tier][i_lane],
+    nSerieses: seriesMembers.length,
+    seriesValueArrays: chartData.values[i_pane][i_tier][i_lane],
     i_pane,
-    nPanes: paneHeaders.length,
-    paneHeader: paneHeaders[i_pane],
+    nPanes: paneMembers.length,
+    paneMember: paneMembers[i_pane],
     i_tier,
-    nTiers: tierHeaders.length,
-    tierHeader: tierHeaders[i_tier],
+    nTiers: tierMembers.length,
+    tierMember: tierMembers[i_tier],
     i_lane,
-    nLanes: laneHeaders.length,
-    laneHeader: laneHeaders[i_lane],
+    nLanes: laneMembers.length,
+    laneMember: laneMembers[i_lane],
   });
 
-  // Unbalanced tier/lane membership: this pane's visible band subsets
-  // (global indices). The tier×lane loop iterates the subset — dropped bands
-  // are whole subcharts — while every index used inside stays global. Under
-  // proportional band layout the band list comes from paneBands (which also
-  // drops bands with no visible indicators in this pane).
-  const paneBands = measured.paneBands;
-  const visibleTiersOfPane = config.dataProps.visibleTiersByPane?.[i_pane];
-  const visibleLanesOfPane = config.dataProps.visibleLanesByPane?.[i_pane];
-  const tierIndices = paneBands?.bandAxis === "tier"
-    ? paneBands.bandIndices
-    : visibleTiersOfPane ?? tierHeaders.map((_, i) => i);
-  const laneIndices = paneBands?.bandAxis === "lane"
-    ? paneBands.bandIndices
-    : visibleLanesOfPane ?? laneHeaders.map((_, i) => i);
+  // Unbalanced tier/lane membership: this pane's visible tier-or-lane subsets
+  // (global indices). The tier×lane loop iterates the subset — dropped tiers or lanes
+  // are whole sub-charts — while every index used inside stays global. Under
+  // Proportional tier-or-lane layout the tier-or-lane list comes from tierOrLaneLayout (which also
+  // drops tiers or lanes with no visible indicators in this pane).
+  const tierOrLaneLayout = measured.tierOrLaneLayout;
+  const visibleTiersOfPane = config.dataDimensions.visibleTiersByPane?.[i_pane];
+  const visibleLanesOfPane = config.dataDimensions.visibleLanesByPane?.[i_pane];
+  const tierIndices = tierOrLaneLayout?.tierOrLaneDimension === "tier"
+    ? tierOrLaneLayout.tierOrLaneIndices
+    : visibleTiersOfPane ?? tierMembers.map((_, i) => i);
+  const laneIndices = tierOrLaneLayout?.tierOrLaneDimension === "lane"
+    ? tierOrLaneLayout.tierOrLaneIndices
+    : visibleLanesOfPane ?? laneMembers.map((_, i) => i);
 
   // This pane's indicator order along the text axis (a subset under
   // unbalanced membership, a permutation under a value sort). Positions
   // (slots, ticks, grid lines) follow it; every data lookup (dense loops,
-  // i_val, info callbacks) keeps the GLOBAL index.
-  const visibleIndicators = config.dataProps.visibleIndicatorsByPane?.[i_pane];
-  const textAxisHeaders = xAxisConfig.type === "text"
-    ? xAxisConfig.indicatorHeaders
+  // i_value, info callbacks) keeps the GLOBAL index.
+  const visibleIndicators = config.dataDimensions.visibleIndicatorsByPane
+    ?.[i_pane];
+  const textAxisMembers = xAxisConfig.type === "text"
+    ? xAxisConfig.indicatorMembers
     : yAxisConfig.type === "text"
-    ? yAxisConfig.indicatorHeaders
+    ? yAxisConfig.indicatorMembers
     : undefined;
-  const visibleTextAxisHeaders =
-    visibleIndicators !== undefined && textAxisHeaders !== undefined
-      ? visibleIndicators.map((i) => textAxisHeaders[i])
+  const visibleTextAxisMembers =
+    visibleIndicators !== undefined && textAxisMembers !== undefined
+      ? visibleIndicators.map((i) => textAxisMembers[i])
       : undefined;
-  const nVisibleTextIndicators = visibleTextAxisHeaders?.length;
+  const nVisibleTextIndicators = visibleTextAxisMembers?.length;
 
-  // Proportional band layout: per-BAND slot orders, visible headers, slot
-  // counts, and extents (parallel to paneBands.bandIndices). These refine
-  // the per-pane order above — each band draws only its own slots at its
+  // Proportional tier-or-lane layout: per-TIER-OR-LANE slot orders, visible members, slot
+  // counts, and extents (parallel to tierOrLaneLayout.tierOrLaneIndices). These refine
+  // the per-pane order above — each tier or lane draws only its own slots at its
   // own extent; data lookups keep the GLOBAL index.
-  const perBand = paneBands && textAxisHeaders !== undefined
-    ? paneBands.visibleIndicators.map((vis, bandOrdinal) => ({
-      visibleHeaders: vis.map((i) => textAxisHeaders[i]),
+  const perTierOrLane = tierOrLaneLayout && textAxisMembers !== undefined
+    ? tierOrLaneLayout.visibleIndicators.map((vis, tierOrLaneOrdinal) => ({
+      visibleMembers: vis.map((i) => textAxisMembers[i]),
       nSlots: vis.length,
-      extent: paneBands.bandExtents[bandOrdinal],
+      extent: tierOrLaneLayout.tierOrLaneExtents[tierOrLaneOrdinal],
     }))
     : undefined;
 
-  // The slot order of one subchart's unit: its band's under proportional
+  // The slot order of one sub-chart's unit: its tier or lane's under proportional
   // layout, else the pane's, else the identity. Measurement and generation
-  // both take it, so the style funcs see the same isFirstVal / isLastVal.
-  const slotOrderFor = (i_tier: number, i_lane: number, nVals: number) => {
-    if (paneBands) {
-      const ordinal = paneBands.bandIndices.indexOf(
-        paneBands.bandAxis === "tier" ? i_tier : i_lane,
+  // both take it, so the style funcs see the same isFirstValue / isLastValue.
+  const slotOrderFor = (i_tier: number, i_lane: number, nValues: number) => {
+    if (tierOrLaneLayout) {
+      const ordinal = tierOrLaneLayout.tierOrLaneIndices.indexOf(
+        tierOrLaneLayout.tierOrLaneDimension === "tier" ? i_tier : i_lane,
       );
-      if (ordinal >= 0) return paneBands.visibleIndicators[ordinal];
+      if (ordinal >= 0) return tierOrLaneLayout.visibleIndicators[ordinal];
     }
-    return visibleIndicators ?? Array.from({ length: nVals }, (_, i) => i);
+    return visibleIndicators ?? Array.from({ length: nValues }, (_, i) => i);
   };
 
-  // Overhang clearances: inset the scale axis's value range
-  // within each plot area so extreme tick labels and edge data labels stay
-  // inside the plot rect. start-side overhang can be absorbed by the
-  // adjacent axis area (lane 0 left / last tier bottom); end-side aggregates
+  // Overhang clearances: inset the value axis's value range
+  // within each sub-chart so extreme tick labels and edge data labels stay
+  // inside the sub-chart rect. start-side overhang can be absorbed by the
+  // adjacent axis (lane 0 left / last tier bottom); end-side aggregates
   // the tick label overhang with the data label requirement. Every consumer
   // of value-axis positions below must receive these same values.
   const sg = baseStyle.grid;
   const hasContent = xAxisConfig.type !== "none" && yAxisConfig.type !== "none";
 
   let xClearances: OverhangClearance[] | undefined;
-  if (xAxisConfig.type === "scale") {
-    const mx = measured.xAxisMeasuredInfo as XScaleAxisMeasuredInfo;
+  if (xAxisConfig.type === "value") {
+    const mx = measured.xAxisMeasuredInfo as XValueAxisMeasuredInfo;
     const xOverhang = xAxisConfig.axisStyle.tickLabelAlignment === "inset"
       ? 0
       : Math.max(
         0,
-        (mx.xScaleHeightInfo.maxTickLabelW - sg.gridStrokeWidth) / 2,
+        (mx.xValueAxisHeightInfo.maxTickLabelW - sg.gridLineStrokeWidth) / 2,
       );
-    const yAxisAreaWidth =
-      measured.yAxisWidthInfo.widthIncludingYAxisStrokeWidth;
-    xClearances = laneHeaders.map((_, i_lane) => {
+    const yAxisWidth = measured.yAxisWidthInfo.widthIncludingYAxisStrokeWidth;
+    xClearances = laneMembers.map((_, i_lane) => {
       const start = i_lane === 0
-        ? Math.max(0, xOverhang - yAxisAreaWidth)
+        ? Math.max(0, xOverhang - yAxisWidth)
         : xOverhang;
       let end = xOverhang;
       if (
         orientation === "horizontal" && hasContent &&
         yAxisConfig.type === "text"
       ) {
-        const valueRange = getXScaleAxisValueRange(
-          mx.xScaleHeightInfo,
+        const valueRange = getXValueAxisValueRange(
+          mx.xValueAxisHeightInfo,
           i_lane,
         );
         const yCfg = getYAxisRenderConfig(
           yAxisConfig,
           measured.yAxisWidthInfo,
         );
-        for (let i_tier = 0; i_tier < tierHeaders.length; i_tier++) {
+        for (let i_tier = 0; i_tier < tierMembers.length; i_tier++) {
           end = Math.max(
             end,
             measureDataLabelEndClearance({
               rc,
-              seriesVals: chartData.values[i_pane][i_tier][i_lane],
+              seriesValues: chartData.values[i_pane][i_tier][i_lane],
               valueRange,
               orientation,
               contentStyle: baseStyle.content,
               dataLabelsTextStyle: baseStyle.text.dataLabels,
-              plotValueExtent: measured.subChartAreaWidth,
+              valueAxisExtent: measured.uniformSubChartWidth,
               startClearance: start,
-              categoryIncrement: 0,
-              nVals: yCfg.nVals,
-              slotOrder: slotOrderFor(i_tier, i_lane, yCfg.nVals),
+              slotExtent: 0,
+              nValues: yCfg.nValues,
+              slotOrder: slotOrderFor(i_tier, i_lane, yCfg.nValues),
               subChartInfo: subChartInfoFor(i_tier, i_lane),
-              itemAxes,
+              itemDataDimensions,
             }),
           );
         }
       }
       return clampOverhangClearance(
         { start, end },
-        measured.subChartAreaWidth,
+        measured.uniformSubChartWidth,
       );
     });
   }
 
   let yClearances: OverhangClearance[] | undefined;
-  if (yAxisConfig.type === "scale") {
-    const my = measured.yAxisWidthInfo as YScaleAxisWidthInfo;
+  if (yAxisConfig.type === "value") {
+    const my = measured.yAxisWidthInfo as YValueAxisWidthInfo;
     const yOverhang = yAxisConfig.axisStyle.tickLabelAlignment === "inset"
       ? 0
-      : Math.max(0, my.halfYAxisTickLabelH - sg.gridStrokeWidth / 2);
-    const xAxisAreaHeight = measured.xAxisMeasuredInfo.xAxisRcd.h();
-    yClearances = tierHeaders.map((_, i_tier) => {
-      const start = i_tier === tierHeaders.length - 1
-        ? Math.max(0, yOverhang - xAxisAreaHeight)
+      : Math.max(0, my.halfYAxisTickLabelH - sg.gridLineStrokeWidth / 2);
+    const xAxisHeight = measured.xAxisMeasuredInfo.xAxisRcd.h();
+    yClearances = tierMembers.map((_, i_tier) => {
+      const start = i_tier === tierMembers.length - 1
+        ? Math.max(0, yOverhang - xAxisHeight)
         : yOverhang;
       let end = yOverhang;
       if (
         orientation === "vertical" && hasContent &&
         (xAxisConfig.type === "text" || xAxisConfig.type === "period")
       ) {
-        const valueRange = getScaleAxisValueRange(
+        const valueRange = getValueAxisValueRange(
           measured.yAxisWidthInfo,
           i_tier,
         );
@@ -250,60 +257,62 @@ export function generatePaneContentPrimitives<TData>(
           xAxisConfig,
           measured.xAxisMeasuredInfo,
         );
-        for (let i_lane = 0; i_lane < laneHeaders.length; i_lane++) {
+        for (let i_lane = 0; i_lane < laneMembers.length; i_lane++) {
           end = Math.max(
             end,
             measureDataLabelEndClearance({
               rc,
-              seriesVals: chartData.values[i_pane][i_tier][i_lane],
+              seriesValues: chartData.values[i_pane][i_tier][i_lane],
               valueRange,
               orientation,
               contentStyle: baseStyle.content,
               dataLabelsTextStyle: baseStyle.text.dataLabels,
-              plotValueExtent: measured.subChartAreaHeight,
+              valueAxisExtent: measured.uniformSubChartHeight,
               startClearance: start,
-              categoryIncrement: xCfg.categoryIncrement,
-              nVals: xCfg.nVals,
-              slotOrder: slotOrderFor(i_tier, i_lane, xCfg.nVals),
+              slotExtent: xCfg.slotExtent,
+              nValues: xCfg.nValues,
+              slotOrder: slotOrderFor(i_tier, i_lane, xCfg.nValues),
               subChartInfo: subChartInfoFor(i_tier, i_lane),
-              itemAxes,
+              itemDataDimensions,
             }),
           );
         }
       }
       return clampOverhangClearance(
         { start, end },
-        measured.subChartAreaHeight,
+        measured.uniformSubChartHeight,
       );
     });
   }
 
-  let currentPlotAreaY = measured.yAxisRcd.y() + baseStyle.tiers.paddingTop +
+  let currentSubChartY = measured.yAxisRcd.y() + baseStyle.tiers.paddingTop +
     measured.tierHeaderAndLabelGapHeight;
 
   for (let tierOrdinal = 0; tierOrdinal < tierIndices.length; tierOrdinal++) {
     const i_tier = tierIndices[tierOrdinal];
-    // Proportional band layout: the band's own slot subset + extent (band =
+    // Proportional tier-or-lane layout: the tier or lane's own slot subset + extent (the tier or lane =
     // tier on OH, lane on OV). Absent = uniform shipped geometry.
-    const tierBand = paneBands?.bandAxis === "tier"
-      ? perBand?.[tierOrdinal]
+    const proportionalTier = tierOrLaneLayout?.tierOrLaneDimension === "tier"
+      ? perTierOrLane?.[tierOrdinal]
       : undefined;
-    const subChartH = tierBand?.extent ?? measured.subChartAreaHeight;
-    let currentPlotAreaX = measured.yAxisRcd.rightX() +
+    const subChartHeight = proportionalTier?.extent ??
+      measured.uniformSubChartHeight;
+    let currentSubChartX = measured.yAxisRcd.rightX() +
       baseStyle.lanes.paddingLeft;
 
     for (let laneOrdinal = 0; laneOrdinal < laneIndices.length; laneOrdinal++) {
       const i_lane = laneIndices[laneOrdinal];
-      const laneBand = paneBands?.bandAxis === "lane"
-        ? perBand?.[laneOrdinal]
+      const proportionalLane = tierOrLaneLayout?.tierOrLaneDimension === "lane"
+        ? perTierOrLane?.[laneOrdinal]
         : undefined;
-      const band = tierBand ?? laneBand;
-      const subChartW = laneBand?.extent ?? measured.subChartAreaWidth;
+      const tierOrLane = proportionalTier ?? proportionalLane;
+      const subChartWidth = proportionalLane?.extent ??
+        measured.uniformSubChartWidth;
       const rcd = new RectCoordsDims({
-        x: currentPlotAreaX,
-        y: currentPlotAreaY,
-        w: subChartW,
-        h: subChartH,
+        x: currentSubChartX,
+        y: currentSubChartY,
+        w: subChartWidth,
+        h: subChartHeight,
       });
 
       const xClearance = xClearances?.[i_lane] ?? NO_OVERHANG_CLEARANCE;
@@ -313,20 +322,20 @@ export function generatePaneContentPrimitives<TData>(
       const horizontalGridLines = calculateYAxisGridLines(
         i_tier,
         rcd,
-        baseStyle.grid.gridStrokeWidth,
+        baseStyle.grid.gridLineStrokeWidth,
         yAxisConfig,
         measured.yAxisWidthInfo,
         yClearance,
-        band?.nSlots ?? nVisibleTextIndicators,
+        tierOrLane?.nSlots ?? nVisibleTextIndicators,
       );
       const verticalGridLines = calculateXAxisGridLines(
         i_lane,
         rcd,
         xAxisConfig,
         measured.xAxisMeasuredInfo,
-        baseStyle.grid.gridStrokeWidth,
+        baseStyle.grid.gridLineStrokeWidth,
         xClearance,
-        band?.nSlots ?? nVisibleTextIndicators,
+        tierOrLane?.nSlots ?? nVisibleTextIndicators,
       );
 
       // Grid primitive
@@ -334,29 +343,28 @@ export function generatePaneContentPrimitives<TData>(
         type: "chart-grid",
         key: `grid-${i_pane}-${i_tier}-${i_lane}`,
         item: buildItem(
-          subChartItemCoordinates(itemAxes, {
-            paneHeader: paneHeaders[i_pane],
-            tierHeader: tierHeaders[i_tier],
-            laneHeader: laneHeaders[i_lane],
+          subChartItemCoordinates(itemDataDimensions, {
+            paneMember: paneMembers[i_pane],
+            tierMember: tierMembers[i_tier],
+            laneMember: laneMembers[i_lane],
           }),
         ),
         bounds: rcd,
         zIndex: Z_INDEX.GRID,
         meta: {
-          paneIndex: i_pane,
-          tierIndex: i_tier,
-          laneIndex: i_lane,
-          paneHeader: paneHeaders[i_pane],
-          tierHeader: tierHeaders[i_tier],
-          laneHeader: laneHeaders[i_lane],
+          i_pane,
+          i_tier,
+          i_lane,
+          paneMember: paneMembers[i_pane],
+          tierMember: tierMembers[i_tier],
+          laneMember: laneMembers[i_lane],
         },
-        plotAreaRcd: rcd,
         horizontalLines: horizontalGridLines,
         verticalLines: verticalGridLines,
         style: {
-          show: baseStyle.grid.showGrid,
-          strokeColor: baseStyle.grid.gridColor,
-          strokeWidth: baseStyle.grid.gridStrokeWidth,
+          show: baseStyle.grid.showGridLines,
+          strokeColor: baseStyle.grid.gridLineColor,
+          strokeWidth: baseStyle.grid.gridLineStrokeWidth,
           backgroundColor: baseStyle.grid.backgroundColor,
         },
       });
@@ -367,17 +375,17 @@ export function generatePaneContentPrimitives<TData>(
       const yAxisKey = `${i_pane}-${i_tier}`;
       if (!generatedYAxes.has(yAxisKey)) {
         switch (yAxisConfig.type) {
-          case "scale": {
+          case "value": {
             allPrimitives.push(
-              generateYScaleAxisPrimitive(
+              generateYValueAxisPrimitive(
                 rc,
-                itemAxes,
+                itemDataDimensions,
                 i_pane,
                 i_tier,
-                measured.yAxisWidthInfo as YScaleAxisWidthInfo,
+                measured.yAxisWidthInfo as YValueAxisWidthInfo,
                 measured.yAxisRcd,
                 rcd.y(),
-                measured.subChartAreaHeight,
+                measured.uniformSubChartHeight,
                 yClearance,
                 yAxisConfig.axisLabel,
                 yAxisConfig.axisStyle,
@@ -393,15 +401,15 @@ export function generatePaneContentPrimitives<TData>(
               allPrimitives.push(
                 generateYTextAxisPrimitive(
                   rc,
-                  itemAxes,
+                  itemDataDimensions,
                   i_pane,
                   i_tier,
                   measured.yAxisWidthInfo as YTextAxisWidthInfo,
                   measured.yAxisRcd,
                   rcd.y(),
-                  subChartH,
-                  band?.visibleHeaders ?? visibleTextAxisHeaders ??
-                    yAxisConfig.indicatorHeaders,
+                  subChartHeight,
+                  tierOrLane?.visibleMembers ?? visibleTextAxisMembers ??
+                    yAxisConfig.indicatorMembers,
                   yAxisConfig.axisStyle,
                   baseStyle.grid,
                 ),
@@ -426,16 +434,16 @@ export function generatePaneContentPrimitives<TData>(
             allPrimitives.push(
               generateXTextAxisPrimitive(
                 rc,
-                itemAxes,
+                itemDataDimensions,
                 i_pane,
                 i_lane,
                 rcd.x(),
                 measured.xAxisMeasuredInfo as XTextAxisMeasuredInfo,
-                band?.visibleHeaders ?? visibleTextAxisHeaders ??
-                  xAxisConfig.indicatorHeaders,
+                tierOrLane?.visibleMembers ?? visibleTextAxisMembers ??
+                  xAxisConfig.indicatorMembers,
                 xAxisConfig.axisStyle,
                 baseStyle.grid,
-                laneBand ? subChartW : undefined,
+                proportionalLane ? subChartWidth : undefined,
               ),
             );
             generatedXAxes.add(xAxisKey);
@@ -445,13 +453,13 @@ export function generatePaneContentPrimitives<TData>(
             allPrimitives.push(
               generateXPeriodAxisPrimitive(
                 rc,
-                itemAxes,
+                itemDataDimensions,
                 i_pane,
                 i_lane,
                 rcd.x(),
                 measured.xAxisMeasuredInfo as XPeriodAxisMeasuredInfo,
                 {
-                  dimension: xAxisConfig.dimension,
+                  name: xAxisConfig.dimension,
                   periodType: xAxisConfig.periodType,
                   timeMin: xAxisConfig.timeMin,
                   nTimePoints: xAxisConfig.nTimePoints,
@@ -463,18 +471,18 @@ export function generatePaneContentPrimitives<TData>(
             generatedXAxes.add(xAxisKey);
             break;
           }
-          case "scale": {
-            const mx = measured.xAxisMeasuredInfo as XScaleAxisMeasuredInfo;
+          case "value": {
+            const mx = measured.xAxisMeasuredInfo as XValueAxisMeasuredInfo;
             allPrimitives.push(
-              generateXScaleAxisPrimitive(
+              generateXValueAxisPrimitive(
                 rc,
-                itemAxes,
+                itemDataDimensions,
                 i_pane,
                 i_lane,
-                mx.xScaleHeightInfo,
+                mx.xValueAxisHeightInfo,
                 mx.xAxisRcd,
                 rcd.x(),
-                measured.subChartAreaWidth,
+                measured.uniformSubChartWidth,
                 xClearance,
                 xAxisConfig.axisLabel,
                 xAxisConfig.axisStyle,
@@ -492,40 +500,41 @@ export function generatePaneContentPrimitives<TData>(
       // Content primitives (skipped when either axis is "none" — maps
       // generate their own primitives).
       if (xAxisConfig.type !== "none" && yAxisConfig.type !== "none") {
-        const seriesVals = chartData.values[i_pane][i_tier][i_lane];
+        const seriesValues = chartData.values[i_pane][i_tier][i_lane];
 
         let valueRange;
-        let categoryIncrement: number;
+        let slotExtent: number;
         let isCentered: boolean;
-        let nVals: number;
+        let nValues: number;
         if (orientation === "horizontal") {
-          const mx = measured.xAxisMeasuredInfo as XScaleAxisMeasuredInfo;
-          valueRange = getXScaleAxisValueRange(mx.xScaleHeightInfo, i_lane);
+          const mx = measured.xAxisMeasuredInfo as XValueAxisMeasuredInfo;
+          valueRange = getXValueAxisValueRange(mx.xValueAxisHeightInfo, i_lane);
           const yCfg = getYAxisRenderConfig(
             yAxisConfig,
             measured.yAxisWidthInfo,
           );
-          // nVals stays GLOBAL (dense-array loop bound); only the row-height
-          // divisor uses the visible slot count (per band under proportional
-          // layout, per pane otherwise) with the band's own extent.
-          nVals = yCfg.nVals;
+          // nValues stays GLOBAL (dense-array loop bound); only the row-height
+          // divisor uses the visible slot count (per tier or lane under proportional
+          // layout, per pane otherwise) with the tier or lane's own extent.
+          nValues = yCfg.nValues;
           isCentered = yCfg.isCentered;
-          const nSlots = band?.nSlots ?? nVisibleTextIndicators ?? nVals;
-          // Per-indicator row height inside the plot area.
-          categoryIncrement = isCentered
-            ? subChartH / Math.max(1, nSlots)
-            : (subChartH -
-              baseStyle.grid.gridStrokeWidth * (nSlots + 1)) /
+          const nSlots = tierOrLane?.nSlots ?? nVisibleTextIndicators ??
+            nValues;
+          // Per-indicator row height inside the sub-chart.
+          slotExtent = isCentered
+            ? subChartHeight / Math.max(1, nSlots)
+            : (subChartHeight -
+              baseStyle.grid.gridLineStrokeWidth * (nSlots + 1)) /
               Math.max(1, nSlots);
         } else {
-          valueRange = getScaleAxisValueRange(measured.yAxisWidthInfo, i_tier);
+          valueRange = getValueAxisValueRange(measured.yAxisWidthInfo, i_tier);
           const xCfg = getXAxisRenderConfig(
             xAxisConfig,
             measured.xAxisMeasuredInfo,
           );
-          categoryIncrement = xCfg.categoryIncrement;
+          slotExtent = xCfg.slotExtent;
           isCentered = xCfg.isCentered;
-          nVals = xCfg.nVals;
+          nValues = xCfg.nValues;
         }
 
         allPrimitives.push(
@@ -533,30 +542,32 @@ export function generatePaneContentPrimitives<TData>(
             rc,
             subChartRcd: rcd,
             subChartInfo: subChartInfoFor(i_tier, i_lane),
-            seriesVals,
+            seriesValues,
             valueRange,
             valueClearance: orientation === "horizontal"
               ? xClearance
               : yClearance,
             isCentered,
-            categoryIncrement,
-            gridStrokeWidth: baseStyle.grid.gridStrokeWidth,
-            nVals,
+            slotExtent,
+            gridLineStrokeWidth: baseStyle.grid.gridLineStrokeWidth,
+            nValues,
             orientation,
-            itemAxes,
+            itemDataDimensions,
             contentStyle: baseStyle.content,
             dataLabelsTextStyle: baseStyle.text.dataLabels,
-            boundsUbSeriesVals: chartData.bounds?.ub[i_pane][i_tier][i_lane],
-            boundsLbSeriesVals: chartData.bounds?.lb[i_pane][i_tier][i_lane],
-            slotOrder: slotOrderFor(i_tier, i_lane, nVals),
+            uncertaintyUbSeriesValues: chartData.uncertaintyValues
+              ?.ub[i_pane][i_tier][i_lane],
+            uncertaintyLbSeriesValues: chartData.uncertaintyValues
+              ?.lb[i_pane][i_tier][i_lane],
+            slotOrder: slotOrderFor(i_tier, i_lane, nValues),
           }),
         );
       }
 
-      currentPlotAreaX += subChartW + baseStyle.lanes.gapX;
+      currentSubChartX += subChartWidth + baseStyle.lanes.gapX;
     }
 
-    currentPlotAreaY += subChartH + baseStyle.tiers.gapY +
+    currentSubChartY += subChartHeight + baseStyle.tiers.gapY +
       measured.tierHeaderAndLabelGapHeight;
   }
 

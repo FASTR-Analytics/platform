@@ -32,7 +32,7 @@ export function computeBoundsForPath(
   if (coords.length === 0) {
     return new RectCoordsDims({ x: 0, y: 0, w: 0, h: 0 });
   }
-  // One pass, not Math.min(...xs): a detailed map region's vertex list
+  // One pass, not Math.min(...xs): a detailed map area's vertex list
   // overflows the call stack as spread arguments.
   let minX = Infinity;
   let maxX = -Infinity;
@@ -91,15 +91,15 @@ export function labelBoxRcd(
 }
 
 // The box text aligned in an anchor rect paints, as rText places it.
-export function textBoxInAnchor(
+export function textBoxInAlignRcd(
   mText: MeasuredText,
-  anchorRcd: RectCoordsDims,
+  alignRcd: RectCoordsDims,
   alignH: AlignH,
   alignV: AlignV,
 ): RectCoordsDims {
   return labelBoxRcd(
     mText,
-    new Coordinates(getRectAlignmentCoords(anchorRcd, alignH, alignV)),
+    new Coordinates(getRectAlignmentCoords(alignRcd, alignH, alignV)),
     alignH,
     alignV,
   );

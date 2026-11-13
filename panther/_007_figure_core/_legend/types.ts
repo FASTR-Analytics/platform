@@ -5,7 +5,7 @@
 
 import type { ColorKeyOrString, PointType } from "../deps.ts";
 
-export type LegendItem = {
+export type LegendEntry = {
   // The series id the entry stands for, when it stands for one.
   id?: string;
   label: string;
@@ -15,9 +15,9 @@ export type LegendItem = {
   lineStrokeWidthScaleFactor?: number;
 };
 
-export function isArrayOfLegendItems(
-  arr: LegendItem[] | string[],
-): arr is LegendItem[] {
+export function isArrayOfLegendEntries(
+  arr: LegendEntry[] | string[],
+): arr is LegendEntry[] {
   if (arr.length === 0) {
     return false;
   }

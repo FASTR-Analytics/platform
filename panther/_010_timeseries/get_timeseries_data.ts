@@ -6,22 +6,22 @@
 import { getTimeFromPeriodId } from "./deps.ts";
 import {
   assert,
-  buildDataAxis,
-  calculateChartScaleLimits,
+  buildDataDimension,
+  calculateChartValueAxisLimits,
   checkValuePropsAssignment,
   createArray,
-  getHeaderIndex,
+  type DataDimensions,
+  getDimensionMembers,
+  getMemberIndex,
   getValidNumberOrUndefined,
-  type HeaderSortConfig,
   isBlankValue,
   isRowBasedUncertainty,
   type JsonArray,
   type JsonArrayItem,
+  type MemberSortConfig,
   type PeriodType,
-  type SlotAxes,
-  slotHeaders,
   validateDataInput,
-  validateSlotDimensions,
+  validateDimensionProps,
   validateUncertaintyConfig,
 } from "./deps.ts";
 import {
@@ -57,8 +57,8 @@ function createEmptyTimeseries(
   nPanes: number,
   nTiers: number,
   nLanes: number,
-  nSeries: number,
-  nTimes: number,
+  nSerieses: number,
+  nTimePoints: number,
 ): (number | undefined)[][][][][] {
   return createArray(
     nPanes,
@@ -67,7 +67,8 @@ function createEmptyTimeseries(
         nTiers,
         () =>
           createArray(nLanes, () =>
-            createArray(nSeries, () => new Array(nTimes).fill(undefined))),
+            createArray(nSerieses, () =>
+              new Array(nTimePoints).fill(undefined))),
       ),
   );
 }
@@ -79,7 +80,7 @@ function fillTimeseriesValues(
   periodProp: string | "--v",
   periodType: PeriodType,
   timeMin: number,
-  axes: SlotAxes,
+  dimensions: DataDimensions,
 ): void {
   for (const obj of rows) {
     for (const valueProp of valueProps) {
@@ -93,10 +94,10 @@ function fillTimeseriesValues(
       const i_time = time - timeMin;
       assert(i_time >= 0);
 
-      const i_series = getHeaderIndex(axes.series, valueProp, obj);
-      const i_lane = getHeaderIndex(axes.lane, valueProp, obj);
-      const i_tier = getHeaderIndex(axes.tier, valueProp, obj);
-      const i_pane = getHeaderIndex(axes.pane, valueProp, obj);
+      const i_series = getMemberIndex(dimensions.series, valueProp, obj);
+      const i_lane = getMemberIndex(dimensions.lane, valueProp, obj);
+      const i_tier = getMemberIndex(dimensions.tier, valueProp, obj);
+      const i_pane = getMemberIndex(dimensions.pane, valueProp, obj);
 
       assert(i_series >= 0);
       assert(i_lane >= 0);
@@ -140,14 +141,14 @@ export function getTimeseriesDataJsonTransformed(
     ]);
   }
 
-  const slotProps = {
+  const dimensionProps = {
     period: periodProp,
     series: seriesProp,
     lane: laneProp,
     tier: tierProp,
     pane: paneProp,
   };
-  validateSlotDimensions(jsonArray, slotProps);
+  validateDimensionProps(jsonArray, dimensionProps);
 
   // A row with a blank period has no position on the time axis.
   const hasBlankPeriod = (obj: JsonArrayItem) =>
@@ -159,7 +160,7 @@ export function getTimeseriesDataJsonTransformed(
 
   const isPointEstimate = (obj: JsonArrayItem) =>
     !uncertainty || !isRowBasedUncertainty(uncertainty) ||
-    String(obj[uncertainty.uncertaintyProp]) === uncertainty.peValue;
+    String(obj[uncertainty.uncertaintyProp]) === uncertainty.peMemberId;
   const nBlankRows =
     jsonArray.filter((obj) => hasBlankPeriod(obj) && isPointEstimate(obj))
       .length;
@@ -168,22 +169,25 @@ export function getTimeseriesDataJsonTransformed(
 
   validateDataInput(sourceRows, valueProps);
 
-  const headersSource = uncertainty && isRowBasedUncertainty(uncertainty)
+  const membersSource = uncertainty && isRowBasedUncertainty(uncertainty)
     ? placedRows
     : sourceRows;
 
-  const axis = (prop: string | undefined, sortConfig?: HeaderSortConfig) =>
-    buildDataAxis(
-      headersSource,
+  const buildDimension = (
+    prop: string | undefined,
+    sortConfig?: MemberSortConfig,
+  ) =>
+    buildDataDimension(
+      membersSource,
       prop,
       valueProps,
       labelReplacements,
       sortConfig,
     );
-  const series = axis(seriesProp, sort?.series);
-  const lane = axis(laneProp, sort?.lane);
-  const tier = axis(tierProp, sort?.tier);
-  const pane = axis(paneProp, sort?.pane);
+  const series = buildDimension(seriesProp, sort?.series);
+  const lane = buildDimension(laneProp, sort?.lane);
+  const tier = buildDimension(tierProp, sort?.tier);
+  const pane = buildDimension(paneProp, sort?.pane);
 
   let periodIdMin: number = Number.POSITIVE_INFINITY;
   let periodIdMax: number = Number.NEGATIVE_INFINITY;
@@ -211,17 +215,24 @@ export function getTimeseriesDataJsonTransformed(
   });
 
   const timeMin: number = getTimeFromPeriodId(periodIdMin, periodType);
-  const nTimes = getTimeFromPeriodId(periodIdMax, periodType) - timeMin + 1;
-  assert(nTimes >= 1);
-  assert(nTimes <= 50 * 12);
+  const nTimePoints = getTimeFromPeriodId(periodIdMax, periodType) - timeMin +
+    1;
+  assert(nTimePoints >= 1);
+  assert(nTimePoints <= 50 * 12);
 
-  const nPanes = slotHeaders(pane).length;
-  const nTiers = slotHeaders(tier).length;
-  const nLanes = slotHeaders(lane).length;
-  const nSeries = slotHeaders(series).length;
-  const axes: SlotAxes = { series, lane, tier, pane };
+  const nPanes = getDimensionMembers(pane).length;
+  const nTiers = getDimensionMembers(tier).length;
+  const nLanes = getDimensionMembers(lane).length;
+  const nSerieses = getDimensionMembers(series).length;
+  const dimensions: DataDimensions = { series, lane, tier, pane };
 
-  const values = createEmptyTimeseries(nPanes, nTiers, nLanes, nSeries, nTimes);
+  const values = createEmptyTimeseries(
+    nPanes,
+    nTiers,
+    nLanes,
+    nSerieses,
+    nTimePoints,
+  );
 
   fillTimeseriesValues(
     values,
@@ -230,10 +241,10 @@ export function getTimeseriesDataJsonTransformed(
     periodProp,
     periodType,
     timeMin,
-    axes,
+    dimensions,
   );
 
-  let bounds: {
+  let uncertaintyValues: {
     ub: (number | undefined)[][][][][];
     lb: (number | undefined)[][][][][];
   } | undefined;
@@ -243,23 +254,23 @@ export function getTimeseriesDataJsonTransformed(
       nPanes,
       nTiers,
       nLanes,
-      nSeries,
-      nTimes,
+      nSerieses,
+      nTimePoints,
     );
     const lbValues = createEmptyTimeseries(
       nPanes,
       nTiers,
       nLanes,
-      nSeries,
-      nTimes,
+      nSerieses,
+      nTimePoints,
     );
 
     if (isRowBasedUncertainty(uncertainty)) {
       const ubRows = placedRows.filter((obj) =>
-        String(obj[uncertainty.uncertaintyProp]) === uncertainty.ubValue
+        String(obj[uncertainty.uncertaintyProp]) === uncertainty.ubMemberId
       );
       const lbRows = placedRows.filter((obj) =>
-        String(obj[uncertainty.uncertaintyProp]) === uncertainty.lbValue
+        String(obj[uncertainty.uncertaintyProp]) === uncertainty.lbMemberId
       );
       fillTimeseriesValues(
         ubValues,
@@ -268,7 +279,7 @@ export function getTimeseriesDataJsonTransformed(
         periodProp,
         periodType,
         timeMin,
-        axes,
+        dimensions,
       );
       fillTimeseriesValues(
         lbValues,
@@ -277,7 +288,7 @@ export function getTimeseriesDataJsonTransformed(
         periodProp,
         periodType,
         timeMin,
-        axes,
+        dimensions,
       );
     } else {
       fillTimeseriesValues(
@@ -287,7 +298,7 @@ export function getTimeseriesDataJsonTransformed(
         periodProp,
         periodType,
         timeMin,
-        axes,
+        dimensions,
       );
       fillTimeseriesValues(
         lbValues,
@@ -296,27 +307,39 @@ export function getTimeseriesDataJsonTransformed(
         periodProp,
         periodType,
         timeMin,
-        axes,
+        dimensions,
       );
     }
 
-    bounds = { ub: ubValues, lb: lbValues };
+    uncertaintyValues = { ub: ubValues, lb: lbValues };
   }
 
-  const dimensions = {
-    paneCount: nPanes,
-    tierCount: nTiers,
-    laneCount: nLanes,
-    seriesCount: nSeries,
-    lastDimCount: nTimes,
+  const counts = {
+    nPanes,
+    nTiers,
+    nLanes,
+    nSerieses,
+    nValues: nTimePoints,
   };
 
-  const scaleLimits = calculateChartScaleLimits(values, dimensions, stacked);
+  const valueAxisLimits = calculateChartValueAxisLimits(
+    values,
+    counts,
+    stacked,
+  );
 
-  if (bounds) {
-    const ubLimits = calculateChartScaleLimits(bounds.ub, dimensions, false);
-    const lbLimits = calculateChartScaleLimits(bounds.lb, dimensions, false);
-    const main = scaleLimits.paneLimits;
+  if (uncertaintyValues) {
+    const ubLimits = calculateChartValueAxisLimits(
+      uncertaintyValues.ub,
+      counts,
+      false,
+    );
+    const lbLimits = calculateChartValueAxisLimits(
+      uncertaintyValues.lb,
+      counts,
+      false,
+    );
+    const main = valueAxisLimits.paneLimits;
     const ub = ubLimits.paneLimits;
     const lb = lbLimits.paneLimits;
     for (let i = 0; i < nPanes; i++) {
@@ -360,10 +383,10 @@ export function getTimeseriesDataJsonTransformed(
   return {
     isTransformed: true,
     period: {
-      dimension: periodProp,
+      name: periodProp,
       periodType,
       timeMin,
-      nTimePoints: nTimes,
+      nTimePoints,
       nBlankRows,
     },
     series,
@@ -371,8 +394,8 @@ export function getTimeseriesDataJsonTransformed(
     tier,
     pane,
     values,
-    bounds,
-    scaleAxisLimits: scaleLimits,
-    yScaleAxisLabel: jsonDataConfig.yScaleAxisLabel?.trim(),
+    uncertaintyValues,
+    valueAxisLimits: valueAxisLimits,
+    yValueAxisLabel: jsonDataConfig.yValueAxisLabel?.trim(),
   };
 }
