@@ -1,6 +1,6 @@
 # PLAN: The copilot's look tools
 
-Status: QUEUED behind PLAN_02_COPILOT_SURFACE_GAPS.md. That plan gave the copilot one look tool, `get_slide_images`, built before panther held an image for one turn and with its image size and encoding inside the slide's own render file. This plan makes the looks one set: three tools, each the image twin of a text read, sharing one encoder, each drawing what the user sees through the code that draws it for the user, with a test that fails when a look and its twin stop reading the same thing.
+Status: READY. The one-turn panther is committed in `timroberton-panther` (`1d9aa7dc`, closed in `ba5edb4a`) and ready to sync, which is step 1. PLAN_02_COPILOT_SURFACE_GAPS.md, now closed and deleted, gave the copilot one look tool, `get_slide_images`, built before panther held an image for one turn and with its image size and encoding inside the slide's own render file. This plan makes the looks one set: three tools, each the image twin of a text read, sharing one encoder, each drawing what the user sees through the code that draws it for the user, with a test that fails when a look and its twin stop reading the same thing.
 
 **Next step: Do 1.**
 
@@ -8,7 +8,7 @@ Branch: `main`. Repos: this one, and `timroberton-panther` as the source of step
 
 ## §0 How to work this plan
 
-The instruction is "Do the next step of PLAN_04_COPILOT_LOOKS.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 4; its close commit deletes this file. Nothing in this plan ships (ruling 10).
+The instruction is "Do the next step of PLAN_02_COPILOT_LOOKS.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 4; its close commit deletes this file. Nothing in this plan ships (ruling 10).
 
 Vocabulary:
 
