@@ -4,7 +4,7 @@ Status: QUEUED behind PLAN_COPILOT_TOOL_LIMIT.md. On 2026-11-12 the copilot told
 
 **Next step: Do 3.**
 
-Branch: `main` in both repos. Repos: this one (steps 1, 2 and 4) and `timroberton-panther` (step 3). Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Tools, view gating, and approval", "Tool input schemas", "The slide_ai conversion layer" and Open items "Surface gaps", [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md), [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) Open items, [SYSTEM_12_documents_sharing.md](SYSTEM_12_documents_sharing.md) "The deck editor", and for step 3 the panther repo's `CLAUDE.md` and `DOC_AI_CHAT.md` "Tools" and "Verification". Start when: `test ! -e PLAN_COPILOT_TOOL_LIMIT.md && echo ok` prints `ok` on `main`, and this tree is clean.
+Branch: `main` in both repos. Repos: this one (steps 1, 2 and 4) and `timroberton-panther` (step 3). Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Tools, view gating, and approval", "Tool input schemas", "The slide_ai conversion layer" and Open items "Surface gaps", [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md), [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) Open items, [SYSTEM_12_documents_sharing.md](SYSTEM_12_documents_sharing.md) "The deck editor", and for step 3 the panther repo's `CLAUDE.md`, `DOC_TESTING.md`, and `DOC_AI_CHAT.md` "Tools", "Approval", "Headless tools and the MCP server" and "Verification". Start when: `test ! -e PLAN_COPILOT_TOOL_LIMIT.md && echo ok` prints `ok` on `main`, and this tree is clean.
 
 ## §0 How to work this plan
 
@@ -43,7 +43,7 @@ For a slide's blocks and settings and for the deck's settings, the read projecti
 
 **The deck.** `get_deck` prints the deck's settings and the logos that can be shown. `update_deck_settings` changes the logos, the footer text and the watermark through the deck's own save.
 
-**Looking.** `get_slide_images` returns up to four slides as images, drawn as the PDF export draws them. A panther tool handler may return images with its text.
+**Looking.** `get_slide_images` returns up to four slides as images, drawn as the PDF export draws them. A panther tool's output may carry images with its text, from a handler or from an approval's commit, on every surface panther runs a tool on.
 
 ## §3 Rulings
 
@@ -54,7 +54,7 @@ For a slide's blocks and settings and for the deck's settings, the read projecti
 5. **`update_deck_settings` writes `logos`, `globalFooterText`, `useWatermark` and `watermarkText`.** Not the theme, which the user chooses and the deck asks about at first open. Not the dead knobs. A selected logo must be one the renderer would draw: a built-in logo or one of the deck's custom logos, and a custom logo must be an image asset. _(proposed)_
 6. **`update_deck_settings` is approval-exempt and is admitted in the deck view alone.** It shows on the rail and the open slide at once and is undone from the Deck menu, as the slide writes are. The settings screen holds a form of its own, so the tool is not admitted there. _(proposed)_
 7. **`get_slide_images` takes at most four slides a call**, each a JPEG 1024 px wide. An image stays in the conversation and is sent again with every later request, so the brief says when to look: after building or restructuring a slide that holds a dense table or several blocks, never every slide of a deck. _(proposed)_
-8. **Panther: a tool handler may return images with its text.** The chat loop sends them as the API's content blocks, text first. The headless entry points (`run`, and with it `/mcp` and `callAI`) return the text alone. _(proposed)_
+8. **Panther: a tool's output may carry images with its text**, from a handler or from an approval's commit. Every surface that runs the tool sends them: the chat loop and `callAI` as the API's content blocks, text first, and MCP as image content. Panther refuses an image the API would refuse (its media type, encoding, size or dimensions) when the output is made, because an image the API refuses would stay in the stored conversation and fail every later send. For the same reason a conversation's images stay within what one request carries: 100 images, the limit of the 200K-context models a conversation can switch to, and a total under the API's request size. A call past either keeps its text and loses its images, with a line saying so. Ruled 2026-11-13.
 9. **Images are held in the conversation as sent**, base64 in the stored record. No Files API upload: it needs an upload route and a file lifecycle this plan has no other use for. The production proxy sets no body limit (`client_max_body_size 0`, read 2026-11-12). _(proposed)_
 10. **Decks only.** A report's images and a rendered report page are not in this plan. _(proposed)_
 11. **Nothing ships in this plan.** The app's next release carries it.
@@ -101,43 +101,46 @@ For a slide's blocks and settings and for the deck's settings, the read projecti
 
 **Ends with.** Two commits, each green: the read; the write.
 
-### Step 3: a tool result can carry images (repo: timroberton-panther)
+### Step 3: a tool's output can carry images (repo: timroberton-panther)
 
-**Surface.** `modules/_112_ai_tool_core/tool_helpers.ts`, `modules/_305_ai/_core/tool_engine.ts`, `modules/_110_ai_types/` where a type needs it, `tests_ai/tool_loop_test.ts`, `tests_ai/persistence_test.ts`, `tests_ai/wire.ts`, `DOC_AI_CHAT.md`, `protocols/PROTOCOL_UI_AI_CHAT.md`, and a `deps.ts` or `mod.ts` only where `clean.ts` rewrites one.
+**Surface.** In `modules/_110_ai_types/`: `types.ts`, `anthropic_consts.ts`, `turn_logic.ts`, `mod.ts`. In `modules/_112_ai_tool_core/`: `tool_image.ts` (new), `tool_output.ts` (new), `tool_helpers.ts`, `scope_ai_tool.ts`, `mcp_types.ts`, `mcp_server.ts`, `mcp_protocol.ts`, `mod.ts`. `modules/_220_mcp_http/mcp_http_handler.ts`. In `modules/_305_ai/`: `_core/tool_engine.ts`, `_core/one_shot.ts`, `_components/_create_ai_chat.ts`, `README.md`. `tests/ai_tool_output_test.ts` (new), `tests/ai_turn_logic_test.ts`, `tests/ai_tool_binding_test.ts`, `tests/ops_kernel_test.ts`. `tests_ai/tool_loop_test.ts`, `tests_ai/approval_test.ts`, `tests_ai/persistence_test.ts`, `tests_ai/wire.ts`, `tests_ai/harness.ts`. `DOC_AI_CHAT.md`, `protocols/PROTOCOL_UI_AI_CHAT.md`, and a `deps.ts` or `mod.ts` only where `clean.ts` rewrites one.
 
 **Deliverable.**
 
-- A handler made with `createAITool` may return text with images, each a media type and base64 data, through one exported helper. Its name follows panther's conventions and DOC_AI_CHAT.md "Tools" records it.
-- The chat loop answers the call with the API's content blocks: the text, then each image. `run` and `runStructured` return the text alone, so the headless and MCP surfaces are unchanged.
-- A failed call, a cancelled call and an approval's result are text as today.
-- `tests_ai/tool_loop_test.ts` adds a scenario: a tool returns an image, the next request carries it in the tool result, and the request after that carries it unchanged. `tests_ai/persistence_test.ts` adds one: a record holding such a result loads and sends. The wire invariants of `tests_ai/wire.ts` admit a tool result whose content is blocks.
-- PROTOCOL_UI_AI_CHAT.md says when a tool returns an image and that every image is sent again with each later request.
+- A handler made with `createAITool`, and an approval's `commit`, may return an `AIToolOutput`: text with images, each a media type and base64 data. One exported function turns what a handler or a commit returns into the call's output, and `execute`, the chat's commit path and the MCP commit path all call it, so a return of nothing is `Done` on all three. DOC_AI_CHAT.md "Tools" records the names.
+- Making an `AIToolOutput` throws unless each image is a JPEG, PNG, GIF or WebP file of the media type it states, in bare base64 of at most 10 MB, with neither side over 3,000 px, read from the file's header.
+- Every surface sends the images. The chat loop answers the call with the API's content blocks, the text and then each image, and leaves a blank text out. `run` returns that same content, so `callAI` sends it through the SDK's tool runner. `runWithView` returns the output, with the handler's raw return beside it when the tool declares an `outputSchema`; `runStructured`, which existed to return that pair, is removed. An MCP result carries each image as image content, on stdio and on HTTP.
+- `bindAITool`, `scopeAITool` and `bindAIToolToView` pass an inner tool's output through whole. One exported function runs a tool as the engines do: through `runWithView`, or for a tool that has only `run`, through `run` with its content read back into an output. The chat loop, the MCP core and the three wrappers call it.
+- A conversation's images stay within one request's limits (ruling 8), which are constants in `anthropic_consts.ts`. A pure function in `turn_logic.ts` takes the stored messages and a round's results; a result whose images would pass a limit keeps its text, loses its images and ends with a line saying so. The chat loop applies it before it stores the results.
+- A failed call and a cancelled call are text as today, and so are a declined, stale or skipped approval.
+- Tests. `tests/ai_tool_output_test.ts`: sizes read from headers built from each format's specification, each refusal, and the content an output becomes. `tests/ai_turn_logic_test.ts`: the two limits. `tests_ai/tool_loop_test.ts`: a tool returns an image, the next request carries it in the tool result and the request after that carries it unchanged; an image panther refuses answers the call as an error and the conversation still sends; a call past a limit keeps its text. `tests_ai/approval_test.ts`: an accepted commit's image reaches the result. `tests_ai/persistence_test.ts`: a record holding such a result loads and sends. The wire invariants of `tests_ai/wire.ts` hold a tool result's blocks to the rules of a message's: none empty, no blank text.
+- DOC_AI_CHAT.md states each of these where it states the contract it changes. PROTOCOL_UI_AI_CHAT.md says when a tool returns an image, that every image is sent again with each later request, and the limits.
 
-**Not in this step.** Showing the image in the transcript. Images from an MCP tool. A Files API reference in place of the data.
+**Not in this step.** Showing the image in the transcript. A Files API reference in place of an image's data. An image in a user's message.
 
 **Gates.** The six commands of panther's CLAUDE.md "Commands".
 
-**Ends with.** One commit in panther. The **Next step** line moves in a commit in this repo.
+**Ends with.** Two commits in panther, each green: the output and its surfaces; the conversation's limits. The **Next step** line moves in a commit in this repo.
 
 ### Step 4: sync, and `get_slide_images` (this repo)
 
 Starts when `./sync --check wb-fastr`, run in the panther repo, reports nothing that would refuse the sync.
 
-**Surface.** `panther/**` as the sync writes it, `lib/ai_tools/copilot_catalogue.ts`, `lib/ai_tools/build_system_prompt.ts`, `client/src/components/products/copilot/slide_ai/render_slide_image.ts` (new), `slide_ai/mod.ts`, `client/src/components/products/copilot/ai_tools/tools/get_slide_images.ts` (new), `tools/mod.ts`, `tools/slides.tsx`, `server/tests/copilot_catalogue_test.ts`, `server/tests/copilot_prompt_test.ts`, `SYSTEM_13_ai_assistant.md`, `TESTING_SCRIPT_FOR_AI_COPILOT.md`, this file.
+**Surface.** `panther/**` as the sync writes it, `lib/ai_tools/source_header.ts`, `client/src/components/instance/copilot/tool_guard.ts`, `server/tests/mcp_tools_source_header_test.ts`, `lib/ai_tools/copilot_catalogue.ts`, `lib/ai_tools/build_system_prompt.ts`, `client/src/components/products/copilot/slide_ai/render_slide_image.ts` (new), `slide_ai/mod.ts`, `client/src/components/products/copilot/ai_tools/tools/get_slide_images.ts` (new), `tools/mod.ts`, `tools/slides.tsx`, `server/tests/copilot_catalogue_test.ts`, `server/tests/copilot_prompt_test.ts`, `SYSTEM_13_ai_assistant.md`, `TESTING_SCRIPT_FOR_AI_COPILOT.md`, this file.
 
 **Deliverable.**
 
-- One commit holding the sync and nothing else, made after `./sync wb-fastr` and a green floor. If the floor fails for a reason that is not this plan's, the agent restores `panther/` to `HEAD`, commits nothing and reports the gate's output.
+- One commit holding the sync and the two wrappers that follow it, made after `./sync wb-fastr` and a green floor. Step 3 changes what a tool's entry points return and removes `runStructured`, so `withSourceHeader` and `guardCopilotTool` wrap `run` and `runWithView` alone, through panther's function that runs a tool as the engines do, and `withSourceHeader` puts its line before an output's text and keeps its images. `server/tests/mcp_tools_source_header_test.ts` follows. If the floor fails for a reason that is not this plan's, the agent restores `panther/` to `HEAD`, commits nothing and reports the gate's output.
 - `renderSlideImage(slide, deckConfig)` draws the page as the PDF export draws one (`convertSlideToPageInputs`, then `PageRenderer.measureAndRender`) on a canvas 1024 px wide at the page's proportions, and returns it as a JPEG.
-- `get_slide_images` takes `slideIds`, one to four, refuses an id outside the deck as `get_slides` does, reads each slide through `readSlideTarget` so the open slide is drawn as its canvas shows it, and returns the images in the order asked with a line of text naming each.
+- `get_slide_images` takes `slideIds`, one to four, refuses an id outside the deck as `get_slides` does, reads each slide through `readSlideTarget` so the open slide is drawn as its canvas shows it, and returns an `AIToolOutput`: a line of text naming each slide, and the images in the order asked.
 - The catalogue and its test hold it: a read, no requirement, the deck view.
 - The brief states ruling 7's rule for when to look, and `server/tests/copilot_prompt_test.ts` pins it.
-- SYSTEM_13 describes the tool, what an image costs a conversation, and the tools as counted. Its Open items hold what this plan left: a report's images, a layout cell's overrides.
+- SYSTEM_13 describes the tool, what an image costs a conversation, the limits panther holds a conversation's images to, and the tools as counted. Its Open items hold what this plan left: a report's images, a layout cell's overrides.
 - The close commit deletes this file.
 
 **Not in this step.** An image of a report page or of a figure in its editor. A transcript card for the image.
 
-**Gates.** After the sync, the floor. `deno task test:files server/tests/copilot_catalogue_test.ts server/tests/copilot_prompt_test.ts`. At the close, `deno task test`.
+**Gates.** After the sync, the floor and `deno task test:files server/tests/mcp_tools_source_header_test.ts`. `deno task test:files server/tests/copilot_catalogue_test.ts server/tests/copilot_prompt_test.ts`. At the close, `deno task test`.
 
 **Ends with.** Two commits (the sync; the tool), then the close.
 
@@ -147,7 +150,7 @@ Starts when `./sync --check wb-fastr`, run in the panther repo, reports nothing 
 - **Reports.** Image embeds, page settings and a rendered page for the model. `get_report_pages` already gives the model a report's pages as text.
 - **The deck's theme**, and the dead knobs, which are SYSTEM_10's to wire or delete.
 - **Product features the copilot's answer also listed.** A gauge or donut figure type, significance testing in the HFA module, and diagram blocks. An image block is how a diagram a person has drawn reaches a slide.
-- **Panther: the image in the transcript, MCP image results, and Files API references.**
+- **Panther: the image in the transcript, and a Files API reference in place of an image's data.**
 
 ## §6 Log
 
