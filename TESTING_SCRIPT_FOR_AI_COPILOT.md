@@ -470,9 +470,13 @@ NEW CONVERSATION.
 - Ground truth: H3 shows `update_slide` with `err: true`, text listing the allowed sizes 5 to 50 in steps of 5. Slide 2 is unchanged.
 - Do: send "Read slide 2 with get_slides and tell me its sub-header and panel."
 - Ground truth: the entry holds `subHeader: "SUB HEADER"` and `split` with placement right, sizeAsPct 20 and the dots pattern.
-- Do: send "Remove slide 2's panel, then give slide 3's text block a grey background, then change that text to 'Background kept'."
-- Ground truth: H3 shows three `update_slide` calls with `err: false`. Slide 2 has no panel. Open slide 3 and screenshot: the text reads "Background kept" on a grey background.
-- Pass: all five.
+- Do: send "Remove slide 2's panel."
+- Ground truth: H3 shows `update_slide` with `err: false`. Slide 2 has no panel.
+- Do: send "Set slide 3's sub-header to 'KEPT', then rebuild slide 3 with replace_slide as a content slide with one text block reading 'Rebuilt'."
+- Ground truth: H3 shows `update_slide` then `replace_slide`, both `err: false`. Open slide 3 and screenshot: the sub-header reads KEPT and the text reads Rebuilt.
+- Do: send "Give slide 3's text block a grey background, then change its text to 'Background kept'."
+- Ground truth: H3 shows two `update_slide` calls with `err: false`. Screenshot slide 3: the text reads "Background kept" on a grey background.
+- Pass: all seven.
 
 ### G. Report (WRITE)
 

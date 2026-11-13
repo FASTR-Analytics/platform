@@ -12,6 +12,7 @@ import {
   type Slide,
   t3,
   TC,
+  withKeptSlideSettings,
 } from "lib";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import {
@@ -183,7 +184,7 @@ export function getClientToolsForSlides(
       viewRegistry: copilotViews,
       name: "replace_slide",
       description:
-        "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n\nFor any other change to text, blocks or layout, use update_slide, which keeps what it is not told to change. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately." +
+        "Rebuild an existing slide from new content: its content and its layout, which is optimized again, so a layout the user arranged is lost. A slide that keeps its type keeps the settings the input does not name: a cover's or section's text sizes, bold and italic, a cover's logos, and a content slide's sub-header, date, footer, header and footer logos and side panel (split). Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n\nFor any other change to text, settings, blocks or layout, use update_slide, which keeps what it is not told to change. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately." +
         CONTENT_BLOCKS_NOTE,
       inputSchema: z.object({
         slideId: z.string().describe(
@@ -196,16 +197,19 @@ export function getClientToolsForSlides(
             AiContentSlideSchema,
           ])
           .describe(
-            "The complete new slide content. The slide will be rebuilt from scratch. For content slides, layout will be auto-optimized.",
+            "The slide's new content. A content slide's layout is auto-optimized. A setting left out is kept when the slide keeps its type.",
           ),
       }),
       availableIn: COPILOT_TOOL_VIEWS.replace_slide,
       kind: "write",
       handler: async (input, view) => {
         validateAiSlideInput(input.slide);
+        // Read before the conversion: the settings the slide keeps (a side
+        // panel, a sub-header) shape the layout the optimizer chooses.
+        const target = await readSlideTarget(view, input.slideId);
         const { slide: convertedSlide, overflow } = await convertAiInputToSlide(
           view.context.getScope(),
-          input.slide,
+          withKeptSlideSettings(target.slide, input.slide),
           metrics,
           view.context.getDeckConfig(),
         );
@@ -216,9 +220,6 @@ export function getClientToolsForSlides(
           overflow,
           figureBlockIds(convertedSlide),
         );
-        // Read after the conversion, so a stored slide's version is as fresh
-        // as it can be when the write is checked against it.
-        const target = await readSlideTarget(view, input.slideId);
         await writeSlideTarget(view, target, convertedSlide);
 
         return result(

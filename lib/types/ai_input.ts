@@ -16,6 +16,7 @@ import {
 import {
   COVER_TEXT_STYLES,
   SECTION_TEXT_STYLES,
+  type Slide,
   type SlideTextStyle,
   SPLIT_SIZES_PCT,
   TEXT_BACKGROUND_KEYS,
@@ -547,3 +548,41 @@ export type AiSlideInput =
   | z.infer<typeof AiSectionSlideSchema>
   | AiContentSlideInput;
 export type AiSlideUpdate = z.infer<typeof AiSlideUpdateSchema>;
+
+const SETTING_KEYS = {
+  cover: z.object(AI_COVER_SETTINGS).keyof().options,
+  section: z.object(AI_SECTION_SETTINGS).keyof().options,
+  content: z.object(AI_CONTENT_SETTINGS).keyof().options,
+};
+
+// replace_slide's input: a slide that keeps its type keeps the settings the
+// input does not name.
+export function withKeptSlideSettings(
+  previous: Slide,
+  input: AiSlideInput,
+): AiSlideInput {
+  if (previous.type === "cover" && input.type === "cover") {
+    return { ...keptSettings(previous, SETTING_KEYS.cover, input), ...input };
+  }
+  if (previous.type === "section" && input.type === "section") {
+    return { ...keptSettings(previous, SETTING_KEYS.section, input), ...input };
+  }
+  if (previous.type === "content" && input.type === "content") {
+    return { ...keptSettings(previous, SETTING_KEYS.content, input), ...input };
+  }
+  return input;
+}
+
+function keptSettings<S extends Slide, K extends keyof S & string>(
+  previous: S,
+  keys: readonly K[],
+  input: AiSlideInput,
+): Partial<Pick<S, K>> {
+  const kept: Partial<Pick<S, K>> = {};
+  for (const key of keys) {
+    if (!(key in input) && previous[key] !== undefined) {
+      kept[key] = previous[key];
+    }
+  }
+  return kept;
+}

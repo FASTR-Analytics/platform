@@ -1,6 +1,6 @@
 // Pins the copilot's slide schemas to the stored ones: every stored field of a
 // slide type is one the copilot can create and update, unless it is named
-// below with the reason it is left out.
+// below with the reason it is left out. Pins what replace_slide keeps.
 //
 //   deno test -A --no-check server/tests/ai_slide_schema_test.ts
 
@@ -11,6 +11,9 @@ import {
   AiSectionSlideSchema,
   AiSlideUpdateSchema,
   AiTextBlockSchema,
+  type ContentSlide,
+  type CoverSlide,
+  withKeptSlideSettings,
 } from "lib";
 import {
   contentSlideSchema,
@@ -84,4 +87,67 @@ Deno.test("every stored text block style field can be written", () => {
     ),
     [],
   );
+});
+
+const COVER: CoverSlide = {
+  type: "cover",
+  title: "Old title",
+  subtitle: "Old subtitle",
+  titleBold: false,
+  titleTextRelFontSize: 12,
+  showLogos: "hide",
+};
+
+const CONTENT: ContentSlide = {
+  type: "content",
+  header: "Old header",
+  subHeader: "Old sub-header",
+  footer: "Old footer",
+  split: { placement: "left", sizeAsPct: 20, fill: { type: "plain" } },
+  layout: {
+    type: "item",
+    id: "a1b",
+    data: { type: "text", markdown: "Old text" },
+  },
+};
+
+Deno.test("a replaced slide that keeps its type keeps the settings its input does not name", () => {
+  assertEquals(
+    withKeptSlideSettings(COVER, {
+      type: "cover",
+      title: "New title",
+      titleBold: true,
+    }),
+    {
+      type: "cover",
+      title: "New title",
+      titleBold: true,
+      titleTextRelFontSize: 12,
+      showLogos: "hide",
+    },
+  );
+  assertEquals(
+    withKeptSlideSettings(CONTENT, {
+      type: "content",
+      header: "New header",
+      footer: "New footer",
+      blocks: [{ type: "text", markdown: "New text" }],
+    }),
+    {
+      type: "content",
+      header: "New header",
+      subHeader: "Old sub-header",
+      footer: "New footer",
+      split: { placement: "left", sizeAsPct: 20, fill: { type: "plain" } },
+      blocks: [{ type: "text", markdown: "New text" }],
+    },
+  );
+});
+
+Deno.test("a replaced slide that changes its type keeps nothing", () => {
+  const input = {
+    type: "section" as const,
+    sectionTitle: "New section",
+  };
+  assertEquals(withKeptSlideSettings(COVER, input), input);
 });
