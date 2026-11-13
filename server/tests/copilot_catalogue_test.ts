@@ -43,6 +43,7 @@ const GROUPS = {
     "delete_slides",
     "duplicate_slides",
     "move_slides",
+    "update_deck_settings",
   ],
   drafts: ["show_draft_slide_to_user"],
   report_reads: [

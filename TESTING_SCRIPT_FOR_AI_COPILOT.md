@@ -478,6 +478,16 @@ NEW CONVERSATION.
 - Ground truth: H3 shows two `update_slide` calls with `err: false`. Screenshot slide 3: the text reads "Background kept" on a grey background.
 - Pass: all seven.
 
+**F19. Deck settings.**
+
+- Do: send "Show the coloured FASTR logo on the cover and in the footer, set the footer text to 'Round 1 report' and turn on a 'DRAFT' watermark."
+- Ground truth: H3 shows `get_deck` then one `update_deck_settings`, both `err: false`. The `get_deck` result holds a `DECK SETTINGS` section; the update's result names logos, globalFooterText, useWatermark and watermarkText and prints the settings with `logos.cover.selected` and `logos.footer.selected` naming `images/FASTR_Primary_01_Horiz.png`. No `get_deck` follows the update. Screenshot the cover and slide 2: the logo on both, the footer text and the watermark on slide 2. Open the Deck menu's Logos and Footer flyouts: they show the same settings.
+- Do: send "Add 'not_an_asset.png' as a custom logo and show it in the header."
+- Ground truth: H3 shows `update_deck_settings` with `err: true`, text naming "not_an_asset.png" as not one of the instance's image assets. The Logos flyout is unchanged.
+- Do: send "Turn the footer text off and remove the watermark."
+- Ground truth: H3 shows `update_deck_settings` with `err: false`, its result reading `globalFooterText: not set` and `useWatermark: false`. Slide 2 shows no watermark and its own footer.
+- Pass: all three.
+
 ### G. Report (WRITE)
 
 Skip under `read-only`. Go to Products, open the "Copilot tests" folder, click New, choose report, name it `COPILOT TEST REPORT <YYYYMMDD-HHMM>`, same package and scope, Create. The report editor opens. NEW CONVERSATION.

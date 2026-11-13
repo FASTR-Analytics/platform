@@ -31,7 +31,10 @@ import {
   validateSlideTotalWordCount,
 } from "../../_shared/mod.ts";
 import { assertSlidesNotBusy } from "../validators/mod.ts";
-import { formatDeckSettings } from "./deck_settings.ts";
+import {
+  createUpdateDeckSettingsTool,
+  formatDeckSettings,
+} from "./deck_settings.ts";
 import { createGetSlidesTool } from "./get_slides.ts";
 import { createUpdateSlideTool } from "./update_slide.ts";
 import { createUpdateFigureTool } from "./update_figure.ts";
@@ -426,5 +429,7 @@ export function getClientToolsForSlides(
       inProgressLabel: (input) => `Moving ${input.slideIds.length} slide(s)...`,
       completionMessage: (input) => `Moved ${input.slideIds.length} slide(s)`,
     }),
+
+    createUpdateDeckSettingsTool(),
   ];
 }

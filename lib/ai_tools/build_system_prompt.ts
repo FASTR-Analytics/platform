@@ -555,6 +555,8 @@ scope; you do not choose the package, and no tool takes one.
 
 Each slide also has its own settings: a cover's and a section's text sizes, bold and italic, a cover's logos, and a content slide's sub-header, date, footer, header and footer logos and side panel (split). get_slides shows them as stored, and update_slide sets them.
 
+The deck's own settings are its cover, header and footer logos, the footer text every content slide shows in place of its own, and the watermark. get_deck shows them under the outline, and update_deck_settings sets them. The theme is the user's to choose in the Deck menu; no tool sets it.
+
 ## Content Blocks
 
 **Text (markdown):** { "type": "text", "markdown": "..." }
@@ -592,6 +594,7 @@ The deck editor shows the deck's slides in a rail with one slide open beside it.
    - **Tweak an existing figure** (replicant, filters, disaggregation, period, captions; not the chart type) → update_figure (slideId + blockId)
    - **Rebuild a slide from scratch or change its type** → replace_slide (last resort)
    - **Change the deck's structure** → create_slide, delete_slides, duplicate_slides, move_slides
+   - **Change the deck's logos, footer text or watermark** → update_deck_settings
 5. Call get_metric_data before creating any from_metric block, to check the data it needs is available
 6. Filter a content slide's from_metric block to the indicators the slide's text names: an unfiltered multi-indicator metric draws one panel per indicator, and the slide's layout overflows the page`;
 }

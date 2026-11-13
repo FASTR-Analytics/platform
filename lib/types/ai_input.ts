@@ -13,6 +13,7 @@ import {
   imageBlockSchema,
   sectionSlideSchema,
 } from "./_slide_config.ts";
+import { slideDeckConfigSchema } from "./_slide_deck_config.ts";
 import {
   COVER_TEXT_STYLES,
   SECTION_TEXT_STYLES,
@@ -586,3 +587,28 @@ function keptSettings<S extends Slide, K extends keyof S & string>(
   }
   return kept;
 }
+
+// ============================================================================
+// Deck settings patch - DERIVED from storage schema (slideDeckConfigSchema)
+// ============================================================================
+
+const deck = slideDeckConfigSchema.shape;
+
+export const AiDeckSettingsPatchSchema = z.object({
+  logos: deck.logos.optional().describe(
+    "Optional: the deck's logos, replaced whole: availableCustom (the deck's own logos, each one of the instance's image assets) and, for cover, header and footer, the logos selected (each a built-in logo or one of availableCustom, drawn in this order), showByDefault (whether a slide shows them when its own setting is 'inherit') and an optional sizing ({ size, spacing }, each 'sm', 'md', 'lg' or 'xl').",
+  ),
+  // null stands for the stored field's absence, which JSON cannot send.
+  globalFooterText: deck.globalFooterText.unwrap().nullable().optional()
+    .describe(
+      "Optional: text every content slide shows in place of its own footer. null turns it off, so each content slide shows its own footer.",
+    ),
+  useWatermark: deck.useWatermark.optional().describe(
+    "Optional: whether every slide shows watermarkText as a watermark.",
+  ),
+  watermarkText: deck.watermarkText.optional().describe(
+    "Optional: the watermark's text, shown while useWatermark is true.",
+  ),
+});
+
+export type AiDeckSettingsPatch = z.infer<typeof AiDeckSettingsPatchSchema>;

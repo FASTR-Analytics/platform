@@ -8,6 +8,7 @@ import {
   t3,
 } from "lib";
 import {
+  type APIResponseNoData,
   Button,
   createDeleteAction,
   FrameLeftResizable,
@@ -95,7 +96,9 @@ type Props = {
   present: () => Promise<void>;
   openVersionHistory: () => Promise<void>;
   deckConfig: SlideDeckConfig;
-  patchDeckConfig: (patch: Partial<SlideDeckConfig>) => Promise<void>;
+  patchDeckConfig: (
+    patch: Partial<SlideDeckConfig>,
+  ) => Promise<APIResponseNoData>;
   // The list's add-slide, handed up so the open slide's Insert menu (in the
   // editor) adds a slide exactly as the header's Add slide does.
   onAddSlideApi: (add: (slide: Slide) => Promise<void>) => void;

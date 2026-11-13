@@ -130,6 +130,7 @@ export const COPILOT_TOOL_VIEWS = {
   delete_slides: DECK_VIEWS,
   duplicate_slides: DECK_VIEWS,
   move_slides: DECK_VIEWS,
+  update_deck_settings: DECK_VIEWS,
   show_draft_slide_to_user: DRAFT_VIEWS,
   get_report_editor: REPORT_VIEWS,
   get_report_figure: REPORT_VIEWS,
@@ -188,6 +189,7 @@ export const COPILOT_TOOL_REQUIREMENTS = {
   delete_slides: "product_edit",
   duplicate_slides: "product_edit",
   move_slides: "product_edit",
+  update_deck_settings: "product_edit",
   show_draft_slide_to_user: "none",
   get_report_editor: "none",
   get_report_figure: "none",
@@ -215,7 +217,8 @@ export const COPILOT_TOOL_REQUIREMENTS = {
 } as const satisfies Record<CopilotToolName, CopilotToolRequirement>;
 
 // The writes that apply directly to what the user is looking at: a deck's
-// slides, stored or open in the editor (deleting them asks first), a
+// slides, stored or open in the editor (deleting them asks first), its
+// settings, which the user changes back from the Deck menu, a
 // report's figure by stable id, the open figure editor's draft and the HFA
 // code editor's unsaved state. Every other write asks before it applies.
 export const COPILOT_APPROVAL_EXEMPT: CopilotGatedToolName[] = [
@@ -225,6 +228,7 @@ export const COPILOT_APPROVAL_EXEMPT: CopilotGatedToolName[] = [
   "replace_slide",
   "duplicate_slides",
   "move_slides",
+  "update_deck_settings",
   "update_report_figure",
   "update_figure_editor",
   "update_hfa_indicator_editor",

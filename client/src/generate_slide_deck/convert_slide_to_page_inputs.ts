@@ -45,7 +45,7 @@ import {
 } from "~/generate_visualization/mod";
 import { _SERVER_HOST } from "~/server_actions";
 import { getImgFromCacheOrFetch } from "~/state/products/t2_images";
-import { FASTR_LOGO_VALUES } from "./fastr_logos";
+import { FASTR_LOGO_VALUES, resolveLogoUrl } from "./fastr_logos";
 import { unavailableItemMarkdown } from "~/generate_report/mod";
 import { getBackgroundDetail } from "./get_overlay_image";
 
@@ -294,16 +294,24 @@ function shouldShowLogos(
   return showByDefault;
 }
 
+// Whether a deck draws a selected logo: a built-in one, or one of the deck's
+// custom logos. Any other selection is skipped.
+export function isDrawnLogo(
+  logo: string,
+  availableCustomLogos: readonly string[],
+): boolean {
+  return FASTR_LOGO_VALUES.includes(logo) ||
+    availableCustomLogos.includes(logo);
+}
+
 async function loadLogos(
   selectedLogos: string[],
   availableCustomLogos: string[],
 ): Promise<HTMLImageElement[]> {
   const result: HTMLImageElement[] = [];
   for (const logo of selectedLogos) {
-    const isFastrLogo = FASTR_LOGO_VALUES.includes(logo);
-    if (isFastrLogo || availableCustomLogos.includes(logo)) {
-      const url = isFastrLogo ? `/${logo}` : `${_SERVER_HOST}/${logo}`;
-      const resImg = await getImgFromCacheOrFetch(url);
+    if (isDrawnLogo(logo, availableCustomLogos)) {
+      const resImg = await getImgFromCacheOrFetch(resolveLogoUrl(logo));
       if (resImg.success) {
         result.push(resImg.data);
       }

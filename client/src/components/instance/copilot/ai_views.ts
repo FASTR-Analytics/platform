@@ -8,6 +8,7 @@ import type {
   AIViewController,
   AIViewState,
   AnyAIView,
+  APIResponseNoData,
   APIResponseWithData,
 } from "panther";
 import {
@@ -227,6 +228,12 @@ export type EditingSlideDeckContext = PackageViewContext & {
   deleteSlides: (
     slideIds: string[],
   ) => Promise<APIResponseWithData<{ deletedIds: string[] }>>;
+  // The deck's settings save, as the Deck menu runs it: the rail and the
+  // open slide show the patch at once, and a failed save puts back what the
+  // server holds.
+  patchDeckConfig: (
+    patch: Partial<SlideDeckConfig>,
+  ) => Promise<APIResponseNoData>;
 };
 
 export type EditingReportParams = {
