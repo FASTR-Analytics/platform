@@ -30,22 +30,17 @@ import { assertImageAsset } from "../_shared/mod.ts";
  *
  * The optimizer is fed through the renderer's own path: the provisional slide
  * goes through convertSlideToPageInputs, and the optimizer gets that page's
- * chrome, style and items. `overflow` is therefore the flag the deck's canvas
- * badges, which every caller reports to the model: the model cannot see the
- * badge.
+ * chrome, style and items.
  */
 export async function convertAiInputToSlide(
   scope: PackageScope,
   slideInput: AiSlideInput,
   metrics: MetricWithStatus[],
   deckConfig: SlideDeckConfig,
-): Promise<{ slide: Slide; overflow: boolean }> {
+): Promise<Slide> {
   // Cover and section pass through unchanged
   if (slideInput.type === "cover" || slideInput.type === "section") {
-    return {
-      slide: slideConfigSchema.parse(slideInput) as Slide,
-      overflow: false,
-    };
+    return slideConfigSchema.parse(slideInput) as Slide;
   }
 
   // Content slide - resolve figures and optimize layout
@@ -113,13 +108,10 @@ export async function convertAiInputToSlide(
     getOptimizerConfig(layoutPreference, resolvedBlocks.length),
   );
 
-  return {
-    slide: slideConfigSchema.parse({
-      ...settings,
-      layout: restoreBlocks(result.best.layout, blocksById),
-    }) as Slide,
-    overflow: result.best.score.overflow === 1,
-  };
+  return slideConfigSchema.parse({
+    ...settings,
+    layout: restoreBlocks(result.best.layout, blocksById),
+  }) as Slide;
 }
 
 function leafItems(

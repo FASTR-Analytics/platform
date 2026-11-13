@@ -154,17 +154,18 @@ export function getClientToolsForSlides(
       kind: "write",
       handler: async (input, view) => {
         validateAiSlideInput(input.slide);
-        const { slide: convertedSlide, overflow } = await convertAiInputToSlide(
+        const deckConfig = view.context.getDeckConfig();
+        const convertedSlide = await convertAiInputToSlide(
           view.context.getScope(),
           input.slide,
           metrics,
-          view.context.getDeckConfig(),
+          deckConfig,
         );
         const result = await prepareSlideWriteResult(
           env,
           metrics,
           convertedSlide,
-          overflow,
+          deckConfig,
           figureBlockIds(convertedSlide),
         );
 
@@ -223,17 +224,18 @@ export function getClientToolsForSlides(
         // Read before the conversion: the settings the slide keeps (a side
         // panel, a sub-header) shape the layout the optimizer chooses.
         const target = await readSlideTarget(view, input.slideId);
-        const { slide: convertedSlide, overflow } = await convertAiInputToSlide(
+        const deckConfig = view.context.getDeckConfig();
+        const convertedSlide = await convertAiInputToSlide(
           view.context.getScope(),
           withKeptSlideSettings(target.slide, input.slide),
           metrics,
-          view.context.getDeckConfig(),
+          deckConfig,
         );
         const result = await prepareSlideWriteResult(
           env,
           metrics,
           convertedSlide,
-          overflow,
+          deckConfig,
           figureBlockIds(convertedSlide),
         );
         await writeSlideTarget(view, target, convertedSlide);

@@ -22,10 +22,7 @@ import {
 } from "~/generate_visualization/mod";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
-import {
-  extractBlocksFromLayout,
-  measureSlideOverflow,
-} from "../../slide_ai/mod.ts";
+import { extractBlocksFromLayout } from "../../slide_ai/mod.ts";
 import { editFigureMetricForAI } from "../../_shared/mod.ts";
 import {
   readSlideTarget,
@@ -224,15 +221,11 @@ export function createUpdateFigureTool(
         input.blockId,
         newBundle,
       );
-      const overflow = await measureSlideOverflow(
-        updatedSlide,
-        view.context.getDeckConfig(),
-      );
       const result = await prepareSlideWriteResult(
         env,
         metrics,
         updatedSlide,
-        overflow,
+        view.context.getDeckConfig(),
         [input.blockId],
       );
       await writeSlideTarget(view, target, updatedSlide);

@@ -1,4 +1,9 @@
-import type { FigureBundle, MetricWithStatus, Slide } from "lib";
+import type {
+  FigureBundle,
+  MetricWithStatus,
+  Slide,
+  SlideDeckConfig,
+} from "lib";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 import {
   formatFigureConfigForAI,
@@ -8,6 +13,7 @@ import {
   describeSlideBlocks,
   describeSlideOverflow,
   extractBlocksFromLayout,
+  measureSlideOverflow,
 } from "../../slide_ai/mod.ts";
 
 export function figureBlockIds(slide: Slide): string[] {
@@ -42,17 +48,20 @@ export async function prepareSlideWriteResult(
   env: ClientAIToolEnv,
   metrics: MetricWithStatus[],
   slide: Slide,
-  overflow: boolean,
+  deckConfig: SlideDeckConfig,
   builtFigureIds: readonly string[],
 ): Promise<(slideId: string, done: string) => string> {
   if (slide.type !== "content") return (_slideId, done) => done;
-  const figures = await Promise.all(
-    extractBlocksFromLayout(slide.layout).flatMap(({ id, block }) =>
-      builtFigureIds.includes(id) && block.type === "figure" && block.bundle
-        ? [describeBuiltFigure(env, metrics, id, block.bundle)]
-        : []
+  const [overflow, figures] = await Promise.all([
+    measureSlideOverflow(slide, deckConfig),
+    Promise.all(
+      extractBlocksFromLayout(slide.layout).flatMap(({ id, block }) =>
+        builtFigureIds.includes(id) && block.type === "figure" && block.bundle
+          ? [describeBuiltFigure(env, metrics, id, block.bundle)]
+          : []
+      ),
     ),
-  );
+  ]);
   const blocks = describeSlideBlocks(slide.layout);
   return (slideId, done) =>
     [

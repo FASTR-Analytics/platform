@@ -28,8 +28,8 @@ export async function buildSlidePage(
 }
 
 // Whether a content slide overflows the page: the flag the deck's canvas
-// badges, from the same measurement. A tool that did not just run the page
-// optimizer over the slide measures it here.
+// badges, from the same measurement. Every overflow the model is told comes
+// from here or, for a look, from the measurement it draws from.
 export async function measureSlideOverflow(
   slide: ContentSlide,
   deckConfig: SlideDeckConfig,

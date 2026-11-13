@@ -82,6 +82,28 @@ Deno.test("every slide tool states page overflow through describeSlideOverflow",
   }
 });
 
+// The model cannot see the canvas badge, so the overflow it is told must be
+// the badge's measurement, never the layout optimizer's score.
+Deno.test("every overflow the model is told comes from the page measurement", () => {
+  const writePath = TOOLS + "slide_write_result.ts";
+  assertCalls(
+    `prepareSlideWriteResult in ${writePath}`,
+    functionBody(source(writePath), "prepareSlideWriteResult"),
+    "measureSlideOverflow",
+  );
+  for (
+    const path of [
+      TOOLS + "drafts.tsx",
+      SLIDE_AI + "get_deck_summary.ts",
+      SLIDE_AI + "simplify_slide_for_ai.ts",
+    ]
+  ) {
+    assertCalls(path, source(path), "measureSlideOverflow");
+  }
+  const renderPath = SLIDE_AI + "render_slide_image.ts";
+  assertCalls(renderPath, source(renderPath), "PageRenderer.measure");
+});
+
 Deno.test("get_report_figure and get_report_figure_images find a figure through the same function", () => {
   const editorPath = TOOLS + "report_editor.ts";
   assertCalls(

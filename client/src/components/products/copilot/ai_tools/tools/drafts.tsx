@@ -19,6 +19,7 @@ import {
 import {
   convertAiInputToSlide,
   describeSlideOverflow,
+  measureSlideOverflow,
 } from "../../slide_ai/mod.ts";
 import {
   copilotViewController,
@@ -68,16 +69,16 @@ export function getClientToolsForDrafts(
         const deckConfig = view.id === "editing_slide_deck"
           ? view.context.getDeckConfig()
           : getStartingConfigForSlideDeck();
-        const { slide: convertedSlide, overflow } = await convertAiInputToSlide(
+        const convertedSlide = await convertAiInputToSlide(
           scope,
           input.slide,
           metrics,
           deckConfig,
         );
         const shown = "Slide preview displayed to user.";
-        return convertedSlide.type === "content"
-          ? `${shown}\n${describeSlideOverflow(null, overflow)}`
-          : shown;
+        if (convertedSlide.type !== "content") return shown;
+        const overflow = await measureSlideOverflow(convertedSlide, deckConfig);
+        return `${shown}\n${describeSlideOverflow(null, overflow)}`;
       },
       displayComponent: (props: {
         input: {

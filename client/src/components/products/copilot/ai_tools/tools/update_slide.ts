@@ -28,7 +28,6 @@ import {
   buildLayoutFromSpec,
   extractBlocksFromLayout,
   getSlideWithUpdatedBlocks,
-  measureSlideOverflow,
   normalizeSpans,
   resolveFigureFromMetric,
 } from "../../slide_ai/mod.ts";
@@ -84,17 +83,11 @@ export function createUpdateSlideTool(
       if (applied.changes.length === 0) {
         return "No changes specified. Make sure you're providing fields appropriate for this slide type.";
       }
-      const overflow = applied.slide.type === "content"
-        ? await measureSlideOverflow(
-          applied.slide,
-          view.context.getDeckConfig(),
-        )
-        : false;
       const result = await prepareSlideWriteResult(
         env,
         metrics,
         applied.slide,
-        overflow,
+        view.context.getDeckConfig(),
         applied.builtFigureIds,
       );
       await writeSlideTarget(view, target, applied.slide);
