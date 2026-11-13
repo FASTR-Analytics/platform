@@ -6,11 +6,11 @@ The figures in a deck or a report are what a policy maker reads. This plan owns 
 
 **Next step: Do 1.**
 
-Branch: `main`. Repos: this one. Step 1 decides whether `wb-fastr-modules` and `timroberton-panther` gain steps. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Validate-before-commit", "Tool input schemas", "The slide_ai conversion layer" and Open items "Surface gaps", [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md) "The insert-figure wizard", "lib config semantics" and "Explore query model", [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) on special modes, [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md), and in the modules repo `DOC_VIZPRESET_STANDARDS.md`. Start when: step 1 at any time, since it writes no file in this repo but this one. Every later step: `test ! -e PLAN_COPILOT_TOOL_LIMIT.md && test ! -e PLAN_WAIT_COPILOT_SURFACE_GAPS.md && echo ok` prints `ok` on `main`.
+Branch: `main`. Repos: this one. Step 1 decides whether `wb-fastr-modules` and `timroberton-panther` gain steps. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Validate-before-commit", "Tool input schemas", "The slide_ai conversion layer" and Open items "Surface gaps", [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md) "The insert-figure wizard", "lib config semantics" and "Explore query model", [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) on special modes, [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md), and in the modules repo `DOC_VIZPRESET_STANDARDS.md`. Start when: step 1 at any time, since it writes no file in this repo but this one. Every later step: `test ! -e PLAN_COPILOT_TOOL_LIMIT.md && test ! -e PLAN_02_COPILOT_SURFACE_GAPS.md && echo ok` prints `ok` on `main`.
 
 ## §0 How to work this plan
 
-The instruction is "Do the next step of PLAN_WAIT_COPILOT_FIGURES.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. Step 1 sets the last step when it writes the steps after it. Nothing in this plan ships (ruling 6).
+The instruction is "Do the next step of PLAN_03_COPILOT_FIGURES.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. Step 1 sets the last step when it writes the steps after it. Nothing in this plan ships (ruling 6).
 
 Vocabulary, used throughout:
 
@@ -96,7 +96,7 @@ Nothing in this section is ruled. It is what step 1 tests.
 2. **Whole-figure checks are required, whatever shape a statement takes.** Ruled.
 3. **They are proven on a must-pass set and a must-refuse set**, both kept as tests. _(proposed)_
 4. **The design of §2 is the one step 1 tests.** It is not a ruling of how the copilot will state a figure. _(proposed)_
-5. **This plan's code runs last**, after PLAN_COPILOT_TOOL_LIMIT.md and PLAN_WAIT_COPILOT_SURFACE_GAPS.md are gone: the three share the tool files, and neither of the others changes a figure. Step 1 runs at any time. _(proposed)_
+5. **This plan's code runs last**, after PLAN_COPILOT_TOOL_LIMIT.md and PLAN_02_COPILOT_SURFACE_GAPS.md are gone: the three share the tool files, and neither of the others changes a figure. Step 1 runs at any time. _(proposed)_
 6. **Nothing ships in this plan.** The app's next release carries it.
 
 ## §4 Steps
@@ -137,7 +137,7 @@ Written by step 1.
 
 ## §5 Out of scope
 
-- **Image blocks, a slide's own settings, the deck's settings, and a rendered image of a slide**: PLAN_WAIT_COPILOT_SURFACE_GAPS.md.
+- **Image blocks, a slide's own settings, the deck's settings, and a rendered image of a slide**: PLAN_02_COPILOT_SURFACE_GAPS.md.
 - **New figure types** (a gauge or donut), and significance testing in the HFA module.
 - **The 17 figures of §1 point 6 in the production deck.** They are a deck to repair, not code.
 

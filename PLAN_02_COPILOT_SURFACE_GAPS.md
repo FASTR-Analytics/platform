@@ -1,6 +1,6 @@
 # PLAN: Copilot surface gaps in a deck
 
-Status: QUEUED behind PLAN_COPILOT_TOOL_LIMIT.md. On 2026-11-12 the copilot told a user rebuilding a report as a deck what it could not do. Three of its answers were about its own reach in a deck and not about figures, and the deck holds each of those things done by hand: image blocks, a slide's own settings and the deck's logos, and a person looking at the page. This plan gives the copilot the same reach: image blocks, a slide's own settings, the deck's logos and footer, and a rendered image of a slide to look at. How the copilot creates, edits and reads a figure is PLAN_WAIT_COPILOT_FIGURES.md's, and this plan changes none of it.
+Status: QUEUED behind PLAN_COPILOT_TOOL_LIMIT.md. On 2026-11-12 the copilot told a user rebuilding a report as a deck what it could not do. Three of its answers were about its own reach in a deck and not about figures, and the deck holds each of those things done by hand: image blocks, a slide's own settings and the deck's logos, and a person looking at the page. This plan gives the copilot the same reach: image blocks, a slide's own settings, the deck's logos and footer, and a rendered image of a slide to look at. How the copilot creates, edits and reads a figure is PLAN_03_COPILOT_FIGURES.md's, and this plan changes none of it.
 
 **Next step: Do 1.**
 
@@ -8,7 +8,7 @@ Branch: `main` in both repos. Repos: this one (steps 1, 2 and 4) and `timroberto
 
 ## §0 How to work this plan
 
-The instruction is "Do the next step of PLAN_WAIT_COPILOT_SURFACE_GAPS.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 4; its close commit deletes this file. Nothing in this plan ships (ruling 11).
+The instruction is "Do the next step of PLAN_02_COPILOT_SURFACE_GAPS.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 4; its close commit deletes this file. Nothing in this plan ships (ruling 11).
 
 Step 3 is worked in `/Users/timroberton/projects/panther/timroberton-panther` on its branch `main`, under that repo's `CLAUDE.md`. Its floor is the six commands of that file's "Commands". Its tree is shared with other panther plans: the agent confirms it is clean before it starts and stages only its own files.
 
@@ -47,7 +47,7 @@ For a slide's blocks and settings and for the deck's settings, the read projecti
 
 ## §3 Rulings
 
-1. **Figures are another plan's.** How the copilot creates, edits and reads a figure is PLAN_WAIT_COPILOT_FIGURES.md's. This plan leaves the `from_metric` block, the figure patch tools and `formatFigureConfigForAI` as it finds them. Ruled.
+1. **Figures are another plan's.** How the copilot creates, edits and reads a figure is PLAN_03_COPILOT_FIGURES.md's. This plan leaves the `from_metric` block, the figure patch tools and `formatFigureConfigForAI` as it finds them. Ruled.
 2. **An image block is `{ type: "image", imgFile, style }`, derived from `imageBlockSchema`.** `imgFile` must be one of the instance's image assets, the list the slide toolbar offers ([slide_toolbar.tsx:412-413](client/src/components/products/slide_deck/slide_editor/slide_toolbar.tsx#L412-L413)). `get_image_assets` is a read of its own, admitted in the deck view: the list is needed only when an image is asked for. _(proposed)_
 3. **A slide's own settings are every stored field of its type but the layout and the dead knobs.** The read returns them as stored. The write schemas derive them from the slide schemas, and a test holds the two together. A text block's `textBackground` rides its block the same way. _(proposed)_
 4. **`replace_slide` keeps the settings of a slide whose type it keeps**, unless its input names the field. It rebuilds content and layout, which is what its name says. _(proposed)_
@@ -143,7 +143,7 @@ Starts when `./sync --check wb-fastr`, run in the panther repo, reports nothing 
 
 ## §5 Out of scope
 
-- **Everything about figures.** The chart type, a figure's style, how a figure is created and what checks it: PLAN_WAIT_COPILOT_FIGURES.md.
+- **Everything about figures.** The chart type, a figure's style, how a figure is created and what checks it: PLAN_03_COPILOT_FIGURES.md.
 - **Reports.** Image embeds, page settings and a rendered page for the model. `get_report_pages` already gives the model a report's pages as text.
 - **The deck's theme**, and the dead knobs, which are SYSTEM_10's to wire or delete.
 - **Product features the copilot's answer also listed.** A gauge or donut figure type, significance testing in the HFA module, and diagram blocks. An image block is how a diagram a person has drawn reaches a slide.
