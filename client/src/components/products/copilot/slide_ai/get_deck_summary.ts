@@ -21,6 +21,9 @@ function getContentSummary(slide: Slide): string {
   const textCount = blockCounts.get("text") || 0;
   if (textCount > 0) parts.push(`${textCount} text`);
 
+  const imageCount = blockCounts.get("image") || 0;
+  if (imageCount > 0) parts.push(`${imageCount} image`);
+
   return parts.length > 0 ? ` [${parts.join(", ")}]` : "";
 }
 

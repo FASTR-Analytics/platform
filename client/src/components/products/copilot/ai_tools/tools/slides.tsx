@@ -31,6 +31,7 @@ import {
   validateSlideTotalWordCount,
 } from "../../_shared/mod.ts";
 import { assertSlidesNotBusy } from "../validators/mod.ts";
+import { formatDeckSettings } from "./deck_settings.ts";
 import { createGetSlidesTool } from "./get_slides.ts";
 import { createUpdateSlideTool } from "./update_slide.ts";
 import { createUpdateFigureTool } from "./update_figure.ts";
@@ -75,16 +76,19 @@ export function getClientToolsForSlides(
       viewRegistry: copilotViews,
       name: "get_deck",
       description:
-        "Get the current state of the slide deck, including a summary outline of all slides. This provides essential context about the deck's structure, existing content, and slide order.",
+        "Get the current state of the slide deck: a summary outline of all slides, giving the deck's structure, existing content and slide order, then the deck's settings: its cover, header and footer logos, the logos that can be selected, the footer text and the watermark.",
       inputSchema: z.object({}),
       availableIn: COPILOT_TOOL_VIEWS.get_deck,
       kind: "read",
       handler: async (_input, view) => {
-        return await getDeckSummaryForAI(
+        const outline = await getDeckSummaryForAI(
           view.params.deckId,
           view.context.getSlideIds(),
           view.context.getOpenSlide(),
         );
+        return `${outline}\n${
+          formatDeckSettings(view.context.getDeckConfig())
+        }`;
       },
       inProgressLabel: "Getting deck state...",
       completionMessage: () => {
