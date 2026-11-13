@@ -216,6 +216,8 @@ export function getSharedToolsForReferenceDocs(
   entries: ReferenceDocEntry[],
   surface: ReferenceDocsSurface,
 ) {
+  const docLabel = (id: string) =>
+    entries.find((e) => e.id === id)?.title ?? id;
   return [
     createAITool({
       name: "get_reference_docs",
@@ -248,8 +250,8 @@ export function getSharedToolsForReferenceDocs(
           ? await readHubDoc(input.id)
           : await readAppDoc(entry, surface.transport);
       },
-      inProgressLabel: (input) => `Reading "${input.id}"...`,
-      completionMessage: (input) => `Read "${input.id}"`,
+      inProgressLabel: (input) => `Reading "${docLabel(input.id)}"...`,
+      completionMessage: (input) => `Read "${docLabel(input.id)}"`,
       kind: "read",
       headless: true,
     }),

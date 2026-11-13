@@ -4,6 +4,7 @@ import {
   foldString,
   matchesSearch,
   openComponent,
+  plural,
   type ProposalPreview,
   searchTokens,
 } from "panther";
@@ -122,11 +123,12 @@ function matchesStatus(
 }
 
 function countIndicators(n: number): string {
-  return t3({
-    en: `${n} indicator(s)`,
-    fr: `${n} indicateur(s)`,
-    pt: `${n} indicador(es)`,
-  });
+  return `${n} ${
+    plural(n, {
+      one: t3({ en: "indicator", fr: "indicateur", pt: "indicador" }),
+      other: t3({ en: "indicators", fr: "indicateurs", pt: "indicadores" }),
+    })
+  }`;
 }
 
 // The write tools' inputs derive from the contract's schemas: a round of main
@@ -763,12 +765,18 @@ export function buildHfaIndicatorTools() {
           en: `Read ${
             countIndicators(new Set(input.indicatorIds).size)
           } in detail`,
-          fr: `${
-            countIndicators(new Set(input.indicatorIds).size)
-          } lu(s) en détail`,
-          pt: `${
-            countIndicators(new Set(input.indicatorIds).size)
-          } lido(s) em detalhe`,
+          fr: `${countIndicators(new Set(input.indicatorIds).size)} ${
+            plural(new Set(input.indicatorIds).size, {
+              one: "lu",
+              other: "lus",
+            })
+          } en détail`,
+          pt: `${countIndicators(new Set(input.indicatorIds).size)} ${
+            plural(new Set(input.indicatorIds).size, {
+              one: "lido",
+              other: "lidos",
+            })
+          } em detalhe`,
         }),
     }),
 

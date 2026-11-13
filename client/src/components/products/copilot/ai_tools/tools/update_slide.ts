@@ -23,6 +23,7 @@ import {
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
 } from "../../_shared/mod.ts";
+import { slidesLabel } from "./tool_labels.ts";
 import {
   buildLayoutFromSpec,
   extractBlocksFromLayout,
@@ -108,8 +109,8 @@ export function createUpdateSlideTool(
         } in slide ${input.slideId}.${removed} ${slideTargetOutcome(target)}`,
       );
     },
-    inProgressLabel: (input) => `Updating slide ${input.slideId}...`,
-    completionMessage: (input) => `Updated slide ${input.slideId}`,
+    inProgressLabel: `Updating ${slidesLabel(1)}...`,
+    completionMessage: `Updated ${slidesLabel(1)}`,
   });
 }
 

@@ -17,6 +17,7 @@ import {
   MAX_LOOK_SUBJECTS,
   type ToolImage,
 } from "../../_shared/mod.ts";
+import { figuresLabel } from "./tool_labels.ts";
 import { describeFigureUnavailableForAI } from "./figure_unavailable_for_ai.ts";
 import { liveBundleOrRefuse } from "./report_editor.ts";
 
@@ -80,8 +81,8 @@ export function createGetReportFigureImagesTool() {
       });
     },
     inProgressLabel: (input) =>
-      `Looking at ${new Set(input.figureIds).size} figure(s)...`,
+      `Looking at ${figuresLabel(new Set(input.figureIds).size)}...`,
     completionMessage: (input) =>
-      `Looked at ${new Set(input.figureIds).size} figure(s)`,
+      `Looked at ${figuresLabel(new Set(input.figureIds).size)}`,
   });
 }

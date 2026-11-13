@@ -3,6 +3,7 @@ import { z } from "zod";
 import { COPILOT_TOOL_VIEWS } from "lib";
 import { renderSlideImage } from "../../slide_ai/mod.ts";
 import { describeToolImage, MAX_LOOK_SUBJECTS } from "../../_shared/mod.ts";
+import { slidesLabel } from "./tool_labels.ts";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import { assertSlidesInDeck, readSlideTarget } from "./slide_target.ts";
 
@@ -43,8 +44,8 @@ export function createGetSlideImagesTool() {
       });
     },
     inProgressLabel: (input) =>
-      `Looking at ${new Set(input.slideIds).size} slide(s)...`,
+      `Looking at ${slidesLabel(new Set(input.slideIds).size)}...`,
     completionMessage: (input) =>
-      `Looked at ${new Set(input.slideIds).size} slide(s)`,
+      `Looked at ${slidesLabel(new Set(input.slideIds).size)}`,
   });
 }

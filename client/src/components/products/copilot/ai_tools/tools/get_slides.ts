@@ -2,6 +2,7 @@ import { createAITool } from "panther";
 import { z } from "zod";
 import { COPILOT_TOOL_VIEWS, type MetricWithStatus } from "lib";
 import { simplifySlideForAI } from "../../slide_ai/mod.ts";
+import { slidesLabel } from "./tool_labels.ts";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 import { assertSlidesInDeck, readSlideTarget } from "./slide_target.ts";
@@ -44,8 +45,8 @@ export function createGetSlidesTool(
       );
     },
     inProgressLabel: (input) =>
-      `Getting ${new Set(input.slideIds).size} slide(s)...`,
+      `Getting ${slidesLabel(new Set(input.slideIds).size)}...`,
     completionMessage: (input) =>
-      `Retrieved ${new Set(input.slideIds).size} slide(s)`,
+      `Retrieved ${slidesLabel(new Set(input.slideIds).size)}`,
   });
 }

@@ -1,5 +1,5 @@
 import { serverActions } from "~/server_actions";
-import { AIToolFailure, createAITool } from "panther";
+import { AIToolFailure, createAITool, plural } from "panther";
 import { z } from "zod";
 import {
   AiContentSlideSchema,
@@ -38,6 +38,7 @@ import {
 import { createGetSlidesTool } from "./get_slides.ts";
 import { createGetSlideImagesTool } from "./get_slide_images.ts";
 import { createUpdateSlideTool } from "./update_slide.ts";
+import { slidesLabel } from "./tool_labels.ts";
 import { createUpdateFigureTool } from "./update_figure.ts";
 import {
   assertSlidesInDeck,
@@ -98,7 +99,9 @@ export function getClientToolsForSlides(
       completionMessage: () => {
         const view = copilotViewController.current();
         if (view.id !== "editing_slide_deck") return "Retrieved deck";
-        return `Retrieved deck with ${view.context.getSlideIds().length} slide(s)`;
+        return `Retrieved deck with ${
+          slidesLabel(view.context.getSlideIds().length)
+        }`;
       },
     }),
 
@@ -240,7 +243,7 @@ export function getClientToolsForSlides(
           }". ${slideTargetOutcome(target)}`,
         );
       },
-      inProgressLabel: (input) => `Replacing slide ${input.slideId}...`,
+      inProgressLabel: `Replacing ${slidesLabel(1)}...`,
       completionMessage: (input) =>
         `Replaced slide: "${getSlideTitle(input.slide as Slide)}"`,
     }),
@@ -285,9 +288,21 @@ export function getClientToolsForSlides(
           return {
             preview: {
               title: t3({
-                en: `Delete ${titles.length} slide(s)`,
-                fr: `Supprimer ${titles.length} diapositive(s)`,
-                pt: `Eliminar ${titles.length} diapositivo(s)`,
+                en: `Delete ${titles.length} ${
+                  plural(titles.length, { one: "slide", other: "slides" })
+                }`,
+                fr: `Supprimer ${titles.length} ${
+                  plural(titles.length, {
+                    one: "diapositive",
+                    other: "diapositives",
+                  })
+                }`,
+                pt: `Eliminar ${titles.length} ${
+                  plural(titles.length, {
+                    one: "diapositivo",
+                    other: "diapositivos",
+                  })
+                }`,
               }),
               description: titles.map((title) => `- ${title}`).join("\n"),
               intent: "danger",
@@ -310,8 +325,9 @@ export function getClientToolsForSlides(
         },
       },
       inProgressLabel: (input) =>
-        `Deleting ${input.slideIds.length} slide(s)...`,
-      completionMessage: (input) => `Deleted ${input.slideIds.length} slide(s)`,
+        `Deleting ${slidesLabel(input.slideIds.length)}...`,
+      completionMessage: (input) =>
+        `Deleted ${slidesLabel(input.slideIds.length)}`,
     }),
 
     createAITool({
@@ -353,9 +369,9 @@ export function getClientToolsForSlides(
         }.`;
       },
       inProgressLabel: (input) =>
-        `Duplicating ${input.slideIds.length} slide(s)...`,
+        `Duplicating ${slidesLabel(input.slideIds.length)}...`,
       completionMessage: (input) =>
-        `Duplicated ${input.slideIds.length} slide(s)`,
+        `Duplicated ${slidesLabel(input.slideIds.length)}`,
     }),
 
     createAITool({
@@ -429,8 +445,10 @@ export function getClientToolsForSlides(
 
         return `Moved ${input.slideIds.length} slide(s).`;
       },
-      inProgressLabel: (input) => `Moving ${input.slideIds.length} slide(s)...`,
-      completionMessage: (input) => `Moved ${input.slideIds.length} slide(s)`,
+      inProgressLabel: (input) =>
+        `Moving ${slidesLabel(input.slideIds.length)}...`,
+      completionMessage: (input) =>
+        `Moved ${slidesLabel(input.slideIds.length)}`,
     }),
 
     createUpdateDeckSettingsTool(),
