@@ -4,6 +4,7 @@ import {
   AiDeckSettingsPatchSchema,
   COPILOT_TOOL_VIEWS,
   formatDeckSettingsForAI,
+  LOGO_SECTIONS,
   type LogosConfig,
   type SlideDeckConfig,
 } from "lib";
@@ -20,17 +21,22 @@ const BUILT_IN_LOGOS = FASTR_LOGOS.map((l) => ({
   label: l.label.en,
 }));
 
-const LOGO_SECTIONS = ["cover", "header", "footer"] as const;
-
 export function formatDeckSettings(config: SlideDeckConfig): string {
   return formatDeckSettingsForAI(config, BUILT_IN_LOGOS);
 }
 
-// Every custom logo is an image asset, and every selected logo is one the
-// deck draws, so nothing the model selects is silently skipped.
-function assertLogosDrawn(logos: LogosConfig): void {
+// Every new custom logo is an image asset, and every selected logo is one the
+// deck draws, so nothing the model selects is silently skipped. A custom logo
+// the deck already holds is kept even if its asset is gone: logos are sent
+// whole, and the user's entry must not block every other logo change.
+function assertLogosDrawn(
+  logos: LogosConfig,
+  kept: readonly string[],
+): void {
   const assets = imageAssetFileNames();
-  const notAssets = logos.availableCustom.filter((f) => !assets.includes(f));
+  const notAssets = logos.availableCustom.filter((f) =>
+    !assets.includes(f) && !kept.includes(f)
+  );
   if (notAssets.length > 0) {
     throw new AIToolFailure(
       `${
@@ -86,11 +92,11 @@ export function createUpdateDeckSettingsTool() {
           "No setting named. Name at least one of logos, globalFooterText, useWatermark and watermarkText.",
         );
       }
-      if (patch.logos !== undefined) assertLogosDrawn(patch.logos);
-      const settings = formatDeckSettings({
-        ...view.context.getDeckConfig(),
-        ...patch,
-      });
+      const current = view.context.getDeckConfig();
+      if (patch.logos !== undefined) {
+        assertLogosDrawn(patch.logos, current.logos.availableCustom);
+      }
+      const settings = formatDeckSettings({ ...current, ...patch });
 
       const res = await view.context.patchDeckConfig(patch);
       if (!res.success) throw new AIToolFailure(res.err);

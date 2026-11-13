@@ -11,7 +11,7 @@ import {
   type SlideDeckConfig,
   t3,
 } from "lib";
-import { LoadingIndicator, openAlert } from "panther";
+import { LoadingIndicator } from "panther";
 import {
   createResolvedScope,
   instanceState,
@@ -195,11 +195,11 @@ export function SlideDeckEditor(p: Props) {
   });
 
   // Every deck-config change (the Deck menu, the first-open theme question,
-  // the copilot's update_deck_settings) is
-  // applied HERE at once, so the rail and the open slide show it on the
-  // click, and saved behind it. The config lives on this component, above the
-  // editor and the rail, which is why the optimism does too. A failed save
-  // puts back what the server holds.
+  // the copilot's update_deck_settings) is applied HERE at once, so the rail
+  // and the open slide show it on the click, and saved behind it. The config
+  // lives on this component, above the editor and the rail, which is why the
+  // optimism does too. A failed save puts back what the server holds and
+  // returns the failure, which each caller reports in its own way.
   let configSavesInFlight = 0;
   async function patchDeckConfig(
     patch: Partial<SlideDeckConfig>,
@@ -215,7 +215,6 @@ export function SlideDeckEditor(p: Props) {
     configSavesInFlight--;
     if (res.success === false) {
       setDeckConfig(before);
-      await openAlert({ text: res.err, intent: "danger" });
       return res;
     }
     return { success: true };

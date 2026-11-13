@@ -1,10 +1,10 @@
 // The AI tools BOTH surfaces expose (the SPA copilot and the /mcp endpoint)
 // over one package-bound env (env.ts), and the chat's catalogue as data
 // (copilot_catalogue.ts), here so the server tests pin it. The SPA-only
-// formatters the server tests pin live here too. Other SPA-only
-// tools and their formatters live in client/src/components/instance/copilot/
-// tools/ (module internals) and client/src/components/products/copilot/
-// ai_tools/ (the product tools).
+// formatters the server tests pin live here too. Other SPA-only tools and
+// their formatters live in client/src/components/instance/copilot/tools/
+// (module internals) and client/src/components/products/copilot/ai_tools/
+// (the product tools).
 export * from "./env.ts";
 export * from "./copilot_catalogue.ts";
 export * from "./build_system_prompt.ts";

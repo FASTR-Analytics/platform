@@ -8,7 +8,6 @@ import {
   t3,
 } from "lib";
 import {
-  type APIResponseNoData,
   Button,
   createDeleteAction,
   FrameLeftResizable,
@@ -96,9 +95,7 @@ type Props = {
   present: () => Promise<void>;
   openVersionHistory: () => Promise<void>;
   deckConfig: SlideDeckConfig;
-  patchDeckConfig: (
-    patch: Partial<SlideDeckConfig>,
-  ) => Promise<APIResponseNoData>;
+  patchDeckConfig: EditingSlideDeckContext["patchDeckConfig"];
   // The list's add-slide, handed up so the open slide's Insert menu (in the
   // editor) adds a slide exactly as the header's Add slide does.
   onAddSlideApi: (add: (slide: Slide) => Promise<void>) => void;
@@ -521,8 +518,12 @@ export function SlideList(p: Props) {
   // applies each change at once (rail, open slide and this header alike) and
   // saves it behind (slide_deck.tsx, patchDeckConfig).
   const deckConfig = () => p.deckConfig;
-  const patchDeckConfig = (patch: Partial<SlideDeckConfig>) =>
-    p.patchDeckConfig(patch);
+  const patchDeckConfig = async (patch: Partial<SlideDeckConfig>) => {
+    const res = await p.patchDeckConfig(patch);
+    if (res.success === false) {
+      await openAlert({ text: res.err, intent: "danger" });
+    }
+  };
 
   // A deck nobody has chosen a look for yet: ask now, once per open, as a new
   // report does. Only a deck minted since the modal existed carries

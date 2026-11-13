@@ -2,14 +2,16 @@ import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU, t3 } from "lib";
 import type { SlideDeckConfig } from "lib";
 import { getBaseText, PageHolder, type PageInputs } from "panther";
 import { createEffect, createSignal, onCleanup } from "solid-js";
-import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { FASTR_LOGO_VALUES } from "~/generate_slide_deck/fastr_logos";
+import {
+  buildStyleForSlide,
+  isDrawnLogo,
+} from "~/generate_slide_deck/convert_slide_to_page_inputs";
+import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
 import {
   type BackgroundDetail,
   getBackgroundDetail,
 } from "~/generate_slide_deck/get_overlay_image";
 import { getImgFromCacheOrFetch } from "~/state/products/t2_images";
-import { _SERVER_HOST } from "~/server_actions";
 
 type StylePreviewProps = {
   config: SlideDeckConfig;
@@ -21,10 +23,8 @@ async function loadLogos(
 ): Promise<HTMLImageElement[]> {
   const result: HTMLImageElement[] = [];
   for (const logo of selected) {
-    const isFastrLogo = FASTR_LOGO_VALUES.includes(logo);
-    if (isFastrLogo || availableCustom.includes(logo)) {
-      const url = isFastrLogo ? `/${logo}` : `${_SERVER_HOST}/${logo}`;
-      const resImg = await getImgFromCacheOrFetch(url);
+    if (isDrawnLogo(logo, availableCustom)) {
+      const resImg = await getImgFromCacheOrFetch(resolveLogoUrl(logo));
       if (resImg.success) {
         result.push(resImg.data);
       }

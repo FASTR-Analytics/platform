@@ -2,7 +2,7 @@ import type { LogoSectionConfig, SlideDeckConfig } from "../types/slides.ts";
 
 export type BuiltInLogoForAI = { value: string; label: string };
 
-const LOGO_SECTIONS = ["cover", "header", "footer"] as const;
+export const LOGO_SECTIONS = ["cover", "header", "footer"] as const;
 
 function quoted(values: readonly string[]): string {
   return values.length === 0
