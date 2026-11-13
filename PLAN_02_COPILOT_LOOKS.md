@@ -1,8 +1,8 @@
 # PLAN: The copilot's look tools
 
-Status: IN PROGRESS. Step 1 synced the one-turn panther; step 2 built the encoder. PLAN_02_COPILOT_SURFACE_GAPS.md, now closed and deleted, gave the copilot one look tool, `get_slide_images`, built before panther held an image for one turn and with its image size and encoding inside the slide's own render file. This plan makes the looks one set: three tools, each the image twin of a text read, sharing one encoder, each drawing what the user sees through the code that draws it for the user, with a test that fails when a look and its twin stop reading the same thing.
+Status: IN PROGRESS. Step 1 synced the one-turn panther; step 2 built the encoder; step 3 added the report figure look. PLAN_02_COPILOT_SURFACE_GAPS.md, now closed and deleted, gave the copilot one look tool, `get_slide_images`, built before panther held an image for one turn and with its image size and encoding inside the slide's own render file. This plan makes the looks one set: three tools, each the image twin of a text read, sharing one encoder, each drawing what the user sees through the code that draws it for the user, with a test that fails when a look and its twin stop reading the same thing.
 
-**Next step: Do 3.**
+**Next step: Do 4.**
 
 Branch: `main`. Repos: this one, and `timroberton-panther` as the source of step 1's sync. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Tools, view gating, and approval" and Open items "Surface gaps", [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md) "The round budget", [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) on figure export, [SYSTEM_12_documents_sharing.md](SYSTEM_12_documents_sharing.md) on the report's figure embeds, and the vendored [PROTOCOL_UI_AI_CHAT.md](panther/protocols/PROTOCOL_UI_AI_CHAT.md) rule 17. Start when: `test ! -e PLAN_02_COPILOT_SURFACE_GAPS.md && test ! -e /Users/timroberton/projects/panther/timroberton-panther/PLAN_23_AI_IMAGES_ONE_TURN.md && echo ok` prints `ok`, and this tree is clean.
 
