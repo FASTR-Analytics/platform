@@ -54,6 +54,7 @@ export {
   BUILTIN_TOOL_TYPES,
   getMaxOutputTokens,
   getSupportedEffortLevels,
+  IMAGE_LIMITS,
   MAX_OUTPUT_TOKENS,
   MODEL_MAX_OUTPUT_TOKENS,
   MODEL_OPTIONS,
