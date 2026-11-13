@@ -143,7 +143,7 @@ const tool = createAITool({
 
 Malformed tool input (failing the zod schema) is converted to `AIToolFailure` automatically, with a prettified per-field message.
 
-**Showing the model an image:** a handler, or an approval's `commit`, returns an `AIToolOutput`. Each image is the file's bytes as base64 with no `data:` URL prefix, and the model sees them after the text, in the chat, through `callAI` and over MCP. An image stays in the conversation and is sent again with every later request, and a conversation holds at most 100. Full contract: DOC_AI_CHAT.md "Output and images".
+**Showing the model an image:** a handler, or an approval's `commit`, returns an `AIToolOutput`. Each image is the file's bytes as base64 with no `data:` URL prefix, and the model sees them after the text, in the chat, through `callAI` and over MCP. In the chat an image is held for the turn that took it: the turn's later requests carry it, and at the turn's end it becomes a line of text, so the text beside it should say what it shows. A turn holds at most 20. Full contract: DOC_AI_CHAT.md "Output and images".
 
 ```typescript
 import { AIToolOutput, createAITool } from "@timroberton/panther";

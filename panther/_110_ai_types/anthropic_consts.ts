@@ -147,22 +147,19 @@ export function clampMaxOutputTokens(
 // IMAGE LIMITS
 ////////////////////////////////////////////////////////////////////////////////
 
-// What the API takes of images. An image stays in its conversation and rides
-// every later request, so one past a limit would fail every send from then
-// on.
+// What the API takes of images. An image past a limit fails the request that
+// carries it, and every later request of its turn.
 export const IMAGE_LIMITS = {
   // The base64 of one image.
   MAX_BASE64_CHARS: 10_000_000,
   // Either side of an image: the API holds every image of a request to this
   // once the request carries more than 20.
   MAX_SIDE_PX: 3000,
-  // The images of one request on a model with a 200K-token context window,
-  // the lowest limit of any model in MODEL_OPTIONS: a conversation can switch
-  // to one.
-  MAX_PER_REQUEST: 100,
-  // The base64 of every image of one request: the API's 128 MB request
-  // limit, less room for the rest of the request.
-  MAX_BASE64_CHARS_PER_REQUEST: 100_000_000,
+  // The images one turn holds. Past 20 in a request the API holds every image
+  // to a stricter size, and the API counts a request's images and the pages
+  // of its documents against one limit of 100, so 20 leaves 80 for pages. 20
+  // images of at most MAX_BASE64_CHARS cannot reach the API's request size.
+  MAX_PER_TURN: 20,
 } as const;
 
 ////////////////////////////////////////////////////////////////////////////////

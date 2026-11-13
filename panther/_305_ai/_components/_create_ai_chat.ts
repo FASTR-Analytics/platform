@@ -12,7 +12,6 @@ import {
 } from "solid-js";
 import { Anthropic } from "../deps.ts";
 import type {
-  AIErrorInfo,
   AnthropicModel,
   AnthropicModelConfig,
   ContentBlock,
@@ -35,13 +34,11 @@ import {
   EMPTY_REPLY_PLACEHOLDER,
   getUserFacingAIErrorMessage,
   hashRequestPrefix,
-  IMAGES_REMOVED_DETAILS,
-  isRequestRefusal,
   limitToolResultImages,
   openConfirm,
   reconcileRequestPrefix,
+  releaseImages,
   releaseUnansweredCarriers,
-  removeUnacceptedImages,
   renderOutgoingMessages,
   repairStrandedToolUse,
   resolveBetas,
@@ -771,18 +768,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     } catch (err) {
       if (!turn.abort.signal.aborted) {
         const errorDetails = err instanceof Error ? err.message : String(err);
-        const errorInfo = errorInfoOf(err);
-        // A request the API refused for what it holds is refused on every
-        // later send while it holds the same, so the images the API never
-        // accepted leave the conversation here.
-        const withoutImages = isRequestRefusal(errorInfo)
-          ? removeUnacceptedImages(tMessages())
-          : tMessages();
-        const imagesRemoved = withoutImages !== tMessages();
         batch(() => {
-          if (imagesRemoved) {
-            setTMessages(withoutImages);
-          }
           ts.error[1](errorDetails);
           ts.isStreaming[1](false);
           ts.streamingItems[1]([]);
@@ -790,10 +776,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
             {
               type: "system_notice",
               noticeType: "turn_error",
-              message: getUserFacingAIErrorMessage(errorInfo),
-              details: imagesRemoved
-                ? `${errorDetails}\n\n${IMAGES_REMOVED_DETAILS}`
-                : errorDetails,
+              message: getUserFacingErrorMessage(err),
+              details: errorDetails,
             },
           ]);
         });
@@ -839,6 +823,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         for (const index of released.released) {
           turn.carriers.find((c) => c.index === index)?.restore?.();
         }
+      }
+      // An image is held for the turn that took it, on every exit: the
+      // record saved below and every later request hold none.
+      const imagesReleased = releaseImages(tMessages());
+      if (imagesReleased !== tMessages()) {
+        setTMessages(imagesReleased);
       }
       turn.activeStream = null;
       batch(() => {
@@ -1960,28 +1950,31 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 export type AIChatInstance = ReturnType<typeof createAIChat>;
 
 // Thin instanceof adapter over the SDK error classes — all classification
-// logic is pure in turn_logic.ts (getUserFacingAIErrorMessage,
-// isRequestRefusal). err.type is the API error body's type field; mid-stream
-// errors (e.g. an overloaded_error SSE event) arrive with status undefined
-// but a populated type. The pure classifiers' status checks and string
-// fallback also cover consumer apps bundling a second SDK copy, where
-// instanceof fails.
-function errorInfoOf(err: unknown): AIErrorInfo {
+// logic is pure in turn_logic.ts (getUserFacingAIErrorMessage). err.type is
+// the API error body's type field; mid-stream errors (e.g. an
+// overloaded_error SSE event) arrive with status undefined but a populated
+// type. The pure classifier's status checks and string fallback also cover
+// consumer apps bundling a second SDK copy, where instanceof fails.
+function getUserFacingErrorMessage(err: unknown): string {
   if (err instanceof Anthropic.APIConnectionError) {
-    return { isConnectionError: true, isApiError: true, message: err.message };
+    return getUserFacingAIErrorMessage({
+      isConnectionError: true,
+      isApiError: true,
+      message: err.message,
+    });
   }
   if (err instanceof Anthropic.APIError) {
-    return {
+    return getUserFacingAIErrorMessage({
       isConnectionError: false,
       isApiError: true,
       type: err.type,
       status: err.status,
       message: String(err.message),
-    };
+    });
   }
-  return {
+  return getUserFacingAIErrorMessage({
     isConnectionError: false,
     isApiError: false,
     message: err instanceof Error ? err.message : String(err),
-  };
+  });
 }
