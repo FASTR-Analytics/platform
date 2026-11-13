@@ -18,6 +18,7 @@ import {
   getEditingReportInstructions,
   getEditingSlideDeckInstructions,
 } from "lib";
+import { IMAGE_LIMITS } from "../../panther/_110_ai_types/anthropic_consts.ts";
 
 const PARTS = {
   contextSection: "# Instance Information\n\n**Instance:** Test\n\n---\n\n",
@@ -183,9 +184,9 @@ Deno.test("the deck brief reads a slide once a turn and takes a write's result a
   assert(!brief.includes("before changing any slide"));
 });
 
-// An image costs every later request of its conversation, so the brief says
-// when a look earns that.
-Deno.test("the deck brief says when to look at a slide and never at every slide", () => {
+// Panther holds a tool's image for the turn that took it, so the brief says
+// when to look, that the image is gone after the turn, and the turn's cap.
+Deno.test("the deck brief says when to look at a slide and that an image lasts one turn", () => {
   const brief = getEditingSlideDeckInstructions("Round 1 report");
   assertStringIncludes(
     brief,
@@ -193,8 +194,10 @@ Deno.test("the deck brief says when to look at a slide and never at every slide"
   );
   assertStringIncludes(
     brief,
-    "An image stays in the conversation and is sent again with every later request, so never look at every slide of a deck",
+    `You see an image for the rest of the turn and not after: say in your reply what it showed, look again with one call to see the slide as it is then, and take at most ${IMAGE_LIMITS.MAX_PER_TURN} images in a turn`,
   );
+  assert(!brief.includes("sent again with every later request"));
+  assert(!brief.includes("never look at every slide of a deck"));
 });
 
 Deno.test("the FASTR editing instructions do not carry the syntax doc", () => {

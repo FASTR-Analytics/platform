@@ -494,9 +494,22 @@ NEW CONVERSATION.
 - Ground truth: H3 shows one `get_slide_images` call with `err: false` whose result text starts with the `Source:` line and ends "Images of slides, in this order: <slide 2's id>". The reply's title, block count and colour agree with a screenshot of slide 2.
 - Do: with slide 2 open, change its title on the canvas without leaving the slide, then send "Look at slide 2 again and read me its title."
 - Ground truth: the reply gives the title as typed, since the open slide is drawn from its draft.
+- Do: send "Without looking again, what colour was the header?"
+- Ground truth: once the turn ends, this `browser_evaluate` lists each block of every tool result with blocks in the last request:
+
+  ```js
+  (() =>
+    window.__copilot.lastRequest().body.messages.flatMap((m) =>
+      typeof m.content === "string" ? [] : m.content
+        .filter((b) => b.type === "tool_result" && Array.isArray(b.content))
+        .map((b) => b.content.map((c) => c.text ?? `[${c.type}]`))
+    ));
+  ```
+
+  Each entry from `get_slide_images` holds its text, then "[An image was shown here in an earlier turn. Your reply at the time records what you saw.]" in each image's place, and no `[image]`.
 - Do: send "Look at five slides at once with get_slide_images."
 - Ground truth: H3 shows `get_slide_images` with `err: true`, a schema refusal naming the limit of four, or no call and a reply saying a call takes at most four.
-- Pass: all three.
+- Pass: all four.
 
 ### G. Report (WRITE)
 

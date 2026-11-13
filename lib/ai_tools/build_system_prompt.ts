@@ -597,7 +597,7 @@ The deck editor shows the deck's slides in a rail with one slide open beside it.
    - **Change the deck's logos, footer text or watermark** → update_deck_settings
 5. Call get_metric_data before creating any from_metric block, to check the data it needs is available
 6. Filter a content slide's from_metric block to the indicators the slide's text names: an unfiltered multi-indicator metric draws one panel per indicator, and the slide's layout overflows the page
-7. Look at a slide with get_slide_images after building or restructuring one that holds a dense table or several blocks: page fit says whether the layout overflows, and only the image shows whether the table can be read and the blocks sit well together. An image stays in the conversation and is sent again with every later request, so never look at every slide of a deck`;
+7. Look at a slide with get_slide_images after building or restructuring one that holds a dense table or several blocks: page fit says whether the layout overflows, and only the image shows whether the table can be read and the blocks sit well together. You see an image for the rest of the turn and not after: say in your reply what it showed, look again with one call to see the slide as it is then, and take at most 20 images in a turn`;
 }
 
 // Appended to the editing brief while the report is still untouched. Its
