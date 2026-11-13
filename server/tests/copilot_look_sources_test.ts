@@ -94,3 +94,24 @@ Deno.test("the report's embed and its view context draw a figure through one bui
     "buildReportFigureInputs",
   );
 });
+
+Deno.test("get_figure_editor_image draws the editor's preview through the context's getter", () => {
+  const lookPath = TOOLS + "get_figure_editor_image.ts";
+  assertCalls(lookPath, source(lookPath), "getPreview");
+  const editorPath =
+    "client/src/components/_shared/figure_editor/figure_editor.tsx";
+  const editor = source(editorPath);
+  assert(
+    /getPreview: \(\) => preview\(\)/.test(editor),
+    `${editorPath} no longer gives the context the preview memo`,
+  );
+  assert(
+    /<Show\s+when=\{previewState\(\)\}/.test(editor),
+    `${editorPath} no longer draws the preview from the preview memo`,
+  );
+  assertCalls(
+    `previewState in ${editorPath}`,
+    segment(editor, "const previewState = ", "\n  };"),
+    "preview",
+  );
+});

@@ -62,7 +62,11 @@ const GROUPS = {
     "replace_figure",
     "update_report_figure",
   ],
-  figure_editor: ["get_figure_editor", "update_figure_editor"],
+  figure_editor: [
+    "get_figure_editor",
+    "get_figure_editor_image",
+    "update_figure_editor",
+  ],
   hfa_reads: [
     "get_hfa_indicators",
     "get_hfa_indicator_details",

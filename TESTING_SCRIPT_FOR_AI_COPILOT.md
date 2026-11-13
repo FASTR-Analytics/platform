@@ -575,8 +575,11 @@ Skip under `read-only`. Go to Products, open the "Copilot tests" folder, click N
 
 - Ground truth: H1 is editing_report_figure; H5's instructions start "# Current View: Figure editor (report)".
 - Do: send "Read the figure editor and set the sub-caption to 'REPORT EDITOR SUB'."
-- Ground truth: `get_figure_editor` and `update_figure_editor` both `err: false`; the editor preview shows the sub-caption; click Apply; the report preview shows it: screenshot.
-- Pass: screenshot confirms.
+- Ground truth: `get_figure_editor` and `update_figure_editor` both `err: false`; the editor preview shows the sub-caption.
+- Do: before clicking Apply, send "Look at the figure with get_figure_editor_image and read me its sub-caption."
+- Ground truth: H3 shows one `get_figure_editor_image` call with `err: false` whose result text ends "Image of the figure in the editor's preview: <the figure's label> (<width>×<height> px)". The reply reads "REPORT EDITOR SUB", since the look draws the unapplied draft.
+- Do: click Apply; the report preview shows the sub-caption: screenshot.
+- Pass: the look's reply and the screenshot confirm.
 
 **G10. Leaving the view auto-declines a pending diff.**
 

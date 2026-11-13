@@ -15,6 +15,7 @@ import {
   buildSystemPrompt,
   CHAT_CORE_PRINCIPLES,
   FASTR_MD_SYNTAX_DOC,
+  FIGURE_EDITOR_LOOK_LINE,
   getEditingReportInstructions,
   getEditingSlideDeckInstructions,
 } from "lib";
@@ -336,5 +337,30 @@ Deno.test("the report's starting brief does not name the turn cap", () => {
   assertStringIncludes(
     brief,
     "A turn has a limited number of replies (counting the user's answers to your questions)",
+  );
+});
+
+// The figure editor's brief is built in the client from this line, which the
+// test reads from the client's source because the client is not importable
+// here.
+Deno.test("the figure editor brief says when to look at the figure and that an image lasts one turn", () => {
+  assertStringIncludes(
+    FIGURE_EDITOR_LOOK_LINE,
+    "Look at the figure with get_figure_editor_image after changing its chart type, its display slots or its disaggregations",
+  );
+  assertStringIncludes(
+    FIGURE_EDITOR_LOOK_LINE,
+    `You see an image for the rest of the turn and not after: say in your reply what it showed, look again with one call to see the figure as it is then, and take at most ${IMAGE_LIMITS.MAX_PER_TURN} images in a turn.`,
+  );
+  const client = Deno.readTextFileSync(
+    new URL(
+      "../../client/src/components/instance/copilot/build_system_prompt.ts",
+      import.meta.url,
+    ),
+  );
+  assert(
+    /const FIGURE_EDITOR_TOOLS_LINES =\s*`[^`]*\$\{FIGURE_EDITOR_LOOK_LINE\}`/
+      .test(client),
+    "the client's figure editor brief no longer carries FIGURE_EDITOR_LOOK_LINE",
   );
 });

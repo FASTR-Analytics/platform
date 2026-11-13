@@ -8,6 +8,7 @@ import {
   type DatasetType,
   type ExploreViewBinding,
   type ExploreViewTypeId,
+  FIGURE_EDITOR_LOOK_LINE,
   type InstalledModuleSummary,
   type InstanceState,
   type PackageScope,
@@ -184,7 +185,7 @@ The user is on the Users page, which lists the instance's users and their permis
 export type FigureEditorHost = "slide" | "report" | "visualization" | "package";
 
 const FIGURE_EDITOR_TOOLS_LINES =
-  `get_figure_editor reads the draft as it stands in the editor (metric, type, disaggregations and their display slots, filters, the replicant, the period and the captions). update_figure_editor changes the draft in place: pass only the fields to change; the change shows in the editor at once. The chart type can be changed here, which is the one place it can.`;
+  `get_figure_editor reads the draft as it stands in the editor (metric, type, disaggregations and their display slots, filters, the replicant, the period and the captions). update_figure_editor changes the draft in place: pass only the fields to change; the change shows in the editor at once. The chart type can be changed here, which is the one place it can. ${FIGURE_EDITOR_LOOK_LINE}`;
 
 export function getFigureEditorInstructions(
   label: string,

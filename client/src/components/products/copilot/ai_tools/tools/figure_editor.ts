@@ -24,8 +24,9 @@ import {
 } from "~/components/instance/copilot/mod.ts";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 import { formatFigureConfigForAI } from "../../_shared/mod.ts";
+import { createGetFigureEditorImageTool } from "./get_figure_editor_image.ts";
 
-type FigureEditorViewState = Extract<
+export type FigureEditorViewState = Extract<
   CopilotViewState,
   {
     id:
@@ -38,7 +39,7 @@ type FigureEditorViewState = Extract<
 
 // The draft the call read is the one it writes: the editor that set the view
 // is still the current one once the awaits return.
-function assertFigureEditorStillOpen(view: FigureEditorViewState): void {
+export function assertFigureEditorStillOpen(view: FigureEditorViewState): void {
   const current = copilotViewController.current();
   if (current.id !== view.id || current.context !== view.context) {
     throw new AIToolFailure(
@@ -76,6 +77,7 @@ export function getClientToolsForFigureEditor(
       inProgressLabel: "Reading the figure editor...",
       completionMessage: "Read the figure editor",
     }),
+    createGetFigureEditorImageTool(),
     createAITool({
       viewRegistry: copilotViews,
       name: "update_figure_editor",

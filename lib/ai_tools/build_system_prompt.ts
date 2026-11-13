@@ -601,6 +601,11 @@ The deck editor shows the deck's slides in a rail with one slide open beside it.
 7. Look at a slide with get_slide_images after building or restructuring one that holds a dense table or several blocks: page fit says whether the layout overflows, and only the image shows whether the table can be read and the blocks sit well together. You see an image for the rest of the turn and not after: say in your reply what it showed, look again with one call to see the slide as it is then, and take at most ${IMAGE_LIMITS.MAX_PER_TURN} images in a turn`;
 }
 
+// The figure editor's four views say when to look at the preview. Their
+// brief is built in the client; this line is here so the prompt test pins it.
+export const FIGURE_EDITOR_LOOK_LINE =
+  `Look at the figure with get_figure_editor_image after changing its chart type, its display slots or its disaggregations: the draft says what the figure shows, and only the image shows whether it can be read. You see an image for the rest of the turn and not after: say in your reply what it showed, look again with one call to see the figure as it is then, and take at most ${IMAGE_LIMITS.MAX_PER_TURN} images in a turn.`;
+
 // Appended to the editing brief while the report is still untouched. Its
 // text never changes, so it rides the conversation once; the moment the body
 // holds anything the instructions drop it and the model edits directly.
