@@ -163,8 +163,8 @@ export async function getMetricDataForAI(
   // merged into the QUERY, so they are real columns of the rows below. Passing
   // the shorter list left the indicator dimension out of the Dimension Summary,
   // the very place the "Format: varies by indicator" line promises the
-  // per-indicator formats are listed, and made the CSV treat it as a value
-  // column instead of pivoting on it.
+  // per-indicator formats are listed, and made the CSV format its ids as
+  // values.
   return formatItemsAsMarkdown(
     itemsHolder,
     metric,
@@ -338,15 +338,14 @@ function formatItemsAsMarkdown(
   }
 
   // Dimension summary (only for disaggregation dimensions, not value columns).
-  // Sample-size columns are deliberately NOT columns of their own: they are
-  // concatenated onto their value below. A second value column would flip
-  // pivotToWide out of its single-value header shape, doubling the table's
-  // width and renaming every existing column.
+  // Sample-size columns are not columns of their own: each is written into
+  // its value's cell below, so the n is read beside the value it qualifies.
   const columns = Object.keys(items[0]).filter((col) => !isSampleNProp(col));
   const hasSampleN = Object.keys(items[0]).some(isSampleNProp);
   const dimensionColumns = columns.filter((col) =>
     disaggregations.includes(col as DisaggregationOption)
   );
+  const valueColumns = columns.filter((col) => !dimensionColumns.includes(col));
 
   const metadataById = new Map(indicatorMetadata?.map((m) => [m.id, m]) ?? []);
 
@@ -415,7 +414,6 @@ function formatItemsAsMarkdown(
     lines.push("");
   }
 
-  // Format as CSV (with smart pivot)
   lines.push("## Data (CSV)");
   lines.push("");
   if (hasSampleN) {
@@ -424,13 +422,14 @@ function formatItemsAsMarkdown(
     );
     lines.push("");
   }
-  const csvData = pivotAndFormatAsCSV(
-    items,
-    columns,
-    disaggregations,
-    resolveItemFormat(metric.formatAs, metadataById),
+  lines.push(
+    formatLongCSV(
+      items,
+      dimensionColumns,
+      valueColumns,
+      resolveItemFormat(metric.formatAs, metadataById),
+    ),
   );
-  lines.push(csvData);
 
   return lines.join("\n");
 }
@@ -587,180 +586,37 @@ function formatIndicatorValueForCsv(
 ): string {
   if (val === undefined || val === null || val === "") return "";
   const num = parseFloat(String(val));
-  if (isNaN(num)) {
-    const strVal = String(val);
-    return strVal.includes(",") ? `"${strVal}"` : strVal;
-  }
+  if (isNaN(num)) return csvCell(String(val));
   if (formatAs === "rate_per_10k") return (num * 10000).toFixed(2);
   return num.toFixed(formatAs === "number" ? 2 : 3);
 }
 
-function pivotAndFormatAsCSV(
-  items: JsonArrayItem[],
-  columns: string[],
-  disaggregations: DisaggregationOption[],
-  formatFor: (item: JsonArrayItem) => IndicatorFormat,
-): string {
-  if (items.length === 0) return "";
-
-  // Identify value columns (everything not in disaggregations)
-  const valueColumns = columns.filter(
-    (col) => !disaggregations.includes(col as DisaggregationOption),
-  );
-
-  // Case 1: Has indicator_common_id → pivot indicators to columns
-  if (disaggregations.includes("indicator_common_id")) {
-    const rowDimensions = disaggregations.filter(
-      (d) => d !== "indicator_common_id",
-    );
-    const indicators = [
-      ...new Set(items.map((item) => String(item.indicator_common_id))),
-    ].sort();
-
-    return pivotToWide(
-      items,
-      rowDimensions,
-      "indicator_common_id",
-      indicators,
-      valueColumns,
-      formatFor,
-    );
-  }
-
-  // Case 2: Has time dimension → pivot time to columns
-  const timeDimension = disaggregations.find(
-    (d) => d === "year" || d === "quarter_id" || d === "period_id",
-  );
-
-  if (timeDimension) {
-    const rowDimensions = disaggregations.filter((d) => d !== timeDimension);
-    const timePeriods = [
-      ...new Set(items.map((item) => String(item[timeDimension]))),
-    ].sort();
-
-    return pivotToWide(
-      items,
-      rowDimensions,
-      timeDimension,
-      timePeriods,
-      valueColumns,
-      formatFor,
-    );
-  }
-
-  // Case 3: No pivot - return long format
-  return formatLongCSV(items, columns, formatFor);
+function csvCell(text: string): string {
+  return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
-function pivotToWide(
+// One row per value: every dimension cell as written, so an id, a label or a
+// period such as 202301 reads as the data holds it, then the value cells.
+function formatLongCSV(
   items: JsonArrayItem[],
-  rowDimensions: DisaggregationOption[],
-  pivotDimension: string,
-  pivotValues: string[],
+  dimensionColumns: string[],
   valueColumns: string[],
   formatFor: (item: JsonArrayItem) => IndicatorFormat,
 ): string {
-  const lines: string[] = [];
-
-  // Build header: rowDimensions + (pivotValue_valueCol for each combination)
-  const headerCols: string[] = [...rowDimensions];
-
-  if (valueColumns.length === 1) {
-    // Single value column: just use pivot values as headers
-    headerCols.push(...pivotValues);
-  } else {
-    // Multiple value columns: create combined headers like "2023_count_adjusted", "2023_count_unadjusted"
-    for (const pivotVal of pivotValues) {
-      for (const valueCol of valueColumns) {
-        headerCols.push(`${pivotVal}_${valueCol}`);
-      }
-    }
-  }
-
-  lines.push(headerCols.join(","));
-
-  // Group items by row dimensions.
-  //
-  // The joined string is ONLY a grouping key: the dimension values are carried
-  // alongside it, never recovered by splitting it back apart. Reconstructing
-  // them with rowKey.split("|") was wrong in two ways, both of which emitted a
-  // row with a different field count from the header, silently shifting every
-  // column for a positional parser:
-  //   - with NO row dimensions the key is "", and "".split("|") is [""], not
-  //     []: so every row gained a leading empty field (9 headers, 10 values).
-  //   - a dimension VALUE containing "|" (e.g. a region label) split into two
-  //     or more fields.
-  const grouped = new Map<
-    string,
-    { dimValues: string[]; items: JsonArrayItem[] }
-  >();
-
-  for (const item of items) {
-    const dimValues = rowDimensions.map((dim) => String(item[dim] ?? ""));
-    const rowKey = dimValues.join("|");
-    if (!grouped.has(rowKey)) {
-      grouped.set(rowKey, { dimValues, items: [] });
-    }
-    grouped.get(rowKey)!.items.push(item);
-  }
-
-  // Build rows
-  for (const { dimValues: rowDimValues, items: rowItems } of grouped.values()) {
-    const pivotedValues: string[] = [];
-
-    for (const pivotVal of pivotValues) {
-      // Find item matching this pivot value
-      const matchingItem = rowItems.find(
-        (item) => String(item[pivotDimension]) === pivotVal,
-      );
-
-      if (matchingItem) {
-        // Add all value columns for this pivot value
-        for (const valueCol of valueColumns) {
-          pivotedValues.push(
-            formatValueWithN(matchingItem, valueCol, formatFor(matchingItem)),
-          );
-        }
-      } else {
-        // No data for this pivot value - add empty cells for all value columns
-        for (let i = 0; i < valueColumns.length; i++) {
-          pivotedValues.push("");
-        }
-      }
-    }
-
-    const rowValues = [...rowDimValues, ...pivotedValues];
-    lines.push(rowValues.join(","));
-  }
-
-  return lines.join("\n");
+  const header = [...dimensionColumns, ...valueColumns].map(csvCell).join(",");
+  const rows = items.map((item) =>
+    [
+      ...dimensionColumns.map((col) => csvCell(String(item[col] ?? ""))),
+      ...valueColumns.map((col) =>
+        formatValueWithN(item, col, formatFor(item))
+      ),
+    ].join(",")
+  );
+  return [header, ...rows].join("\n");
 }
 
-function formatLongCSV(
-  items: JsonArrayItem[],
-  columns: string[],
-  formatFor: (item: JsonArrayItem) => IndicatorFormat,
-): string {
-  const lines: string[] = [];
-
-  // Header
-  lines.push(columns.join(","));
-
-  // Rows
-  for (const item of items) {
-    const values = columns.map((col) =>
-      formatValueWithN(item, col, formatFor(item))
-    );
-    lines.push(values.join(","));
-  }
-
-  return lines.join("\n");
-}
-
-// A value plus its sample size, as one cell: "0.453 (n=120)". Dimension columns
-// have no n column and pass through unchanged. The count is written plain, with
-// no thousands separator: rows are joined on "," without quoting, so a grouped
-// number would break the column count.
+// A value plus its sample size, as one cell: "0.453 (n=120)". The count is
+// written plain: a thousands separator would put a comma in the cell.
 function formatValueWithN(
   item: JsonArrayItem,
   col: string,
