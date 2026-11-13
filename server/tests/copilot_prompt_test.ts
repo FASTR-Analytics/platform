@@ -18,7 +18,7 @@ import {
   getEditingReportInstructions,
   getEditingSlideDeckInstructions,
 } from "lib";
-import { IMAGE_LIMITS } from "../../panther/_110_ai_types/anthropic_consts.ts";
+import { IMAGE_LIMITS } from "@timroberton/panther";
 
 const PARTS = {
   contextSection: "# Instance Information\n\n**Instance:** Test\n\n---\n\n",
