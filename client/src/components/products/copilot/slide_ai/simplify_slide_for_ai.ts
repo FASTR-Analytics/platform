@@ -16,23 +16,23 @@ import {
   layoutNodeToStructure,
   type LayoutStructure,
 } from "./layout_structure.ts";
-import { measureSlideOverflow } from "./measure_slide_overflow.ts";
+import { describeMeasuredSlideOverflow } from "./measure_slide_overflow.ts";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 
 // A slide's own settings as stored; a content slide's layout is replaced by
-// its blocks and their arrangement.
+// its blocks and their arrangement. A content slide's `page` comes first so
+// that whether it overflows the page is read before its blocks.
 export type SimplifiedSlide =
   | CoverSlide
   | SectionSlide
-  | Omit<ContentSlide, "layout"> & {
+  | { page: string } & Omit<ContentSlide, "layout"> & {
     blocks: Array<{ id: string; summary: string }>;
     _layout: { description: string; structure: LayoutStructure | null };
-    // Whether the layout overflows its page, as the deck's canvas badges it.
-    overflow: boolean;
   };
 
 export async function simplifySlideForAI(
   env: ClientAIToolEnv,
+  slideId: string,
   slide: Slide,
   metrics: MetricWithStatus[],
   deckConfig: SlideDeckConfig,
@@ -41,7 +41,7 @@ export async function simplifySlideForAI(
 
   const { layout, ...settings } = slide;
   const blocks = extractBlocksFromLayout(layout);
-  const [simplifiedBlocks, overflow] = await Promise.all([
+  const [simplifiedBlocks, page] = await Promise.all([
     Promise.all(blocks.map(async ({ id, block }) => {
       if (block.type === "text") {
         const background = block.style?.textBackground;
@@ -99,13 +99,13 @@ export async function simplifySlideForAI(
         }
       }
     })),
-    measureSlideOverflow(slide, deckConfig),
+    describeMeasuredSlideOverflow(`Slide ${slideId}`, slide, deckConfig),
   ]);
 
   return {
+    page,
     ...settings,
     blocks: simplifiedBlocks,
     _layout: layoutNodeToStructure(layout),
-    overflow,
   };
 }

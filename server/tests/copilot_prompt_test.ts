@@ -180,7 +180,7 @@ Deno.test("the deck brief reads a slide once a turn and takes a write's result a
   );
   assertStringIncludes(
     brief,
-    "A write's result carries what the write left: the slide's block IDs, its layout, its page fit and the config of each figure the write built or changed.",
+    "A write's result carries what the write left: the slide's block IDs, its layout, whether it overflows the page and the config of each figure the write built or changed.",
   );
   assert(!brief.includes("before changing any slide"));
 });

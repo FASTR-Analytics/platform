@@ -17,7 +17,10 @@ import {
   validateNoMarkdownTables,
 } from "../../_shared/mod.ts";
 import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
-import { convertAiInputToSlide } from "../../slide_ai/mod.ts";
+import {
+  convertAiInputToSlide,
+  describeSlideOverflow,
+} from "../../slide_ai/mod.ts";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import {
   copilotViewController,
@@ -40,7 +43,7 @@ export function getClientToolsForDrafts(
       name: "show_draft_slide_to_user",
       availableIn: COPILOT_TOOL_VIEWS.show_draft_slide_to_user,
       description:
-        `Show an ad-hoc slide preview to the user inline in the chat. This is also how you show a single chart: put one from_metric figure on a content slide. Use it to propose slide content, display ideas, or when the user asks to see something charted. While a slide deck is open the user can add the draft to it from the preview.\n\nSupports three slide types:\n- 'cover': Title slide with optional title/subtitle/presenter/date\n- 'section': Section divider with title and optional subtitle\n- 'content': Content slide with optional header and blocks (text, figures and images)\n\nFor content blocks, use the same rules as create_slide: from_metric for figures (call get_metric_data first), text for markdown, image for an image asset (get_image_assets lists them). IMPORTANT: Markdown tables are NOT allowed — to display tabular data, use a from_metric block with a table-type preset. Max ${MAX_CONTENT_BLOCKS} content blocks.`,
+        `Show an ad-hoc slide preview to the user inline in the chat. This is also how you show a single chart: put one from_metric figure on a content slide. Use it to propose slide content, display ideas, or when the user asks to see something charted. While a slide deck is open the user can add the draft to it from the preview. For a content slide, the result says whether it overflows the page.\n\nSupports three slide types:\n- 'cover': Title slide with optional title/subtitle/presenter/date\n- 'section': Section divider with title and optional subtitle\n- 'content': Content slide with optional header and blocks (text, figures and images)\n\nFor content blocks, use the same rules as create_slide: from_metric for figures (call get_metric_data first), text for markdown, image for an image asset (get_image_assets lists them). IMPORTANT: Markdown tables are NOT allowed — to display tabular data, use a from_metric block with a table-type preset. Max ${MAX_CONTENT_BLOCKS} content blocks.`,
       inputSchema: z.object({
         slide: z
           .union([
@@ -76,7 +79,7 @@ export function getClientToolsForDrafts(
         const deckConfig = view.id === "editing_slide_deck"
           ? view.context.getDeckConfig()
           : getStartingConfigForSlideDeck();
-        const { slide: convertedSlide } = await convertAiInputToSlide(
+        const { slide: convertedSlide, overflow } = await convertAiInputToSlide(
           scope,
           input.slide,
           metrics,
@@ -90,7 +93,10 @@ export function getClientToolsForDrafts(
         if (!renderRes.success) {
           throw new AIToolFailure(`Failed to render slide: ${renderRes.err}`);
         }
-        return "Slide preview displayed to user.";
+        const shown = "Slide preview displayed to user.";
+        return convertedSlide.type === "content"
+          ? `${shown}\n${describeSlideOverflow("Draft slide", overflow)}`
+          : shown;
       },
       displayComponent: (props: {
         input: {

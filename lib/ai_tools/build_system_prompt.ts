@@ -588,8 +588,8 @@ The deck editor shows the deck's slides in a rail with one slide open beside it.
 ## Workflow
 
 1. Call get_deck FIRST to understand the deck's structure
-2. Read a slide with get_slides before your first change to it after a user message, and ask for every slide you need in one call. It shows each slide's content and block IDs (the open slide as the canvas shows it, unsaved changes included), each figure's full config and whether the slide's layout overflows its page
-3. Until the user's next message, the result of your own write to a slide (creating it included) is its state. A write's result carries what the write left: the slide's block IDs, its layout, its page fit and the config of each figure the write built or changed. Never read a slide to confirm a write or to learn its block IDs. The exception is a copy made by duplicate_slides, whose result gives only the new slide IDs: read the copy with get_slides before your first change to it
+2. Read a slide with get_slides before your first change to it after a user message, and ask for every slide you need in one call. It shows each slide's content and block IDs (the open slide as the canvas shows it, unsaved changes included), each figure's full config and whether the slide overflows the page
+3. Until the user's next message, the result of your own write to a slide (creating it included) is its state. A write's result carries what the write left: the slide's block IDs, its layout, whether it overflows the page and the config of each figure the write built or changed. Never read a slide to confirm a write or to learn its block IDs. The exception is a copy made by duplicate_slides, whose result gives only the new slide IDs: read the copy with get_slides before your first change to it
 4. Choose the right tool for the job:
    - **Change text, settings, blocks or layout** (a cover's or section's fields, a content slide's header, a slide's settings, a block's content, adding, removing, rearranging or resizing blocks) → update_slide
    - **Tweak an existing figure** (replicant, filters, disaggregation, period, captions; not the chart type) → update_figure (slideId + blockId)
@@ -597,8 +597,8 @@ The deck editor shows the deck's slides in a rail with one slide open beside it.
    - **Change the deck's structure** → create_slide, delete_slides, duplicate_slides, move_slides
    - **Change the deck's logos, footer text or watermark** → update_deck_settings
 5. Call get_metric_data before creating any from_metric block, to check the data it needs is available
-6. Filter a content slide's from_metric block to the indicators the slide's text names: an unfiltered multi-indicator metric draws one panel per indicator, and the slide's layout overflows the page
-7. Look at a slide with get_slide_images after building or restructuring one that holds a dense table or several blocks: page fit says whether the layout overflows, and only the image shows whether the table can be read and the blocks sit well together. You see an image for the rest of the turn and not after: say in your reply what it showed, look again with one call to see the slide as it is then, and take at most ${IMAGE_LIMITS.MAX_PER_TURN} images in a turn`;
+6. Filter a content slide's from_metric block to the indicators the slide's text names: an unfiltered multi-indicator metric draws one panel per indicator, and the slide overflows the page
+7. Look at a slide with get_slide_images after building or restructuring one that holds a dense table or several blocks: every slide tool says whether the slide overflows the page, and only the image shows whether the table can be read and the blocks sit well together. You see an image for the rest of the turn and not after: say in your reply what it showed, look again with one call to see the slide as it is then, and take at most ${IMAGE_LIMITS.MAX_PER_TURN} images in a turn`;
 }
 
 // The figure editor's four views say when to look at the preview. Their

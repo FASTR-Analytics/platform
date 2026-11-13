@@ -14,9 +14,8 @@ import {
 } from "lib";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 
-// The page the deck renders for a slide. Every measurement of a slide's fit
-// builds its page here, so a write's `Page:` line and a read's `overflow`
-// cannot disagree.
+// The page the deck renders for a slide. Every measurement of whether a slide
+// overflows the page builds its page here, so no two tools can disagree.
 export async function buildSlidePage(
   slide: Slide,
   deckConfig: SlideDeckConfig,
@@ -28,16 +27,42 @@ export async function buildSlidePage(
   return res.data;
 }
 
-// Whether a content slide's layout overflows its page: the flag the deck's
-// canvas badges, from the same measurement. A tool that did not just run the
-// page optimizer over the slide states page fit from this.
+// Whether a content slide overflows the page: the flag the deck's canvas
+// badges, from the same measurement. A tool that did not just run the page
+// optimizer over the slide measures it here.
 export async function measureSlideOverflow(
   slide: ContentSlide,
   deckConfig: SlideDeckConfig,
 ): Promise<boolean> {
+  return measurePageOverflow(await buildSlidePage(slide, deckConfig));
+}
+
+export function measurePageOverflow(page: PageInputs): boolean {
   return PageRenderer.measure(
     createCanvasRenderContextBrowser(),
     new RectCoordsDims([0, 0, PAGE_WIDTH_DU, PAGE_HEIGHT_DU]),
-    await buildSlidePage(slide, deckConfig),
+    page,
   ).overflow;
+}
+
+// The one sentence every tool gives the model about whether a content slide
+// overflows the page. It names no fix: the model decides what to change.
+export function describeSlideOverflow(
+  subject: string,
+  overflow: boolean,
+): string {
+  return overflow
+    ? `${subject}: OVERFLOWS THE PAGE. Its content does not fit and is cut off at the bottom edge. The slide is broken until it fits.`
+    : `${subject}: fits the page.`;
+}
+
+export async function describeMeasuredSlideOverflow(
+  subject: string,
+  slide: ContentSlide,
+  deckConfig: SlideDeckConfig,
+): Promise<string> {
+  return describeSlideOverflow(
+    subject,
+    await measureSlideOverflow(slide, deckConfig),
+  );
 }

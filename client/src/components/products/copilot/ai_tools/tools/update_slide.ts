@@ -104,6 +104,7 @@ export function createUpdateSlideTool(
           applied.removedBlocks.map((b) => `${b.id} (${b.type})`).join(", ")
         }.`;
       return result(
+        input.slideId,
         `Updated ${
           applied.changes.join(", ")
         } in slide ${input.slideId}.${removed} ${slideTargetOutcome(target)}`,

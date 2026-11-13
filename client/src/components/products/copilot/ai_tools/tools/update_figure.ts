@@ -239,6 +239,7 @@ export function createUpdateFigureTool(
 
       const reportText = report.map((l) => `- ${l}`).join("\n");
       return result(
+        input.slideId,
         `Updated figure ${input.blockId} in slide ${input.slideId}.\n${reportText}\n${
           slideTargetOutcome(target)
         }`,

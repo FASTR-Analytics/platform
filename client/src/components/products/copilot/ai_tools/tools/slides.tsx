@@ -81,19 +81,19 @@ export function getClientToolsForSlides(
       viewRegistry: copilotViews,
       name: "get_deck",
       description:
-        "Get the current state of the slide deck: a summary outline of all slides, giving the deck's structure, existing content and slide order, then the deck's settings: its cover, header and footer logos, the logos that can be selected, the footer text and the watermark.",
+        "Get the current state of the slide deck: a summary outline of all slides, giving the deck's structure, existing content, slide order and, for each content slide, whether it overflows the page, then the deck's settings: its cover, header and footer logos, the logos that can be selected, the footer text and the watermark.",
       inputSchema: z.object({}),
       availableIn: COPILOT_TOOL_VIEWS.get_deck,
       kind: "read",
       handler: async (_input, view) => {
+        const deckConfig = view.context.getDeckConfig();
         const outline = await getDeckSummaryForAI(
           view.params.deckId,
           view.context.getSlideIds(),
           view.context.getOpenSlide(),
+          deckConfig,
         );
-        return `${outline}\n${
-          formatDeckSettings(view.context.getDeckConfig())
-        }`;
+        return `${outline}\n${formatDeckSettings(deckConfig)}`;
       },
       inProgressLabel: "Getting deck state...",
       completionMessage: () => {
@@ -179,6 +179,7 @@ export function getClientToolsForSlides(
         copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
         return result(
+          res.data.slideId,
           `Created slide ${res.data.slideId}: "${
             getSlideTitle(convertedSlide)
           }".`,
@@ -238,6 +239,7 @@ export function getClientToolsForSlides(
         await writeSlideTarget(view, target, convertedSlide);
 
         return result(
+          input.slideId,
           `Replaced slide ${input.slideId}: "${
             getSlideTitle(convertedSlide)
           }". ${slideTargetOutcome(target)}`,
