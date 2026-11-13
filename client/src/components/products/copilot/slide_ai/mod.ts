@@ -1,7 +1,7 @@
 export { buildConfigFromPreset } from "./build_config_from_preset.ts";
 export { convertAiInputToSlide } from "./convert_ai_input_to_slide.ts";
-export { simplifySlideForAI } from "./extract_blocks_from_layout.ts";
-export type { SimplifiedSlide } from "./extract_blocks_from_layout.ts";
+export { simplifySlideForAI } from "./simplify_slide_for_ai.ts";
+export type { SimplifiedSlide } from "./simplify_slide_for_ai.ts";
 export { getDeckSummaryForAI } from "./get_deck_summary.ts";
 export { getSlideWithUpdatedBlocks } from "./get_slide_with_updated_blocks.ts";
 export { buildLayoutFromSpec, normalizeSpans } from "./layout_spec_helpers.ts";

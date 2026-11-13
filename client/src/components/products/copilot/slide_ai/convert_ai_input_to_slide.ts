@@ -2,7 +2,6 @@ import {
   createCanvasRenderContextBrowser,
   type ItemLayoutNode,
   type LayoutNode,
-  loadFontsWithTimeout,
   optimizePageLayout,
   type OptimizerConfig,
   type PageContentItem,
@@ -16,14 +15,8 @@ import type {
   Slide,
   SlideDeckConfig,
 } from "lib";
-import {
-  getAllSlideFontVariants,
-  getSlideDeckThemeSpec,
-  PAGE_HEIGHT_DU,
-  PAGE_WIDTH_DU,
-  slideConfigSchema,
-} from "lib";
-import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
+import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU, slideConfigSchema } from "lib";
+import { buildSlidePage } from "./measure_slide_overflow.ts";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 
@@ -99,16 +92,7 @@ export async function convertAiInputToSlide(
     },
   }) as Slide;
 
-  const fontFamily = getSlideDeckThemeSpec(deckConfig.theme).fontFamily;
-  await loadFontsWithTimeout(getAllSlideFontVariants(fontFamily));
-
-  const res = await convertSlideToPageInputs(
-    provisional,
-    undefined,
-    deckConfig,
-  );
-  if (!res.success) throw new Error(res.err);
-  const page = res.data;
+  const page = await buildSlidePage(provisional, deckConfig);
   if (page.type !== "freeform") {
     throw new Error(`Content slide converted to a ${page.type} page`);
   }
