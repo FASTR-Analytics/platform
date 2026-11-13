@@ -187,7 +187,7 @@ The AI panel's heading has a menu button (the one with the three dots, beside th
 
 ### 2.6 Baseline record
 
-Record once at the start: H1, the model config (`() => window.__copilot.config()`), the tool count (`() => window.__copilot.tools().length`, expected 44), and the first 400 characters of `() => window.__copilot.nextTurn().system`. The system text must begin with "# Instance Information" and must contain neither "CURRENT DATE" nor "# Available Tools".
+Record once at the start: H1, the model config (`() => window.__copilot.config()`), and the first 400 characters of `() => window.__copilot.nextTurn().system`. The system text must begin with "# Instance Information" and must contain neither "CURRENT DATE" nor "# Available Tools".
 
 ## 3. Tests
 
@@ -198,7 +198,7 @@ Each step has: **Do**, **Ground truth** (what you check with the hook, the page 
 **A1. No-tool reply.** NEW CONVERSATION on the Products page.
 
 - Do: send "Reply with the single word OK and call no tools."
-- Ground truth: H4 status 200, tools 45 (44 app tools plus web search), the last user text starts with `<<<[[Current view: products` and includes "# Current View: Products". H3 shows no tool calls. H6 is "OK".
+- Ground truth: H4 status 200, the last user text starts with `<<<[[Current view: products` and includes "# Current View: Products". H3 shows no tool calls. H6 is "OK".
 - Pass: all of the above.
 
 **A2. The copilot's self-description.**
