@@ -4,8 +4,8 @@ import { COPILOT_TOOL_VIEWS } from "lib";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import { imageAssetFileNames } from "../../_shared/mod.ts";
 
-// The instance's image assets. It reads no package, so it is an outer tool and its result carries
-// no Source line.
+// The instance's image assets. It reads no package, so it is an outer tool
+// and its result carries no Source line.
 export function getClientToolsForImageAssets() {
   return [
     createAITool({
