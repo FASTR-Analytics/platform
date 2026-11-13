@@ -1,3 +1,12 @@
+[TBD] [user] [changed] - AI assistant can now read multiple slides at once, speeding up deck editing
+[TBD] [user] [improved] - AI assistant now reports page overflow status after slide changes
+[TBD] [user] [improved] - AI assistant shows updated figure details after editing slides
+[TBD] [user] [fixed] - AI assistant no longer re-reads slides unnecessarily after making changes
+[TBD] [admin] [changed] - AI copilot can now read multiple slides in a single request
+[TBD] [admin] [changed] - AI copilot returns slide overflow status after every write
+[TBD] [admin] [changed] - AI copilot includes updated figure configuration in write results
+[TBD] [admin] [fixed] - AI-edited figures on open slides now sync correctly to collaborators
+[TBD] [admin] [changed] - AI copilot batches independent tool calls in one reply for faster editing
 [TBD] [user] [added] - Bug reports and suggestions now get an AI-generated first look added to the support email
 [TBD] [admin] [added] - Bug reports and suggestions now get an AI-generated initial assessment emailed to developers
 [TBD] [admin] [added] - Support team emails now include a plain-language summary from Claude's review of the report
