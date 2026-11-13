@@ -1,147 +1,156 @@
-# PLAN: The copilot's looks
+# PLAN: The copilot's look tools
 
-Status: QUEUED behind PLAN_02_COPILOT_SURFACE_GAPS.md, which gave the copilot `get_slide_images`. This plan makes looking one coherent set: every look is the image twin of a text read, every look draws what the user's own surface draws, and all of them share one encoding. It adds the two figure looks, and it moves the wording of all three to panther's one-turn images once panther has them.
+Status: QUEUED behind PLAN_02_COPILOT_SURFACE_GAPS.md. That plan gave the copilot one look tool, `get_slide_images`, built before panther held an image for one turn and with its image size and encoding inside the slide's own render file. This plan makes the looks one set: three tools, each the image twin of a text read, sharing one encoder, each drawing what the user sees through the code that draws it for the user, with a test that fails when a look and its twin stop reading the same thing.
 
 **Next step: Do 1.**
 
-Branch: `main`. Repos: this one, and step 4 syncs `timroberton-panther`. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Tools, view gating, and approval" and "The panther engine", [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md), [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) on how a figure bundle becomes `FigureInputs`, [SYSTEM_12_documents_sharing.md](SYSTEM_12_documents_sharing.md) "The deck editor" and on a report's figure embeds. Start when: `test ! -e PLAN_02_COPILOT_SURFACE_GAPS.md && echo ok` prints `ok` on `main`, and this tree is clean.
+Branch: `main`. Repos: this one, and `timroberton-panther` as the source of step 1's sync. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Tools, view gating, and approval" and Open items "Surface gaps", [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md) "The round budget", [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) on figure export, [SYSTEM_12_documents_sharing.md](SYSTEM_12_documents_sharing.md) on the report's figure embeds, and the vendored [PROTOCOL_UI_AI_CHAT.md](panther/protocols/PROTOCOL_UI_AI_CHAT.md) rule 17. Start when: `test ! -e PLAN_02_COPILOT_SURFACE_GAPS.md && test ! -e /Users/timroberton/projects/panther/timroberton-panther/PLAN_23_AI_IMAGES_ONE_TURN.md && echo ok` prints `ok`, and this tree is clean.
 
 ## §0 How to work this plan
 
-The instruction is "Do the next step of PLAN_04_COPILOT_LOOKS.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 4; its close commit deletes this file. Nothing in this plan ships (ruling 9).
+The instruction is "Do the next step of PLAN_04_COPILOT_LOOKS.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 4; its close commit deletes this file. Nothing in this plan ships (ruling 10).
 
 Vocabulary:
 
-- **look**: a read tool whose output is images for the model.
-- **twin**: the text read a look stands beside. A look takes its twin's ids, is admitted in its twin's views, has its twin's requirement and refuses what its twin refuses.
-- **surface**: what the user sees the thing on: the slide editor's canvas, a report's figure embed, the figure editor's preview.
-- **source**: the value a surface draws from: a slide's `PageInputs`, a figure's `FigureInputs`.
+- **look**: a read tool whose result is images for the model.
+- **twin**: the text read a look pairs with. A look takes its twin's ids, is admitted in its twin's views, has its twin's requirement and refuses what its twin refuses.
+- **the encoder**: the one module that turns a drawn canvas into the image a look returns.
+- **held for one turn**: panther's contract after its one-turn change. An image a tool returns rides the requests of the turn that took it, and at the turn's end becomes a line of text.
 
 Rules peculiar to this plan:
 
-- Every line number here was read on 2026-11-13. Where the code has moved, the code wins.
-- Tool descriptions, results and the brief are text for the model: English, never `t3`.
+- Every line number here was read on 2026-11-13 at `43552cb44`. Where the code has moved, the code wins.
+- Tool descriptions, result text and the brief are text for the model: English, never `t3`.
 - No gate asks a model anything.
+- A look never builds its own picture. It calls the function that builds the picture for the user and hands the canvas to the encoder.
 
 ## §1 The problem
 
-- **There is one look and no rule for the next.** `get_slide_images` ([get_slide_images.ts](client/src/components/products/copilot/ai_tools/tools/get_slide_images.ts)) is the twin of `get_slides`. `get_report_figure` ([report_editor.ts:469](client/src/components/products/copilot/ai_tools/tools/report_editor.ts#L469)) and `get_figure_editor` ([figure_editor.ts:62](client/src/components/products/copilot/ai_tools/tools/figure_editor.ts#L62)) have no twin, so the model cannot look at a figure in a report or at the figure it is editing.
-- **The encoding lives in the slide's renderer.** The width, the format and the quality are constants of [render_slide_image.ts](client/src/components/products/copilot/slide_ai/render_slide_image.ts). A second look would copy them.
-- **Nothing holds a look to its surface.** The slide editor's canvas builds its page by calling `convertSlideToPageInputs` itself ([slide_editor.tsx:527](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx#L527)), and the look builds its page through `buildSlidePage` ([measure_slide_overflow.ts:20](client/src/components/products/copilot/slide_ai/measure_slide_overflow.ts#L20)), which calls the same function with the same arguments today. No test fails when one of them changes. A look that draws something the user does not see is worse than no look: the model reports on a picture nobody has.
-- **A figure's source is built in the component that draws it.** A report's embed builds its `FigureInputs` inside the component ([report_figure_embed.tsx:67](client/src/components/products/_shared/report_figure_embed.tsx#L67): `buildFigureInputs` with the report's chart palette, then the ink theme). The figure editor builds its preview's inside a memo ([figure_editor.tsx:1011](client/src/components/_shared/figure_editor/figure_editor.tsx#L1011)), and the view context gives the copilot the draft config alone ([ai_views.ts:261](client/src/components/instance/copilot/ai_views.ts#L261)). A look that resolved the figure a second time could draw a different figure from the one on screen.
-- **The wording is the engine's of today.** The tool's description, the brief and SYSTEM_13 say an image stays in the conversation. Panther's open plan holds an image for the turn that took it.
+- **One look exists of three.** `get_slide_images` is built ([get_slide_images.ts](client/src/components/products/copilot/ai_tools/tools/get_slide_images.ts)). A report's figure and the figure open in the figure editor cannot be looked at, and SYSTEM_13's Open items say so ([SYSTEM_13_ai_assistant.md:236](SYSTEM_13_ai_assistant.md#L236)).
+- **The image's size and encoding belong to the slide.** `IMAGE_WIDTH_PX`, `JPEG_QUALITY`, the white ground and the `toDataURL` call sit in [render_slide_image.ts:14-15](client/src/components/products/copilot/slide_ai/render_slide_image.ts#L14-L15) and [:31-44](client/src/components/products/copilot/slide_ai/render_slide_image.ts#L31-L44). A second look would restate them.
+- **The wording is for a contract that has gone.** The tool's description ([get_slide_images.ts:15](client/src/components/products/copilot/ai_tools/tools/get_slide_images.ts#L15)), the brief ([build_system_prompt.ts:600](lib/ai_tools/build_system_prompt.ts#L600)), its pin in `server/tests/copilot_prompt_test.ts` and SYSTEM_13 all say an image stays in the conversation and is sent again with every later request. Panther now holds an image for one turn and caps a turn at 20 (`IMAGE_LIMITS.MAX_PER_TURN`), and this app has not synced it.
+- **Nothing pins that a look shows what its twin reads and what the user sees.** Today it holds by reading the code: `get_slides` and `get_slide_images` both read through `readSlideTarget` and `getDeckConfig()`, and the canvas, the rail, the PDF export and the look all build the page through `convertSlideToPageInputs`. No test fails if one of them stops.
+- **A figure's picture for the user is not its stored bundle alone.** A report figure is drawn with the report's chart palette and the ink of the ground it sits on ([report_figure_embed.tsx:67](client/src/components/products/_shared/report_figure_embed.tsx#L67), `applyInkTheme` below it). The figure editor's preview is drawn from a memo inside the editor ([figure_editor.tsx:1011](client/src/components/_shared/figure_editor/figure_editor.tsx#L1011)) that the view's context does not expose: the context gives the draft config alone ([ai_views.ts:261-269](client/src/components/instance/copilot/ai_views.ts#L261-L269)). A look that rebuilt either from the bundle or the config would show the model a picture the user is not looking at.
 
 ## §2 The model
 
-**A look is a twin.** Three looks, each beside one text read:
+**Three looks, each a twin.**
 
-| Look                       | Twin                | Views                        | Input                   |
-| -------------------------- | ------------------- | ---------------------------- | ----------------------- |
-| `get_slide_images`         | `get_slides`        | the deck view                | `{ slideIds }`, 1 to 4  |
-| `get_report_figure_images` | `get_report_figure` | the report view              | `{ figureIds }`, 1 to 4 |
-| `get_figure_editor_image`  | `get_figure_editor` | the four figure editor views | `{}`                    |
+| Look                       | Twin                | Views                        | Input                    | Draws                                            |
+| -------------------------- | ------------------- | ---------------------------- | ------------------------ | ------------------------------------------------ |
+| `get_slide_images`         | `get_slides`        | the deck view                | `{ slideIds }`, 1 to 10  | each slide's page, as the canvas and the PDF do  |
+| `get_report_figure_images` | `get_report_figure` | the report view              | `{ figureIds }`, 1 to 10 | each figure as the report shows it               |
+| `get_figure_editor_image`  | `get_figure_editor` | the four figure editor views | `{}`                     | the figure as the editor's preview shows it, now |
 
-**A look draws its surface's source.** One function builds the source, and the surface and the look both call it. The look reads the thing where its twin reads it.
+**One name rule.** A look is its twin's name with `_images` for a twin that takes ids and `_image` for a twin that takes none.
 
-**One encoding.** One module turns a canvas into a panther `AIToolImage`. It holds the width, the format and the quality, and every look calls it.
+**One result shape.** An `AIToolOutput`: one line of text naming what each image is, in the order asked, with each image's pixel size, then the images.
 
-**One result.** A look returns an `AIToolOutput`: one line of text naming what was drawn, in order, then the images in that order.
+**One encoder.** `copilot/_shared/tool_image.ts` holds the width, the format, the quality, the ground and the height bound. A look gives it a function that draws at a given width and gets back an `AIToolImage`.
+
+**One source per pair.** A look and its twin read their subject through the same function, and a look draws through the function the user's screen draws through. A test reads the sources and fails when either stops being true.
+
+**Held for one turn.** A look's description, the briefs and SYSTEM_13 say an image is seen for the rest of the turn and not after, that looking again is one call and shows the subject as it is then, and that a turn takes at most 20 images.
 
 ## §3 Rulings
 
-1. **Every look is the twin of one text read**, as the vocabulary states it. A look that has no text read to stand beside is not built. _(proposed)_
-2. **A look draws the source its surface draws**, through the one function that builds it. Where a surface builds its source inside a component, the step moves that into a function both call. _(proposed)_
-3. **A test holds each look to its surface.** It reads the source files and fails when a surface or a look builds its source by any path but the shared function. It runs under `deno task test:files`, since the renderer needs a browser and the test must not. _(proposed)_
-4. **One module encodes**: 1024 px wide, JPEG at quality 0.85. Sonnet 5 and Haiku 5.5 each read every cell of a 16-column table with 9 px text at that size, and 1568 px cost 2.2 times the tokens for the same result (measured 2026-11-13). _(proposed)_
-5. **A slide is drawn at the page's proportions. A figure is drawn at the height it asks for at that width**, as its surface sizes it. _(proposed)_
-6. **A look that names several things takes at most four a call.** _(proposed)_
-7. **The figure editor's look draws the preview's own `FigureInputs`**, handed to the copilot through the view context. It never resolves the draft again. While the preview has no figure to show (loading, an error, no rows), the look refuses with the preview's own reason. _(proposed)_
-8. **A report figure's look draws the stored bundle as the embed draws it**: the report's chart palette and the ink theme included. A figure with no resolved data refuses as `get_report_figure` does. _(proposed)_
-9. **Nothing ships in this plan.** The app's next release carries it.
-10. **Not built: a look at a report page.** A report page is laid out by the browser, not drawn on a canvas, so it has no source a look could share with its surface.
+1. **A look is the twin of a text read**: same ids, same views, same requirement, same refusals, a tool of its own. A switch on the text read would put two contracts under one name with a limit its schema cannot state. Ruled by Tim, 2026-11-13.
+2. **The model looks at the picture itself**, never at a second model's report of it. Ruled by Tim, 2026-11-13.
+3. **An image is held for one turn**, as panther builds it. Ruled by Tim, 2026-11-13.
+4. **A look takes at most 10 subjects a call**, one constant in the encoder's module, read by both array looks. Panther's 20 a turn bounds the rest. _(proposed)_
+5. **An image is a JPEG 1024 px wide at quality 0.85.** Measured 2026-11-13 on Sonnet 5 and Haiku 5.5: 30 of 30 cells read from a 16-column table with 9 px text, the same as PNG and as 1568 px, at under half the tokens of 1568 px. _(proposed)_
+6. **A figure is drawn at its ideal height, to a bound.** `getFigureAsCanvas` gives a figure its ideal height at the width asked ([figure_to_image.ts:22](panther/_301_util_funcs/figure_to_image.ts#L22)). An image taller than 2048 px is drawn again at the width that brings its height to 2048, and the result's line gives the size, so the model knows a long table was shrunk. _(proposed)_
+7. **The ground is the one the user sees.** A JPEG has no transparency. A slide's page paints its own ground. A figure is drawn over white in the editor and over its report ground in a report. _(proposed)_
+8. **A look draws through the user's own builder, exposed on the view's context.** The report view's context gives the figure inputs the report draws a figure with (palette and ink applied). The figure editor's context gives the preview's own inputs, with their loading and error states, and a look refuses with that state's text while the preview is not showing a figure. Neither look re-queries. _(proposed)_
+9. **A report page is not looked at.** A report is DOM, and its only picture is the headless-Chrome print in `report-forge/server/`, which is Nick's repo. It stays in SYSTEM_13's Open items. _(proposed)_
+10. **Nothing ships in this plan.** The app's next release carries it.
+11. **This plan runs before PLAN_03_COPILOT_FIGURES.md's code steps** and depends on none of that plan's rulings: a look reads a figure as it is, however the copilot came to state it. Its new tools live in files of their own so the two plans' Surfaces meet only where a tool is registered. _(proposed)_
 
 ## §4 Steps
 
-### Step 1: one encoding, and the slide look held to its canvas
+### Step 1: sync the one-turn panther, and say so
 
-**Surface.** `client/src/components/products/copilot/_shared/tool_image.ts` (new), `_shared/mod.ts`, `slide_ai/render_slide_image.ts`, `slide_ai/measure_slide_overflow.ts`, `slide_ai/mod.ts`, `client/src/components/products/slide_deck/slide_editor/slide_editor.tsx`, `server/tests/copilot_look_sources_test.ts` (new), `SYSTEM_13_ai_assistant.md`.
+Starts when `./sync --check wb-fastr`, run in the panther repo, reports nothing that would refuse the sync.
 
-**Deliverable.**
-
-- `tool_image.ts` exports one function that takes a canvas and returns an `AIToolImage`, and the constants of ruling 4. `renderSlideImage` draws on a canvas of that width and returns through it, and holds no width, format or quality of its own.
-- One exported function builds a slide's page from the slide and the deck's settings. The slide editor's canvas, `measureSlideOverflow` and `renderSlideImage` call it, and none of them calls `convertSlideToPageInputs` itself.
-- `server/tests/copilot_look_sources_test.ts` fails when any of those three files names `convertSlideToPageInputs`, and when `get_slides.ts` or `get_slide_images.ts` reads a slide by any path but `readSlideTarget`.
-- SYSTEM_13 states the twin rule, the shared source and the one encoding where it describes `get_slide_images`.
-
-**Not in this step.** A new look. The rail's card, the presenter and the exports, which draw a saved slide and take no part in a look.
-
-**Gates.** `deno task test:files server/tests/copilot_look_sources_test.ts`.
-
-**Ends with.** One commit, green.
-
-### Step 2: `get_report_figure_images`
-
-**Surface.** `client/src/components/products/_shared/report_figure_embed.tsx`, `client/src/generate_report/report_figure_raster.ts`, `client/src/components/instance/copilot/ai_views.ts`, `client/src/components/products/report/**` where the report view's context is built, `client/src/components/products/copilot/ai_tools/tools/report_editor.ts`, `lib/ai_tools/copilot_catalogue.ts`, `lib/ai_tools/build_system_prompt.ts`, `server/tests/copilot_catalogue_test.ts`, `server/tests/copilot_prompt_test.ts`, `server/tests/copilot_look_sources_test.ts`, `SYSTEM_13_ai_assistant.md`, `TESTING_SCRIPT_FOR_AI_COPILOT.md`.
+**Surface.** `panther/**` as the sync writes it, `client/src/components/products/copilot/ai_tools/tools/get_slide_images.ts`, `lib/ai_tools/build_system_prompt.ts`, `server/tests/copilot_prompt_test.ts`, `SYSTEM_13_ai_assistant.md`, `TESTING_SCRIPT_FOR_AI_COPILOT.md`, this file.
 
 **Deliverable.**
 
-- One exported function builds a report figure's `FigureInputs` from its bundle, the report's chart palette and the ink theme. The embed calls it, and so does the look. The report view's context carries what the function needs that the copilot cannot read today.
-- `get_report_figure_images` takes `figureIds`, one to four, refuses an id the report's body does not hold and a figure with no resolved data as `get_report_figure` does, draws each figure at the height it asks for at the encoding's width, and returns ruling "one result"'s output.
-- The catalogue and its test hold it: a read, no requirement, the report view.
-- The report brief says when to look at a figure, and `server/tests/copilot_prompt_test.ts` pins it.
-- `server/tests/copilot_look_sources_test.ts` holds the embed and the look to the one function.
-- SYSTEM_13 describes the tool and counts the report tools as they are. Its Open items lose the figure half of the report line.
+- The sync is the commit panther's `./sync wb-fastr` makes, and nothing else is in it. If the floor then fails for a reason that is not this plan's, the agent reports the gate's output and stops.
+- `get_slide_images`'s description and the deck brief state the one-turn contract of §2 in place of "stays in the conversation and is sent again with every later request", and no longer say never to look at every slide of a deck: they say a turn takes at most 20 images. `server/tests/copilot_prompt_test.ts` pins the new sentences and asserts the old ones are gone.
+- SYSTEM_13 states what an image costs as built: held for one turn, what the release costs (the thinking after the first image of the turn), the cap, and that a refused request fails its turn alone. Its "The panther engine" section names the image limits as synced.
+- TESTING_SCRIPT_FOR_AI_COPILOT.md F20 adds: after a look, the next user message's request carries the released image's text in the image's place.
 
-**Not in this step.** A look at a report page (ruling 10). An image embed's picture.
+**Not in this step.** The per-call limit, the encoder, any new tool.
 
-**Gates.** `deno task test:files server/tests/copilot_catalogue_test.ts server/tests/copilot_prompt_test.ts server/tests/copilot_look_sources_test.ts`.
+**Gates.** The floor. `deno task test:files server/tests/copilot_prompt_test.ts`.
 
-**Ends with.** One commit, green.
+**Ends with.** Two commits: the sync; the wording.
 
-### Step 3: `get_figure_editor_image`
+### Step 2: the encoder, the slide look on it, and the pair test
 
-**Surface.** `client/src/components/_shared/figure_editor/figure_editor.tsx`, `client/src/components/instance/copilot/ai_views.ts`, `client/src/components/products/copilot/ai_tools/tools/figure_editor.ts`, `lib/ai_tools/copilot_catalogue.ts`, `lib/ai_tools/build_system_prompt.ts`, `server/tests/copilot_catalogue_test.ts`, `server/tests/copilot_prompt_test.ts`, `server/tests/copilot_look_sources_test.ts`, `SYSTEM_13_ai_assistant.md`, `TESTING_SCRIPT_FOR_AI_COPILOT.md`.
+**Surface.** In `client/src/components/products/copilot/`: `_shared/tool_image.ts` (new), `_shared/mod.ts`, `slide_ai/render_slide_image.ts`, `slide_ai/mod.ts`, `ai_tools/tools/get_slide_images.ts`. `server/tests/copilot_look_sources_test.ts` (new), `SYSTEM_13_ai_assistant.md`, `TESTING_SCRIPT_FOR_AI_COPILOT.md`.
 
 **Deliverable.**
 
-- The figure editor's view context carries the preview's own `FigureInputs` state: the figure, or the reason there is none (ruling 7).
-- `get_figure_editor_image` takes no input, draws that figure at the height it asks for at the encoding's width, refuses with the preview's reason when there is no figure, and returns one line naming the figure and its image. It is admitted in the four figure editor views.
-- The catalogue and its test hold it: a read, no requirement, the figure editor views.
-- The figure editor brief says when to look, and `server/tests/copilot_prompt_test.ts` pins it.
-- `server/tests/copilot_look_sources_test.ts` fails when `figure_editor.ts` resolves a bundle to draw the look.
-- SYSTEM_13 describes the tool and its Open items lose the rest of the look line.
+- `tool_image.ts` exports the per-call limit (ruling 4) and one function that takes a draw-at-width function and a ground and returns an `AIToolImage` with its pixel size, applying rulings 5, 6 and 7. It is the only file under `copilot/` that names a pixel width, a JPEG quality or `toDataURL`.
+- `renderSlideImage` builds the page through `buildSlidePage` and draws it through the encoder. It holds no size, format or ground of its own.
+- `get_slide_images` takes one to ten slide ids from the shared limit, and its result line gives each image's size.
+- `server/tests/copilot_look_sources_test.ts` reads source text and fails unless: `get_slides.ts` and `get_slide_images.ts` both read a slide through `readSlideTarget`, both check ids through `assertSlidesInDeck` and both take the deck config from `getDeckConfig`; `render_slide_image.ts` builds its page through `buildSlidePage`; `buildSlidePage` calls `convertSlideToPageInputs`; and the editor canvas ([slide_editor.tsx:527](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx#L527)) calls `convertSlideToPageInputs`. The test is shown to fail with each of those broken before the commit.
+- SYSTEM_13 describes the encoder, the limit and the test where it describes the tool. The testing script's five-slide refusal becomes an eleven-slide one.
 
-**Not in this step.** Any change to how the copilot creates or edits a figure.
+**Not in this step.** Routing the draft preview's page through `buildSlidePage`. Any figure look.
 
-**Gates.** `deno task test:files server/tests/copilot_catalogue_test.ts server/tests/copilot_prompt_test.ts server/tests/copilot_look_sources_test.ts`.
+**Gates.** The floor. `deno task test:files server/tests/copilot_look_sources_test.ts`.
 
-**Ends with.** One commit, green.
+**Ends with.** One commit.
 
-### Step 4: sync panther's one-turn images, and the wording
+### Step 3: `get_report_figure_images`
 
-Starts when `test ! -e PLAN_23_AI_IMAGES_ONE_TURN.md && echo ok` prints `ok` in the panther repo, its tree is clean, and `./sync --check wb-fastr`, run there, reports nothing that would refuse the sync.
-
-**Surface.** `panther/**` as the sync writes it, the three look tools' files, `lib/ai_tools/build_system_prompt.ts`, `server/tests/copilot_prompt_test.ts`, `SYSTEM_13_ai_assistant.md`, `TESTING_SCRIPT_FOR_AI_COPILOT.md`, this file.
+**Surface.** `lib/ai_tools/copilot_catalogue.ts`, `lib/ai_tools/build_system_prompt.ts`, `client/src/components/instance/copilot/ai_views.ts`, `client/src/components/products/report/report.tsx`, `client/src/components/products/_shared/report_figure_embed.tsx`, `client/src/generate_report/report_figure_raster.ts`, in `client/src/components/products/copilot/ai_tools/tools/`: `get_report_figure_images.ts` (new), `report_editor.ts` (the registration and an export of `liveFigureOrRefuse` alone), `mod.ts`. `server/tests/copilot_catalogue_test.ts`, `server/tests/copilot_prompt_test.ts`, `server/tests/copilot_look_sources_test.ts`, `SYSTEM_12_documents_sharing.md`, `SYSTEM_13_ai_assistant.md`, `TESTING_SCRIPT_FOR_AI_COPILOT.md`.
 
 **Deliverable.**
 
-- The sync, which panther's `./sync` commits by itself, and a green floor after it. If the floor fails for a reason that is not this plan's, the agent reports the gate's output and stops.
-- The three tools' descriptions, the briefs and SYSTEM_13 say what the synced engine does: an image is held for the turn that took it, a later turn has the look's text and the model's own reply, and a turn takes at most the engine's cap. No sentence says an image stays in the conversation.
-- Each look's text names what was drawn precisely enough to stand without its image in a later turn.
-- `server/tests/copilot_prompt_test.ts` pins the new wording.
-- The close commit deletes this file.
+- One function builds the figure inputs a report draws a figure with: `buildFigureInputs` with the report's chart palette, then the ink of the figure's ground. The embed ([report_figure_embed.tsx:67](client/src/components/products/_shared/report_figure_embed.tsx#L67)) and the report view's context both call it, and the context exposes it by figure id with the ground's colour (ruling 8).
+- `get_report_figure_images` takes `figureIds`, one to ten, finds each through `liveFigureOrRefuse` as `get_report_figure` does ([report_editor.ts:95](client/src/components/products/copilot/ai_tools/tools/report_editor.ts#L95)), refuses a figure with no resolved data in its twin's words, and a figure the report cannot draw with the reason the embed shows. It draws each through `getFigureAsCanvas` and the encoder.
+- The catalogue and its test hold it: a read, requirement `none`, the report view.
+- The report brief says when to look: after inserting or changing a figure whose legibility the config cannot tell, and `server/tests/copilot_prompt_test.ts` pins it.
+- `copilot_look_sources_test.ts` gains the pair: both tools find a figure through `liveFigureOrRefuse`, and the embed and the context share the one builder.
+- SYSTEM_13 describes the tool and counts the report tools as they are. Its Open item keeps the report page and the report image verb and loses the report figure. SYSTEM_12 says the copilot looks at a figure through the embed's builder.
 
-**Not in this step.** Any change to panther.
+**Not in this step.** A report page. A report's image embeds. Any change to how a figure is read or written as text.
 
-**Gates.** After the sync, the floor. `deno task test:files server/tests/copilot_prompt_test.ts`. At the close, `deno task test`.
+**Gates.** The floor. `deno task test:files server/tests/copilot_catalogue_test.ts server/tests/copilot_prompt_test.ts server/tests/copilot_look_sources_test.ts`.
 
-**Ends with.** The sync's commit, one commit for the wording, then the close.
+**Ends with.** Two commits, each green: the shared builder on the context; the tool.
+
+### Step 4: `get_figure_editor_image`
+
+**Surface.** `lib/ai_tools/copilot_catalogue.ts`, `lib/ai_tools/build_system_prompt.ts`, `client/src/components/instance/copilot/ai_views.ts`, `client/src/components/_shared/figure_editor/figure_editor.tsx`, in `client/src/components/products/copilot/ai_tools/tools/`: `get_figure_editor_image.ts` (new), `figure_editor.ts` (the registration alone), `mod.ts`. `server/tests/copilot_catalogue_test.ts`, `server/tests/copilot_prompt_test.ts`, `server/tests/copilot_look_sources_test.ts`, `SYSTEM_11_viz_authoring.md`, `SYSTEM_13_ai_assistant.md`, `TESTING_SCRIPT_FOR_AI_COPILOT.md`, this file.
+
+**Deliverable.**
+
+- The preview's figure inputs ([figure_editor.tsx:1011](client/src/components/_shared/figure_editor/figure_editor.tsx#L1011)) are one memo the preview's `FigureHolder` and the view's context both read: `FigureEditorContext` gains a getter for it, state included (ruling 8).
+- `get_figure_editor_image` takes `{}`, checks the editor that set the view is still the current one as `update_figure_editor` does, refuses with the preview's own text while it is loading or shows an error, and draws the inputs through `getFigureAsCanvas` and the encoder.
+- The catalogue and its test hold it: a read, requirement `none`, the four figure editor views.
+- The figure editor brief says when to look: after a change to the chart type, the display slots or the disaggregations, and `server/tests/copilot_prompt_test.ts` pins it.
+- `copilot_look_sources_test.ts` gains the pair: the tool reads the context's getter, and the editor's preview and the getter are the one memo.
+- SYSTEM_13 describes the tool, states the name rule and the twin rule once for all three, and its Open item loses the figure in its editor. SYSTEM_11 says the editor exposes its preview to the copilot.
+- The close runs `deno task test` and deletes this file.
+
+**Not in this step.** A look at a package figure outside its viewer. A transcript card that shows the image to the user.
+
+**Gates.** The floor. `deno task test:files server/tests/copilot_catalogue_test.ts server/tests/copilot_prompt_test.ts server/tests/copilot_look_sources_test.ts`. At the close, `deno task test`.
+
+**Ends with.** Two commits, each green: the getter; the tool. Then the close.
 
 ## §5 Out of scope
 
-- **A look at a report page** (ruling 10).
-- **How the copilot creates, edits and reads a figure**: PLAN_03_COPILOT_FIGURES.md.
-- **Showing a look's image in the transcript.**
-- **A look at a saved slide in the rail, a version's preview or a draft slide's card.**
+- **A report page as an image** (ruling 9), and a report's image embeds.
+- **App screens.** They are DOM, with no route to an image.
+- **How the copilot creates, edits and reads a figure as text**: PLAN_03_COPILOT_FIGURES.md.
+- **Showing a look's image in the chat transcript.** Panther draws no tool image there.
+- **Images a user sends.**
+- **Whether a model looks too often or too rarely under the one-turn contract.** Tim's use of the app shows it, and a change to the briefs follows from that, not from this plan.
 
 ## §6 Log
