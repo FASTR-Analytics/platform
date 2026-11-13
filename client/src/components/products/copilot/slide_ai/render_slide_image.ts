@@ -9,8 +9,8 @@ import type { Slide, SlideDeckConfig } from "lib";
 import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { buildSlidePage } from "./measure_slide_overflow.ts";
 
-// Wide enough for a model to read a dense table's cells, and a quarter of the
-// tokens of the page at full size.
+// Wide enough for a model to read a dense table's cells, at under half the
+// tokens of the 1568 px image SYSTEM_13 records the comparison against.
 const IMAGE_WIDTH_PX = 1024;
 const JPEG_QUALITY = 0.85;
 
