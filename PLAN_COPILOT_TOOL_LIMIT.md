@@ -1,12 +1,12 @@
 # PLAN: Copilot tool limit
 
-Status: steps 1 to 4 are DONE. Step 5 (review fixes and defects) is next and not blocked. Step 6, the last, cannot start until a sync of panther has landed in this app, and that sync is panther's to make ("Why step 6 cannot start yet").
+Status: steps 1 to 5 are DONE. Step 6, the last, cannot start until a sync of panther has landed in this app, and that sync is panther's to make ("Why step 6 cannot start yet").
 
 A copilot turn stopped with "Stopped: too many tool calls in one turn" once the model had asked for tools in more than 24 replies, and a deck was where users reached it. This plan made a deck's reads and writes take few rounds (one read for any number of slides, write results that state what the write left, a brief that stops ordering read-backs and says calls can share a reply), and raised panther's cap to 100 with a per-consumer override. The app's own half is built and in use. The cap of 100 is built in panther and is not in this app yet: this app's copy of panther still caps a turn at 24.
 
-**Next step: Do 5.**
+**Next step: Do 6, once its start condition holds.**
 
-Branch: `main`. Repo: this one. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "The slide_ai conversion layer", "The panther engine" and Open items "Client copilot" and "Hygiene", and [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md). Start when: this tree is clean. Step 6 also needs `rg -q maxTurnContinuations panther/_305_ai/_core/types.ts` to exit 0 in this repo.
+Branch: `main`. Repo: this one. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "The panther engine". Start when: this tree is clean. Step 6 also needs `rg -q maxTurnContinuations panther/_305_ai/_core/types.ts` to exit 0 in this repo.
 
 ## Where the plan stands
 
@@ -18,12 +18,12 @@ Each step was built, reviewed by an independent agent, fixed and re-reviewed. Th
 - **Step 2, a write's result states what the write left (this repo).** The four slide writes return the blocks by id and type, the layout, the page fit and the config of each figure the write built or changed. `get_slides` gives each content slide `overflow`. `update_report_figure` and `update_figure_editor` return the config that resulted. The four structure writes no longer name `get_deck`. PROTOCOL_APP_AI_TOOLS.md states the contract as "The round budget". Commits `7e7b22b96`, `bc80c54e3`, `05c797549`, `a7005e66c`, close `978a1d063`.
 - **Step 3, the brief (this repo).** The deck brief asks for one read per slide per turn and takes a write's result as the slide's state. The chat's core principles put calls that do not depend on each other in one reply. Both live in `lib/ai_tools/build_system_prompt.ts`, pinned by `server/tests/copilot_prompt_test.ts`. Commits `3298b1870`, `32c8f83ec`, close `72f2a8c7a`.
 - **Step 4, the cap is 100 with an override (panther repo).** Panther's default cap is 100 and `AIChatConfig.maxTurnContinuations` overrides it: a positive integer, and construction and `validateAIChatConfig` throw on anything else. Both `turn_limit` notices end "Send a new message to carry on.". Panther commits `37d58ea4`, `4577a951`; close in this repo `e5bd4782c`.
+- **Step 5, the review fixes and defects (this repo).** `extract_blocks_from_layout.ts` is `simplify_slide_for_ai.ts`; `buildSlidePage` builds the page for `measureSlideOverflow` and `convertAiInputToSlide`; the three text fixes (`get_deck`, `LayoutCellSchema`, the report brief), pinned by `server/tests/copilot_prompt_test.ts`; a figure edit on the open slide is set into the draft by path and so saved; the testing script holds no tool count. Commits `3e5ab4f31`, `5968cc04e`, `e16655786`, `515064a14`.
 
 What steps 1 to 3 built is described in the standing docs: SYSTEM_13 "Tools, view gating, and approval", "The slide_ai conversion layer" and "System prompt, documents, prompt library", and PROTOCOL_APP_AI_TOOLS.md "The round budget". What step 4 built is described in the panther repo's `DOC_AI_CHAT.md` "Turn model" and `protocols/PROTOCOL_UI_AI_CHAT.md` "Surface setup".
 
 ### Remaining
 
-- **Step 5 (§4), not blocked:** the five review fixes, the defect that a figure edit on the open slide is not saved, and the testing script's tool count.
 - **Step 6 (§4), cannot start yet:** once this app's copy of panther holds the cap, SYSTEM_13's "The panther engine" states it, and the close commit deletes this file.
 
 ### Why step 6 cannot start yet
@@ -53,7 +53,7 @@ Vocabulary:
 
 ## §3 Rulings
 
-Rulings 1 to 11 are built (steps 1 to 3) and the standing docs describe them. Rulings 12 to 15 rest on step 4 and step 6; rulings 16 to 23 are step 5's.
+Rulings 1 to 11 are built (steps 1 to 3), 12 and 13 in step 4, 16 to 23 in step 5, and the standing docs describe them. Rulings 14 and 15 rest on step 6.
 
 12. **Panther: the cap's default is 100, and `AIChatConfig.maxTurnContinuations` overrides it.** Optional, a positive integer, one counter for tool rounds and `pause_turn` resumes. Ruled, and built in step 4.
 13. **Panther: the cap's notice says what the user can do.** The details of `turn_limit`, in both its forms, end by saying that a new message carries on. No button and no engine text to the model: the answered calls already tell the model why they did not run. Built in step 4.
