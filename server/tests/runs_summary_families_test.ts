@@ -7,7 +7,7 @@
 //
 //   deno task test:files server/tests/runs_summary_families_test.ts
 
-import { assert, assertEquals } from "@std/assert";
+import { assertEquals } from "@std/assert";
 import type { Sql } from "postgres";
 import { migrateRunsSummaries } from "../db/migrations/data_transforms/runs_summary.ts";
 import { runDirPath, runManifestPath } from "../runs/run_paths.ts";
@@ -99,9 +99,10 @@ Deno.test("runs_summary stamps families from the manifest, by status without one
         null,
       );
       assertEquals(await summaryOf(db, READY_WITHOUT_MANIFEST), BASE);
-      const stripped = await summaryOf(db, READY_WITHOUT_MANIFEST_PROJECT_KEYS);
-      assertEquals(stripped, BASE);
-      assert(!("families" in stripped));
+      assertEquals(
+        await summaryOf(db, READY_WITHOUT_MANIFEST_PROJECT_KEYS),
+        BASE,
+      );
       assertEquals(await summaryOf(db, STAMPED), JSON.parse(STAMPED_SUMMARY));
 
       const second = await db.begin((tx) => migrateRunsSummaries(tx));

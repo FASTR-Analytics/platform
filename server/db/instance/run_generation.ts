@@ -1,8 +1,10 @@
 import postgres, { type Sql } from "postgres";
+import type { z } from "zod";
 import type { DBProduct } from "./_main_database_types.ts";
 import {
   type APIResponseNoData,
   type APIResponseWithData,
+  parseJsonOrUndefined,
   type ReadyPackage,
   type RunCatalogItem,
   type RunCatalogStatus,
@@ -39,30 +41,20 @@ type RunListingRow = {
   progress: string | null;
 };
 
-// summary/progress are stored JSON; a malformed blob degrades that field to
-// null rather than hiding the row: a run the catalogue cannot summarise is
-// still a run an admin must be able to see and delete.
-function parseRunSummary(text: string | null): RunSummary | null {
-  if (text === null) {
-    return null;
-  }
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    return null;
-  }
-  const parsed = runSummarySchema.safeParse(raw);
+function parseStoredRunJson<T>(
+  text: string | null,
+  schema: z.ZodType<T>,
+): T | null {
+  const parsed = schema.safeParse(parseJsonOrUndefined<unknown>(text));
   return parsed.success ? parsed.data : null;
 }
 
+// summary/progress are stored JSON; a malformed blob degrades that field to
+// null rather than hiding the row: a run the catalogue cannot summarise is
+// still a run an admin must be able to see and delete.
 function toRunListingItem(row: RunListingRow): RunListingItem {
-  const summary = parseRunSummary(row.summary);
-  let progress: RunProgress | null = null;
-  if (row.progress !== null) {
-    const parsed = runProgressSchema.safeParse(JSON.parse(row.progress));
-    progress = parsed.success ? parsed.data : null;
-  }
+  const summary = parseStoredRunJson(row.summary, runSummarySchema);
+  const progress = parseStoredRunJson(row.progress, runProgressSchema);
   return {
     id: row.id,
     label: row.label,
@@ -191,7 +183,7 @@ ORDER BY created_at DESC
     return {
       success: true,
       data: rows.map((r) => {
-        const summary = parseRunSummary(r.summary);
+        const summary = parseStoredRunJson(r.summary, runSummarySchema);
         return {
           id: r.id,
           label: r.label,

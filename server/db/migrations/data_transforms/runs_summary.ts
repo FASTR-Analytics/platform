@@ -71,14 +71,20 @@ export async function migrateRunsSummaries(tx: Sql): Promise<MigrationStats> {
     if (!needsStrip && !needsFamilies) {
       continue;
     }
-    let summary: Record<string, unknown>;
+    let parsed: unknown;
     try {
-      summary = JSON.parse(row.summary);
+      parsed = JSON.parse(row.summary);
     } catch {
       // The catalogue already degrades a malformed summary to null; it is
       // not this transform's to repair.
       continue;
     }
+    if (
+      typeof parsed !== "object" || parsed === null || Array.isArray(parsed)
+    ) {
+      continue;
+    }
+    const summary = parsed as Record<string, unknown>;
     let changed = false;
 
     // Block 1: Strip the project-era keys
