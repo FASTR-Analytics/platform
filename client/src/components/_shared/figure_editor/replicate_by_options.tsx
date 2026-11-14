@@ -173,7 +173,7 @@ export function ReplicateByOptionsList(p: ReplicateByOptionsProps) {
   const replicantOptions = createReplicantOptions(p);
 
   return (
-    <div class="ui-pad h-full max-w-[40rem] flex-none overflow-auto border-r">
+    <div class="max-w-[25rem]">
       <StateHolderWrapper state={replicantOptions()}>
         {(keyedReplicantOptions) => (
           <Switch

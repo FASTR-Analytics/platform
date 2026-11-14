@@ -30,6 +30,7 @@ import {
   downloadJson,
   FigureHolder,
   FigureInputs,
+  FrameLeft,
   FrameLeftResizable,
   FrameTop,
   getEditorWrapper,
@@ -919,6 +920,25 @@ export function VisualizationEditorInner(p: InnerProps) {
     });
   }
 
+  // Memoised so a filter edit that leaves the replicated dimension unchanged
+  // does not rebuild the panel, which FrameLeft would remount.
+  const replicateBy = createMemo(() => getReplicateByProp(tempConfig));
+  const replicantPanel = () => {
+    const keyedReplicateBy = replicateBy();
+    if (!keyedReplicateBy) return undefined;
+    return (
+      <ReplicateByOptionsList
+        scope={scope()}
+        replicateBy={keyedReplicateBy}
+        config={tempConfig}
+        metric={metric}
+        selectedReplicantValue={tempConfig.d.selectedReplicantValue}
+        setSelectedReplicant={(v) =>
+          manuallyUpdateTempConfig("d", "selectedReplicantValue", v)}
+      />
+    );
+  };
+
   return (
     <EditorWrapperForResultsObject>
       <FrameTop
@@ -1044,29 +1064,11 @@ export function VisualizationEditorInner(p: InnerProps) {
             />
           }
         >
-          <div class="flex h-full w-full" data-tour="viz-editor-preview">
-            <Show when={getReplicateByProp(tempConfig)} keyed>
-              {(keyedReplicateBy) => {
-                return (
-                  <ReplicateByOptionsList
-                    scope={scope()}
-                    replicateBy={keyedReplicateBy}
-                    config={tempConfig}
-                    metric={metric}
-                    selectedReplicantValue={tempConfig.d.selectedReplicantValue}
-                    setSelectedReplicant={(v) =>
-                      manuallyUpdateTempConfig(
-                        "d",
-                        "selectedReplicantValue",
-                        v,
-                      )}
-                  />
-                );
-              }}
-            </Show>
+          <FrameLeft panelPad="md" panelChildren={replicantPanel()}>
             <div
               class="ui-pad h-full w-full overflow-auto"
               data-cursor-zone="preview-area"
+              data-tour="viz-editor-preview"
             >
               <Show
                 when={previewState()}
@@ -1102,7 +1104,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                 )}
               </Show>
             </div>
-          </div>
+          </FrameLeft>
         </FrameLeftResizable>
       </FrameTop>
       <VizEditorCursors
