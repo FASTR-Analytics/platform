@@ -1,3 +1,9 @@
+[2.13.0] [user] [added] - Results packages now show which data families they contain
+[2.13.0] [user] [added] - Results packages now show their module count
+[2.13.0] [user] [changed] - Package picker displays data contents alongside name and date
+[2.13.0] [admin] [added] - Results packages now show data families and module count columns
+[2.13.0] [admin] [changed] - Package picker displays data contents alongside package name and date
+[2.13.0] [admin] [internal] - Existing packages are automatically stamped with their data family information on upgrade
 [2.12.1] [user] [changed] - Slide copy confirmation now uses correct plural grammar
 [2.12.1] [user] [changed] - Deck settings screen now says "Save" or "Cancel" to leave instead of "back button"
 [2.12.1] [user] [fixed] - Figure editor now shows the actual date range of displayed data
