@@ -48,7 +48,7 @@ export {
   SERVER_TOOL_LABELS,
   shapeCachedPayload,
   STOPPED_REPLY_PLACEHOLDER,
-  trimDanglingServerToolUse,
+  trimLastReplyServerToolUse,
 } from "../_110_ai_types/mod.ts";
 export type {
   AIInteractionDefLike,

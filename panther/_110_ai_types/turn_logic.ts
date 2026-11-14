@@ -345,14 +345,12 @@ export function buildToolResultUserMessage(
   return { role: "user", content };
 }
 
-// Server-side tools (web search, web fetch) put server_tool_use blocks and
-// their paired *_tool_result blocks inside the SAME assistant message. If a
-// turn is cut off at the pause_turn continuation cap, the persisted assistant
-// message can end with a server_tool_use block whose result never arrived —
-// the API's tolerance of that on a later send is unconfirmed, so trim the
-// unpaired blocks before persisting. Blocks are matched by id ↔ tool_use_id;
-// the block shapes come from the wire (outside our ContentBlock union), so
-// this reads them structurally.
+// Server-side tools (web search, web fetch, and the code execution the
+// dynamic web tools run) put server_tool_use blocks and their paired
+// *_tool_result blocks inside the SAME assistant message. Drops each
+// server_tool_use whose result is not in blocks. Blocks are matched by id ↔
+// tool_use_id; the block shapes come from the wire (outside our ContentBlock
+// union), so this reads them structurally.
 export function trimDanglingServerToolUse(
   blocks: ContentBlock[],
 ): ContentBlock[] {
@@ -371,6 +369,29 @@ export function trimDanglingServerToolUse(
     if (b.type !== "server_tool_use") return true;
     return typeof b.id === "string" && resultIds.has(b.id);
   });
+}
+
+// A reply cut off mid-call (max_tokens, a refusal, the pause cap, a Stop or a
+// throw while a paused reply resumes) can end with a server_tool_use whose
+// result never arrives, and the API refuses every later request that carries
+// it. When the list ends on an assistant message, that message loses those
+// blocks; one left with none is stored as emptyText, since the API refuses an
+// empty assistant message. Run where a turn ends and where a record loads,
+// never before a resume. Any other list returns by reference.
+export function trimLastReplyServerToolUse(
+  messages: MessageParam[],
+  emptyText: string,
+): MessageParam[] {
+  const last = messages[messages.length - 1];
+  if (last?.role !== "assistant" || typeof last.content === "string") {
+    return messages;
+  }
+  const kept = trimDanglingServerToolUse(last.content);
+  if (kept.length === last.content.length) return messages;
+  return [
+    ...messages.slice(0, -1),
+    { role: "assistant", content: kept.length > 0 ? kept : emptyText },
+  ];
 }
 
 // A stranded list (its last message an assistant turn whose tool_use blocks
@@ -501,9 +522,9 @@ function withImagesLeftOut(content: ToolResultContent, count: number): string {
 // continuation depth) to the next action in the chat turn loop. "halt"
 // surfaces a system notice and stops; "cap-tools" additionally requires
 // resolving the pending tool_use blocks with buildCancelledToolResults before
-// stopping; "cap-pause" additionally requires trimming dangling
+// stopping. "halt" and "cap-pause" both require trimming dangling
 // server_tool_use blocks from the persisted assistant message
-// (trimDanglingServerToolUse) before stopping. noticeType is the stable
+// (trimLastReplyServerToolUse) before stopping. noticeType is the stable
 // machine-readable key consumers can dispatch on; message/details are default
 // English display copy, and a refusal's details end with the API's explanation
 // when it gives one. "turn_error" is raised by the chat when a turn throws (an

@@ -82,6 +82,7 @@ export {
   STRIPPED_THINKING_PLACEHOLDER,
   stripThinkingBlocks,
   trimDanglingServerToolUse,
+  trimLastReplyServerToolUse,
 } from "./turn_logic.ts";
 
 export type {

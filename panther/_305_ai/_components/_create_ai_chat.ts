@@ -51,7 +51,7 @@ import {
   selectTurnSections,
   shapeCachedPayload,
   STOPPED_REPLY_PLACEHOLDER,
-  trimDanglingServerToolUse,
+  trimLastReplyServerToolUse,
 } from "../deps.ts";
 import {
   clearConversationStore,
@@ -783,6 +783,14 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         });
       }
     } finally {
+      // A Stop or a throw while a paused reply resumes leaves that reply last.
+      const trimmed = trimLastReplyServerToolUse(
+        tMessages(),
+        STOPPED_REPLY_PLACEHOLDER,
+      );
+      if (trimmed !== tMessages()) {
+        setTMessages(trimmed);
+      }
       // Any throw between storing a tool_use reply and storing its results
       // (a consumer render, a handler's unconvertible throw value) leaves
       // the list stranded, and every later request would be refused.
@@ -1446,17 +1454,22 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // blocks that will now never run — resolve them with error results,
       // exactly like cap-tools, or the persisted conversation ends in an
       // assistant turn with unresolved tool_use and every subsequent send
-      // 400s (permanently bricking the conversation).
+      // 400s (permanently bricking the conversation). A server_tool_use cut
+      // off mid-call bricks it the same way, so it is trimmed.
       const cancelled = buildCancelledToolResults(
         replyContent,
         `Tool execution stopped: ${continuation.message}`,
       );
+      const stored = trimLastReplyServerToolUse(
+        updatedMessages,
+        EMPTY_REPLY_PLACEHOLDER,
+      );
       batch(() => {
-        if (cancelled.length > 0) {
-          ts.messages[1]([
-            ...updatedMessages,
-            { role: "user", content: cancelled },
-          ]);
+        const next = cancelled.length > 0
+          ? [...stored, { role: "user" as const, content: cancelled }]
+          : stored;
+        if (next !== updatedMessages) {
+          ts.messages[1](next);
         }
         addDisplayItemsTo(ts, [
           {
@@ -1480,26 +1493,13 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     }
 
     if (continuation.kind === "cap-pause") {
-      // The assistant message may end with server_tool_use blocks whose
-      // results never arrived — trim them so the persisted conversation
-      // cannot end in a state a later send might reject.
-      const trimmed = trimDanglingServerToolUse(
-        replyContent,
+      const stored = trimLastReplyServerToolUse(
+        updatedMessages,
+        "[Stopped: too many turn continuations]",
       );
       batch(() => {
-        if (trimmed.length < replyContent.length) {
-          // The API rejects an assistant message with empty content — if every
-          // block was a dangling server_tool_use, persist a placeholder text
-          // instead (same pattern as the abort "[Stopped]" message).
-          ts.messages[1]([
-            ...currentMessages,
-            {
-              role: "assistant",
-              content: trimmed.length > 0
-                ? trimmed
-                : "[Stopped: too many turn continuations]",
-            },
-          ]);
+        if (stored !== updatedMessages) {
+          ts.messages[1](stored);
         }
         addDisplayItemsTo(ts, [
           {
