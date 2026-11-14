@@ -62,7 +62,7 @@ Vocabulary:
 1. `get_metric_data` always writes long format. `pivotAndFormatAsCSV` and `pivotToWide` are deleted. `formatLongCSV` writes dimension cells as they are through one `csvCell` helper, which quotes a cell containing `,`, `"` or a newline and doubles each inner `"`. The non-numeric branch of `formatIndicatorValueForCsv` uses the same helper. Only value cells go through `formatValueWithN`. _(proposed)_
 2. `get_available_modules` counts only ready metrics. _(proposed)_
 3. `data_page` takes the switchboard's `getSections` as its context, and its state is `formatDataState(context.getSections())`, the switchboard's own formatter. _(proposed)_
-4. The package context passes the open module's summary, and the state line prints `labelWithId(label, id)`. `openModuleId` becomes `openModule(): InstalledModuleSummary | undefined`, which the context's `getOpenModule` and `FamilyTabs` (`selectedModuleId={openModule()?.id}`) both read. _(proposed)_
+4. The package context passes the open module's summary, and the state line prints `labelWithId(label, id)`. `openModuleId` becomes one memo, `open(): { family: FamilyModules; module: InstalledModuleSummary } | undefined`, which the context's `getOpenModule` (`open()?.module`) and `FamilyTabs` (one `open` prop in place of `active` and `selectedModuleId`) both read, so the default module is chosen in one place. _(amended by Tim at step 2's review)_
 5. The keep sentence is `figureEditorKeepLine({ viewOnly, live })`, with these cases, in this order:
    - view-only: closing keeps nothing;
    - live: already in the document, the back arrow closes, there is no Cancel, and the user can undo;
@@ -217,3 +217,4 @@ Vocabulary:
 ## §6 Log
 
 - Step 1: `csvCell` lives in `lib/utils.ts`, not in the formatter, because the population template route and the run's input preparation held identical copies; Tim widened step 1's Surface for it. SYSTEM_00's `lib/utils.ts` sentence, already short of the file's exports, now lists them with `csvCell`.
+- Step 2: ruling 4 amended by Tim at review: `FamilyTabs` takes the page's one `open` memo, since its own fallback to the family's first module repeated the page's default and could never run.

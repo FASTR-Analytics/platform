@@ -372,7 +372,7 @@ export function formatExploreState(
     `Family: ${selection.family ?? "none"}`,
     selection.module === undefined
       ? undefined
-      : `Module: ${selection.module.label} (${selection.module.id})`,
+      : `Module: ${labelWithId(selection.module.label, selection.module.id)}`,
     selection.view === undefined
       ? undefined
       : `View: ${t3(selection.view.label)} (${selection.view.id})`,

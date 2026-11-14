@@ -70,6 +70,7 @@ type Props = {
 
 type ReadyReads = { detail: RunDetail; ctx: RunAuthoringContext };
 type FamilyModules = { family: DatasetType; modules: InstalledModuleSummary[] };
+type OpenModule = { family: FamilyModules; module: InstalledModuleSummary };
 
 // One results package, full page, opened from the catalogue list through the
 // shell wrapper: the package's one host (SYSTEM_08), so every status renders
@@ -255,20 +256,19 @@ function PackageBody(p: {
     });
   });
   const [chosenFamily, setChosenFamily] = createSignal<DatasetType>();
-  const activeFamily = createMemo(
-    () =>
-      modulesByFamily().find((f) => f.family === chosenFamily()) ??
-        modulesByFamily()[0],
-  );
   const [chosenModule, setChosenModule] = createSignal<
     Partial<Record<DatasetType, string>>
   >({});
-  const openModule = (): InstalledModuleSummary | undefined => {
-    const family = activeFamily();
+  const open = createMemo((): OpenModule | undefined => {
+    const family = modulesByFamily().find((f) => f.family === chosenFamily()) ??
+      modulesByFamily()[0];
     if (family === undefined) return undefined;
     const chosen = chosenModule()[family.family];
-    return family.modules.find((m) => m.id === chosen) ?? family.modules[0];
-  };
+    return {
+      family,
+      module: family.modules.find((m) => m.id === chosen) ?? family.modules[0],
+    };
+  });
   const [chosenScopeId, setChosenScopeId] = createSignal<ScopeId>(
     ALL_DATA_SCOPE_ID,
   );
@@ -305,7 +305,7 @@ function PackageBody(p: {
     getLabel: () => p.run.label,
     getStatus: () => p.run.status,
     getProgress: progress,
-    getOpenModule: openModule,
+    getOpenModule: () => open()?.module,
   };
   createEffect(on(
     () => p.run.status,
@@ -404,9 +404,8 @@ function PackageBody(p: {
                 detail={data.detail}
                 ctx={data.ctx}
                 families={modulesByFamily()}
-                active={activeFamily()}
+                open={open()}
                 onChangeFamily={setChosenFamily}
-                selectedModuleId={openModule()?.id}
                 onSelectModule={(family, moduleId) =>
                   setChosenModule((prev) => ({ ...prev, [family]: moduleId }))}
                 scope={scope()}
@@ -448,9 +447,8 @@ function FamilyTabs(p: {
   detail: RunDetail;
   ctx: RunAuthoringContext;
   families: FamilyModules[];
-  active: FamilyModules | undefined;
+  open: OpenModule | undefined;
   onChangeFamily: (family: DatasetType) => void;
-  selectedModuleId: string | undefined;
   onSelectModule: (family: DatasetType, moduleId: string) => void;
   scope: PackageScope;
   onChangeScope: (scopeId: ScopeId) => void;
@@ -458,8 +456,7 @@ function FamilyTabs(p: {
 }) {
   return (
     <Show
-      when={p.active}
-      keyed
+      when={p.open}
       fallback={
         <div class="ui-pad text-base-content-muted text-sm">
           {t3({
@@ -470,7 +467,7 @@ function FamilyTabs(p: {
         </div>
       }
     >
-      {(family) => (
+      {(open) => (
         <FrameTop
           pad="md"
           panelChildren={
@@ -479,7 +476,7 @@ function FamilyTabs(p: {
                 id: f.family,
                 label: getModuleFamilyLabel(f.family),
               }))}
-              value={family.family}
+              value={open().family.family}
               onChange={p.onChangeFamily}
               insetRail
             />
@@ -487,10 +484,10 @@ function FamilyTabs(p: {
         >
           <FamilyPane
             runId={p.runId}
-            modules={family.modules}
-            selectedModuleId={p.selectedModuleId ?? family.modules[0].id}
+            modules={open().family.modules}
+            selectedModuleId={open().module.id}
             onSelectModule={(moduleId) =>
-              p.onSelectModule(family.family, moduleId)}
+              p.onSelectModule(open().family.family, moduleId)}
             detail={p.detail}
             ctx={p.ctx}
             scope={p.scope}
