@@ -1,3 +1,9 @@
+[2.13.1] [user] [fixed] - Uploaded files with special characters in names now preserved correctly
+[2.13.1] [user] [fixed] - Replicate-by panel no longer flickers when editing filters
+[2.13.1] [user] [changed] - "Too many items" message now suggests removing disaggregations or narrowing the period
+[2.13.1] [admin] [fixed] - Uploaded files with non-ASCII characters in their names are now handled correctly
+[2.13.1] [admin] [changed] - AI assistant now suggests removing disaggregations instead of adding them when queries return too many items
+[2.13.1] [admin] [fixed] - Replicate-by panel in the visualization editor no longer unnecessarily reloads when editing filters
 [2.13.0] [user] [added] - Results packages now show which data families they contain
 [2.13.0] [user] [added] - Results packages now show their module count
 [2.13.0] [user] [changed] - Package picker displays data contents alongside name and date
