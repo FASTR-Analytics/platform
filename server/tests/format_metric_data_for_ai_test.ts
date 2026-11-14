@@ -1,14 +1,19 @@
 // Pins the CSV `get_metric_data` writes: long format, one row per item, each
 // row naming every dimension as the data holds it, no row for a value the data
-// does not hold, and a label with a comma or a quote kept in one cell; and the
-// status it gives when a query returns too many items.
+// does not hold, and a label with a comma or a quote kept in one cell; the
+// time range it states, which is the rows' own and not the window asked for;
+// and the status it gives when a query returns too many items.
 //
 //   deno test -A --no-check server/tests/format_metric_data_for_ai_test.ts
 
 import { assert, assertEquals } from "@std/assert";
 import { getMetricDataForAI } from "../../lib/ai_tools/format_metric_data_for_ai.ts";
 import type { AIToolEnv } from "../../lib/ai_tools/env.ts";
-import type { JsonArrayItem, MetricWithStatus } from "../../lib/types/mod.ts";
+import type {
+  AiMetricQuery,
+  JsonArrayItem,
+  MetricWithStatus,
+} from "../../lib/types/mod.ts";
 
 const METRIC = {
   id: "m_test",
@@ -145,4 +150,59 @@ Deno.test("too many items tells the model to remove disaggregations, never to ad
   const status = text.split("\n").find((line) => line.includes("STATUS"));
   assert(status?.includes("remove disaggregations"), status);
   assert(!/add[^,]*disaggregations/.test(status!), status);
+});
+
+// A custom filter's window is the requested bounds, whatever the data holds.
+const WINDOW_ASKED = { min: 202301, max: 202312 };
+
+async function textFor(
+  items: JsonArrayItem[],
+  disaggregations: AiMetricQuery["disaggregations"],
+): Promise<string> {
+  return await getMetricDataForAI(
+    {
+      ...ENV,
+      getItems: (params) =>
+        Promise.resolve({
+          success: true,
+          data: {
+            resultsObjectId: params.resultsObjectId,
+            fetchConfig: params.fetchConfig,
+            runId: "run_test",
+            scopeToken: "all-data",
+            dateRange: WINDOW_ASKED,
+            status: "ok",
+            items,
+            indicatorMetadata: [],
+          },
+        }),
+    },
+    { metricId: METRIC.id, disaggregations },
+    [METRIC],
+  );
+}
+
+Deno.test("the time range in data is the rows' own, not the window asked for", async () => {
+  const text = await textFor(ITEMS, ["admin_area_2", "period_id", "year"]);
+  assert(
+    text.includes("**Time range in data:** period_id (202301 to 202303)"),
+    text,
+  );
+  assert(!text.includes("202312"), text);
+});
+
+Deno.test("rows with no period column state the window they aggregate", async () => {
+  const text = await textFor(
+    ITEMS.map(({ indicator_common_id, admin_area_2, value }) => ({
+      indicator_common_id,
+      admin_area_2,
+      value,
+    })),
+    ["admin_area_2"],
+  );
+  assert(!text.includes("Time range in data"), text);
+  assert(
+    text.includes("**Period window:** period_id (202301 to 202312)"),
+    text,
+  );
 });

@@ -22,7 +22,10 @@ import {
 } from "../types/conditional_formatting.ts";
 import { scaleValueForFormat } from "../indicator_value_scale.ts";
 import { INDICATOR_DISAGGREGATION_OPTIONS } from "../types/disaggregation_options.ts";
-import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
+import {
+  inferPeriodFormatFromValue,
+  periodOption,
+} from "../types/_metric_installed.ts";
 import { getFiltersWithReplicant } from "../get_fetch_config_from_po.ts";
 import { isSampleNProp, sampleNProp } from "../sample_n.ts";
 import { csvCell } from "../utils.ts";
@@ -178,6 +181,25 @@ export async function getMetricDataForAI(
   );
 }
 
+// The finest period column the rows carry, and its extent over them.
+function periodRangeOfRows(
+  items: JsonArrayItem[],
+): { column: string; min: number; max: number } | undefined {
+  const first = items[0];
+  if (first === undefined) return undefined;
+  const column = periodOption.options.find((c) => c in first);
+  if (column === undefined) return undefined;
+  let min = Infinity;
+  let max = -Infinity;
+  for (const item of items) {
+    const value = Number(item[column]);
+    if (!Number.isFinite(value)) continue;
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+  }
+  return min <= max ? { column, min, max } : undefined;
+}
+
 function toStr(val: TranslatableString): string {
   if (typeof val === "string") return val;
   return val.en;
@@ -321,11 +343,20 @@ function formatItemsAsMarkdown(
     lines.push("");
   }
 
-  if (itemsHolder.dateRange) {
+  // dateRange is the period window the query resolved to, which a custom
+  // filter sets to the requested bounds whatever the data holds; the rows'
+  // own period column gives the range the data actually covers.
+  const rowsRange = periodRangeOfRows(items);
+  if (rowsRange !== undefined) {
     lines.push(
-      `**Time range in data:** ${
+      `**Time range in data:** ${rowsRange.column} (${rowsRange.min} to ${rowsRange.max})`,
+    );
+    lines.push("");
+  } else if (itemsHolder.dateRange) {
+    lines.push(
+      `**Period window:** ${
         inferPeriodFormatFromValue(itemsHolder.dateRange.min) ?? "unknown"
-      } (${itemsHolder.dateRange.min} to ${itemsHolder.dateRange.max})`,
+      } (${itemsHolder.dateRange.min} to ${itemsHolder.dateRange.max}); each row aggregates the periods in this window that hold data`,
     );
     lines.push("");
   }
