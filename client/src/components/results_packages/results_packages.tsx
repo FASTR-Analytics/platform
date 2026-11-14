@@ -1,4 +1,11 @@
-import { type RunCatalogItem, type RunProgress, t3, TC } from "lib";
+import {
+  getModuleFamilyLabel,
+  packageFamiliesLabel,
+  type RunCatalogItem,
+  type RunProgress,
+  t3,
+  TC,
+} from "lib";
 import {
   type BulkAction,
   Button,
@@ -169,6 +176,25 @@ export function InstanceResultsPackages() {
       render: (run) => run.label,
     },
     {
+      key: "families",
+      header: t3({ en: "Data", fr: "Données", pt: "Dados" }),
+      sortable: true,
+      sortValue: (run) => familiesLabel(run) || null,
+      filterable: true,
+      filterValue: (run) =>
+        (run.summary?.families ?? []).map(getModuleFamilyLabel),
+      searchValue: familiesLabel,
+      render: familiesLabel,
+    },
+    {
+      key: "moduleCount",
+      header: t3({ en: "Modules", fr: "Modules", pt: "Módulos" }),
+      sortable: true,
+      sortValue: moduleCount,
+      searchable: false,
+      render: (run) => moduleCount(run) ?? "",
+    },
+    {
       key: "createdAt",
       header: t3({ en: "Created", fr: "Créé", pt: "Criado" }),
       sortable: true,
@@ -278,4 +304,12 @@ export function InstanceResultsPackages() {
       </div>
     </FrameTop>
   );
+}
+
+function familiesLabel(run: RunCatalogItem): string {
+  return packageFamiliesLabel(run.summary?.families ?? null);
+}
+
+function moduleCount(run: RunCatalogItem): number | null {
+  return run.summary?.moduleIds.length ?? null;
 }
