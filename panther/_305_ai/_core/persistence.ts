@@ -11,7 +11,7 @@ import {
   repairStrandedToolUse,
   set,
   STOPPED_REPLY_PLACEHOLDER,
-  trimLastReplyServerToolUse,
+  trimUnansweredServerToolUse,
 } from "../deps.ts";
 import type { ContentBlock, MessageParam } from "../deps.ts";
 import type { DisplayItem } from "./types.ts";
@@ -108,7 +108,7 @@ function answerStrandedToolUse(
   record: PersistedConversation,
 ): PersistedConversation {
   const messages = repairStrandedToolUse(
-    trimLastReplyServerToolUse(record.messages, STOPPED_REPLY_PLACEHOLDER),
+    trimUnansweredServerToolUse(record.messages, STOPPED_REPLY_PLACEHOLDER),
     "Tool execution interrupted: the conversation was reloaded before this tool ran",
   );
   return messages === record.messages ? record : { ...record, messages };

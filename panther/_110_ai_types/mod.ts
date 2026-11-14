@@ -81,8 +81,7 @@ export {
   STOPPED_REPLY_PLACEHOLDER,
   STRIPPED_THINKING_PLACEHOLDER,
   stripThinkingBlocks,
-  trimDanglingServerToolUse,
-  trimLastReplyServerToolUse,
+  trimUnansweredServerToolUse,
 } from "./turn_logic.ts";
 
 export type {

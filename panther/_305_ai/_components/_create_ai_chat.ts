@@ -51,7 +51,7 @@ import {
   selectTurnSections,
   shapeCachedPayload,
   STOPPED_REPLY_PLACEHOLDER,
-  trimLastReplyServerToolUse,
+  trimUnansweredServerToolUse,
 } from "../deps.ts";
 import {
   clearConversationStore,
@@ -784,7 +784,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       }
     } finally {
       // A Stop or a throw while a paused reply resumes leaves that reply last.
-      const trimmed = trimLastReplyServerToolUse(
+      const trimmed = trimUnansweredServerToolUse(
         tMessages(),
         STOPPED_REPLY_PLACEHOLDER,
       );
@@ -1460,7 +1460,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         replyContent,
         `Tool execution stopped: ${continuation.message}`,
       );
-      const stored = trimLastReplyServerToolUse(
+      const stored = trimUnansweredServerToolUse(
         updatedMessages,
         EMPTY_REPLY_PLACEHOLDER,
       );
@@ -1493,7 +1493,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     }
 
     if (continuation.kind === "cap-pause") {
-      const stored = trimLastReplyServerToolUse(
+      const stored = trimUnansweredServerToolUse(
         updatedMessages,
         "[Stopped: too many turn continuations]",
       );
