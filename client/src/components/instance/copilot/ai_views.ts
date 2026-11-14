@@ -323,6 +323,18 @@ export function figureEditorKeepLineFor(
     figureEditorMode(context),
   );
 }
+
+function figureEditorInstructionsFor(
+  viewId: FigureEditorView["id"],
+  context: FigureEditorContext,
+): string {
+  return getFigureEditorInstructions(
+    context.getLabel(),
+    FIGURE_EDITOR_HOSTS[viewId],
+    figureEditorMode(context),
+  );
+}
+
 export type EditingSlideFigureParams = {
   deckId: string;
   slideId: string;
@@ -547,11 +559,7 @@ export const copilotViews = defineAIViews(
           pair: pairOf(context),
         }),
       instructions: (_params, context) =>
-        getFigureEditorInstructions(
-          context.getLabel(),
-          "slide",
-          figureEditorMode(context),
-        ),
+        figureEditorInstructionsFor("editing_slide_figure", context),
     }),
     deck_settings: view<EditingSlideDeckParams, ProductViewContext>({
       label: (_params, context) => context.getLabel(),
@@ -638,11 +646,7 @@ export const copilotViews = defineAIViews(
           pair: pairOf(context),
         }),
       instructions: (_params, context) =>
-        getFigureEditorInstructions(
-          context.getLabel(),
-          "report",
-          figureEditorMode(context),
-        ),
+        figureEditorInstructionsFor("editing_report_figure", context),
     }),
     editing_visualization: view<
       EditingVisualizationParams,
@@ -655,13 +659,9 @@ export const copilotViews = defineAIViews(
           pair: pairOf(context),
         }),
       instructions: (params, context) =>
-        `${
-          getFigureEditorInstructions(
-            context.getLabel(),
-            "visualization",
-            figureEditorMode(context),
-          )
-        }${productViewOnlyLine(params.productId)}`,
+        `${figureEditorInstructionsFor("editing_visualization", context)}${
+          productViewOnlyLine(params.productId)
+        }`,
     }),
     results_file: view<ResultsFileParams, PackageViewContext>({
       label: (params) => `${params.moduleId} / ${params.resultsObjectId}`,
@@ -712,11 +712,7 @@ export const copilotViews = defineAIViews(
           pair: pairOf(context),
         }),
       instructions: (_params, context) =>
-        getFigureEditorInstructions(
-          context.getLabel(),
-          "package",
-          figureEditorMode(context),
-        ),
+        figureEditorInstructionsFor("viewing_package_figure", context),
     }),
     module_defaults: view({ label: "Module defaults" }),
     scopes: view({ label: "Scopes" }),

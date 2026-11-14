@@ -129,6 +129,7 @@ Vocabulary:
   - [build_system_prompt.ts](client/src/components/instance/copilot/build_system_prompt.ts)
   - [slide_list.tsx](client/src/components/products/slide_deck/slide_list.tsx)
   - [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md)
+  - [mod.ts](client/src/components/instance/copilot/mod.ts), [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md) (added by Tim at step 3's review)
 - **Deliverable:**
   - Rulings 5 and 6.
   - `setFigureEditorView` sets `isViewOnly` from `p.viewOnly` and `isLive` from `isCollabLive`.
@@ -172,6 +173,7 @@ Vocabulary:
   - [figure_editor.tsx](client/src/components/_shared/figure_editor/figure_editor.tsx)
   - [ai_views.ts](client/src/components/instance/copilot/ai_views.ts)
   - [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md)
+  - [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md) (added by Tim at step 3's review)
 - **Deliverable:**
   - Rulings 9 and 10.
   - The preview memo in `figure_editor.tsx` sets the ready preview's `dateRange` from the `bundle.dateRange` it builds.
@@ -218,4 +220,4 @@ Vocabulary:
 
 - Step 1: `csvCell` lives in `lib/utils.ts`, not in the formatter, because the population template route and the run's input preparation held identical copies; Tim widened step 1's Surface for it. SYSTEM_00's `lib/utils.ts` sentence, already short of the file's exports, now lists them with `csvCell`.
 - Step 2: ruling 4 amended by Tim at review: `FamilyTabs` takes the page's one `open` memo, since its own fallback to the family's first module repeated the page's default and could never run.
-- Step 3: `client/src/components/instance/copilot/mod.ts`, outside the Surface, exports `figureEditorKeepLineFor`, because `figure_editor.ts` reaches the copilot folder only through its `mod.ts` (`lint:structure`). The helper takes the host as its noun (`figureEditorKeepLine(host, { viewOnly, live })`), since the four host names are the nouns.
+- Step 3: `client/src/components/instance/copilot/mod.ts` exports `figureEditorKeepLineFor`, because `figure_editor.ts` reaches the copilot folder only through its `mod.ts` (`lint:structure`); Tim added it and SYSTEM_11, whose figure editor context gains the mode, to step 3's Surface at review, and SYSTEM_11 to step 5's. The helper takes the host as its noun (`figureEditorKeepLine(host, { viewOnly, live })`), since the four host names are the nouns.

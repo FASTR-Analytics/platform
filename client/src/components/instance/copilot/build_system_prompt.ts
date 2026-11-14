@@ -195,7 +195,7 @@ export function figureEditorKeepLine(
   mode: FigureEditorMode,
 ): string {
   if (mode.viewOnly) {
-    return "This editor is view-only: the draft is for looking at, and closing the editor keeps nothing.";
+    return "Nothing here is saved: the draft is for looking at, and the back arrow closes it, keeping nothing.";
   }
   if (mode.live) {
     return `Live co-editing is on: every change is already in the ${host}, saved and shared with anyone else editing it, as it is made. The editor's back arrow closes it; there is no Cancel, and the user takes a change back with undo.`;
