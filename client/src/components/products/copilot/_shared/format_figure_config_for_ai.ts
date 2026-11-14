@@ -119,24 +119,27 @@ export async function formatFigureConfigForAI(
           inferPeriodFormatFromValue(pf.min) ?? "unknown"
         } from ${pf.min} to ${pf.max}`,
       );
+    } else if (pf.filterType === "from_month") {
+      lines.push(
+        `Period filter: from ${pf.min} to present (the upper bound extends automatically as new data lands; the stored max is ignored)`,
+      );
     } else {
-      // Non-custom filters resolve against LIVE data at query time:
-      // from_month discards its stored max ("to present"), relative types
-      // re-anchor. A figure's items are frozen at the last resolve, so print
-      // both truths: the filter's meaning and the range actually shown.
-      if (pf.filterType === "from_month") {
-        lines.push(
-          `Period filter: from ${pf.min} to present (the upper bound extends automatically as new data lands; the stored max is ignored)`,
-        );
-      } else {
-        lines.push(`Period filter: ${pf.filterType}`);
-      }
-      if (shownDateRange) {
-        lines.push(
-          `  Data currently shown: ${shownDateRange.min} to ${shownDateRange.max} (frozen at the figure's last refresh; re-anchors on the next edit)`,
-        );
-      }
+      lines.push(`Period filter: ${pf.filterType}`);
     }
+  }
+
+  // What the figure draws, whatever its filter asks for: a title or caption
+  // must name this range, not the filter's. A non-custom filter resolves
+  // against live data at query time, so its range is frozen at the figure's
+  // last resolve.
+  if (shownDateRange) {
+    const frozen = config.d.periodFilter &&
+        config.d.periodFilter.filterType !== "custom"
+      ? " (frozen at the figure's last refresh; re-anchors on the next edit)"
+      : "";
+    lines.push(
+      `Data shown: ${shownDateRange.min} to ${shownDateRange.max}${frozen}`,
+    );
   }
 
   lines.push(`Caption: ${config.t.caption || "(empty)"}`);

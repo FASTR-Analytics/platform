@@ -40,6 +40,7 @@ import type {
   ImageBlock,
   InstalledModuleSummary,
   MetricWithStatus,
+  PeriodBounds,
   PresentationObjectConfig,
   ResolvedPackageScope,
   RunCatalogStatus,
@@ -276,12 +277,17 @@ export type ReportParams = {
   reportId: string;
 };
 
-// What a figure editor's preview shows: the figure's inputs, or what stands
-// in for them. The preview's own words are kept in every language where it
-// has them, so the user reads theirs and the copilot reads English.
+// What a figure editor's preview shows: the figure's inputs and the period
+// range of its items, or what stands in for them. The preview's own words are
+// kept in every language where it has them, so the user reads theirs and the
+// copilot reads English.
 export type FigureEditorPreviewText = TranslatableString | string;
 export type FigureEditorPreview =
-  | { status: "ready"; inputs: FigureInputs }
+  | {
+    status: "ready";
+    inputs: FigureInputs;
+    dateRange: PeriodBounds | undefined;
+  }
   | { status: "loading"; msg?: FigureEditorPreviewText }
   | { status: "notice"; msg: TranslatableString }
   | { status: "error"; err: FigureEditorPreviewText }

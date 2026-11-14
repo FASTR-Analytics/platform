@@ -1068,7 +1068,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
                 reportSkippedNote(skipped) +
                 (skipped.length
                   ? " If the figure token was in a skipped change, the figure is unreferenced and will be pruned."
-                  : "")
+                  : "") +
+                `\n\nWhat the figure shows:\n${await describeNewFigureData(
+                  env,
+                  metrics,
+                  new Map([[id, figureBlock]]),
+                )}`
               );
             },
           };
@@ -1082,10 +1087,15 @@ ${FASTR_MD_SYNTAX_DOC}`,
       viewRegistry: copilotViews,
       name: "replace_figure",
       description:
-        "Propose replacing the chart behind an existing report figure. figureId is one of the figure:<id> tokens (from get_report_editor). The replacement `figure` is the same `from_metric` block as insert_figure (a metric plus one of its presets). The caption is kept unless you pass a new `caption` — note that if this figure is embedded more than once, a new `caption` is applied to EVERY embed of it, so omit `caption` when you only mean to change the chart. The token is swapped in place, so the user reviews a diff and accepts or rejects. To merely TWEAK an existing figure (its replicant, filters, disaggregation, period, or captions) WITHOUT changing the underlying chart, use update_report_figure instead — replacing here rebuilds the figure and resets settings like the replicant.",
+        "Propose replacing the chart behind an existing report figure. figureId is one of the figure:<id> tokens (from get_report_editor). The replacement `figure` is the same `from_metric` block as insert_figure (a metric plus one of its presets), except that its `chartTitle` may be omitted. The chart title and the embed caption are each kept unless given: omit `figure.chartTitle` to keep the replaced chart's title, and omit `caption` to keep the embed's caption. Note that if this figure is embedded more than once, a new `caption` is applied to EVERY embed of it, so omit `caption` when you only mean to change the chart. The token is swapped in place, so the user reviews a diff and accepts or rejects. To merely TWEAK an existing figure (its replicant, filters, disaggregation, period, or captions) WITHOUT changing the underlying chart, use update_report_figure instead — replacing here rebuilds the figure and resets settings like the replicant.",
       inputSchema: z.object({
         figureId: z.string(),
-        figure: AiFigureFromMetricSchema,
+        figure: AiFigureFromMetricSchema.extend({
+          chartTitle: AiFigureFromMetricSchema.shape.chartTitle.optional()
+            .describe(
+              "Title displayed above the figure. Omit to keep the replaced chart's title.",
+            ),
+        }),
         caption: z.string().optional(),
       }),
       availableIn: COPILOT_TOOL_VIEWS.replace_figure,
@@ -1093,7 +1103,14 @@ ${FASTR_MD_SYNTAX_DOC}`,
       approval: {
         propose: async (input, view) => {
           const ctx = view.context;
-          liveFigureOrRefuse(ctx, input.figureId);
+          const replaced = liveFigureOrRefuse(ctx, input.figureId);
+          const chartTitle = input.figure.chartTitle ??
+            replaced.bundle?.config.t.caption;
+          if (chartTitle === undefined) {
+            throw new AIToolFailure(
+              `Figure "${input.figureId}" has no chart to take a title from: give figure.chartTitle.`,
+            );
+          }
           // Liveness is what the DOCUMENT resolves (reportLiveFigures), while
           // this rewrite is the canonical token's, so a figure embedded as a
           // titled, reference or angle-bracket destination is live and not
@@ -1117,7 +1134,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
           if (!rewritable(ctx.getBody())) refuseUnrewritable();
           const figureBlock = await resolveFigureFromMetric(
             view.context.getScope(),
-            input.figure,
+            { ...input.figure, chartTitle },
             metrics,
           );
           const newId = crypto.randomUUID();
@@ -1180,7 +1197,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
                 reportSkippedNote(skipped) +
                 (skipped.length
                   ? " If the token swap was in a skipped change, the old figure may still be referenced and the new one unreferenced (it will be pruned)."
-                  : "")
+                  : "") +
+                `\n\nWhat the figure shows:\n${await describeNewFigureData(
+                  env,
+                  metrics,
+                  new Map([[newId, figureBlock]]),
+                )}`
               );
             },
           };

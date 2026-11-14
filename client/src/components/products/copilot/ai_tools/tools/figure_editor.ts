@@ -81,14 +81,16 @@ export function getClientToolsForFigureEditor(
       inputSchema: z.object({}),
       availableIn: COPILOT_TOOL_VIEWS.get_figure_editor,
       kind: "read",
-      handler: async (_input, view) =>
-        await formatFigureConfigForAI(
+      handler: async (_input, view) => {
+        const preview = view.context.getPreview();
+        return await formatFigureConfigForAI(
           env,
           metrics.find((m) => m.id === view.context.getMetric().id) ??
             view.context.getMetric(),
           view.context.getDraftConfig(),
-          undefined,
-        ),
+          preview.status === "ready" ? preview.dateRange : undefined,
+        );
+      },
       inProgressLabel: "Reading the figure editor...",
       completionMessage: "Read the figure editor",
     }),
@@ -211,7 +213,7 @@ export function getClientToolsForFigureEditor(
           env,
           metric,
           newConfig,
-          undefined,
+          newBundle.dateRange,
         );
 
         assertFigureEditorStillOpen(view);

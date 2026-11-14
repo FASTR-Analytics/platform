@@ -316,7 +316,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       // in.
       const built = buildFigureInputs(bundle, undefined, p.chartPalette?.());
       return built.ok
-        ? { status: "ready", inputs: built.inputs }
+        ? { status: "ready", inputs: built.inputs, dateRange: bundle.dateRange }
         : { status: "unavailable", reason: built.unavailable };
     } catch (e) {
       return {
