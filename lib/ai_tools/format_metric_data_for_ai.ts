@@ -255,7 +255,7 @@ function formatItemsAsMarkdown(
 
   if (itemsHolder.status === "too_many_items") {
     lines.push(
-      "**STATUS: Too many items - add more filters or disaggregations to narrow results**",
+      "**STATUS: Too many items - add filters, narrow the period, or remove disaggregations to narrow results**",
     );
     return lines.join("\n");
   }
