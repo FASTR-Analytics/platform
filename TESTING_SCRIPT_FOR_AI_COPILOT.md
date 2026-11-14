@@ -613,10 +613,10 @@ Skip under `read-only`. Go to Products, open the "Copilot tests" folder, click N
 - Do: click Apply, or under live co-editing the back arrow; the report preview shows the sub-caption: screenshot.
 - Pass: the look's reply, the screenshot and, under live co-editing, no echo.
 
-**G10. Leaving the view auto-declines a pending diff.**
+**G10. A pending diff locks the report editor.**
 
-- Do: send "Append a closing paragraph with rewrite_section on the last section." When the diff appears, do NOT decide: click the editor's back control to return to Products.
-- Ground truth: H3's result text for `rewrite_section` starts "User navigated away from "editing_report"". Reopen the report: the body has no new paragraph. Screenshot.
+- Do: send "Append a closing paragraph with rewrite_section on the last section." When the diff appears, confirm its dialog covers the whole window, the editor's back control and the chat panel included, then click Reject.
+- Ground truth: H3's result text for `rewrite_section` starts "User declined the proposed change". The body has no new paragraph. Screenshot.
 - Pass: both.
 
 **G11. Looking at a report figure.** The report from G10 is open.
