@@ -409,3 +409,47 @@ Written by step 1.
 - **The 17 figures of §1.7 in the production deck.** [VIEW: writing agent] They are a deck to change, not code. _(proposed)_
 
 ## §6 Log
+
+### NOTES FROM EXPERIMENT WITH AI AGENT IN sierraleone PROD INSTANCE
+
+Developer request: figure-editor tools (AI assistant) Tested in the package figure viewer, preset “HFA indicators”, metric m10-01-01, on 2026-11-13. Every item below was reproduced in this session. I re-ran the checks and looked at an image after each render-affecting change.
+
+Changes from my earlier notes:
+
+I dropped the “Mental health & psychosocial support” sub-category item and the pie-slice claims. I could not verify them. I downgraded the tall-image item, because the table is readable. I corrected the map item. A district-level map isn’t rejected for lacking a map dimension if an admin dimension is already disaggregated. It is rejected because no data areas match any boundaries. P1: Wrong or unverifiable output
+
+1. Roll-up is not in the config readback.
+
+Repro: with admin_area_2 as rowGroup, call update_figure_editor with {"rollupDimension":"admin_area_2","rollupPosition":"top"}. Then call get_figure_editor. Actual: the update result says “applied”. Neither the echo nor get_figure_editor shows any roll-up field. The render does show a “National” group at the top, and removing the roll-up removes it. Expected: a Roll-up: admin_area_2 (top) line, so an agent can verify state without an image. 2. HFA maps never render, although the package header says boundaries exist.
+
+Context: the header says boundary files exist for HFA at admin_area_2 and admin_area_3. Repro: set type: map with admin_area_2 as mapArea, then again with admin_area_3. Actual: “none of the 5 data areas matches one of the 16 boundaries” at district level. “none of the 16 data areas matches one of the 22 boundaries” at chiefdom level. Note: the cause is unverified. It looks like a name or ID mismatch between the HFA areas and the boundary files. Related: with an admin dimension already disaggregated, type: map auto-assigns mapArea. With none, the error is A map needs one dimension displayed as "mapArea"…. Earlier, from a pie config, the same situation gave a different message: “Map figure has no admin-area map dimension”. 3. Threshold colouring ignores indicator direction and unit.
+
+Lower-is-better indicators are coloured as if higher is better: Water outage 0.0% is red. “Vaccine stockouts frequent or constant” 2.5% is red. Electricity outage 100.0% (Southern hospitals) is green. Non-percent values are coloured by the percent thresholds: “Index: PPE 66.7”, “Index: Diagnostics 47.1” and “Index: Vaccines 93.2” are all green. Expected: respect the declared direction and unit per indicator, or disable the colour scale where it can’t apply. 4. Chart type has no series key.
+
+Repro: convert the table to a chart. admin_area_2 becomes series, giving five bars per panel. Actual: nothing identifies which bar is which district, and the only legend is the threshold colours. For comparison: the same config as a pie does show a district legend. Also: the x-axis label under every chart panel reads “value”. 5. Pie row labels overprint the first column of pies. For example, “Water source available” and “Water outage (last 7 days)” overlap the first pie.
+
+P2: Behaviour that surprises 6. A stale replicant value survives a change of replicant dimension, and the error text misleads.
+
+Repro: replicating by hfa_category with medical_supplies selected, set disaggregateBy to replicate by hfa_sub_category without a value. Actual: Invalid replicant value "medical_supplies" (pass the id, not the label). The value is a valid id for the old dimension, so the hint is wrong. Also: sending selectedReplicantValue: null then fails with “needs a selected replicant value”. Expected: default to the first valid value, or say “the replicant dimension changed; pick one of…”. The valid-values list itself is helpful. 7. type: timeseries is accepted as an enum value but can never work on this metric.
+
+Actual: the first error is “Timeseries config missing timeseriesGrouping”. Then year, period_id and quarter_id each fail with “Available: none”. Expected: reject the type up front with “metric has no time period column”, as periodFilter already does. 8. null is rejected for footnote, caption and subCaption.
+
+Actual: each gives “expected string, received null”. "" works. Inconsistent with: selectedReplicantValue, valuesFilter, periodFilter and rollupDimension, which accept null. 9. A single-value column header is hidden. time_point has only “Round 1”. Its header disappears in both the col and colGroup slots.
+
+1. The legend format differs by replicant. It reads “≥ 80% / 70% – 80% / < 70%” for infrastructure, and “≥ 0.8 / 0.7 – 0.8 / < 0.7” for medical_supplies, while the cells show percentages.
+
+P3: Error messages, schema and ergonomics 11. get_metric_data misreports a wrong disaggregations shape.
+
+Repro: pass [{"disOpt":"hfa_category"}]. Actual: the error is “Invalid option: expected one of <the whole enum>”, with no hint that plain strings are expected. Context: update_figure_editor uses objects (disOpt and disDisplayOpt) in disaggregateBy and filterBy, so the two are easy to mix up. 12. A duplicated dimension gives an internal-jargon error. Using hfa_indicator in both row and col gives colProp and rowProp are both given dimension "hfa_indicator". Pre-validate on disOpt and use slot names.
+
+1. __BLANK leaks into user-facing values.
+
+Ownership: facility_ownership has the single value __BLANK. All 365 facilities for ind084 fall in it, yet it is advertised as an available dimension. Sub-category: the replicant list shows__BLANK ((Blank)), with doubled parentheses. Suggestion: hide empty dimensions and tidy the label. 14. Images are one-shot with no persistent text. The image result gives only the size (for example “1024×1198 px”). Please add a short text record, such as row and column counts, legend present or not, and truncated or scaled.
+
+1. Tall images are capped.
+
+Repro: a 70-row table came back at 915×2046, narrower than the usual 1024. Actual: it was complete and legible, but it will degrade for longer tables. Suggestion: an option to paginate or crop. 16. There is no reset-to-preset or undo tool. After heavy testing the draft stays modified. The draft is currently a chart of medical supplies with the caption “TEST: tall table”. Closing the viewer discards it.
+
+1. The dimension enums are global. The tool schema lists year, month and so on for every metric. Per-metric validation exists and its message is good: “Disaggregation(s) not available for metric… Available: …”. Low priority.
+
+Confirmed working, no change needed Atomic failures: a failed update leaves the draft unchanged (“No changes were applied”), and a following read confirmed it. Type conversion remaps slots and reports them: table to chart gave rowGroup → series and colGroup → cell chart to pie gave colGroup → indicator Per-type slot validation: each type gets its own valid-slot list. Valid values on rejection: errors list valid values for filters, replicants and dimensions, and replicant validation respects filters in the same call. Updates report no-ops explicitly: an identical update returns “no change (the stored config already matched)”. Guards that reject correctly: removing a required dimension valuesDisDisplayOpt on a single-value figure (chart type) periodFilter on a non-time metric a roll-up on a dimension that isn’t disaggregated Roll-up rendering: adding and removing a roll-up renders correctly. Parallel calls: several updates in one reply run in order and return separate results.
