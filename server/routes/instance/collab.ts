@@ -137,6 +137,86 @@ export const COLLAB_CLOSE_UNAUTHORIZED = 4403;
  */
 export const COLLAB_CLOSE_ACCESS_CHANGED = 4001;
 
+// DB-backed room dependencies for one slide of one deck product. The
+// checkpoint re-broadcasts the deck's summary (its card and its detail cache
+// version derive from the row it just wrote) and version capture records
+// against the DECK (whole-deck versions). A failed re-read only costs the
+// refresh, never the save: notifyInstanceProductsUpserted logs and returns.
+export function depsForSlide(
+  productId: string,
+  slideId: string,
+): SlideRoomDeps {
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  return {
+    loadSlide: async () => {
+      const res = await getSlide(mainDb, productId, slideId);
+      if (!res.success) {
+        return null;
+      }
+      const crdtRes = await getSlideCrdtState(mainDb, productId, slideId);
+      const crdtState = crdtRes.success ? crdtRes.data.state : null;
+      return { slide: res.data.slide, crdtState };
+    },
+    saveSlide: async (slide, crdtState) => {
+      // Collab is authoritative → checkpoint overwrites config + CRDT state.
+      // Validation lives HERE, not in the DB write: a schema rejection is
+      // PERMANENT for this doc state (same input parses the same way
+      // forever), so the room must not timer-retry it: see DocSaveResult.
+      // The stored copy drops schema-invalid transients from EMBEDDED
+      // figures: the figure modal streams a mid-edit config straight into
+      // this doc, and a filter chip with every value un-ticked is legal
+      // mid-edit but fails the strict parse, which would wedge the room's
+      // checkpoint permanently (observed 2026-07-23).
+      let stored: Slide;
+      try {
+        stored = slideConfigSchema.parse(
+          dropStorageInvalidTransientsInSlide(slide),
+        ) as Slide;
+      } catch (err) {
+        console.error(
+          `[collab] slide checkpoint validation failed for ${slideId}`,
+          err,
+        );
+        return { ok: false, permanent: true };
+      }
+      // Trust the CRDT state only when the doc materializes to exactly
+      // what we store: parse-stripped keys would otherwise diverge doc
+      // from row while stamped current, and every editor open would adopt
+      // the divergent doc (the "viz flip" bug class, 2026-07-24).
+      // storedMatchesDoc also rejects a doc holding values JSON cannot
+      // represent, which a plain canonicalJson compare cannot see.
+      const trusted = storedMatchesDoc(stored, slide);
+      const res = await saveSlideCheckpoint(
+        mainDb,
+        productId,
+        slideId,
+        stored,
+        crdtState,
+        trusted,
+      );
+      if (!res.success) {
+        return { ok: false };
+      }
+      // An unchanged config stamped nothing, so there is nothing to re-read.
+      if (res.data.contentChanged) {
+        notifyInstanceLastUpdated(
+          "slides",
+          productId,
+          [slideId],
+          res.data.lastUpdated,
+        );
+        await notifyInstanceProductsUpserted(mainDb, [productId]);
+      }
+      return { ok: true, lastUpdated: res.data.lastUpdated };
+    },
+    onEdit: (editor) => {
+      recordVersionEdit("deck", productId, editor);
+      recordSlideEdited(productId, slideId, editor.email);
+    },
+    onEmpty: () => noteVersionRoomEmpty("deck", productId),
+  };
+}
+
 export const routesCollab = new Hono<
   {
     Variables: {
@@ -318,81 +398,6 @@ routesCollab.get(
       } catch (e) {
         console.error("[collab] presence access check failed:", e);
       }
-    }
-
-    // DB-backed room dependencies for one slide of one deck product. The
-    // checkpoint re-broadcasts the deck's summary (its card and its detail
-    // cache version derive from the row it just wrote) and version capture
-    // records against the DECK (whole-deck versions). A failed re-read only
-    // costs the refresh, never the save: notifyInstanceProductsUpserted logs
-    // and returns.
-    function depsForSlide(productId: string, slideId: string): SlideRoomDeps {
-      const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-      return {
-        loadSlide: async () => {
-          const res = await getSlide(mainDb, productId, slideId);
-          if (!res.success) {
-            return null;
-          }
-          const crdtRes = await getSlideCrdtState(mainDb, productId, slideId);
-          const crdtState = crdtRes.success ? crdtRes.data.state : null;
-          return { slide: res.data.slide, crdtState };
-        },
-        saveSlide: async (slide, crdtState) => {
-          // Collab is authoritative → checkpoint overwrites config + CRDT state.
-          // Validation lives HERE, not in the DB write: a schema rejection is
-          // PERMANENT for this doc state (same input parses the same way
-          // forever), so the room must not timer-retry it: see DocSaveResult.
-          // The stored copy drops schema-invalid transients from EMBEDDED
-          // figures: the figure modal streams a mid-edit config straight into
-          // this doc, and a filter chip with every value un-ticked is legal
-          // mid-edit but fails the strict parse, which would wedge the room's
-          // checkpoint permanently (observed 2026-07-23).
-          let stored: Slide;
-          try {
-            stored = slideConfigSchema.parse(
-              dropStorageInvalidTransientsInSlide(slide),
-            ) as Slide;
-          } catch (err) {
-            console.error(
-              `[collab] slide checkpoint validation failed for ${slideId}`,
-              err,
-            );
-            return { ok: false, permanent: true };
-          }
-          // Trust the CRDT state only when the doc materializes to exactly
-          // what we store: parse-stripped keys would otherwise diverge doc
-          // from row while stamped current, and every editor open would adopt
-          // the divergent doc (the "viz flip" bug class, 2026-07-24).
-          // storedMatchesDoc also rejects a doc holding values JSON cannot
-          // represent, which a plain canonicalJson compare cannot see.
-          const trusted = storedMatchesDoc(stored, slide);
-          const res = await saveSlideCheckpoint(
-            mainDb,
-            productId,
-            slideId,
-            stored,
-            crdtState,
-            trusted,
-          );
-          if (!res.success) {
-            return { ok: false };
-          }
-          notifyInstanceLastUpdated(
-            "slides",
-            productId,
-            [slideId],
-            res.data.lastUpdated,
-          );
-          await notifyInstanceProductsUpserted(mainDb, [productId]);
-          return { ok: true, lastUpdated: res.data.lastUpdated };
-        },
-        onEdit: (editor) => {
-          recordVersionEdit("deck", productId, editor);
-          recordSlideEdited(productId, slideId, editor.email);
-        },
-        onEmpty: () => noteVersionRoomEmpty("deck", productId),
-      };
     }
 
     // DB-backed room dependencies for one report product (see depsForSlide).

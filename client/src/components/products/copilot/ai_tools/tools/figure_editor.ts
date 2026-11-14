@@ -49,6 +49,25 @@ function assertFigureEditorStillOpen(view: FigureEditorViewState): void {
   }
 }
 
+// Under live co-editing the draft streams into the host doc, whose room
+// checkpoint notifies the host's echo keys as a stored write does. A saved
+// visualization's notices are no interaction, and a package figure is never
+// live.
+function markLiveHostEdit(view: FigureEditorViewState): void {
+  switch (view.id) {
+    case "editing_slide_figure":
+      copilotViewController.markAIEdit(`slide:${view.params.slideId}`);
+      copilotViewController.markAIEdit(`product:${view.params.deckId}`);
+      return;
+    case "editing_report_figure":
+      copilotViewController.markAIEdit(`product:${view.params.reportId}`);
+      return;
+    case "editing_visualization":
+    case "viewing_package_figure":
+      return;
+  }
+}
+
 export function getClientToolsForFigureEditor(
   env: ClientAIToolEnv,
   metrics: MetricWithStatus[],
@@ -197,6 +216,7 @@ export function getClientToolsForFigureEditor(
 
         assertFigureEditorStillOpen(view);
         view.context.applyDraftConfig(newConfig);
+        if (view.context.isLive()) markLiveHostEdit(view);
         const reportText = report.map((l) => `- ${l}`).join("\n");
         return `Updated the figure editor's draft.\n${reportText}\nThe change shows in the editor. ${
           figureEditorKeepLineFor(view.id, view.context)

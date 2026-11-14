@@ -1,6 +1,7 @@
 import { Sql } from "postgres";
 import {
   APIResponseWithData,
+  canonicalJson,
   parseJsonOrThrow,
   Slide,
   slideConfigSchema,
@@ -239,11 +240,17 @@ export async function getSlideCrdtState(
 }
 
 // Collab checkpoint: the materialized slide config AND the Yjs state in one
-// transaction, always overwriting (collab is authoritative). The CRDT stamp
-// equals the slide's last_updated, and the deck product's stamp is bumped in
-// the same transaction for the products list. Policy lives in the caller
-// (the slide room's save closure): `slide` is already schema-parsed, and
+// transaction (collab is authoritative). Policy lives in the caller (the
+// slide room's save closure): `slide` is already schema-parsed, and
 // `crdtTrusted` false stamps NULL so the next room open re-seeds from config.
+//
+// A changed config overwrites the row, stamps it, sets the CRDT stamp equal
+// to the new last_updated, and bumps the deck product's stamp for the
+// products list. A config equal to the stored one (as canonical JSON) writes
+// only the Yjs state, with the CRDT stamp set to the row's existing
+// last_updated: nothing a reader holds changed, so a re-seeded room's first
+// checkpoint, or a doc edit that ends where it began, stamps and notifies
+// nothing, and the next open still restores the doc.
 export async function saveSlideCheckpoint(
   mainDb: Sql,
   productId: string,
@@ -251,26 +258,48 @@ export async function saveSlideCheckpoint(
   slide: Slide,
   crdtState: string,
   crdtTrusted: boolean,
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+): Promise<
+  APIResponseWithData<{ lastUpdated: string; contentChanged: boolean }>
+> {
   return await tryCatchDatabaseAsync(async () => {
-    const lastUpdated = new Date().toISOString();
-    const updated = await mainDb.begin(async (sql) => {
+    const result = await mainDb.begin(async (sql) => {
+      const stored = (
+        await sql<Pick<DBSlide, "config" | "last_updated">[]>`
+          SELECT config, last_updated FROM slides
+          WHERE id = ${slideId} AND slide_deck_id = ${productId}
+          FOR UPDATE
+        `
+      ).at(0);
+      if (!stored) {
+        throw new Error(SLIDE_NOT_FOUND);
+      }
+      if (
+        canonicalJson(parseJsonOrThrow<Slide>(stored.config)) ===
+          canonicalJson(slide)
+      ) {
+        await sql`
+          UPDATE slides
+          SET crdt_state = ${crdtState},
+              crdt_state_last_updated = ${
+          crdtTrusted ? stored.last_updated : null
+        }
+          WHERE id = ${slideId} AND slide_deck_id = ${productId}
+        `;
+        return { lastUpdated: stored.last_updated, contentChanged: false };
+      }
+      const lastUpdated = new Date().toISOString();
       await touchProduct(sql, productId, "slide_deck", lastUpdated);
-      const rows = await sql`
+      await sql`
         UPDATE slides
         SET config = ${JSON.stringify(slide)},
             crdt_state = ${crdtState},
             crdt_state_last_updated = ${crdtTrusted ? lastUpdated : null},
             last_updated = ${lastUpdated}
         WHERE id = ${slideId} AND slide_deck_id = ${productId}
-        RETURNING id
       `;
-      return rows.length > 0;
+      return { lastUpdated, contentChanged: true };
     });
-    if (!updated) {
-      throw new Error(SLIDE_NOT_FOUND);
-    }
-    return { success: true, data: { lastUpdated } };
+    return { success: true, data: result };
   });
 }
 

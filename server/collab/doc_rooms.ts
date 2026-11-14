@@ -849,8 +849,10 @@ export async function applyToLiveRoom(
     clearTimeout(room.checkpointTimer);
     room.checkpointTimer = null;
   }
-  // Force the write even when the doc already matched the payload, so the
-  // caller always gets a fresh last_updated for its response.
+  // Force the save even when the doc already matched the payload, so the
+  // caller always gets the row's last_updated after it: a new stamp when the
+  // content changed, the row's own when the doc already matched (a slide
+  // checkpoint of an unchanged config stamps nothing).
   room.dirty = true;
   const lastUpdated = await checkpoint(room);
   // An empty room kept alive by a permanently-failed finalize has no timers
