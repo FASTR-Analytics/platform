@@ -584,6 +584,8 @@ const MODEL_NOT_FOUND_MESSAGE =
   "Model not found or unavailable. Check the model in AI settings.";
 const CONTEXT_EXCEEDED_MESSAGE =
   "Conversation too long — context window exceeded";
+const SESSION_EXPIRED_MESSAGE =
+  "Session expired — reload the page and sign in again";
 // Closes the details of both turn_limit notices: the turn's work is kept, so
 // what the user can do is send again.
 const TURN_LIMIT_NEXT_STEP = "Send a new message to carry on.";
@@ -680,8 +682,13 @@ export function getUserFacingAIErrorMessage(info: AIErrorInfo): string {
     return "Network error — check your connection";
   }
   if (info.isApiError) {
-    if (info.type === "authentication_error" || info.status === 401) {
+    if (info.type === "authentication_error") {
       return "Authentication failed — check your API key";
+    }
+    // Anthropic always types its errors; a 401 without a type is the proxy's
+    // own session guard, so the user's sign-in lapsed, not a key.
+    if (info.status === 401) {
+      return SESSION_EXPIRED_MESSAGE;
     }
     if (info.type === "permission_error" || info.status === 403) {
       return "Permission denied — check your API key and billing";
