@@ -1069,7 +1069,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
                 (skipped.length
                   ? " If the figure token was in a skipped change, the figure is unreferenced and will be pruned."
                   : "") +
-                `\n\nWhat the figure shows:\n${await describeNewFigureData(
+                `\n\n${await describeNewFigureData(
                   env,
                   metrics,
                   new Map([[id, figureBlock]]),
@@ -1198,7 +1198,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
                 (skipped.length
                   ? " If the token swap was in a skipped change, the old figure may still be referenced and the new one unreferenced (it will be pruned)."
                   : "") +
-                `\n\nWhat the figure shows:\n${await describeNewFigureData(
+                `\n\n${await describeNewFigureData(
                   env,
                   metrics,
                   new Map([[newId, figureBlock]]),

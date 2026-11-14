@@ -129,12 +129,11 @@ export async function formatFigureConfigForAI(
   }
 
   // What the figure draws, whatever its filter asks for: a title or caption
-  // must name this range, not the filter's. A non-custom filter resolves
-  // against live data at query time, so its range is frozen at the figure's
-  // last resolve.
+  // must name this range, not the filter's. A figure with no period filter or
+  // a non-custom one resolves against live data at query time, so its range
+  // is frozen at the figure's last resolve.
   if (shownDateRange) {
-    const frozen = config.d.periodFilter &&
-        config.d.periodFilter.filterType !== "custom"
+    const frozen = config.d.periodFilter?.filterType !== "custom"
       ? " (frozen at the figure's last refresh; re-anchors on the next edit)"
       : "";
     lines.push(
