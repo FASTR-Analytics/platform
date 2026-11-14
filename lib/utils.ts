@@ -29,6 +29,10 @@ export function withReplicant(
     .replaceAll("RÉPLICANT", replicantLabel);
 }
 
+export function csvCell(text: string): string {
+  return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
 export function encodeRawCsvHeader(
   i_colHeader: number,
   colHeader: string,

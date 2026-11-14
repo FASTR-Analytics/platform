@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { ADMIN_AREA_COLUMNS } from "lib";
+import { ADMIN_AREA_COLUMNS, csvCell } from "lib";
 import {
   deleteAllPopulation,
   deletePopulationTypeData,
@@ -164,7 +164,3 @@ routesPopulation.get(
     });
   },
 );
-
-function csvCell(value: string): string {
-  return /[",\n\r]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
-}

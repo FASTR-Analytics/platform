@@ -91,6 +91,7 @@ Vocabulary:
   - [format_modules_list_for_ai.ts](client/src/components/instance/copilot/tools/format_modules_list_for_ai.ts)
   - new `server/tests/format_metric_data_for_ai_test.ts`
   - [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md)
+  - [utils.ts](lib/utils.ts), [population.ts](server/routes/instance/population.ts), [prepare_inputs.ts](server/worker_routines/generate_run/prepare_inputs.ts) (added by Tim at step 1's review: one exported `csvCell`)
 - **Deliverable:**
   - Rulings 1 and 2.
   - The comments that describe pivoting are rewritten, and so is the `formatValueWithN` comment on unquoted joins.
@@ -214,3 +215,5 @@ Vocabulary:
 - Model behaviour with no code cause: malformed `ask_user_questions` input, the "sandbox tools" claim, and parallel calls when asked for sequential ones.
 
 ## §6 Log
+
+- Step 1: `csvCell` lives in `lib/utils.ts`, not in the formatter, because the population template route and the run's input preparation held identical copies; Tim widened step 1's Surface for it. SYSTEM_00's `lib/utils.ts` sentence, already short of the file's exports, now lists them with `csvCell`.

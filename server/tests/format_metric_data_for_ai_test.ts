@@ -27,7 +27,10 @@ const METRIC = {
   moduleId: "m001",
 } as unknown as MetricWithStatus;
 
-const AREA = 'Western Area, "Urban"';
+const AREA_BY_INDICATOR: Record<string, string> = {
+  anc1: "Western Area, Urban",
+  penta3: 'Bo "Town"',
+};
 
 // Two indicators by three periods, anc1 missing 202303.
 const ITEMS: JsonArrayItem[] = [
@@ -38,7 +41,7 @@ const ITEMS: JsonArrayItem[] = [
   ["penta3", 202303, 22],
 ].map(([indicator, period, value]) => ({
   indicator_common_id: indicator,
-  admin_area_2: AREA,
+  admin_area_2: AREA_BY_INDICATOR[indicator],
   period_id: period,
   year: 2023,
   value,
@@ -75,7 +78,7 @@ async function csvLines(): Promise<string[]> {
   return text.split("## Data (CSV)\n\n")[1].split("\n");
 }
 
-Deno.test("one row per value, each naming its indicator and period", async () => {
+Deno.test("one row per item, each naming its indicator and period", async () => {
   const [header, ...rows] = await csvLines();
   assertEquals(
     header,
@@ -100,13 +103,18 @@ Deno.test("period_id and year are written as they are", async () => {
   const [, first] = await csvLines();
   assertEquals(
     first,
-    `anc1,"Western Area, ""Urban""",202301,2023,10.00`,
+    `anc1,"Western Area, Urban",202301,2023,10.00`,
   );
 });
 
-Deno.test("a label with a comma is quoted and its quotes doubled", async () => {
+Deno.test("a label with a comma is quoted, one with a quote escaped", async () => {
   const [, ...rows] = await csvLines();
   for (const row of rows) {
-    assert(row.includes(`,"Western Area, ""Urban""",`), row);
+    assert(
+      row.startsWith("anc1,")
+        ? row.includes(`,"Western Area, Urban",`)
+        : row.includes(`,"Bo ""Town""",`),
+      row,
+    );
   }
 });

@@ -25,6 +25,7 @@ import { INDICATOR_DISAGGREGATION_OPTIONS } from "../types/disaggregation_option
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import { getFiltersWithReplicant } from "../get_fetch_config_from_po.ts";
 import { isSampleNProp, sampleNProp } from "../sample_n.ts";
+import { csvCell } from "../utils.ts";
 import { AIToolFailure } from "@timroberton/panther";
 import type { AIToolEnv } from "./env.ts";
 import { validateMetricInputsAgainstValueInfo } from "./content_validators.ts";
@@ -591,11 +592,7 @@ function formatIndicatorValueForCsv(
   return num.toFixed(formatAs === "number" ? 2 : 3);
 }
 
-function csvCell(text: string): string {
-  return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
-}
-
-// One row per value: every dimension cell as written, so an id, a label or a
+// One row per combination of dimension values: every dimension cell as written, so an id, a label or a
 // period such as 202301 reads as the data holds it, then the value cells.
 function formatLongCSV(
   items: JsonArrayItem[],
