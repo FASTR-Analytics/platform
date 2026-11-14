@@ -397,9 +397,9 @@ function stageLabel(progress: RunProgress | null): string | undefined {
 export function formatPackageState(args: {
   status: RunCatalogStatus;
   progress: RunProgress | null;
-  openModuleId: string | undefined;
+  openModule: InstalledModuleSummary | undefined;
 }): string {
-  const { status, progress, openModuleId } = args;
+  const { status, progress, openModule } = args;
   const stage = stageLabel(progress);
   switch (status) {
     case "generating": {
@@ -424,7 +424,9 @@ export function formatPackageState(args: {
     case "ready":
       return joinParts([
         "Status: ready",
-        openModuleId === undefined ? undefined : `open module: ${openModuleId}`,
+        openModule === undefined
+          ? undefined
+          : `open module: ${labelWithId(openModule.label, openModule.id)}`,
       ]);
     case "retired":
       return "Status: retired";

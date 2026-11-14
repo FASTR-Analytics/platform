@@ -263,11 +263,11 @@ function PackageBody(p: {
   const [chosenModule, setChosenModule] = createSignal<
     Partial<Record<DatasetType, string>>
   >({});
-  const openModuleId = (): string | undefined => {
+  const openModule = (): InstalledModuleSummary | undefined => {
     const family = activeFamily();
-    return family === undefined
-      ? undefined
-      : chosenModule()[family.family] ?? family.modules[0].id;
+    if (family === undefined) return undefined;
+    const chosen = chosenModule()[family.family];
+    return family.modules.find((m) => m.id === chosen) ?? family.modules[0];
   };
   const [chosenScopeId, setChosenScopeId] = createSignal<ScopeId>(
     ALL_DATA_SCOPE_ID,
@@ -305,7 +305,7 @@ function PackageBody(p: {
     getLabel: () => p.run.label,
     getStatus: () => p.run.status,
     getProgress: progress,
-    getOpenModuleId: openModuleId,
+    getOpenModule: openModule,
   };
   createEffect(on(
     () => p.run.status,
@@ -406,7 +406,7 @@ function PackageBody(p: {
                 families={modulesByFamily()}
                 active={activeFamily()}
                 onChangeFamily={setChosenFamily}
-                selectedModuleId={openModuleId()}
+                selectedModuleId={openModule()?.id}
                 onSelectModule={(family, moduleId) =>
                   setChosenModule((prev) => ({ ...prev, [family]: moduleId }))}
                 scope={scope()}

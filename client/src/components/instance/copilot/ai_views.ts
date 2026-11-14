@@ -38,6 +38,7 @@ import type {
   HfaIndicatorVariantCode,
   HfaTaxonomyInput,
   ImageBlock,
+  InstalledModuleSummary,
   MetricWithStatus,
   PresentationObjectConfig,
   ResolvedPackageScope,
@@ -380,11 +381,12 @@ export type PackagePageContext = PackageViewContext & {
   getLabel: () => string;
   getStatus: () => RunCatalogStatus;
   getProgress: () => RunProgress | null;
-  getOpenModuleId: () => string | undefined;
+  getOpenModule: () => InstalledModuleSummary | undefined;
 };
 
-// The Data switchboard's view: its rows' labels and status marks, read live
-// from the page.
+// The Data switchboard's view and its pages' views: the switchboard's rows'
+// labels and status marks, read live from the switchboard, which stays
+// mounted under its pages.
 export type DataContext = {
   getSections: () => DataSectionForAI[];
 };
@@ -658,7 +660,7 @@ export const copilotViews = defineAIViews(
         formatPackageState({
           status: context.getStatus(),
           progress: context.getProgress(),
-          openModuleId: context.getOpenModuleId(),
+          openModule: context.getOpenModule(),
         }),
     }),
     viewing_package_figure: view<
@@ -680,7 +682,7 @@ export const copilotViews = defineAIViews(
       label: "Data",
       state: (_params, context) => formatDataState(context.getSections()),
     }),
-    data_page: view<DataPageParams, void>({
+    data_page: view<DataPageParams, DataContext>({
       label: (params) =>
         params.family === undefined
           ? params.page
@@ -692,6 +694,7 @@ export const copilotViews = defineAIViews(
         }),
       instructions: (params) =>
         getDataPageInstructions(params.page, params.family),
+      state: (_params, context) => formatDataState(context.getSections()),
     }),
     hfa_indicators: view<void, HfaIndicatorsContext>({
       label: "HFA indicators",
@@ -864,7 +867,7 @@ export function restoreCopilotView(state: CopilotViewState): void {
       );
       return;
     case "data_page":
-      copilotViewController.setView("data_page", state.params);
+      copilotViewController.setView("data_page", state.params, state.context);
       return;
     case "hfa_indicator_editor":
       copilotViewController.setView(
