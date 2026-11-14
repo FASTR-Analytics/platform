@@ -1,3 +1,5 @@
+[2.13.2] [user] [added] - Categories now show how many indicators each one contains
+[2.13.2] [admin] [changed] - AI indicator listings now show how many indicators each category holds
 [2.13.1] [user] [fixed] - Uploaded files with special characters in names now preserved correctly
 [2.13.1] [user] [fixed] - Replicate-by panel no longer flickers when editing filters
 [2.13.1] [user] [changed] - "Too many items" message now suggests removing disaggregations or narrowing the period
