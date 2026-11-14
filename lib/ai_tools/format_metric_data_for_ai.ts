@@ -592,8 +592,9 @@ function formatIndicatorValueForCsv(
   return num.toFixed(formatAs === "number" ? 2 : 3);
 }
 
-// One row per combination of dimension values: every dimension cell as written, so an id, a label or a
-// period such as 202301 reads as the data holds it, then the value cells.
+// One row per combination of dimension values: every dimension cell as
+// written, so an id, a label or a period such as 202301 reads as the data
+// holds it, then the value cells.
 function formatLongCSV(
   items: JsonArrayItem[],
   dimensionColumns: string[],

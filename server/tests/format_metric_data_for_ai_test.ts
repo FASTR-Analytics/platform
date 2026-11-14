@@ -1,6 +1,6 @@
-// Pins the CSV `get_metric_data` writes: long format, one row per value, each
-// row naming every dimension as the data holds it, no empty value cells, and
-// a label with a comma or a quote kept in one cell.
+// Pins the CSV `get_metric_data` writes: long format, one row per item, each
+// row naming every dimension as the data holds it, no row for a value the data
+// does not hold, and a label with a comma or a quote kept in one cell.
 //
 //   deno test -A --no-check server/tests/format_metric_data_for_ai_test.ts
 
@@ -91,7 +91,7 @@ Deno.test("one row per item, each naming its indicator and period", async () => 
   }
 });
 
-Deno.test("no empty value cell is written", async () => {
+Deno.test("a value the data does not hold writes no row", async () => {
   const [, ...rows] = await csvLines();
   for (const row of rows) {
     assert(!row.endsWith(","), row);
