@@ -183,9 +183,11 @@ export function VisualizationEditorInner(p: InnerProps) {
     setTempConfig;
 
   // The chat's figure view (S13), over the view the outer editor holds: its
-  // pair, its metric and the draft, read and written live. An AI write lands
-  // like a user's edit: it marks the draft for Apply, re-previews, and streams
-  // into the host doc under live co-editing.
+  // pair, its metric and the draft, read and written live, and the two facts
+  // the header's buttons follow, so the model names the buttons on screen. An
+  // AI write lands like a user's edit: it marks the draft for Apply,
+  // re-previews, and streams into the host doc under live co-editing.
+  // `isCollabLive` is declared below, so `isLive` calls it lazily.
   setFigureEditorView(p.aiView, {
     getLabel: label,
     getScope: () => resolveScope(scope()),
@@ -195,6 +197,8 @@ export function VisualizationEditorInner(p: InnerProps) {
     getLocalization: () => p.localization,
     applyDraftConfig: (config) => setTempConfig(reconcile(config)),
     getPreview: () => preview(),
+    isViewOnly: () => p.viewOnly === true,
+    isLive: () => isCollabLive(),
   });
 
   const [itemsHolder, setItemsHolder] = createSignal<FigureItemsState>({

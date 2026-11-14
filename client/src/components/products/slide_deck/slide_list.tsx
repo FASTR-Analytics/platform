@@ -16,6 +16,7 @@ import {
   LoadingIndicator,
   openAlert,
   openComponent,
+  plural,
 } from "panther";
 import { Sortable, SortableJs } from "panther";
 import {
@@ -581,11 +582,22 @@ export function SlideList(p: Props) {
     });
     if (!res) return;
     clearSelection();
+    const n = res.newSlideIds.length;
     await openAlert({
       text: t3({
-        en: `Copied ${res.newSlideIds.length} slide(s).`,
-        fr: `${res.newSlideIds.length} diapositive(s) copiée(s).`,
-        pt: `${res.newSlideIds.length} diapositivo(s) copiado(s).`,
+        en: `Copied ${n} ${plural(n, { one: "slide", other: "slides" })}.`,
+        fr: `${n} ${
+          plural(n, {
+            one: "diapositive copiée",
+            other: "diapositives copiées",
+          })
+        }.`,
+        pt: `${n} ${
+          plural(n, {
+            one: "diapositivo copiado",
+            other: "diapositivos copiados",
+          })
+        }.`,
       }),
       intent: "success",
     });

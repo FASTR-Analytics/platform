@@ -1,6 +1,7 @@
 export {
   copilotViewController,
   copilotViews,
+  figureEditorKeepLineFor,
   holdCopilotView,
   productViewContext,
   restoreCopilotView,

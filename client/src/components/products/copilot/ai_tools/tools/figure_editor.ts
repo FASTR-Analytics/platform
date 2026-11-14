@@ -21,6 +21,7 @@ import {
   copilotViewController,
   copilotViews,
   type CopilotViewState,
+  figureEditorKeepLineFor,
 } from "~/components/instance/copilot/mod.ts";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 import { formatFigureConfigForAI } from "../../_shared/mod.ts";
@@ -77,7 +78,7 @@ export function getClientToolsForFigureEditor(
       viewRegistry: copilotViews,
       name: "update_figure_editor",
       description:
-        "Change the figure open in the figure editor. Provide only the fields to change (the chart type, timeseriesGrouping, the replicant, filters, disaggregations, period, captions); everything else is kept and the preview re-queries at once. The change lands in the editor's draft like the user's own edit: the user keeps it with Apply or discards it with Cancel, and under live co-editing it streams into the document as it is made. Call get_figure_editor first.",
+        "Change the figure open in the figure editor. Provide only the fields to change (the chart type, timeseriesGrouping, the replicant, filters, disaggregations, period, captions); everything else is kept and the preview re-queries at once. The change lands in the editor's draft like the user's own edit. Call get_figure_editor first.",
       inputSchema: z.object({ patch: AiVizConfigUpdateSchema }),
       availableIn: COPILOT_TOOL_VIEWS.update_figure_editor,
       kind: "write",
@@ -197,7 +198,9 @@ export function getClientToolsForFigureEditor(
         assertFigureEditorStillOpen(view);
         view.context.applyDraftConfig(newConfig);
         const reportText = report.map((l) => `- ${l}`).join("\n");
-        return `Updated the figure editor's draft.\n${reportText}\nThe change shows in the editor; the user keeps it with Apply or discards it with Cancel.\nThe draft's config:\n${draft}`;
+        return `Updated the figure editor's draft.\n${reportText}\nThe change shows in the editor. ${
+          figureEditorKeepLineFor(view.id, view.context)
+        }\nThe draft's config:\n${draft}`;
       },
       inProgressLabel: "Updating the figure...",
       completionMessage: "Updated the figure",

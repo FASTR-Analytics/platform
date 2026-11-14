@@ -104,7 +104,7 @@ The product is still loading, or it failed to load and the page shows the error.
 export function getDeckSettingsInstructions(label: string): string {
   return `# Current View: Settings of the slide deck "${label}"
 
-The user is on the deck's settings screen (theme, logos, footer), which covers the deck. The deck's name is not on it: renaming is File > "Name and folder" or the deck's own title in its header, both behind this screen. The deck's slide tools refuse here. To change slides, tell the user to close Settings with its back button to return to the deck; do not describe any other view. The package tools work as usual.`;
+The user is on the deck's settings screen (theme, logos, footer), which covers the deck. The deck's name is not on it: renaming is File > "Name and folder" or the deck's own title in its header, both behind this screen. The deck's slide tools refuse here. To change slides, tell the user to leave Settings with Save (keeps the settings changes) or Cancel (discards them) to return to the deck; do not describe any other view. The package tools work as usual.`;
 }
 
 const HISTORY_NOUNS = {
@@ -184,30 +184,51 @@ The user is on the Users page, which lists the instance's users and their permis
 // draft.
 export type FigureEditorHost = "slide" | "report" | "visualization" | "package";
 
+export type FigureEditorMode = { viewOnly: boolean; live: boolean };
+
+// How the user keeps or discards the draft. The editor's buttons follow its
+// mode, not its host: a view-only editor has only a back arrow, live
+// co-editing has only a back arrow that commits, and otherwise Apply and
+// Cancel. A saved visualization is live only while its room is.
+export function figureEditorKeepLine(
+  host: FigureEditorHost,
+  mode: FigureEditorMode,
+): string {
+  if (mode.viewOnly) {
+    return "This editor is view-only: the draft is for looking at, and closing the editor keeps nothing.";
+  }
+  if (mode.live) {
+    return `Live co-editing is on: every change is already in the ${host}, saved and shared with anyone else editing it, as it is made. The editor's back arrow closes it; there is no Cancel, and the user takes a change back with undo.`;
+  }
+  return "The user keeps the result with the editor's Apply button or discards it with Cancel.";
+}
+
 const FIGURE_EDITOR_TOOLS_LINES =
   `get_figure_editor reads the draft as it stands in the editor (metric, type, disaggregations and their display slots, filters, the replicant, the period and the captions). update_figure_editor changes the draft in place: pass only the fields to change; the change shows in the editor at once. The chart type can be changed here, which is the one place it can. ${FIGURE_EDITOR_LOOK_LINE}`;
 
 export function getFigureEditorInstructions(
   label: string,
   host: FigureEditorHost,
+  mode: FigureEditorMode,
 ): string {
+  const keepLine = figureEditorKeepLine(host, mode);
   switch (host) {
     case "slide":
       return `# Current View: Figure editor (slide)
 
-The user is editing the figure "${label}" of the open slide in the figure editor. ${FIGURE_EDITOR_TOOLS_LINES} The user keeps the result with the editor's Apply button or discards it with Cancel; under live co-editing every change streams into the deck as it is made. The figure resolves under the deck's results package and scope.`;
+The user is editing the figure "${label}" of the open slide in the figure editor. ${FIGURE_EDITOR_TOOLS_LINES} ${keepLine} The figure resolves under the deck's results package and scope.`;
     case "report":
       return `# Current View: Figure editor (report)
 
-The user is editing the figure "${label}" of the open report in the figure editor. ${FIGURE_EDITOR_TOOLS_LINES} The user keeps the result with the editor's Apply button or discards it with Cancel; under live co-editing every change streams into the report as it is made. The figure resolves under the report's results package and scope.`;
+The user is editing the figure "${label}" of the open report in the figure editor. ${FIGURE_EDITOR_TOOLS_LINES} ${keepLine} The figure resolves under the report's results package and scope.`;
     case "visualization":
       return `# Current View: Saved visualization
 
-The user is editing the saved visualization "${label}", a product of its own that holds this one figure. ${FIGURE_EDITOR_TOOLS_LINES} There is no Apply: every change is saved and shared with anyone else editing it as it is made. The figure resolves under the visualization's own results package and scope. Only this visualization is in view: no other product, slide deck or report can be read or changed from here.`;
+The user is editing the saved visualization "${label}", a product of its own that holds this one figure. ${FIGURE_EDITOR_TOOLS_LINES} ${keepLine} The figure resolves under the visualization's own results package and scope. Only this visualization is in view: no other product, slide deck or report can be read or changed from here.`;
     case "package":
       return `# Current View: Figure viewer (package)
 
-The user is looking at the package's preset "${label}" in the figure viewer, which belongs to no product: the draft is for looking at, and closing the viewer keeps nothing. ${FIGURE_EDITOR_TOOLS_LINES} The figure resolves under the package page's package and scope.`;
+The user is looking at the package's preset "${label}" in the figure viewer, which belongs to no product. ${FIGURE_EDITOR_TOOLS_LINES} ${keepLine} The figure resolves under the package page's package and scope.`;
   }
 }
 

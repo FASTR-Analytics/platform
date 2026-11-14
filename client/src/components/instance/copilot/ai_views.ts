@@ -62,6 +62,9 @@ import {
 import {
   type DataSectionForAI,
   type ExploreSelection,
+  type FigureEditorHost,
+  figureEditorKeepLine,
+  type FigureEditorMode,
   formatDataState,
   formatExploreState,
   formatPackageState,
@@ -296,7 +299,30 @@ export type FigureEditorContext = PackageViewContext & {
   getLocalization: () => FigureLocalization;
   applyDraftConfig: (config: PresentationObjectConfig) => void;
   getPreview: () => FigureEditorPreview;
+  isViewOnly: () => boolean;
+  isLive: () => boolean;
 };
+
+function figureEditorMode(context: FigureEditorContext): FigureEditorMode {
+  return { viewOnly: context.isViewOnly(), live: context.isLive() };
+}
+
+const FIGURE_EDITOR_HOSTS: Record<FigureEditorView["id"], FigureEditorHost> = {
+  editing_slide_figure: "slide",
+  editing_report_figure: "report",
+  editing_visualization: "visualization",
+  viewing_package_figure: "package",
+};
+
+export function figureEditorKeepLineFor(
+  viewId: FigureEditorView["id"],
+  context: FigureEditorContext,
+): string {
+  return figureEditorKeepLine(
+    FIGURE_EDITOR_HOSTS[viewId],
+    figureEditorMode(context),
+  );
+}
 export type EditingSlideFigureParams = {
   deckId: string;
   slideId: string;
@@ -521,7 +547,11 @@ export const copilotViews = defineAIViews(
           pair: pairOf(context),
         }),
       instructions: (_params, context) =>
-        getFigureEditorInstructions(context.getLabel(), "slide"),
+        getFigureEditorInstructions(
+          context.getLabel(),
+          "slide",
+          figureEditorMode(context),
+        ),
     }),
     deck_settings: view<EditingSlideDeckParams, ProductViewContext>({
       label: (_params, context) => context.getLabel(),
@@ -608,7 +638,11 @@ export const copilotViews = defineAIViews(
           pair: pairOf(context),
         }),
       instructions: (_params, context) =>
-        getFigureEditorInstructions(context.getLabel(), "report"),
+        getFigureEditorInstructions(
+          context.getLabel(),
+          "report",
+          figureEditorMode(context),
+        ),
     }),
     editing_visualization: view<
       EditingVisualizationParams,
@@ -621,9 +655,13 @@ export const copilotViews = defineAIViews(
           pair: pairOf(context),
         }),
       instructions: (params, context) =>
-        `${getFigureEditorInstructions(context.getLabel(), "visualization")}${
-          productViewOnlyLine(params.productId)
-        }`,
+        `${
+          getFigureEditorInstructions(
+            context.getLabel(),
+            "visualization",
+            figureEditorMode(context),
+          )
+        }${productViewOnlyLine(params.productId)}`,
     }),
     results_file: view<ResultsFileParams, PackageViewContext>({
       label: (params) => `${params.moduleId} / ${params.resultsObjectId}`,
@@ -674,7 +712,11 @@ export const copilotViews = defineAIViews(
           pair: pairOf(context),
         }),
       instructions: (_params, context) =>
-        getFigureEditorInstructions(context.getLabel(), "package"),
+        getFigureEditorInstructions(
+          context.getLabel(),
+          "package",
+          figureEditorMode(context),
+        ),
     }),
     module_defaults: view({ label: "Module defaults" }),
     scopes: view({ label: "Scopes" }),

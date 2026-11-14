@@ -218,3 +218,4 @@ Vocabulary:
 
 - Step 1: `csvCell` lives in `lib/utils.ts`, not in the formatter, because the population template route and the run's input preparation held identical copies; Tim widened step 1's Surface for it. SYSTEM_00's `lib/utils.ts` sentence, already short of the file's exports, now lists them with `csvCell`.
 - Step 2: ruling 4 amended by Tim at review: `FamilyTabs` takes the page's one `open` memo, since its own fallback to the family's first module repeated the page's default and could never run.
+- Step 3: `client/src/components/instance/copilot/mod.ts`, outside the Surface, exports `figureEditorKeepLineFor`, because `figure_editor.ts` reaches the copilot folder only through its `mod.ts` (`lint:structure`). The helper takes the host as its noun (`figureEditorKeepLine(host, { viewOnly, live })`), since the four host names are the nouns.
