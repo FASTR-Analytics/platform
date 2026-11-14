@@ -13,9 +13,9 @@ The instruction is "Do the next step of PLAN_06_PACKAGE_CONTENTS_LABEL.md." Bran
 Vocabulary:
 
 - **Families**: the dataset families a package captured, `DatasetType[]` (`hmis`, `hfa`, `iceh`), in `MODULE_FAMILY_ORDER`.
-- **Module number**: a module id without its `m` and leading zeros: `m012` is `12`.
-- **Contents label**: families then module numbers, for example `HMIS+HFA 1,2,5,6,10,11,12`.
-- **Display label**: a package's label followed by its contents label, for example `2026-11-14 · HMIS+HFA 1,2,5,6,10,11,12`.
+- **Module count**: how many modules a package ran, `RunSummary.moduleIds.length`.
+- **Contents label**: families then module count, for example `HMIS+HFA · 6 modules`.
+- **Display label**: a package's label followed by its contents label, for example `2026-11-14 · HMIS+HFA · 6 modules`.
 
 ## §1 The problem
 
@@ -27,7 +27,7 @@ Vocabulary:
 ## §2 The model
 
 - `RunSummary` carries `families: DatasetType[] | null`. Launch writes the step 1 families. Publish writes the families of the manifest's `datasets`. The `runs_summary` data transform stamps every existing row from its package's manifest, or `null` when the run has no manifest.
-- `ReadyPackage` carries `families` and `moduleIds`, read from `runs.summary`.
+- `ReadyPackage` carries `families` and `moduleCount`, read from `runs.summary`.
 - `lib/run_contents_label.ts` holds three pure functions: `familiesOfDatasetTypes`, `packageContentsLabel` and `packageDisplayLabel`.
 - The catalogue table has a Contents column showing the contents label, searchable, and filterable by family.
 - `readyPackageOptionLabel` starts with the display label.
@@ -38,17 +38,16 @@ Vocabulary:
 2. `families` is `null` only on a run that has no manifest and was launched before launch recorded families. Such a run's families are knowable only at generation time, so the transform never derives them from the modules. _(proposed)_
 3. One pure function, `familiesOfDatasetTypes(types: readonly string[]): DatasetType[]` in the new `lib/run_contents_label.ts`, returns `MODULE_FAMILY_ORDER` filtered to the given types. It does not go in `lib/types/`, because `MODULE_FAMILY_ORDER` lives in `lib/group_metrics.ts`, which imports `lib/types/mod.ts`. Publish and the transform both call it on the manifest's `datasets[].datasetType`. Launch's `selectedFamilies` becomes `DatasetType[]` and goes into the summary as is. _(proposed)_
 4. Transform block 2 in `runs_summary.ts` stamps `families` on each row whose raw summary has no `"families"` key. It reads `manifest.json` from `runDirPath(id)` as raw JSON and passes `datasets[].datasetType` through rule 3. A missing manifest gives `null`. A malformed summary is skipped, as block 1 does. The gate is a raw key scan, because `RunSummary` has no schema. _(proposed)_
-5. `toRunListingItem`'s summary parse becomes `parseRunSummary(text: string | null): RunSummary | null` in `server/db/instance/run_generation.ts`. `listRunCatalog` and `listReadyPackages` both call it. `listReadyPackages` selects `summary` and maps a null summary to `families: null, moduleIds: []`. _(proposed)_
-6. Families and module ids are facts about the package's contents, not generation telemetry, so `ReadyPackage` carries them to approved users. SYSTEM_08's sentence on `listReadyPackages` says so. _(proposed)_
+5. `toRunListingItem`'s summary parse becomes `parseRunSummary(text: string | null): RunSummary | null` in `server/db/instance/run_generation.ts`. `listRunCatalog` and `listReadyPackages` both call it. `listReadyPackages` selects `summary` and maps it to `families` and `moduleCount: summary.moduleIds.length`, or `families: null, moduleCount: 0` when the summary is null. _(proposed)_
+6. Families and module count are facts about the package's contents, not generation telemetry, so `ReadyPackage` carries them to approved users. SYSTEM_08's sentence on `listReadyPackages` says so. _(proposed)_
 7. The contents label is built as follows:
    - Families come from `getModuleFamilyLabel`, joined with `+`.
-   - Module numbers come from `/^m0*(\d+)$/`, in ascending numeric order, joined with `,`. An id that does not match is printed as it is, after the numbers.
-   - Families and module numbers are separated by one space. When one part is empty, only the other is printed. When both are empty, the label is `""`.
-   - A code comment records why the order is numeric and not `compareModules`: the row holds only ids, and the label is a code, not a module listing.
+   - The module count is `plural(n, { one: "1 module", other: "N modules" })` in en, fr ("module" / "modules") and pt ("módulo" / "módulos"), with `plural` from `@timroberton/panther`. It is printed only when greater than 0. Launch refuses a package with no modules ([launch.ts:74](server/worker_routines/generate_run/launch.ts#L74)), so 0 only means there is no summary.
+   - Families and module count are joined with `·`. When one part is empty, only the other is printed. When both are empty, the label is `""`.
 
    _(proposed)_
 8. The display label is `${label} · ${contents}`. When the contents label is `""`, it is the label alone. _(proposed)_
-9. `packageContentsLabel` takes `{ families: DatasetType[] | null; moduleIds: readonly string[] }`. `packageDisplayLabel` takes that plus `label`. A catalogue row passes `run.summary`. When `summary` is null, the Contents cell is empty. _(proposed)_
+9. `packageContentsLabel` takes `{ families: DatasetType[] | null; moduleCount: number }`. `packageDisplayLabel` takes that plus `label`. A catalogue row passes `run.summary.families` and `run.summary.moduleIds.length`. When `summary` is null, the Contents cell is empty. _(proposed)_
 10. The Contents column has key `contents` and the header "Contents" / "Contenu" / "Conteúdo". It sits after Package and is not sortable. `searchValue` is the contents label. `filterValue` is the family labels as tags. _(proposed)_
 11. `readyPackageOptionLabel` returns `${packageDisplayLabel(pkg)} · ${date}${pinned}`. `packageLabel` and `packageScopeCaption` keep the bare label, because product cards, chips and stale badges already sit beside a scope and need to stay short. _(proposed)_
 12. Nothing ships. _(proposed)_
@@ -93,12 +92,11 @@ Vocabulary:
 - **Deliverable:**
   - Rulings 7 to 11.
   - The test covers these cases:
-    - `HMIS+HFA` with `m012, m001, m010, m002` gives `HMIS+HFA 1,2,10,12`;
-    - families only gives `HFA`;
-    - modules only with `null` families gives `1,2`;
-    - both empty gives `""`;
-    - `m003` gives `3`;
-    - an id that does not match is printed last, as it is;
+    - `hmis`, `hfa` with 6 modules gives `HMIS+HFA · 6 modules`;
+    - `hfa` with 1 module gives `HFA · 1 module`;
+    - families only, with 0 modules, gives `HFA`;
+    - `null` families with 2 modules gives `2 modules`;
+    - `null` families with 0 modules gives `""`;
     - the display label of an empty contents label is the bare label.
   - SYSTEM_08 describes the two label functions, the Contents column and the picker label, and its manifest lists the new test.
 - **Not in this step:** product captions (ruling 11), and the package page header.
@@ -109,6 +107,5 @@ Vocabulary:
 
 - The `retired` member of `RunCatalogStatus`, which no code writes.
 - Labels in copilot tool output (`format_products_list_for_ai.ts`).
-- Grouping module numbers under their family. That needs each module's family on the row, and `MODULE_REGISTRY` deliberately has none.
 
 ## §6 Log
