@@ -2,7 +2,7 @@
 
 The 2026-11-13 run of [TESTING_SCRIPT_FOR_AI_COPILOT.md](TESTING_SCRIPT_FOR_AI_COPILOT.md) on Sierra Leone found copilot defects in what tools return, what views tell the model, and which changes the model hears as the user's. It also found test-script expectations that the code has correctly moved past. This plan fixes both.
 
-**Next step: Do 4.**
+**Next step: Do 5.**
 
 Branch: `main`. Repos: this one. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md). Start when: any time. The `code_execution` loading label is panther's PLAN_23_CODE_EXECUTION_LABEL.md, independent of this plan.
 
