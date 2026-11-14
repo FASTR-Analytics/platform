@@ -11,6 +11,7 @@ globs:
   - server/db/instance/assets.ts
   - server/routes/instance/assets.ts
   - server/routes/instance/upload.ts
+  - server/tests/upload_filename_test.ts
 docs_absorbed:
 ---
 
@@ -36,6 +37,8 @@ State is an **in-memory `Map`** of `{ id, filename, size, offset, createdAt, met
 uploaderIsGlobalAdmin, visibility }`; bytes stream into `<_ASSETS_DIR_PATH>/.tus-uploads/<uuid>`. A server restart forgets the map. The client's next HEAD gets a 404 and Uppy restarts the upload from zero (graceful, not resumed). Uploads older than 24 h are swept, but only map entries, and only when a new POST arrives (Open items).
 
 **The HEAD-via-GET quirk (load-bearing).** The resume check is registered with `.get()`, NOT `.on("HEAD", …)`: Hono's dispatch converts HEAD to GET before route matching, so a HEAD-registered route never matches, and without a `.get()` handler the request would fall through to `main.ts`'s catch-all redirect and break the protocol. It is also **unauthenticated by design**: the TUS client probes upload status before it has credentials attached; the route leaks nothing but offset/length of a random UUID.
+
+**Filename decoding.** tus-js-client sends each `Upload-Metadata` value as base64 of its UTF-8 bytes, so `parseMetadata` decodes with `decodeBase64Utf8` (`lib/utils.ts`), not bare `atob`, which yields one character per byte and garbles every non-ASCII name (a macOS screenshot's narrow no-break space). Pinned by `server/tests/upload_filename_test.ts`, which runs the real POST and PATCH on the dev database.
 
 **Filename safety.** The TUS `Upload-Metadata` filename is attacker-controllable and is later joined onto `_ASSETS_DIR_PATH`: `sanitizeUploadFilename` strips every path component and Windows separator, falling back to a generated name. The read-side twin is `resolveAssetFilePath` in `db/instance/assets.ts`. Every join of a client-supplied name onto the assets dir must go through it (it rejects separators and `..`).
 

@@ -376,7 +376,8 @@ routesUpload.patch(
         c.header("Upload-Offset", upload.size.toString());
         c.header("Tus-Resumable", "1.0.0");
         c.header("X-Upload-Complete", "true");
-        c.header("X-Upload-Filename", upload.filename);
+        // A header value must be Latin-1; a file name need not be.
+        c.header("X-Upload-Filename", encodeURIComponent(upload.filename));
 
         return c.body(null);
       }
