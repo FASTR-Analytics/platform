@@ -332,11 +332,20 @@ export type RunManifest = z.infer<typeof runManifestSchema>;
 // carries one. Null is a run written before the stamp existed: displayed as
 // unknown, never recomputed at read time (a run dir is immutable, so a `du`
 // fallback would only ever be a slower way to get the same number).
-export type RunSummary = {
-  manifestSchemaVersion: number;
-  provenance: RunProvenance;
-  moduleIds: string[];
-  metricCount: number;
-  totalRowCount: number;
-  diskSizeBytes: number | null;
-};
+// `families` are the dataset families the package captured, in family order:
+// the step 1 choice at launch, the manifest's datasets at publish. Null is a
+// generating or failed run with no manifest launched before launch recorded
+// them: knowable only at generation, so never derived from its modules.
+// Read through this schema so a row the runs_summary transform has not yet
+// stamped (a ready run whose package dir is absent) reads as no summary
+// rather than as a summary missing a field.
+export const runSummarySchema = z.object({
+  manifestSchemaVersion: z.number(),
+  provenance: runProvenanceSchema,
+  families: z.array(runDatasetFamilySchema).nullable(),
+  moduleIds: z.array(z.string()),
+  metricCount: z.number(),
+  totalRowCount: z.number(),
+  diskSizeBytes: z.number().nullable(),
+});
+export type RunSummary = z.infer<typeof runSummarySchema>;

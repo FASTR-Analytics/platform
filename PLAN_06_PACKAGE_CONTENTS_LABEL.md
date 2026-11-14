@@ -36,22 +36,22 @@ Vocabulary:
 ## §3 Rulings
 
 1. Families are stored in `RunSummary`, not in a new `runs` column. Both writers already write the summary, at launch and at publish, so a generating or failed run carries families with no schema change. _(proposed)_
-2. `families` is `null` only on a run that has no manifest and was launched before launch recorded families. Such a run's families are knowable only at generation time, so the transform never derives them from the modules. _(proposed)_
-3. One pure function, `familiesOfDatasetTypes(types: readonly string[]): DatasetType[]` in the new `lib/run_contents_label.ts`, returns `MODULE_FAMILY_ORDER` filtered to the given types. It does not go in `lib/types/`, because `MODULE_FAMILY_ORDER` lives in `lib/group_metrics.ts`, which imports `lib/types/mod.ts`. Publish and the transform both call it on the manifest's `datasets[].datasetType`. Launch's `selectedFamilies` becomes `DatasetType[]` and goes into the summary as is. _(proposed)_
-4. Transform block 2 in `runs_summary.ts` stamps `families` on each row whose raw summary has no `"families"` key. It reads `manifest.json` from `runDirPath(id)` as raw JSON and passes `datasets[].datasetType` through rule 3. A missing manifest gives `null`. A malformed summary is skipped, as block 1 does. The gate is a raw key scan, because `RunSummary` has no schema. _(proposed)_
-5. `toRunListingItem`'s summary parse becomes `parseRunSummary(text: string | null): RunSummary | null` in `server/db/instance/run_generation.ts`. `listRunCatalog` and `listReadyPackages` both call it. `listReadyPackages` selects `summary` and maps it to `families` and `moduleCount: summary.moduleIds.length`, or `families: null, moduleCount: 0` when the summary is null. _(proposed)_
+2. `families` is `null` only on a generating or failed run that has no readable manifest and was launched before launch recorded families. Such a run's families are knowable only at generation time, so the transform never derives them from the modules. _(proposed)_
+3. One pure function, `familiesOfDatasetTypes(types: readonly string[]): DatasetType[]` in the new `lib/run_contents_label.ts`, returns `MODULE_FAMILY_ORDER` filtered to the given types. It does not go in `lib/types/`, because `MODULE_FAMILY_ORDER` lives in `lib/group_metrics.ts`, which imports `lib/types/mod.ts`. Publish and the transform both call it on the manifest's `datasets[].datasetType`. Launch's `selectedFamilies` becomes `MODULE_FAMILY_ORDER.filter((family) => step1Result[family])` and goes into the summary as is. _(amended at step 1)_
+4. Transform block 2 in `runs_summary.ts` stamps `families` on each row whose raw summary has no `"families"` key. It reads `manifest.json` from `runDirPath(id)` as raw JSON for every row and passes `datasets[].datasetType` through rule 3. Any read, JSON or datasets-shape failure counts as unreadable, as the manifest sweep treats it. Unreadable on a generating or failed run gives `null`. Unreadable on any other status leaves the key absent for the next boot, unlogged, because the manifest sweep already reports the package. Block 1's strip is written even when block 2 defers. A malformed summary is skipped, as block 1 does. The gate is a raw key scan, because `families` is required and a deferred row must not fail boot. _(amended at step 1)_
+5. `RunSummary` becomes `z.infer<typeof runSummarySchema>`. `toRunListingItem`'s summary parse becomes `parseRunSummary(text: string | null): RunSummary | null` in `server/db/instance/run_generation.ts`, which returns null for a summary that is not JSON or fails `runSummarySchema`, so a deferred row reads as no summary. Writes are not validated: both writers build the summary from typed values. `listRunCatalog` and `listReadyPackages` both call it. `listReadyPackages` selects `summary` and maps it to `families` and `moduleCount: summary.moduleIds.length`, or `families: null, moduleCount: null` when the summary is null. _(amended at step 1)_
 6. Families and module count are facts about the package's contents, not generation telemetry, so `ReadyPackage` carries them to approved users. SYSTEM_08's sentence on `listReadyPackages` says so. _(proposed)_
 7. The labels are built as follows:
    - `packageFamiliesLabel(families: DatasetType[] | null)` joins `getModuleFamilyLabel` of each family with `+`. `null` and `[]` give `""`.
-   - `packageContentsLabel({ families, moduleCount })` is the families label and `${moduleCount}m`, joined with one space. The `m` is untranslated, because it reads the same in en, fr and pt. The count part is left out when the count is 0: launch refuses a package with no modules ([launch.ts:74](server/worker_routines/generate_run/launch.ts#L74)), so 0 only means there is no summary. When one part is empty, only the other is printed. When both are empty, the label is `""`.
+   - `packageContentsLabel({ families, moduleCount })` is the families label and `${moduleCount}m`, joined with one space. The `m` is untranslated, because it reads the same in en, fr and pt. `moduleCount` is `number | null`, and the count part is left out when it is null. When one part is empty, only the other is printed. When both are empty, the label is `""`.
    - `packageDisplayLabel({ label, families, moduleCount })` is the label and the contents label, joined with one space. When the contents label is `""`, it is the label alone.
 
-   _(proposed)_
+   _(amended at step 1)_
 8. The table has two new columns after Package, with no units in their cells, because the headers carry them:
    - **Data** ("Data" / "Données" / "Dados"), key `families`. It renders the families label. It is sortable on that label. Its `filterValue` is the family labels as tags.
    - **Modules** ("Modules" / "Modules" / "Módulos"), key `moduleCount`. It renders the count, or nothing when `summary` is null. It is sortable on the count and not searchable.
 
-   A catalogue row reads `run.summary?.families ?? null` and `run.summary?.moduleIds.length ?? 0`. _(proposed)_
+   A catalogue row reads `run.summary?.families ?? null` and `run.summary?.moduleIds.length ?? null`. _(amended at step 1)_
 9. `readyPackageOptionLabel` returns `${packageDisplayLabel(pkg)} · ${date}${pinned}`. `packageLabel` and `packageScopeCaption` keep the bare label, because product cards, chips and stale badges already sit beside a scope and need to stay short. _(proposed)_
 10. Nothing ships. _(proposed)_
 
@@ -97,9 +97,9 @@ Vocabulary:
   - The test covers these cases:
     - `hmis`, `hfa` with 6 modules gives `HMIS+HFA 6m`;
     - `hfa` with 1 module gives `HFA 1m`;
-    - families only, with 0 modules, gives `HFA`;
+    - families only, with a `null` count, gives `HFA`;
     - `null` families with 2 modules gives `2m`;
-    - `null` families with 0 modules gives `""`;
+    - `null` families with a `null` count gives `""`;
     - the display label of `2026-11-14` with `hmis` and 6 modules is `2026-11-14 HMIS 6m`;
     - the display label of an empty contents label is the bare label.
   - SYSTEM_08 describes the label functions, the two columns and the picker label, and its manifest lists the new test.
@@ -113,3 +113,5 @@ Vocabulary:
 - Labels in copilot tool output (`format_products_list_for_ai.ts`).
 
 ## §6 Log
+
+- Step 1: rulings 2, 3, 4, 5, 7 and 8 amended after an adversarial review, on Tim's instruction to decide. Generating and failed runs can hold a manifest, because publish renames the package dir into place before `publishReadyRun`, so block 2 reads the manifest for every row and uses status only for the unreadable case. A ready run whose package dir is absent, as after a pg-dump restore, is left unstamped instead of losing its families for good. `runSummarySchema` makes the read honest for such a row. `moduleCount` is `number | null` instead of a 0 sentinel. A production read-only scan (39 instances) found every summary carrying all keys of `runSummarySchema` with a known provenance, so the schema reads every stored row.

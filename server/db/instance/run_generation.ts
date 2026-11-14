@@ -11,6 +11,7 @@ import {
   runProgressSchema,
   type RunProvenance,
   type RunSummary,
+  runSummarySchema,
 } from "lib";
 
 // The vendored Deno build attaches PostgresError to the default export only;
@@ -41,13 +42,22 @@ type RunListingRow = {
 // summary/progress are stored JSON; a malformed blob degrades that field to
 // null rather than hiding the row: a run the catalogue cannot summarise is
 // still a run an admin must be able to see and delete.
-function toRunListingItem(row: RunListingRow): RunListingItem {
-  let summary: RunSummary | null = null;
-  try {
-    summary = row.summary === null ? null : JSON.parse(row.summary);
-  } catch {
-    summary = null;
+function parseRunSummary(text: string | null): RunSummary | null {
+  if (text === null) {
+    return null;
   }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const parsed = runSummarySchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
+function toRunListingItem(row: RunListingRow): RunListingItem {
+  const summary = parseRunSummary(row.summary);
   let progress: RunProgress | null = null;
   if (row.progress !== null) {
     const parsed = runProgressSchema.safeParse(JSON.parse(row.progress));
@@ -172,19 +182,24 @@ export async function listReadyPackages(
 ): Promise<APIResponseWithData<ReadyPackage[]>> {
   try {
     const rows = await mainDb<
-      { id: string; label: string; created_at: Date }[]
+      { id: string; label: string; created_at: Date; summary: string | null }[]
     >`
-SELECT id, label, created_at FROM runs
+SELECT id, label, created_at, summary FROM runs
 WHERE status = 'ready'
 ORDER BY created_at DESC
 `;
     return {
       success: true,
-      data: rows.map((r) => ({
-        id: r.id,
-        label: r.label,
-        createdAt: r.created_at.toISOString(),
-      })),
+      data: rows.map((r) => {
+        const summary = parseRunSummary(r.summary);
+        return {
+          id: r.id,
+          label: r.label,
+          createdAt: r.created_at.toISOString(),
+          families: summary?.families ?? null,
+          moduleCount: summary?.moduleIds.length ?? null,
+        };
+      }),
     };
   } catch (e) {
     return {
