@@ -20,7 +20,7 @@ What this script covers: the chat beside the shell, its view tracking, its reads
 7. **Stop conditions.** Stop the run and report if: the chat answers with a rate-limit box ("Daily AI usage limit reached" or the country limit), a request returns a status other than 200 three times in a row, or a WRITE step leaves the instance in a state you cannot clean up. Otherwise a failing step is recorded and the run continues.
 8. **Language.** A French or Portuguese instance shows French or Portuguese labels and the copilot may answer in that language. Gate on view ids from the hook, not on label text. Where this script names a button, the French and Portuguese labels are given in brackets.
 9. **Do not fix anything.** This is a test run. Record, do not repair.
-10. **Budget.** The whole run is around 99 model turns and two to three hours. Under `read-only` it is around 34 turns.
+10. **Budget.** The whole run is around 100 model turns and two to three hours. Under `read-only` it is around 35 turns.
 
 ## 2. Setup
 
@@ -84,7 +84,10 @@ Returns `{ id, label, params }`. The id is one of: products, opening_product, ed
             i,
             result: b.tool_use_id,
             err: b.is_error === true,
-            text: String(b.content).slice(0, 1500),
+            text: (typeof b.content === "string"
+              ? b.content
+              : b.content.map((c) => c.text ?? `[${c.type}]`).join("\n"))
+              .slice(0, 1500),
           }]
           : []
       )
@@ -165,7 +168,7 @@ Returns `{ id, label, params }`. The id is one of: products, opening_product, ed
 });
 ```
 
-`messagesAppendOnly` is false by design in three places: right after a Stop or a failed turn (the unanswered message loses its block), and on the first request after a turn whose tool results carried images (the turn's end puts a text line in each image's place). Everywhere else it must be true.
+`messagesAppendOnly` is false by design in four places: right after a Stop or a failed turn (the unanswered message loses its block), on the first request after a turn whose tool results carried images (the turn's end puts a text line in each image's place), and on E1's Haiku request (the changed tools strip the stored thinking blocks). Everywhere else it must be true.
 
 **H9, the block types of the last assistant message:**
 
@@ -177,6 +180,19 @@ Returns `{ id, label, params }`. The id is one of: products, opening_product, ed
   return typeof m.content === "string"
     ? ["text"]
     : m.content.map((b) => b.type);
+});
+```
+
+**H10, one tool result in full** (H3 cuts each result at 1500 characters; pass the result's id from H3):
+
+```js
+((id) => {
+  const b = window.__copilot.messages()
+    .flatMap((m) => typeof m.content === "string" ? [] : m.content)
+    .find((b) => b.type === "tool_result" && b.tool_use_id === id);
+  return typeof b.content === "string"
+    ? b.content
+    : b.content.map((c) => c.text ?? `[${c.type}]`).join("\n");
 });
 ```
 
@@ -296,13 +312,13 @@ Go to Explore. NEW CONVERSATION.
 - Do: send "What metrics are available in this package? Give me the first five by module."
 - Ground truth: H3 shows `get_available_metrics` with `err: false`; the result text starts with "Source: results package" naming the package and scope. Open the AI panel menu, click "View AI tool output" [Voir la sortie des outils IA], and compare the first module heading and metric ids with the answer. Close the modal.
 - Do: send "Call get_available_modules and tell me how many metrics each module has."
-- Ground truth: H3 shows `get_available_modules` with `err: false`. Each module's `Metrics:` count equals the number of that module's metric ids under its heading in the `get_available_metrics` result: both count ready metrics only.
+- Ground truth: H3 shows `get_available_modules` with `err: false`. Read it and the `get_available_metrics` result in full with H10. Each module's `Metrics:` count equals the number of that module's metric ids under its heading in the `get_available_metrics` result: both count ready metrics only.
 - Pass: ids in the answer exist in the modal's text, and every module's count agrees.
 
 **D2. Metric data against the screen.** Pick the metric Explore shows (from the view-state line in H5).
 
 - Do: send "Using get_metric_data, give me the national value of the metric on screen for the latest period available, and state the period coverage."
-- Ground truth: H3 shows `get_metric_data` with `err: false`, the result starting with the Source line and containing "Period coverage". Its `## Data (CSV)` section is long format: a header naming every dimension column and then the value column or columns, then one row per combination of dimension values, each row naming its own dimension values (a `period_id` such as 202301 and a `year` such as 2023 written as they are, never as 202301.000), with no row for a value the data does not hold and any label holding a comma in double quotes. Screenshot the Explore chart or table. Compare the value and period the copilot states with what the screenshot shows for the national level, allowing for rounding and for percent shown as a fraction in the CSV.
+- Ground truth: H3 shows `get_metric_data` with `err: false`, the result starting with the Source line and containing "Period coverage". Read the result in full with H10: its `## Data (CSV)` section is long format: a header naming every dimension column and then the value column or columns, then one row per combination of dimension values, each row naming its own dimension values (a `period_id` such as 202301 and a `year` such as 2023 written as they are, never as 202301.000), with no row for a value the data does not hold and any label holding a comma in double quotes. Screenshot the Explore chart or table. Compare the value and period the copilot states with what the screenshot shows for the national level, allowing for rounding and for percent shown as a fraction in the CSV.
 - Ask the copilot: "Was that value read from the data or inferred? Which rows of the CSV did you use?"
 - Pass: the value matches the screen within rounding, and the copilot says it read it from the tool result.
 
@@ -332,7 +348,7 @@ Go to Explore. NEW CONVERSATION.
 
 ### E. Settings
 
-**E1. Model and effort follow the settings.** Open the AI panel menu, "AI settings" [Paramètres IA]. Set the model to Claude Haiku 4.5. Save.
+**E1. Model and effort follow the settings.** Open the AI panel menu, "AI settings" [Paramètres IA]. Set the model to Claude Sonnet 5. Save. Send "Say OK.", so the request before the switch is on a model with the newer web search tool, whatever model the run started on. Then set the model to Claude Haiku 4.5. Save.
 
 - Do: send "Say OK."
 - Ground truth: H4 `model` is `claude-haiku-4-5` and `outputConfig` is null (Haiku has no effort). H8 reports `modelSame: false`, `systemSame: true`, `toolsSame: false`. The only difference in the tools array is the `web_search` entry's `type`: `web_search_20260209` before, `web_search_20250305` on Haiku 4.5. Compare with `(() => window.__copilot.requests().slice(-2).map((r) => r.body.tools.find((t) => t.name === "web_search")?.type))`. The changed tools strip the stored thinking blocks once: `(() => window.__copilot.lastRequest().body.messages.some((m) => Array.isArray(m.content) && m.content.some((b) => b.type === "thinking")))` is false.
@@ -364,10 +380,11 @@ NEW CONVERSATION.
 **F3. Create a cover and a content slide with a figure.**
 
 - Do: send "Create a cover slide titled 'Copilot test' with subtitle 'automated run', then a content slide with a short three-bullet text block on the left and a figure of the metric you consider the main primary result on the right, using get_metric_data first. Then tell me what you created."
-- Ground truth: H3 shows `get_metric_data`, then two `create_slide` calls, all `err: false`. The cover's result is one sentence, "Created slide <id>: ...". The content slide's result follows its sentence with a `Blocks:` line (each block's id and type), a `Layout:` line, a `Slide <id>:` line saying the slide fits the page or OVERFLOWS THE PAGE, and `Figure <block id>:` with the figure's config, which carries a `Data shown: <min> to <max>` line (marked frozen at the last refresh unless its period filter is custom). Any period the copilot puts in the figure's title or caption lies inside that range. Neither result names `get_deck`, and H3 shows no `get_slides` call after either `create_slide`: the copilot describes what it created from the two results. The rail shows two slides. Open slide 2 by clicking it in the rail and screenshot the canvas: it must show a text block and a rendered chart or table, not an error tile. Screenshot slide 1 too.
+- Ground truth: H3 shows `get_metric_data`, then two `create_slide` calls, all `err: false`. The cover's result is one sentence, "Created slide <id>: ...". The content slide's result follows its sentence with a `Blocks:` line (each block's id and type), a `Layout:` line, a `Slide <id>:` line saying the slide fits the page or OVERFLOWS THE PAGE, and `Figure <block id>:` with the figure's config, which (read in full with H10) carries a `Data shown: <min> to <max>` line (marked frozen at the last refresh unless its period filter is custom). Any period the copilot puts in the figure's title or caption lies inside that range. Neither result names `get_deck`, and H3 shows no `get_slides` call after either `create_slide`: the copilot describes what it created from the two results. The rail shows two slides. Open slide 2 by clicking it in the rail and screenshot the canvas: it must show a text block and a rendered chart or table, not an error tile. Screenshot slide 1 too.
 - Ask the copilot: "Describe slides 1 and 2 exactly as they are now, using get_slides: for slide 2 the blocks, their ids, and the figure's metric and preset."
+- Ground truth: H4's last user text (this question) has no "Edited slide <id>" line for either slide: the copilot wrote both and you only opened them, and opening a slide saves nothing that changed.
 - Ground truth: H3 shows one `get_slides` call whose `slideIds` holds both slides' ids and whose result is an array of two entries in that order, each with its `slideId`, and slide 2's entry has `page`, which agrees with the `Slide <id>:` line of its create_slide result and with the slide's badge (a slide that overflows shows "Layout overflow" on its rail thumbnail and "Content exceeds available space" on the open canvas); the block ids in the answer match the tool result and the `Blocks:` line of the create_slide result; the metric id equals the one in the create_slide input.
-- Pass: both slides render as described in the screenshots.
+- Pass: both slides render as described in the screenshots, and the question carries no echo line.
 
 **F4. Edit text in place.** Keep slide 2 open.
 
@@ -386,9 +403,9 @@ NEW CONVERSATION.
 
 - Do: send "Say OK."
 - Ground truth: H4's last user text contains a digest line "The content of slide
-  <id> changed while it was open". It has no "Edited slide <id>" line for slide 1, which only the copilot wrote and you only opened: a room's save of a slide that did not change is not reported as anyone's edit. (Slide 2 may carry one, for your edit.)
+  <id> changed while it was open".
 - Ask the copilot: "What changed since my last message, according to your context?"
-- Pass: the digest line is present, slide 1 has no line, and the copilot names only the slide 2 change.
+- Pass: the digest line is present and the copilot names only the slide 2 change.
 
 **F7. Build a six-slide deck.**
 
@@ -452,14 +469,14 @@ NEW CONVERSATION.
 
 - Ground truth: H1 is editing_slide_figure; H5 shows instructions starting "# Current View: Figure editor (slide)".
 - Do: send "Read the figure editor, then change the caption to 'EDITOR CAPTION'."
-- Ground truth: H3 shows `get_figure_editor` and `update_figure_editor`, both `err: false`. The get's config carries a `Data shown: <min> to <max>` line. The update's result lists "caption: applied", then the keep sentence for the editor's mode, then "The draft's config:" and the config, its Caption line reading EDITOR CAPTION. Snapshot the editor's header: under live co-editing (a back arrow alone, beside a Live badge) the keep sentence starts "Live co-editing is on" and says there is no Cancel; with Apply and Cancel buttons it reads "The user keeps the result with the editor's Apply button or discards it with Cancel." H5's instructions carry the same sentence. The editor's preview shows the new caption before you click anything: screenshot. Click Apply, or under live co-editing the back arrow. Back on the slide, screenshot: the caption is EDITOR CAPTION.
+- Ground truth: H3 shows `get_figure_editor` and `update_figure_editor`, both `err: false`. The get's config, read in full with H10, carries a `Data shown: <min> to <max>` line. The update's result lists "caption: applied", then the keep sentence for the editor's mode, then "The draft's config:" and the config, its Caption line reading EDITOR CAPTION. Snapshot the editor's header: under live co-editing (a back arrow alone, beside a Live badge) the keep sentence starts "Live co-editing is on" and says there is no Cancel; with Apply and Cancel buttons it reads "The user keeps the result with the editor's Apply button or discards it with Cancel." `(() => window.__copilot.nextTurn().sections.find((s) => s.kind === "view-instructions").text)` contains the same sentence (H5 cuts each section at 300 characters). The editor's preview shows the new caption before you click anything: screenshot. Click Apply, or under live co-editing the back arrow. Back on the slide, screenshot: the caption is EDITOR CAPTION.
 - Pass: both screenshots, and the keep sentence matches the header.
 
 **F16. Covered views refuse.** Open the deck's Settings screen.
 
 - Ground truth: H1 is deck_settings.
 - Do: send "Update slide 2's header to 'X'."
-- Ground truth: H3 shows `update_slide` with `err: true`, text starting "This tool is only available in view "editing_slide_deck"". No slide changed. H5's instructions name Save and Cancel as the way back to the deck.
+- Ground truth: H3 shows `update_slide` with `err: true`, text starting "This tool is only available in view "editing_slide_deck"". No slide changed. The full `view-instructions` text (read as in F15) names Save and Cancel as the way back to the deck.
 - Ask the copilot: "What should I do so you can make that edit?"
 - Pass: it tells the user to leave Settings with Save or Cancel, names no back button and no other route. Close Settings with Cancel [Annuler, Cancelar].
 
@@ -534,15 +551,15 @@ Skip under `read-only`. Go to Products, open the "Copilot tests" folder, click N
 - Do: send "Write this report."
 - Ground truth: the copilot asks up to four questions, each through its own `ask_user_questions` card (H3), one card at a time, skipping any the request already answers. It makes no write.
 - Answer each card from this brief: "A four-section report for district managers, on the main primary metric, latest two years, with two figures. Go with your other suggestions." Pick the option closest to it, or type it, and submit.
-- Ground truth: the copilot calls `get_available_metrics` and `get_metric_data` (H3), then proposes an outline in chat and waits. No `rewrite_report` yet.
-- Pass: the sequence is brief, reads, outline, wait.
+- Ground truth: the copilot calls `get_available_metrics` and `get_metric_data` (H3), then lists the sections in chat with an `ask_user_questions` card offering "These sections look good" and "Add or remove sections": pick the first. It then proposes the plan in chat with a card offering "Yes, write it", "No" and "Keep planning", and waits. No `rewrite_report` yet.
+- Pass: the sequence is brief, reads, sections, plan, wait.
 
 **G2. Draft goes through the diff.**
 
-- Do: send "Approved, write it."
-- Ground truth: H3 shows `get_report_pages` with a `markdown` input, then `rewrite_report`. A staged diff appears in the editor with Accept and Reject buttons. Snapshot it, then click Accept. H3's `rewrite_report` result text starts "The user ACCEPTED the rewrite". The preview renders a cover block, at least one `:::` block (tiles, callout or band), and four top-level headings: screenshot the preview, full page.
-- Do: send "Now add the outline's two figures with insert_figure, each after its section's heading." Accept each diff.
-- Ground truth: two `insert_figure` calls, each `err: false`, each accepted result starting "The user ACCEPTED the figure insert" and ending with "## What each new figure shows" and a `### figure:<id>` block of that figure's data, its period and values. Each figure's title and the prose beside it name only what its block shows: the same period, the same measure (a total is not called a percent change). The preview shows two rendered figures, not placeholders: screenshot.
+- Do: pick "Yes, write it" on the plan's card and submit.
+- Ground truth: H3 shows `rewrite_report` with the plan's two figures in `newFigures` and no `get_report_pages` call before it. Its result starts "Not proposed yet: the draft is held" and, read in full with H10, holds "## What each new figure shows". Then one or more `edit_report_draft` calls, and a staged diff appears in the editor with Accept and Reject buttons. Snapshot it, then click Accept. The last `edit_report_draft` result text starts "The user ACCEPTED the rewrite". The preview renders a cover block, at least one `:::` block (tiles, callout or band), four top-level headings and two rendered figures: screenshot the preview, full page.
+- Do: send "Add one more figure of a different preset after the second section's heading with insert_figure." Accept the diff.
+- Ground truth: one `insert_figure` call, `err: false`, its accepted result starting "The user ACCEPTED the figure insert" and, read in full with H10, ending with "## What each new figure shows" and a `### figure:<id>` block of that figure's data, its period and values. Each figure's title and the prose beside it name only what its block shows: the same period, the same measure (a total is not called a percent change). The preview shows three rendered figures, not placeholders: screenshot.
 - Do: send "Call get_report_pages for the report as it stands and list every page it flags."
 - Ground truth: H3 shows `get_report_pages` with `err: false` and no `markdown` input; the answer lists pages, or says none are flagged. Record the page count against the preview's pagination.
 - Pass: all three.
@@ -570,7 +587,7 @@ Skip under `read-only`. Go to Products, open the "Copilot tests" folder, click N
 
 - Before: send "Read the first figure with get_report_figure and quote its Caption line." Record the chart title it quotes.
 - Do: send "Replace the first figure with the same metric but a different preset, using replace_figure, keeping the caption and the chart title."
-- Ground truth: H3's `replace_figure` input has no `figure.chartTitle`, or the recorded title. A diff appears; click Accept. H3's result text starts "The user ACCEPTED the figure replacement (new id" and ends with "## What each new figure shows" and the new figure's data block. Send "Read the report editor and quote the figures index, then read the new figure with get_report_figure and quote its Caption line." The index lists a new figure id and the same caption, and the Caption line is the recorded chart title. Screenshot the preview: the first figure changed shape and kept its title.
+- Ground truth: H3's `replace_figure` input has no `figure.chartTitle`, or the recorded title. A diff appears; click Accept. H3's result text starts "The user ACCEPTED the figure replacement (new id" and, read in full with H10, ends with "## What each new figure shows" and the new figure's data block. Send "Read the report editor and quote the figures index, then read the new figure with get_report_figure and quote its Caption line." The index lists a new figure id and the same caption, and the Caption line is the recorded chart title. Screenshot the preview: the first figure changed shape and kept its title.
 - Pass: all three.
 
 **G7. Literal colours refuse.**
