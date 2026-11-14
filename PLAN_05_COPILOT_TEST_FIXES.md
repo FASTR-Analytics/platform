@@ -151,6 +151,7 @@ Vocabulary:
   - [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)
   - [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md)
   - [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)
+  - [slides.ts](server/routes/products/slides.ts) (added at step 4's review)
 - **Deliverable:**
   - Rulings 7 and 8.
   - The test proves:
@@ -221,3 +222,4 @@ Vocabulary:
 - Step 1: `csvCell` lives in `lib/utils.ts`, not in the formatter, because the population template route and the run's input preparation held identical copies; Tim widened step 1's Surface for it. SYSTEM_00's `lib/utils.ts` sentence, already short of the file's exports, now lists them with `csvCell`.
 - Step 2: ruling 4 amended by Tim at review: `FamilyTabs` takes the page's one `open` memo, since its own fallback to the family's first module repeated the page's default and could never run.
 - Step 3: `client/src/components/instance/copilot/mod.ts` exports `figureEditorKeepLineFor`, because `figure_editor.ts` reaches the copilot folder only through its `mod.ts` (`lint:structure`); Tim added it and SYSTEM_11, whose figure editor context gains the mode, to step 3's Surface at review, and SYSTEM_11 to step 5's. The helper takes the host as its noun (`figureEditorKeepLine(host, { viewOnly, live })`), since the four host names are the nouns.
+- Step 4: `server/routes/products/slides.ts` joins the Surface for its chokepoint comment, which said the room always notifies. From here Tim allows any file a step needs: a file outside a step's Surface is added and logged here, not asked about. `depsForSlide` moves to `collab.ts`'s module scope, exported, so the test drives the real save closure.

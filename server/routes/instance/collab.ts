@@ -158,7 +158,8 @@ export function depsForSlide(
       return { slide: res.data.slide, crdtState };
     },
     saveSlide: async (slide, crdtState) => {
-      // Collab is authoritative → checkpoint overwrites config + CRDT state.
+      // Collab is authoritative → checkpoint overwrites the CRDT state, and
+      // the config when it changed.
       // Validation lives HERE, not in the DB write: a schema rejection is
       // PERMANENT for this doc state (same input parses the same way
       // forever), so the room must not timer-retry it: see DocSaveResult.

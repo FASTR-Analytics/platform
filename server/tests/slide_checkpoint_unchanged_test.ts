@@ -16,13 +16,10 @@ import {
   bytesToBase64,
   type CollabServerMessage,
   type ContentSlide,
-  dropStorageInvalidTransientsInSlide,
   type InstanceSseMessage,
   materializeSlide,
   seedSlideDoc,
   type Slide,
-  slideConfigSchema,
-  storedMatchesDoc,
 } from "lib";
 import type { Sql } from "postgres";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
@@ -194,26 +191,22 @@ Deno.test("an unchanged slide checkpoint writes only the Yjs state", async () =>
     assertEquals(untrusted.contentChanged, false);
     assertEquals((await stampsOf(mainDb, deck, slideId)).crdt, null);
 
-    // 3. The stored slide seeded into a doc, materialized and parsed as the
-    // slide room's save does, is unchanged.
+    // 3. The stored slide seeded into a doc and saved through the slide
+    // room's own save closure is unchanged and notifies nothing.
     const stored = data(await getSlide(mainDb, deck, slideId)).slide;
     const doc = new Y.Doc();
     seedSlideDoc(doc, stored);
-    const materialized = materializeSlide(doc);
-    const parsed = slideConfigSchema.parse(
-      dropStorageInvalidTransientsInSlide(materialized),
-    ) as Slide;
-    const seeded = data(
-      await saveSlideCheckpoint(
-        mainDb,
-        deck,
-        slideId,
-        parsed,
-        bytesToBase64(Y.encodeStateAsUpdate(doc)),
-        storedMatchesDoc(parsed, materialized),
-      ),
-    );
-    assertEquals(seeded.contentChanged, false);
+    const beforeSeeded = await stampsOf(mainDb, deck, slideId);
+    const onSeededSave = await captured(async () => {
+      assertEquals(
+        await depsForSlide(deck, slideId).saveSlide(
+          materializeSlide(doc),
+          bytesToBase64(Y.encodeStateAsUpdate(doc)),
+        ),
+        { ok: true, lastUpdated: beforeSeeded.slide },
+      );
+    });
+    assertEquals(onSeededSave, []);
 
     // 4. A restore whose surviving slide a live room already holds: the
     // room's checkpoint is unchanged and reports the slide's older stamp,
