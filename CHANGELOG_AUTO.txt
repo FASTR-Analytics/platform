@@ -1,3 +1,9 @@
+[2.13.3] [user] [added] - Saved visualizations now appear on the Products page
+[2.13.3] [user] [fixed] - Opening a chart no longer marks its slide or report as changed
+[2.13.3] [user] [fixed] - Time ranges shown by the assistant now reflect actual data, not the requested window
+[2.13.3] [admin] [added] - Saved visualizations now appear in the Products list for the AI copilot
+[2.13.3] [admin] [fixed] - Opening and closing a figure editor no longer marks slides, reports, or visualizations as changed
+[2.13.3] [admin] [fixed] - AI copilot now reports the actual time range present in data, not the requested window
 [2.13.2] [user] [added] - Categories now show how many indicators each one contains
 [2.13.2] [admin] [changed] - AI indicator listings now show how many indicators each category holds
 [2.13.1] [user] [fixed] - Uploaded files with special characters in names now preserved correctly
