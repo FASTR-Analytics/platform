@@ -216,6 +216,21 @@ function fixture(withDisplayRows: boolean): HfaIndicatorsForAIInput {
 const full = fixture(true);
 const noRows = fixture(false);
 
+// Counts are over all three indicators, whichever the listing shows: cat_a
+// holds ind001 (in sub_a1) and ind003, and ind002 has no category.
+const TAXONOMY_LINES = [
+  "Categories (id: label (how many of all 3 indicators it holds)), each with its sub-categories:",
+  "- cat_a: Infrastructure (2 indicators)",
+  "  - sub_a1: Water (1 indicator)",
+  "- no category (1 indicator)",
+  "Service categories (id: label):",
+  "- svc_x: Hospitals",
+  "Variant groups (id: label), each with its items:",
+  "- vg_mode: Delivery mode",
+  "  - campaign: Campaign",
+  "  - routine: Routine",
+];
+
 Deno.test("the listing prints the taxonomy, a count line and one line per indicator", () => {
   assertEquals(
     formatHfaIndicatorListForAI(full, full.indicators, {
@@ -223,15 +238,7 @@ Deno.test("the listing prints the taxonomy, a count line and one line per indica
       withCode: false,
     }),
     [
-      "Categories (id: label), each with its sub-categories:",
-      "- cat_a: Infrastructure",
-      "  - sub_a1: Water",
-      "Service categories (id: label):",
-      "- svc_x: Hospitals",
-      "Variant groups (id: label), each with its items:",
-      "- vg_mode: Delivery mode",
-      "  - campaign: Campaign",
-      "  - routine: Routine",
+      ...TAXONOMY_LINES,
       "",
       "3 of 3 indicators. Each line: id | long label | type, aggregation | category, sub-category, service categories | variant group | rounds with code | round status | consistency across rounds.",
       "ind001 | Long ind001 | binary, avg | category cat_a, sub-category sub_a1, services svc_x | variant group none | code in 2 of 2 rounds | 2 ready | consistent",
@@ -248,15 +255,7 @@ Deno.test("withCode ends each line with the code, once when the rounds agree", (
       withCode: true,
     }),
     [
-      "Categories (id: label), each with its sub-categories:",
-      "- cat_a: Infrastructure",
-      "  - sub_a1: Water",
-      "Service categories (id: label):",
-      "- svc_x: Hospitals",
-      "Variant groups (id: label), each with its items:",
-      "- vg_mode: Delivery mode",
-      "  - campaign: Campaign",
-      "  - routine: Routine",
+      ...TAXONOMY_LINES,
       "",
       "3 of 3 indicators. Each line: id | long label | type, aggregation | category, sub-category, service categories | variant group | rounds with code | round status | consistency across rounds | the code, once when every round holds the same.",
       "ind001 | Long ind001 | binary, avg | category cat_a, sub-category sub_a1, services svc_x | variant group none | code in 2 of 2 rounds | 2 ready | consistent | code: wat_01 == 1 [filter: open == 1]",
@@ -273,15 +272,7 @@ Deno.test("a listing filtered by status prints each round's issues under the ind
       withCode: false,
     }),
     [
-      "Categories (id: label), each with its sub-categories:",
-      "- cat_a: Infrastructure",
-      "  - sub_a1: Water",
-      "Service categories (id: label):",
-      "- svc_x: Hospitals",
-      "Variant groups (id: label), each with its items:",
-      "- vg_mode: Delivery mode",
-      "  - campaign: Campaign",
-      "  - routine: Routine",
+      ...TAXONOMY_LINES,
       "",
       "1 of 3 indicators. Each line: id | long label | type, aggregation | category, sub-category, service categories | variant group | rounds with code | round status | consistency across rounds.",
       "ind003 | Long ind003 | numeric, sum | category cat_a, sub-category none, services svc_x | variant group none | code in 2 of 2 rounds | 1 ready, 1 warning | inconsistent",

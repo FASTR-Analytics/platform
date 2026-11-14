@@ -655,8 +655,8 @@ Skip if the Data page shows no HFA data. Go to Data, open HFA indicators. NEW CO
 
 - Ground truth: H1 is hfa_indicators; H5's instructions contain "# Current View: HFA indicators manager", "## The HFA indicator model" and "## The code", and no tool name ending in `_hfa_indicators` or `_hfa_variables`.
 - Do: send "List the taxonomy and count the indicators per category."
-- Ground truth: H3 shows `get_hfa_indicators` with `err: false`, its result a text that starts with "Categories (id: label)" and has a line "N of M indicators". If it is `err: true` naming the `can_configure_data` permission, that is the pass condition: record it and skip to K.
-- Pass: the counts match the manager's table on screen.
+- Ground truth: H3 shows `get_hfa_indicators` with `err: false`, its result a text that starts with "Categories (id: label (how many of all M indicators it holds))", gives each category and sub-category its count in brackets, and has a line "N of M indicators". No server `code_execution` call follows: the counts are read from the taxonomy lines. If it is `err: true` naming the `can_configure_data` permission, that is the pass condition: record it and skip to K.
+- Pass: the turn ends with an answer, and the counts in it equal the taxonomy lines' and match the manager's table on screen.
 
 **J2. Status filter and the detail block.**
 

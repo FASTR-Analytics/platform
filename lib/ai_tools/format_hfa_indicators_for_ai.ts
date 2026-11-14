@@ -205,14 +205,39 @@ function foldRounds(rounds: RoundLines[]): string[] {
   ]);
 }
 
-function taxonomyLines(taxonomy: HfaTaxonomyInput, index: Index): string[] {
-  const lines = ["Categories (id: label), each with its sub-categories:"];
+// Each category and sub-category carries its count over all indicators, so a
+// count per category is read here, not tallied from the indicator lines.
+function taxonomyLines(
+  taxonomy: HfaTaxonomyInput,
+  indicators: HfaIndicator[],
+  index: Index,
+): string[] {
+  const inCategory = new Map<string | null, number>();
+  const inSubCategory = new Map<string, number>();
+  for (const ind of indicators) {
+    inCategory.set(ind.categoryId, (inCategory.get(ind.categoryId) ?? 0) + 1);
+    if (ind.subCategoryId !== null) {
+      inSubCategory.set(
+        ind.subCategoryId,
+        (inSubCategory.get(ind.subCategoryId) ?? 0) + 1,
+      );
+    }
+  }
+  const lines = [
+    `Categories (id: label (how many of all ${indicators.length} indicators it holds)), each with its sub-categories:`,
+  ];
   if (taxonomy.categories.length === 0) lines.push("- none");
   for (const c of taxonomy.categories) {
-    lines.push(`- ${c.id}: ${c.label}`);
+    lines.push(`- ${c.id}: ${c.label} (${countOf(inCategory.get(c.id) ?? 0)})`);
     for (const sc of index.subCategoriesOf(c.id)) {
-      lines.push(`  - ${sc.id}: ${sc.label}`);
+      lines.push(
+        `  - ${sc.id}: ${sc.label} (${countOf(inSubCategory.get(sc.id) ?? 0)})`,
+      );
     }
+  }
+  const uncategorised = inCategory.get(null) ?? 0;
+  if (uncategorised > 0) {
+    lines.push(`- no category (${countOf(uncategorised)})`);
   }
   lines.push("Service categories (id: label):");
   if (taxonomy.serviceCategories.length === 0) lines.push("- none");
@@ -258,7 +283,7 @@ export function formatHfaIndicatorListForAI(
 ): string {
   const index = indexInput(input);
   const lines = [
-    ...taxonomyLines(input.taxonomy, index),
+    ...taxonomyLines(input.taxonomy, input.indicators, index),
     "",
     `${listed.length} of ${input.indicators.length} indicators. Each line: id | long label | type, aggregation | category, sub-category, service categories | variant group | rounds with code | round status | consistency across rounds${
       options.withCode
