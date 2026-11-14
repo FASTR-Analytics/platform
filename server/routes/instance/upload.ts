@@ -1,6 +1,7 @@
 import { ensureDir } from "@std/fs";
 import { basename, join } from "@std/path";
 import { Hono } from "hono";
+import { decodeBase64Utf8 } from "lib";
 import {
   applyUploadVisibility,
   canUserUploadOverAsset,
@@ -113,8 +114,7 @@ function parseMetadata(metadataHeader: string | null): Record<string, string> {
   for (const pair of pairs) {
     const [key, value] = pair.trim().split(" ");
     if (key && value) {
-      // Decode base64 value
-      metadata[key] = atob(value);
+      metadata[key] = decodeBase64Utf8(value);
     }
   }
 

@@ -4,6 +4,7 @@ import type { Language } from "../translate/types.ts";
 import type { DatasetType } from "../types/datasets.ts";
 import type { ServerActionTransport } from "../server_actions/transport.ts";
 import type { ReferenceDocEntry } from "./reference_catalog.ts";
+import { decodeBase64Utf8 } from "../utils.ts";
 
 // One catalog, one pair: get_reference_docs lists every reference document
 // the surface exposes, get_reference_doc reads one, the resolver picking the
@@ -20,15 +21,6 @@ const HUB_API_BASE =
 const HUB_MEMO_TTL_MS = 10 * 60_000;
 
 const HUB_ID_PATTERN = /^([A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+\.md$/;
-
-// GitHub's contents API sends the file as base64 of its UTF-8 bytes, in
-// 60-character lines; atob alone yields one char per byte, so every non-ASCII
-// character arrives garbled unless the bytes are decoded as UTF-8.
-export function decodeBase64Utf8(content: string): string {
-  return new TextDecoder().decode(
-    Uint8Array.from(atob(content), (c) => c.charCodeAt(0)),
-  );
-}
 
 class HubReadError extends Error {
   constructor(readonly status: number, message: string) {
