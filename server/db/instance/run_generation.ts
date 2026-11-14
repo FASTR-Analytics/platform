@@ -166,8 +166,8 @@ SELECT r.status, r.pinned FROM runs r WHERE r.id = ${runId}
 }
 
 // The product package picker's options: every ready package on the
-// instance, newest first, as bare (id, label, createdAt) triples. Approved
-// users may read it (the label is what every product card shows), so it
+// instance, newest first, with its families and module count. Approved
+// users may read it (label and contents are what a picker shows), so it
 // carries none of RunListingItem's generation telemetry.
 export async function listReadyPackages(
   mainDb: Sql,
