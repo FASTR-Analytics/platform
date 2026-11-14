@@ -1,6 +1,7 @@
 // Pins the CSV `get_metric_data` writes: long format, one row per item, each
 // row naming every dimension as the data holds it, no row for a value the data
-// does not hold, and a label with a comma or a quote kept in one cell.
+// does not hold, and a label with a comma or a quote kept in one cell; and the
+// status it gives when a query returns too many items.
 //
 //   deno test -A --no-check server/tests/format_metric_data_for_ai_test.ts
 
@@ -117,4 +118,31 @@ Deno.test("a label with a comma is quoted, one with a quote escaped", async () =
       row,
     );
   }
+});
+
+// Each disaggregation splits rows, so adding one never brings a query under
+// the item limit.
+Deno.test("too many items tells the model to remove disaggregations, never to add them", async () => {
+  const text = await getMetricDataForAI(
+    {
+      ...ENV,
+      getItems: (params) =>
+        Promise.resolve({
+          success: true,
+          data: {
+            resultsObjectId: params.resultsObjectId,
+            fetchConfig: params.fetchConfig,
+            runId: "run_test",
+            scopeToken: "all-data",
+            dateRange: undefined,
+            status: "too_many_items",
+          },
+        }),
+    },
+    { metricId: METRIC.id, disaggregations: ["admin_area_2", "period_id"] },
+    [METRIC],
+  );
+  const status = text.split("\n").find((line) => line.includes("STATUS"));
+  assert(status?.includes("remove disaggregations"), status);
+  assert(!/add[^,]*disaggregations/.test(status!), status);
 });
