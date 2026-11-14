@@ -16,7 +16,7 @@ export function getClientToolsForProducts() {
       name: "list_products",
       availableIn: COPILOT_TOOL_VIEWS.list_products,
       description:
-        "List every product (slide deck or report) the user can see, with its folder, the results package and scope it renders from, and the user's access level on it (view, edit or own). The user opens a product from the Products page; once it is open, its reading and editing tools become available.",
+        "List every product (slide deck, report or saved visualization) the user can see, with its folder, the results package and scope it renders from, and the user's access level on it (view, edit or own). The user opens a product from the Products page; once it is open, its reading and editing tools become available.",
       inputSchema: z.object({}),
       kind: "read",
       handler: () =>

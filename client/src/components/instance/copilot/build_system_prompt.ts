@@ -131,7 +131,7 @@ const NO_PACKAGE_LINE =
 export function getProductsInstructions(): string {
   return `# Current View: Products
 
-The user is on the Products page: the slide decks and reports of this instance, in folders. Call list_products to see them with their folder, package, scope and the user's access level. ${NO_PACKAGE_LINE} The user opens a product from this page; its tools become available once it is open.`;
+The user is on the Products page: the slide decks, reports and saved visualizations of this instance, in folders. Call list_products to see them with their folder, package, scope and the user's access level. ${NO_PACKAGE_LINE} The user opens a product from this page; its tools become available once it is open.`;
 }
 
 const DATA_PAGE_LABELS: Record<DataPageId, string> = {

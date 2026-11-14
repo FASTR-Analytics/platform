@@ -106,7 +106,9 @@ Deno.test("a product on a package that is no longer ready names its run id", () 
   );
 });
 
-Deno.test("a saved visualization is never listed to the model", () => {
+// The tool says it lists every product the user can see, as the Products page
+// shows them, so a saved visualization is a row like a deck or a report.
+Deno.test("a saved visualization is listed like any other product", () => {
   const visualization: ProductSummary = {
     ...product({ id: "p_viz", label: "ANC coverage map" }),
     type: "visualization",
@@ -119,15 +121,9 @@ Deno.test("a saved visualization is never listed to the model", () => {
     scopes: SCOPES,
     user: USER,
   });
-  assertStringIncludes(text, "PRODUCTS (1)");
-  assert(!text.includes("p_viz"));
-  assert(!text.includes("ANC coverage map"));
-  const onlyVisualizations = formatProductsListForAI({
-    products: [visualization],
-    folders: [],
-    readyPackages: READY,
-    scopes: SCOPES,
-    user: USER,
-  });
-  assert(onlyVisualizations.startsWith("No products."));
+  assertStringIncludes(text, "PRODUCTS (2)");
+  assertStringIncludes(
+    line(text, "p_viz"),
+    "- ANC coverage map | saved visualization",
+  );
 });
