@@ -1,3 +1,20 @@
+[2.12.1] [user] [changed] - Slide copy confirmation now uses correct plural grammar
+[2.12.1] [user] [changed] - Deck settings screen now says "Save" or "Cancel" to leave instead of "back button"
+[2.12.1] [user] [fixed] - Figure editor now shows the actual date range of displayed data
+[2.12.1] [user] [fixed] - Module metric counts now only include ready metrics
+[2.12.1] [user] [fixed] - Data page values with commas or quotes no longer break CSV column alignment
+[2.12.1] [user] [fixed] - Replacing a report figure now keeps the original chart title when not specified
+[2.12.1] [user] [fixed] - Unchanged slides no longer show as recently edited after collaborative editing
+[2.12.1] [admin] [fixed] - Slide saves that don't change content no longer trigger unnecessary update notifications
+[2.12.1] [admin] [fixed] - Deck restore now always broadcasts the correct timestamp even when a live editing room holds an unchanged slide
+[2.12.1] [admin] [changed] - Copilot now shows the correct action buttons (Apply/Cancel vs. back arrow) based on whether live co-editing is active or the view is read-only
+[2.12.1] [admin] [fixed] - Module metric counts shown to the copilot now reflect only ready metrics
+[2.12.1] [admin] [fixed] - Copied-slide confirmation message now uses correct plural form across languages
+[2.12.1] [admin] [changed] - Copilot data context is now carried into data sub-pages so the assistant stays informed when navigating quickly
+[2.12.1] [admin] [changed] - Figure editor now reports the actual date range of displayed data to the copilot for more accurate captions
+[2.12.1] [admin] [fixed] - Replacing a report figure now preserves the original chart title and caption when not explicitly changed
+[2.12.1] [admin] [changed] - Deck settings instructions now correctly reference Save and Cancel buttons instead of a back button
+[2.12.1] [admin] [internal] - Improved reliability of slide checkpoint handling during live co-editing sessions
 [2.12.0] [user] [fixed] - AI assistant no longer fails on all slides when one slide can't be measured
 [2.12.0] [admin] [fixed] - AI slide assistant no longer fails entirely when one slide can't be measured
 [2.12.0] [user] [added] - Draft slide previews now indicate if content overflows the page
