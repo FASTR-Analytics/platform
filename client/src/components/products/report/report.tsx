@@ -1423,6 +1423,15 @@ export function ReportEditor(p: Props) {
     },
   };
 
+  // "New report backbone from an example": the style editor opened empty, its
+  // drafting panel on top, for an example PDF the AI reads into a backbone.
+  async function newReportBackbone() {
+    await openComponent({
+      element: ReportStyleEditor,
+      props: { productId: p.productId },
+    });
+  }
+
   // "Save as report backbone": this report's house style measured off its
   // body and figures (measureReportBackbone), opened in the style editor for
   // the person to review, generalise and save to the library.
@@ -1734,6 +1743,15 @@ export function ReportEditor(p: Props) {
               {
                 menu: "file",
                 dividerBefore: true,
+                label: t3({
+                  en: "New report backbone from an example…",
+                  fr: "Nouvelle ossature de rapport d'après un exemple…",
+                  pt: "Nova estrutura de relatório a partir de um exemplo…",
+                }),
+                onClick: () => void newReportBackbone(),
+              },
+              {
+                menu: "file",
                 label: t3({
                   en: "Save as report backbone…",
                   fr: "Enregistrer comme ossature de rapport…",

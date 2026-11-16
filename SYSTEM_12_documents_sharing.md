@@ -1082,8 +1082,9 @@ section that overrides the format guide's composing defaults
 the page map holds the report to the backbone's own bars
 (`reportBackbonePageLimits`, report-forge's `FastrPageLimits`); and a backbone
 whose blocks are all never or rare waives the "no blocks" refusal
-(`reportBackboneAllowsPlain`). A backbone is drafted in the style editor from an
-example PDF (the "Draft a report backbone from an example report" panel,
+(`reportBackboneAllowsPlain`). A backbone is drafted in the style editor, opened
+empty from a report's File menu ("New report backbone from an example…"), from
+an example PDF (the "Draft a report backbone from an example report" panel,
 [draft_report_backbone.ts](client/src/components/products/report/draft_report_backbone.ts):
 the file goes to the model as a base64 document block through the AI proxy,
 so its usage and limits count as any AI call's) by `runReportBackboneDraft`
