@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-16T06:10:13.728Z",
-  "sourceCommit": "99722de",
-  "sourceSubject": "Bulletin cover, ministry masthead and sign-off blocks",
+  "timestamp": "2026-11-16T09:01:25.839Z",
+  "sourceCommit": "9297cd3",
+  "sourceSubject": "The page map's bars can be set per report (FastrPageLimits)",
   "sourceDirty": false,
   "target": "platform"
 }

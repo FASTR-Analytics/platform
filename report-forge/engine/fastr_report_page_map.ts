@@ -79,6 +79,32 @@ export const FASTR_FIGURE_MIN_PROSE_WORDS = 120;
 export const FASTR_OPENING_MAX_BLOCKS = 2;
 export const FASTR_OPENING_MAX_SHARE = 0.3;
 
+// The page map's bars, which a host may set per report: a house style whose
+// pages are meant to hold one chart and a short analysis (a ministry
+// bulletin) is not a hole every page. Absent, every bar is the constant
+// above, so a report without limits is checked exactly as before.
+export type FastrPageLimits = {
+  shortShare: number;
+  breakShortShare: number;
+  stubShare: number;
+  holeShare: number;
+  plainShare: number;
+  templateFillShare: number;
+  figureMinProseWords: number;
+  findingsMinItems: number;
+};
+
+export const FASTR_DEFAULT_PAGE_LIMITS: FastrPageLimits = {
+  shortShare: FASTR_PAGE_SHORT_SHARE,
+  breakShortShare: FASTR_PAGE_BREAK_SHORT_SHARE,
+  stubShare: FASTR_PAGE_STUB_SHARE,
+  holeShare: FASTR_PAGE_HOLE_SHARE,
+  plainShare: FASTR_PLAIN_PAGE_SHARE,
+  templateFillShare: FASTR_TEMPLATE_FILL_SHARE,
+  figureMinProseWords: FASTR_FIGURE_MIN_PROSE_WORDS,
+  findingsMinItems: FASTR_FINDINGS_MIN_ITEMS,
+};
+
 type MapBlock = { line: number; height: number; label: string };
 
 export function fastrPageMapText(
@@ -86,7 +112,10 @@ export function fastrPageMapText(
   body: string,
   // The report's theme: its body line turns an overfull area's px into lines.
   theme?: FastrReportTheme,
+  // The report's own bars (FastrPageLimits); unset ones take the defaults.
+  limits: Partial<FastrPageLimits> = {},
 ): string {
+  const L: FastrPageLimits = { ...FASTR_DEFAULT_PAGE_LIMITS, ...limits };
   const linePx = fastrBodyLinePx(
     theme === undefined ? {} : fastrThemeTokens(theme),
   );
@@ -124,7 +153,7 @@ export function fastrPageMapText(
   const pct = (px: number, area: number) => Math.round(100 * px / area);
   // A short page's problem, marked when the page is a hole.
   const shortProblem = (fill: number, text: string) =>
-    fill < 100 * FASTR_PAGE_HOLE_SHARE
+    fill < 100 * L.holeShare
       ? `${FASTR_PAGE_MUST_FIX}: ${text} A page more than half empty cannot be waived.`
       : text;
   // A plain document (the user asked for no blocks) is not held to the
@@ -207,8 +236,9 @@ export function fastrPageMapText(
       fill <
         100 *
           (beforeTemplate
-            ? FASTR_PAGE_BEFORE_TEMPLATE_SHORT_SHARE
-            : FASTR_PAGE_BREAK_SHORT_SHARE)
+            // FASTR_PAGE_BEFORE_TEMPLATE_SHORT_SHARE: a flowing page's bar.
+            ? L.shortShare
+            : L.breakShortShare)
     ) {
       const what = own.filter((b) => b.label !== "blank line").map((b) =>
         b.label
@@ -249,7 +279,7 @@ export function fastrPageMapText(
         ));
       }
     }
-    if (!last && !byBreak && !template && fill < 100 * FASTR_PAGE_SHORT_SHARE) {
+    if (!last && !byBreak && !template && fill < 100 * L.shortShare) {
       const at = next !== undefined
         ? blocks.findIndex((b) => b.line === next.firstLine)
         : -1;
@@ -362,7 +392,7 @@ export function fastrPageMapText(
     const prosePct = pct(printed.reduce((sum, b) => sum + b.height, 0), area);
     if (
       designed && !last && !template && !page.cover && proseOnly &&
-      prosePct >= 100 * FASTR_PLAIN_PAGE_SHARE
+      prosePct >= 100 * L.plainShare
     ) {
       note += ", PLAIN";
       problems.push(
@@ -397,7 +427,7 @@ export function fastrPageMapText(
     // page prints empty, which reads as a page left unfinished.
     if (
       template && page.templateFill !== undefined &&
-      page.templateFill < FASTR_TEMPLATE_FILL_SHARE
+      page.templateFill < L.templateFillShare
     ) {
       const reach = Math.round(page.templateFill * 100);
       note += `, UNDERFILLED: the template's content reaches ${reach}% down`;
@@ -412,7 +442,7 @@ export function fastrPageMapText(
         own.some((b) => b.label.startsWith("section heading "));
     if (
       last && pages.length > 1 && !ownSection &&
-      fill < 100 * FASTR_PAGE_STUB_SHARE
+      fill < 100 * L.stubShare
     ) {
       note = `, STUB`;
       problems.push(
@@ -487,13 +517,13 @@ export function fastrPageMapText(
   }
   for (const s of fastrProseRuns(lines, owner)) {
     if (s.figures === 0) continue;
-    if (s.words >= FASTR_FIGURE_MIN_PROSE_WORDS * s.figures) continue;
+    if (s.words >= L.figureMinProseWords * s.figures) continue;
     problems.push(
       `Page ${pageOf(s.line)}, THIN: ${
         s.heading === undefined ? "the opening" : `section "${s.heading}"`
       } holds ${
         s.figures === 1 ? "a figure" : `${s.figures} figures`
-      } and ${s.words} words of prose. Each chart needs the paragraphs that read it, about ${FASTR_FIGURE_MIN_PROSE_WORDS} words or more: the finding first, then what the chart shows, the exceptions and what drives them, and what it means for the reader, from the figure's data. Write them; do not shrink the chart to make room.`,
+      } and ${s.words} words of prose. Each chart needs the paragraphs that read it, about ${L.figureMinProseWords} words or more: the finding first, then what the chart shows, the exceptions and what drives them, and what it means for the reader, from the figure's data. Write them; do not shrink the chart to make room.`,
     );
   }
   for (const r of regions) {
@@ -510,13 +540,13 @@ export function fastrPageMapText(
       name === "page" && r.fence?.attrs?.["layout"] === "findings"
     ) {
       const items = slotParagraphs(lines, r, "items");
-      if (items >= FASTR_FINDINGS_MIN_ITEMS) continue;
+      if (items >= L.findingsMinItems) continue;
       problems.push(
         `Page ${
           pageOf(r.startLine)
         }, SPARSE: the findings page holds ${items} finding${
           items === 1 ? "" : "s"
-        }, which the layout spreads down the page with a third of it gaps. Give it ${FASTR_FINDINGS_MIN_ITEMS} or 6, each a bold lead sentence and two sentences of support, or write the findings as ordinary blocks in the flow.`,
+        }, which the layout spreads down the page with a third of it gaps. Give it ${L.findingsMinItems} or 6, each a bold lead sentence and two sentences of support, or write the findings as ordinary blocks in the flow.`,
       );
     }
   }

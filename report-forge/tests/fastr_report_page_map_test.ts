@@ -2,8 +2,11 @@
 // ⚠️  DO NOT EDIT HERE - changes are overwritten on the next sync.
 //     Edit the report-forge repo, then run its ./sync.
 
-import { assertFalse, assertStringIncludes } from "@std/assert";
-import { fastrPageMapText } from "../engine/fastr_report_page_map.ts";
+import { assertEquals, assertFalse, assertStringIncludes } from "@std/assert";
+import {
+  FASTR_DEFAULT_PAGE_LIMITS,
+  fastrPageMapText,
+} from "../engine/fastr_report_page_map.ts";
 import type { FastrPagedResult } from "../engine/report_fastr_paged.ts";
 
 const body = [
@@ -663,4 +666,37 @@ Deno.test("a citation printed on the method page and the back page is REPEATED",
   const text = fastrPageMapText(onePage(body), body);
   assertStringIncludes(text, 'REPEATED: "Suggested citation: Somalia');
   assertFalse(text.split("REPEATED").length > 2);
+});
+
+Deno.test("a report's own limits set the bars; the defaults are the constants", () => {
+  const body = [
+    "# Trend",
+    "",
+    longWords(40),
+    "",
+    "![Completeness held](figure:aaa)",
+    "",
+    longWords(30),
+  ].join("\n");
+  const paged = pagesOf({ from: 0, heights: [[0, 60], [2, 240]] }, {
+    from: 4,
+    heights: [[4, 800], [6, 150]],
+  });
+  // Unchanged: the defaults are exactly the constants.
+  assertEquals(
+    fastrPageMapText(paged, body),
+    fastrPageMapText(paged, body, undefined, FASTR_DEFAULT_PAGE_LIMITS),
+  );
+  const strict = fastrPageMapText(paged, body);
+  assertStringIncludes(strict, "MUST FIX: Page 1 is ");
+  assertStringIncludes(strict, "about 120 words or more");
+  // A bulletin's: a page may hold one chart and a short analysis.
+  const bulletin = fastrPageMapText(paged, body, undefined, {
+    shortShare: 0.25,
+    breakShortShare: 0.25,
+    holeShare: 0.2,
+    figureMinProseWords: 40,
+  });
+  assertFalse(bulletin.includes("MUST FIX"));
+  assertFalse(bulletin.includes("about 40 words or more"));
 });
