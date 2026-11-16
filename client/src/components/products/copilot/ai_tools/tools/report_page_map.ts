@@ -12,7 +12,9 @@ import {
   type FastrPagedResult,
   fastrPageMapText,
   getFastrReportTheme,
+  getReportBackbone,
   getReportCustomStyle,
+  reportBackbonePageLimits,
   type ReportDetail,
 } from "lib";
 import { createReportPaginator, fastrPagedFooter } from "report-forge";
@@ -140,10 +142,13 @@ export async function describeReportPages(
     if (result === undefined) {
       return "The page layout did not run (the body may be empty).";
     }
+    // A report written to a backbone is held to the backbone's own bars
+    // (a bulletin's pages stand part empty by design).
     return fastrPageMapText(
       result,
       detail.body,
       getFastrReportTheme(detail.config),
+      reportBackbonePageLimits(getReportBackbone(detail.config)),
     );
   } finally {
     sizeListeners.delete(onSize);

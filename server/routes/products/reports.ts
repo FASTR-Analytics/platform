@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import {
+  reportBackboneTheme,
   type ReportCustomStyleSnapshot,
   reportFiguresSchema,
   reportImagesSchema,
@@ -482,12 +483,15 @@ defineRoute(
         brief: styleRes.data.brief,
         referenceCss: styleRes.data.referenceCss,
         colors: styleRes.data.colors,
+        backbone: styleRes.data.backbone,
       };
     }
+    // A report backbone names its theme: the report takes it with the
+    // backbone (an unknown id keeps the theme the client asked for).
     const res = await setReportStyle(
       c.var.mainDb,
       params.product_id,
-      body.fastrTheme,
+      reportBackboneTheme(snapshot?.backbone ?? undefined) ?? body.fastrTheme,
       snapshot,
     );
     if (!res.success) {

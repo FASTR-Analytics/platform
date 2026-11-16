@@ -1129,7 +1129,10 @@ CREATE TABLE report_styles (
   colors text,
   reference_css text,
   product_ids text,
-  last_updated timestamptz NOT NULL DEFAULT now()
+  last_updated timestamptz NOT NULL DEFAULT now(),
+  -- A report backbone (229): the house style the AI writes a report to.
+  backbone text,
+  backbone_source text
 );
 
 -- ============================================================================

@@ -1,4 +1,10 @@
-import { type ReportCustomStyle, type ReportStyleColors, t3 } from "lib";
+import {
+  EMPTY_REPORT_BACKBONE,
+  type ReportBackbone,
+  type ReportCustomStyle,
+  type ReportStyleColors,
+  t3,
+} from "lib";
 import {
   type AlertComponentProps,
   Button,
@@ -9,9 +15,11 @@ import {
   type StateHolderFormAction,
   StateHolderFormError,
 } from "panther";
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, For, onCleanup, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+import { draftReportBackboneFromFile } from "./draft_report_backbone";
+import { ReportBackboneFields } from "./report_backbone_fields";
 
 // Create / edit one custom report style (a library row in the MAIN db): a
 // palette that overrides the report theme's colors.
@@ -21,6 +29,10 @@ import { instanceState } from "~/state/instance/t1_store";
 //
 // Visibility is per PRODUCT: this report, a
 // chosen set of reports, or every report on the instance.
+//
+// A style may also carry a REPORT BACKBONE (lib/types/report_backbone.ts):
+// the house style the AI writes a report to. A drafted backbone opens here
+// for review (`draft`), and every setting stays editable afterwards.
 
 export type ReportStyleEditorResult = { saved: true };
 
@@ -30,6 +42,15 @@ type Props = AlertComponentProps<
   {
     productId: string;
     existing?: ReportCustomStyle;
+    // A backbone the AI drafted from an example, to review and save as a
+    // new style (with its name, description and colours as drafted).
+    draft?: {
+      label: string;
+      description: string;
+      colors: ReportStyleColors | null;
+      backbone: ReportBackbone;
+      source: ReportCustomStyle["backboneSource"];
+    };
   },
   ReportStyleEditorResult
 >;
@@ -42,11 +63,56 @@ const DEFAULT_COLORS: ReportStyleColors = {
 
 export function ReportStyleEditor(p: Props) {
   const base = p.existing;
-  const [label, setLabel] = createSignal(base?.label ?? "");
-  const [description, setDescription] = createSignal(base?.description ?? "");
-  const [colors, setColors] = createSignal<ReportStyleColors>(
-    base?.colors ?? DEFAULT_COLORS,
+  const [label, setLabel] = createSignal(
+    base?.label ?? p.draft?.label ?? "",
   );
+  const [description, setDescription] = createSignal(
+    base?.description ?? p.draft?.description ?? "",
+  );
+  const [colors, setColors] = createSignal<ReportStyleColors>(
+    base?.colors ?? p.draft?.colors ?? DEFAULT_COLORS,
+  );
+  const [backbone, setBackbone] = createSignal<ReportBackbone | null>(
+    base?.backbone ?? p.draft?.backbone ?? null,
+  );
+  // What the backbone was drafted from, when this dialog drafted it.
+  const [draftedSource, setDraftedSource] = createSignal<
+    ReportCustomStyle["backboneSource"]
+  >(p.draft?.source ?? null);
+
+  // Drafting from an example report: the person picks the file, the AI reads
+  // it (a few minutes for a long report), and every field below is filled
+  // for them to review before saving.
+  const [exampleFile, setExampleFile] = createSignal<File | undefined>();
+  const [drafting, setDrafting] = createSignal(false);
+  const [draftError, setDraftError] = createSignal<string | undefined>();
+  const [draftWarnings, setDraftWarnings] = createSignal<string[]>([]);
+  let draftAbort: AbortController | undefined;
+  onCleanup(() => draftAbort?.abort());
+
+  async function draftFromExample() {
+    const file = exampleFile();
+    if (!file || drafting()) return;
+    draftAbort = new AbortController();
+    setDrafting(true);
+    setDraftError(undefined);
+    setDraftWarnings([]);
+    try {
+      const d = await draftReportBackboneFromFile(file, draftAbort.signal);
+      setLabel(d.label);
+      setDescription(d.description);
+      if (d.colors) setColors(d.colors);
+      setBackbone(d.backbone);
+      setDraftedSource(d.source);
+      setDraftWarnings(d.warnings);
+    } catch (e) {
+      if (!draftAbort.signal.aborted) {
+        setDraftError(e instanceof Error ? e.message : String(e));
+      }
+    } finally {
+      setDrafting(false);
+    }
+  }
   const initialVisibility: Visibility = base
     ? base.productIds === null
       ? "instance"
@@ -108,6 +174,10 @@ export function ReportStyleEditor(p: Props) {
       brief: p.existing?.brief ?? "",
       referenceCss: p.existing?.referenceCss ?? null,
       colors: colors(),
+      backbone: backbone(),
+      backboneSource: backbone() === null
+        ? null
+        : draftedSource() ?? p.existing?.backboneSource ?? null,
       productIds: productIdsForSave(),
     };
     const res = p.existing
@@ -159,7 +229,7 @@ export function ReportStyleEditor(p: Props) {
 
   return (
     <ModalContainer
-      width="lg"
+      width={backbone() === null ? "lg" : "xl"}
       title={p.existing
         ? t3({
           en: "Edit custom style",
@@ -206,6 +276,63 @@ export function ReportStyleEditor(p: Props) {
       }]}
     >
       <div class="ui-spy">
+        <Show when={!p.existing}>
+          <div class="ui-spy-sm rounded border p-3">
+            <div class="ui-label">
+              {t3({
+                en: "Draft a report backbone from an example report",
+                fr: "Tirer une ossature de rapport d'un rapport exemple",
+                pt: "Tirar uma estrutura de relatório de um relatório exemplo",
+              })}
+            </div>
+            <div class="ui-form-text text-base-content-muted">
+              {t3({
+                en:
+                  "The AI reads the example (a PDF) and fills in the style below: its look, length, structure, charts and voice. You review it before saving. A long report takes a few minutes.",
+                fr:
+                  "L'IA lit l'exemple (un PDF) et remplit le style ci-dessous : apparence, longueur, structure, graphiques et ton. Vous le relisez avant d'enregistrer. Un long rapport prend quelques minutes.",
+                pt:
+                  "A IA lê o exemplo (um PDF) e preenche o estilo abaixo: aspeto, extensão, estrutura, gráficos e tom. Revê-o antes de guardar. Um relatório longo demora alguns minutos.",
+              })}
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <input
+                type="file"
+                accept=".pdf,application/pdf"
+                disabled={drafting()}
+                onChange={(e) =>
+                  setExampleFile(e.currentTarget.files?.[0] ?? undefined)}
+                class="ui-form-text"
+              />
+              <Button
+                outline
+                iconName="sparkles"
+                disabled={!exampleFile() || drafting()}
+                onClick={() => void draftFromExample()}
+              >
+                {drafting()
+                  ? t3({
+                    en: "Reading the example…",
+                    fr: "Lecture de l'exemple…",
+                    pt: "A ler o exemplo…",
+                  })
+                  : t3({
+                    en: "Read the example",
+                    fr: "Lire l'exemple",
+                    pt: "Ler o exemplo",
+                  })}
+              </Button>
+            </div>
+            <Show when={draftError()}>
+              {(err) => <div class="ui-form-text text-danger">{err()}</div>}
+            </Show>
+            <Show when={draftWarnings().length > 0}>
+              <ul class="ui-form-text text-base-content-muted list-disc pl-5">
+                <For each={draftWarnings()}>{(w) => <li>{w}</li>}</For>
+              </ul>
+            </Show>
+          </div>
+        </Show>
         <Input
           label={t3({ en: "Name", fr: "Nom", pt: "Nome" })}
           value={label()}
@@ -290,6 +417,24 @@ export function ReportStyleEditor(p: Props) {
               t3({ en: "Accent", fr: "Accent", pt: "Realce" }),
             )}
           </div>
+        </div>
+        <div class="ui-spy-sm">
+          <Checkbox
+            label={t3({
+              en: "Report backbone: the AI writes reports in this style",
+              fr:
+                "Ossature de rapport : l'IA rédige les rapports dans ce style",
+              pt: "Estrutura de relatório: a IA redige relatórios neste estilo",
+            })}
+            checked={backbone() !== null}
+            onChange={(c) =>
+              setBackbone(
+                c ? (backbone() ?? EMPTY_REPORT_BACKBONE) : null,
+              )}
+          />
+          <Show when={backbone()}>
+            {(b) => <ReportBackboneFields value={b()} onChange={setBackbone} />}
+          </Show>
         </div>
         <StateHolderFormError state={saveState()} />
       </div>

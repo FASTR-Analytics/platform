@@ -36,6 +36,7 @@ import type {
   ImageBlock,
   MetricWithStatus,
   PresentationObjectConfig,
+  ReportBackbone,
   ResolvedPackageScope,
   RunCatalogStatus,
   RunProgress,
@@ -246,6 +247,9 @@ export type EditingReportContext = PackageViewContext & {
   // The report's theme: its body decides how the editing brief reads the
   // format guide's page budget (getEditingReportInstructions).
   getTheme: () => string;
+  // The report backbone the report is written to, and its style's name: the
+  // brief's "house style" section (describeReportBackboneForBrief).
+  getBackbone: () => { label: string; backbone: ReportBackbone } | undefined;
   proposeEdit: (proposal: ReportEditProposal) => ReportEditProposalResult;
   applyFigureUpdate: (figureId: string, block: FigureBlock) => Promise<boolean>;
 };
@@ -549,6 +553,7 @@ export const copilotViews = defineAIViews(
               images: context.getImages(),
             }),
             theme: context.getTheme(),
+            backbone: context.getBackbone(),
           })
         }${productViewOnlyLine(params.reportId)}`,
       state: (params, context) => {

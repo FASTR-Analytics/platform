@@ -10,6 +10,8 @@ import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import { describeIndicatorFacts } from "./format_metric_data_for_ai.ts";
 import type { ScopeDefinition } from "../types/scope.ts";
 import { MODULE_FAMILY_ORDER } from "../group_metrics.ts";
+import { describeReportBackboneForBrief } from "../report_backbone.ts";
+import type { ReportBackbone } from "../types/report_backbone.ts";
 import {
   fastrThemeProse,
   fastrThemeTokens,
@@ -584,7 +586,14 @@ export function getEditingReportInstructions(
   // to write it, the model agrees a brief and an outline before drafting.
   // `theme`: the report's, for how its pages read the guide's page budget
   // (reportTypeSection).
-  opts: { untouched?: boolean; theme?: string } = {},
+  // `backbone`: the report backbone it is written to, by its style's name
+  // (describeReportBackboneForBrief), which overrides the guide's composing
+  // defaults.
+  opts: {
+    untouched?: boolean;
+    theme?: string;
+    backbone?: { label: string; backbone: ReportBackbone };
+  } = {},
 ): string {
   const common = `## How editing works
 
@@ -603,7 +612,14 @@ export function getEditingReportInstructions(
 The user is editing a long-form report written in **FASTR Markdown** — ordinary markdown plus a small set of \`:::\` blocks — with embedded live figures. The user hand-edits this document, so keep the source clean and readable.
 
 **Whenever you write or restructure this report (rewrite_report, or a rewrite_section that adds new material), build it from the format's \`:::\` blocks** — open with a \`:::cover\` (choosing a \`layout\`), add a \`:::contents\` line when the report is long, mark the turning points with \`:::band\`, give a full report about one page template in three pages (eight to ten in a twenty-page report), and a short brief one or two, wherever you have the content to fill them, in the order the guide's reference shape gives (\`exec\` after the contents, an \`opener\` before each main part, \`summary\`, \`timeline\` and \`compare\` between the analysis sections, \`findings\` then \`scorecard\`, \`targets\`, \`method\`, and \`back\` as the last page; look them all up in ONE get_page_template call), and let the sections flow one after another down the pages with no \`:::pagebreak\` between them, so short sections share a page and every page but the last is full — with the shape the "Composing a report" guidance in rewrite_report's description gives. Do this on the first write, without being asked: a plain run of headings and paragraphs wastes the format. Write plain only when the user asks for something plain. A \`:::tiles\` row of \`:::stat\` blocks is NOT part of that default: add one only when the report genuinely rests on two to four separate headline numbers (see "Composing a report"), never by habit.
-${opts.untouched ? `\n${STARTING_A_REPORT}\n` : ""}
+${opts.untouched ? `\n${STARTING_A_REPORT}\n` : ""}${
+    opts.backbone === undefined ? "" : `\n${
+      describeReportBackboneForBrief(
+        opts.backbone.label,
+        opts.backbone.backbone,
+      )
+    }\n`
+  }
 ${common}
 
 ## Writing FASTR Markdown for this report

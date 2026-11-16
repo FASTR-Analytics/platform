@@ -1,6 +1,8 @@
 // =============================================================================
 // Custom report styles: user-authored palettes for reports, stored in the
-// MAIN database. A style's colors override the palette of whichever theme the
+// MAIN database. A style may carry a report backbone (the house style the AI
+// writes to: lib/types/report_backbone.ts), which the UI calls a "Report
+// backbone". A style's colors override the palette of whichever theme the
 // report is on; a report snapshots the style when it is applied (see
 // reports.ts `customStyle`). `brief` and `referenceCss` are what a style was
 // when reports could be written as html (an AI design brief and the source
@@ -12,6 +14,12 @@
 // =============================================================================
 
 import { z } from "zod";
+import {
+  REPORT_BACKBONE_SOURCES,
+  type ReportBackbone,
+  reportBackboneSchema,
+  type ReportBackboneSource,
+} from "./report_backbone.ts";
 
 // Tile colors for the picker's generic custom-style mockup.
 export const reportStyleColorsSchema = z.object({
@@ -34,6 +42,11 @@ export type ReportCustomStyle = {
   brief: string;
   referenceCss: string | null;
   colors: ReportStyleColors | null;
+  // A report backbone (lib/types/report_backbone.ts): the house style the AI
+  // writes a report to, and what it was drafted from. null on a plain
+  // palette.
+  backbone: ReportBackbone | null;
+  backboneSource: ReportBackboneSource | null;
   // null = visible to every product on the instance.
   productIds: string[] | null;
   lastUpdated: string;
@@ -45,6 +58,10 @@ export const reportStyleBodySchema = z.object({
   brief: z.string().max(REPORT_CUSTOM_BRIEF_MAX),
   referenceCss: z.string().max(REPORT_STYLE_REFERENCE_CSS_MAX).nullable(),
   colors: reportStyleColorsSchema.nullable(),
+  // Optional, so a palette-only client keeps working: absent leaves a
+  // stored backbone as it is on update (the editor sends it back).
+  backbone: reportBackboneSchema.nullable().optional(),
+  backboneSource: z.enum(REPORT_BACKBONE_SOURCES).nullable().optional(),
   productIds: z.array(z.string()).nullable(),
 });
 export type ReportStyleBody = z.infer<typeof reportStyleBodySchema>;

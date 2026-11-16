@@ -7,6 +7,15 @@ import { ICEH_STRAT_INFO } from "../types/iceh_strats.ts";
 import { getReplicateByProp } from "../get_disaggregator_display_prop.ts";
 import { compareModules } from "../group_metrics.ts";
 
+// A preset's presentation type in the words the metrics list prints.
+const PRESET_TYPE_WORDS: Record<string, string> = {
+  chart: "bar chart",
+  table: "table",
+  timeseries: "line chart over time",
+  map: "map",
+  pie: "pie chart",
+};
+
 type IcehIndicator = { id: string; label: string; category: string };
 
 export type ModuleForAI = Pick<
@@ -161,8 +170,13 @@ export function formatMetricsListForAI(
         const replicantNote = replicateBy !== undefined
           ? ` ** REQUIRES selectedReplicant: one ${replicateBy} value **`
           : "";
+        // The preset's type, so a report backbone's chart preferences
+        // (bar charts, tables, maps…) can be followed by id.
+        const typeNote = PRESET_TYPE_WORDS[preset.config.d.type] ?? "";
         lines.push(
-          `    - ${preset.id}: ${preset.label.en} (${dateFormat})${filterNote}${replicantNote}`,
+          `    - ${preset.id}: ${preset.label.en} (${dateFormat}${
+            typeNote === "" ? "" : `, ${typeNote}`
+          })${filterNote}${replicantNote}`,
         );
         if (preset.importantNotes) {
           lines.push(`      NOTE: ${getAIStr(preset.importantNotes)}`);

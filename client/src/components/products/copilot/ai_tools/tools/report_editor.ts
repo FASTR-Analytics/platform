@@ -36,7 +36,11 @@ import {
   type ResultsValueInfoForPresentationObject,
   rewriteReportEmbedToken,
 } from "lib";
-import { FASTR_MD_SYNTAX_DOC, FASTR_PAGE_MUST_FIX } from "lib";
+import {
+  FASTR_MD_SYNTAX_DOC,
+  FASTR_PAGE_MUST_FIX,
+  reportBackboneAllowsPlain,
+} from "lib";
 import {
   applyFigureConfigPatch,
   assertNoSlotCollision,
@@ -319,10 +323,13 @@ export function getClientToolsForReportEditor(
     const reportId = view.params.reportId;
     heldReportDrafts.set(reportId, draft);
     const own = embedIdsOf(ctx);
+    // A backbone that uses no blocks writes plain reports: the "no blocks"
+    // refusal is not its business.
     const edit = rewriteReportBody(ctx.getBody(), {
       body: draft.body,
       allowLiteralColors: draft.allowLiteralColors,
-      plain: draft.plain,
+      plain: draft.plain ||
+        reportBackboneAllowsPlain(ctx.getBackbone()?.backbone),
     }, {
       figures: [...own.figures, ...draft.added.keys()],
       images: own.images,

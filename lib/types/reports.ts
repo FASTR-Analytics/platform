@@ -18,6 +18,10 @@ import {
 // true for every caller. See the file's own note.
 import "../report_legacy_theme.ts";
 import { reportStyleColorsSchema } from "./report_styles.ts";
+import {
+  type ReportBackbone,
+  reportBackboneSchema,
+} from "./report_backbone.ts";
 import type { ImageBlock } from "./slides.ts";
 import type { FigureBlock } from "./_figure_bundle.ts";
 import { figureBlockSchema, imageBlockSchema } from "./_slide_config.ts";
@@ -44,6 +48,9 @@ export type ReportCustomStyleSnapshot = {
   brief: string;
   referenceCss?: string | null;
   colors?: { page: string; ink: string; accent: string } | null;
+  // The style's report backbone when it has one: the house style the AI
+  // writes this report to (lib/report_backbone.ts).
+  backbone?: ReportBackbone | null;
 };
 
 const reportCustomStyleSnapshotSchema = z.object({
@@ -52,6 +59,7 @@ const reportCustomStyleSnapshotSchema = z.object({
   brief: z.string(),
   referenceCss: z.string().nullable().optional(),
   colors: reportStyleColorsSchema.nullable().optional(),
+  backbone: reportBackboneSchema.nullable().optional(),
 });
 
 export type ReportConfig = {
@@ -119,6 +127,17 @@ export function isRetiredReportFormat(
   return typeof v === "string" && RETIRED_REPORT_FORMATS.includes(v);
 }
 
+// The report backbone the report is written to, from its style snapshot.
+// Total: a stored snapshot that does not parse as one is no backbone.
+export function getReportBackbone(
+  config: ReportConfig | null | undefined,
+): ReportBackbone | undefined {
+  const raw = getReportCustomStyle(config)?.backbone;
+  if (raw === undefined || raw === null) return undefined;
+  const parsed = reportBackboneSchema.safeParse(raw);
+  return parsed.success ? parsed.data : undefined;
+}
+
 // Total, same rationale as isRetiredReportFormat. undefined = no custom style.
 export function getReportCustomStyle(
   config: ReportConfig | null | undefined,
@@ -151,7 +170,10 @@ export function isUntouchedReport(r: {
   figures: Record<string, unknown>;
   images: Record<string, unknown>;
 }): boolean {
-  const text = r.body.trim();
+  // A `:::report` header line alone (what picking a report backbone writes)
+  // is the page's setup, not anything written.
+  const text = r.body.replace(/^\s*:::report(\{[^}\n]*\})?[ \t]*(\n|$)/, "")
+    .trim();
   return (text.length === 0 || /^#\s[^\n]*$/.test(text)) &&
     Object.keys(r.figures).length === 0 &&
     Object.keys(r.images).length === 0;

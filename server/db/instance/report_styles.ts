@@ -3,6 +3,11 @@ import {
   type APIResponseNoData,
   type APIResponseWithData,
   parseJsonOrThrow,
+  parseJsonOrUndefined,
+  REPORT_BACKBONE_SOURCES,
+  type ReportBackbone,
+  reportBackboneSchema,
+  type ReportBackboneSource,
   type ReportCustomStyle,
   type ReportStyleBody,
   reportStyleVisibleToProduct,
@@ -20,6 +25,8 @@ type DBReportStyle = {
   brief: string;
   reference_css: string | null;
   colors: string | null;
+  backbone: string | null;
+  backbone_source: string | null;
   product_ids: string | null;
   last_updated: string;
 };
@@ -32,8 +39,39 @@ function rowToStyle(r: DBReportStyle): ReportCustomStyle {
     brief: r.brief,
     referenceCss: r.reference_css,
     colors: r.colors ? parseJsonOrThrow(r.colors) : null,
+    backbone: backboneOf(r.backbone),
+    backboneSource: REPORT_BACKBONE_SOURCES.includes(
+        r.backbone_source as ReportBackboneSource,
+      )
+      ? r.backbone_source as ReportBackboneSource
+      : null,
     productIds: r.product_ids ? parseJsonOrThrow(r.product_ids) : null,
     lastUpdated: r.last_updated,
+  };
+}
+
+// A stored backbone that no longer parses (a field retired since) reads as
+// none rather than failing the whole library.
+function backboneOf(raw: string | null): ReportBackbone | null {
+  if (!raw) return null;
+  const parsed = reportBackboneSchema.safeParse(parseJsonOrUndefined(raw));
+  return parsed.success ? parsed.data : null;
+}
+
+// What an update writes: the body's backbone when it sends one, else the
+// stored one (a palette-only client never wipes it).
+function backboneColumns(body: ReportStyleBody): {
+  set: boolean;
+  backbone: string | null;
+  source: string | null;
+} {
+  if (body.backbone === undefined) {
+    return { set: false, backbone: null, source: null };
+  }
+  return {
+    set: true,
+    backbone: body.backbone === null ? null : JSON.stringify(body.backbone),
+    source: body.backbone === null ? null : body.backboneSource ?? null,
   };
 }
 
@@ -84,9 +122,10 @@ export async function createReportStyle(
       return { success: false, err: REPORT_STYLE_EXCLUDES_REPORT };
     }
     const id = crypto.randomUUID();
+    const bb = backboneColumns(body);
     const row = (
       await mainDb<DBReportStyle[]>`
-        INSERT INTO report_styles (id, label, description, brief, reference_css, colors, product_ids)
+        INSERT INTO report_styles (id, label, description, brief, reference_css, colors, backbone, backbone_source, product_ids)
         VALUES (
           ${id},
           ${body.label.trim()},
@@ -94,6 +133,8 @@ export async function createReportStyle(
           ${body.brief},
           ${body.referenceCss},
           ${body.colors ? JSON.stringify(body.colors) : null},
+          ${bb.backbone},
+          ${bb.source},
           ${body.productIds ? JSON.stringify(body.productIds) : null}
         )
         RETURNING *
@@ -117,6 +158,7 @@ export async function updateReportStyle(
       if (!(await lockStyleVisibleTo(sql, styleId, productId))) {
         return undefined;
       }
+      const bb = backboneColumns(body);
       return (
         await sql<DBReportStyle[]>`
         UPDATE report_styles
@@ -125,6 +167,8 @@ export async function updateReportStyle(
             brief = ${body.brief},
             reference_css = ${body.referenceCss},
             colors = ${body.colors ? JSON.stringify(body.colors) : null},
+            backbone = CASE WHEN ${bb.set} THEN ${bb.backbone} ELSE backbone END,
+            backbone_source = CASE WHEN ${bb.set} THEN ${bb.source} ELSE backbone_source END,
             product_ids = ${
           body.productIds ? JSON.stringify(body.productIds) : null
         },

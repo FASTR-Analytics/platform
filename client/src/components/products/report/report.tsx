@@ -1,4 +1,5 @@
 import {
+  applyReportBackboneHeader,
   buildFastrReportCss,
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
@@ -9,11 +10,13 @@ import {
   findReportBodyText,
   findReportFigureConfigMap,
   getFastrReportTheme,
+  getReportBackbone,
   getReportCustomStyle,
   type ImageBlock,
   isRetiredReportFormat,
   isUntouchedReport,
   materializeReport,
+  measureReportBackbone,
   type PackageScope,
   productScope,
   type ProductSummary,
@@ -704,6 +707,13 @@ export function ReportEditor(p: Props) {
         getImages: () => images(),
         getSelection: () => forge?.getSelection(),
         getTheme: () => fastrTheme(),
+        getBackbone: () => {
+          const backbone = getReportBackbone(config());
+          const style = customStyle();
+          return backbone === undefined || style === undefined
+            ? undefined
+            : { label: style.label, backbone };
+        },
         proposeEdit: (proposal): ReportEditProposalResult => {
           // The base the proposal was computed from. Every proposing tool builds
           // newBody from getBody() with only synchronous work before calling
@@ -1386,10 +1396,19 @@ export function ReportEditor(p: Props) {
       });
       if (!res.success) return [];
       stylesById = new Map(res.data.map((style) => [style.id, style]));
+      // A style that carries a report backbone says so on its tile: picking
+      // it sets the house style the AI writes to, not just the colours.
       return res.data.map((style) => ({
         id: style.id,
         label: style.label,
-        description: style.description,
+        description: style.backbone === null ? style.description : [
+          t3({
+            en: "Report backbone",
+            fr: "Ossature de rapport",
+            pt: "Estrutura de relatório",
+          }),
+          style.description,
+        ].filter((d) => d.trim().length > 0).join(" · "),
         colors: style.colors,
       }));
     },
@@ -1403,6 +1422,30 @@ export function ReportEditor(p: Props) {
       });
     },
   };
+
+  // "Save as report backbone": this report's house style measured off its
+  // body and figures (measureReportBackbone), opened in the style editor for
+  // the person to review, generalise and save to the library.
+  async function saveAsReportBackbone() {
+    const pageStarts = forge?.getPageLayout()?.pageStarts;
+    const drafted = measureReportBackbone({
+      label: label(),
+      body: body(),
+      theme: fastrTheme(),
+      colors: customStyle()?.colors ?? null,
+      figureTypes: Object.values(figures()).flatMap((f) =>
+        f.bundle === undefined ? [] : [f.bundle.config.d.type]
+      ),
+      pages: pageStarts === undefined ? undefined : pageStarts.length + 1,
+    });
+    await openComponent({
+      element: ReportStyleEditor,
+      props: {
+        productId: p.productId,
+        draft: { ...drafted, source: "report" as const },
+      },
+    });
+  }
 
   // The report's look changed in the editor. Applying a style (or answering
   // the theme picker for the first time) goes through setReportStyle, which
@@ -1436,6 +1479,15 @@ export function ReportEditor(p: Props) {
       // would race the products SSE behind the detail cache).
       setConfig(res.data.config);
       bumpLastUpdated(res.data.lastUpdated);
+      // A report backbone picked: its `:::report` line (figure conventions,
+      // page furniture, numbering) goes into the body, rebased like any
+      // programmatic edit. The AI writes the rest to its house style.
+      const backbone = getReportBackbone(res.data.config);
+      if (backbone !== undefined && next.paletteId !== cur.paletteId && forge) {
+        const base = body();
+        const withHeader = applyReportBackboneHeader(base, backbone);
+        if (withHeader !== base) await forge.applyBody(base, withHeader);
+      }
       return;
     }
     if (next.theme === cur.theme) return;
@@ -1678,6 +1730,16 @@ export function ReportEditor(p: Props) {
                   pt: "Criar uma cópia…",
                 }),
                 onClick: () => void duplicateReport(),
+              },
+              {
+                menu: "file",
+                dividerBefore: true,
+                label: t3({
+                  en: "Save as report backbone…",
+                  fr: "Enregistrer comme ossature de rapport…",
+                  pt: "Guardar como estrutura de relatório…",
+                }),
+                onClick: () => void saveAsReportBackbone(),
               },
             ]}
             banner={banners}
