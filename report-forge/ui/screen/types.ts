@@ -146,10 +146,14 @@ export type ReportForgeProps = {
   // The host's figures. Absent, the editor offers none.
   figures?: ReportForgeFigureHost;
   // Saved palettes for the theme picker, and (optionally) the host's own
-  // editor for one: `edit(undefined)` creates a new palette.
+  // editor for one: `edit(undefined)` creates a new palette, which the
+  // picker offers as a tile of its own. `words` names them as the host does
+  // (the tile's badge, the new tile's label); absent, "custom" and "New
+  // style".
   palettes?: {
     list: () => Promise<ReportPalette[]>;
     edit?: (palette: ReportPalette | undefined) => Promise<void>;
+    words?: { badge: string; newLabel: string; newHint?: string };
   };
   // Prints the paged document to a PDF (the package's server entry is the
   // printer). Absent, Download offers Word and .html only.

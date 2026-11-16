@@ -812,6 +812,9 @@
 .rf\:min-h-0 {
   min-height: calc(var(--rf-spacing) * 0);
 }
+.rf\:min-h-32 {
+  min-height: calc(var(--rf-spacing) * 32);
+}
 .rf\:w-2 {
   width: calc(var(--rf-spacing) * 2);
 }
@@ -826,6 +829,9 @@
 }
 .rf\:w-4 {
   width: calc(var(--rf-spacing) * 4);
+}
+.rf\:w-5 {
+  width: calc(var(--rf-spacing) * 5);
 }
 .rf\:w-6 {
   width: calc(var(--rf-spacing) * 6);
@@ -1067,6 +1073,10 @@
   border-left-style: var(--tw-border-style);
   border-left-width: 2px;
 }
+.rf\:border-dashed {
+  --tw-border-style: dashed;
+  border-style: dashed;
+}
 .rf\:border-base-300 {
   border-color: var(--rf-color-base-300);
 }
@@ -1114,6 +1124,9 @@
 }
 .rf\:p-2 {
   padding: calc(var(--rf-spacing) * 2);
+}
+.rf\:p-3 {
+  padding: calc(var(--rf-spacing) * 3);
 }
 .rf\:ui-pad-sm {
   padding: 0.5rem;

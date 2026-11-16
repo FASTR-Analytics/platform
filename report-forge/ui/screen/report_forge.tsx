@@ -644,6 +644,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           paletteId: p.settings.paletteId,
           listPalettes: p.palettes?.list,
           canEditPalettes: p.palettes?.edit !== undefined,
+          paletteWords: p.palettes?.words,
           apply: async (choice) => {
             // Answering the picker is what retires it, whichever look was
             // picked. Rejections surface in the modal.

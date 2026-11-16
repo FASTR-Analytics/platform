@@ -45,9 +45,12 @@ type Props = ModalProps<
     // The document's current look, so the modal opens on what it already is.
     theme: FastrReportTheme;
     paletteId?: string;
-    // The host's saved palettes, and whether it can edit one.
+    // The host's saved palettes, and whether it can edit one (and so make
+    // one: the picker's own "new" tile).
     listPalettes?: () => Promise<ReportPalette[]>;
     canEditPalettes: boolean;
+    // What the host calls them (ReportForgeProps.palettes.words).
+    paletteWords?: { badge: string; newLabel: string; newHint?: string };
     // Applies the choice (the host stores it). Rejects with the reason when
     // it could not, which the modal shows.
     apply: (choice: ThemeChoice) => Promise<void>;
@@ -184,7 +187,8 @@ export function ThemeModal(p: Props) {
                   <div class="rf:text-base-content rf:font-700 rf:mt-1.5 rf:flex rf:items-center rf:gap-1.5">
                     <span class="rf:min-w-0 rf:truncate">{style.label}</span>
                     <span class="rf:bg-base-300 rf:text-base-content rf:rounded rf:px-1 rf:text-xs">
-                      {t3({ en: "custom", fr: "perso", pt: "próprio" })}
+                      {p.paletteWords?.badge ??
+                        t3({ en: "custom", fr: "perso", pt: "próprio" })}
                     </span>
                   </div>
                   <div class="rf:text-base-content-muted rf:text-xs rf:leading-snug">
@@ -213,6 +217,31 @@ export function ThemeModal(p: Props) {
               );
             }}
           </For>
+          {/* A new one, in the host's own editor. */}
+          <Show when={p.canEditPalettes}>
+            <button
+              type="button"
+              class="rf:ui-focusable rf:hover:bg-base-200 rf:flex rf:min-h-32 rf:flex-col rf:items-center rf:justify-center rf:gap-1.5 rf:rounded rf:border rf:border-dashed rf:p-3 rf:text-center"
+              onClick={() => p.close({ editPalette: undefined })}
+            >
+              <Icon name="plus" class="rf:h-5 rf:w-5" />
+              <span class="rf:text-base-content rf:font-700">
+                {p.paletteWords?.newLabel ??
+                  t3({
+                    en: "New style",
+                    fr: "Nouveau style",
+                    pt: "Novo estilo",
+                  })}
+              </span>
+              <Show when={p.paletteWords?.newHint}>
+                {(hint) => (
+                  <span class="rf:text-base-content-muted rf:text-xs rf:leading-snug">
+                    {hint()}
+                  </span>
+                )}
+              </Show>
+            </button>
+          </Show>
         </div>
         <FormError error={saveError()} />
       </div>

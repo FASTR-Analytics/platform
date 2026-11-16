@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-16T09:01:25.839Z",
-  "sourceCommit": "9297cd3",
-  "sourceSubject": "The page map's bars can be set per report (FastrPageLimits)",
+  "timestamp": "2026-11-16T09:38:04.425Z",
+  "sourceCommit": "d58608b",
+  "sourceSubject": "The theme picker offers a new saved style, named as the host names them",
   "sourceDirty": false,
   "target": "platform"
 }
