@@ -54,6 +54,29 @@ Deno.test("furniture is read from the report header", () => {
   assertEquals(t.footerRule, ["var(--fm-accent-ground)"]);
   assertEquals(t.frame, undefined);
   assertEquals(t.footer, null);
+  assertEquals(t.pageNumbers, true);
+  // A heavy frame in two colours, and no page numbers.
+  const h = fastrPageFurnitureOf(
+    parseContainerAttrs(
+      `{frame=heavy framecolor="#000080 #0070c0" pagenumbers=none}`,
+    ),
+  )!;
+  assertEquals(h.frame, {
+    style: "heavy",
+    color: "#000080",
+    innerColor: "#0070c0",
+  });
+  assertEquals(h.pageNumbers, false);
+  assertEquals(fastrFrameGeometry("heavy", 68).lines.length, 2);
+  const css = buildFastrPagedCss(
+    readFastrDocumentSettings(
+      `:::report{frame=heavy framecolor="#000080 #0070c0" pagenumbers=none footer=none}\n`,
+    ).page,
+    { title: "T", pageWord: "Page", ofWord: "of" },
+  );
+  assertStringIncludes(css, "border: 9px solid #000080;");
+  assertStringIncludes(css, "border: 2px solid #0070c0;");
+  assert(!css.includes("counter(page)"));
   // Nothing set: no furniture at all.
   assertEquals(
     readFastrDocumentSettings("# Plain\n").page.furniture,

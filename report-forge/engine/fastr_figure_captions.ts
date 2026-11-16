@@ -29,7 +29,12 @@ import {
   type FastrContainerAttrs,
   fastrReportHeaderAttrs,
 } from "./fastr_markdown_blocks.ts";
-import { t3 } from "./i18n.ts";
+import {
+  REPORT_FORGE_LANGUAGES,
+  type ReportForgeLanguage,
+  type ReportForgeText,
+  t3,
+} from "./i18n.ts";
 
 export type FastrFigureSettings = {
   // `figures=numbered`: each captioned figure and table carries its number.
@@ -38,6 +43,13 @@ export type FastrFigureSettings = {
   above: boolean;
   // `source="…"`: the line under every figure that does not say otherwise.
   source: string | undefined;
+  // `captionstyle=bold`: the whole caption bold in the accent, its number
+  // underlined, as a ministry bulletin sets it. Absent: the number alone in
+  // the accent and the words in the caption's muted ink.
+  strong: boolean;
+  // `lang=fr`: the language the REPORT is written in, which its printed
+  // labels follow ("Tableau 2 :", "Source :"). Absent: the interface's.
+  lang: ReportForgeLanguage | undefined;
 };
 
 export type FastrCaptionKind = "figure" | "table";
@@ -70,7 +82,11 @@ export const FASTR_NO_FIGURE_SETTINGS: FastrFigureSettings = {
   numbered: false,
   above: false,
   source: undefined,
+  strong: false,
+  lang: undefined,
 };
+
+export const FASTR_CAPTION_STYLES = ["bold"] as const;
 
 // A native table's caption: `Table: <caption>` on the line directly above the
 // table's header row. The keyword is syntax, not prose, so it is the same in
@@ -94,7 +110,31 @@ export function fastrFigureSettingsOf(
         source.trim() !== "none"
       ? source.trim()
       : undefined,
+    strong: attrs["captionstyle"] === "bold",
+    lang: fastrReportLanguageOf(attrs),
   };
+}
+
+// The `:::report` header's `lang=`, when it names a language the labels
+// are written in.
+export function fastrReportLanguageOf(
+  attrs: FastrContainerAttrs,
+): ReportForgeLanguage | undefined {
+  const lang = attrs["lang"];
+  return typeof lang === "string" &&
+      (REPORT_FORGE_LANGUAGES as readonly string[]).includes(lang)
+    ? lang as ReportForgeLanguage
+    : undefined;
+}
+
+// A printed label in the report's own language, else the interface's.
+function inReportLanguage(
+  lang: ReportForgeLanguage | undefined,
+  text: ReportForgeText,
+): string {
+  if (lang === undefined) return t3(text);
+  if (lang === "pt") return text.pt || text.en;
+  return lang === "fr" ? text.fr : text.en;
 }
 
 // One figure's source line: its own `source=`, else the document's, except
@@ -118,15 +158,25 @@ export function fastrCaptionKindOf(
 }
 
 // "Figure 3 :" — French sets a no-break space before its colon.
-export function fastrCaptionLabel(kind: FastrCaptionKind, n: number): string {
+export function fastrCaptionLabel(
+  kind: FastrCaptionKind,
+  n: number,
+  lang?: ReportForgeLanguage,
+): string {
   const word = kind === "table"
-    ? t3({ en: "Table", fr: "Tableau", pt: "Tabela" })
-    : t3({ en: "Figure", fr: "Figure", pt: "Figura" });
-  return `${word} ${n}${t3({ en: ":", fr: "\u00a0:", pt: ":" })}`;
+    ? inReportLanguage(lang, { en: "Table", fr: "Tableau", pt: "Tabela" })
+    : inReportLanguage(lang, { en: "Figure", fr: "Figure", pt: "Figura" });
+  return `${word} ${n}${
+    inReportLanguage(lang, { en: ":", fr: "\u00a0:", pt: ":" })
+  }`;
 }
 
-export function fastrSourceLabel(): string {
-  return t3({ en: "Source:", fr: "Source\u00a0:", pt: "Fonte:" });
+export function fastrSourceLabel(lang?: ReportForgeLanguage): string {
+  return inReportLanguage(lang, {
+    en: "Source:",
+    fr: "Source\u00a0:",
+    pt: "Fonte:",
+  });
 }
 
 // A stable key for a render context, for a widget's equality test.
@@ -139,6 +189,8 @@ export function fastrFigureContextKey(
     s.numbered ? 1 : 0,
     s.above ? 1 : 0,
     s.source ?? "",
+    s.strong ? 1 : 0,
+    s.lang ?? "",
     ctx.first.figure,
     ctx.first.table,
   ].join("\u0001");

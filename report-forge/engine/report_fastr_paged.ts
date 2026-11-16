@@ -215,7 +215,11 @@ function pageFurnitureCss(
   content: "";
   position: absolute;
   inset: ${at}px;
-  border: ${line.width}px solid ${furniture.frame!.color};
+  border: ${line.width}px solid ${
+        i > 0 && furniture.frame!.innerColor !== undefined
+          ? furniture.frame!.innerColor
+          : furniture.frame!.color
+      };
   pointer-events: none;
   z-index: 4;
 }`);
@@ -291,9 +295,13 @@ export function buildFastrPagedCss(
     ${footerType}
   }
   @bottom-right {
-    content: ${cssString(footer.pageWord + " ")} counter(page) ${
-    cssString(" " + footer.ofWord + " ")
-  } counter(pages);
+    content: ${
+    furniture?.pageNumbers === false
+      ? "none"
+      : `${cssString(footer.pageWord + " ")} counter(page) ${
+        cssString(" " + footer.ofWord + " ")
+      } counter(pages)`
+  };
     text-align: right;
     padding-right: ${m}px;
     font-variant-numeric: tabular-nums;

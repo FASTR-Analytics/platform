@@ -25,6 +25,8 @@ import {
   containerHtmlFor,
   FASTR_TOC_DEFAULT_DEPTH,
   type FastrContainerAttrs,
+  fastrCoverAccentsOf,
+  fastrCoverAccentStyle,
   type FastrLiteralBackground,
   fastrLogoImageIds,
   type FastrMarkAttrs,
@@ -442,11 +444,15 @@ export function createFastrMarkdownIt(): MarkdownIt {
     const captionHtml = (meta: FastrCaptionMeta, tag: string, cls: string) =>
       meta.caption.length === 0
         ? ""
-        : `<${tag} class="${cls}">${
+        : `<${tag} class="${cls}${
+          settings.strong ? " fm-caption--bold" : ""
+        }">${
           meta.n === undefined
             ? ""
             : `<span class="fm-caption-label">${
-              escapeReportHtml(fastrCaptionLabel(meta.kind, meta.n))
+              escapeReportHtml(
+                fastrCaptionLabel(meta.kind, meta.n, settings.lang),
+              )
             }</span> `
         }${escapeReportHtml(meta.caption)}</${tag}>\n`;
     const htmlToken = (content: string) => {
@@ -554,7 +560,7 @@ export function createFastrMarkdownIt(): MarkdownIt {
       if (meta.source !== undefined) {
         extra.push(htmlToken(
           `<p class="fm-figure__source">${
-            escapeReportHtml(fastrSourceLabel())
+            escapeReportHtml(fastrSourceLabel(settings.lang))
           } ${escapeReportHtml(meta.source)}</p>\n`,
         ));
       }
@@ -671,19 +677,22 @@ export function createFastrMarkdownIt(): MarkdownIt {
     }
     // A cover's title carries its longest word's length, which the cover
     // layouts size the title by so no word breaks inside itself.
-    const open: string[] = [];
+    // A bulletin cover's own colours (`boxcolor=`, fastrCoverAccentsOf) set
+    // its title's box, as standard inline declarations beside that length.
+    const open: (ContainerMeta | undefined)[] = [];
     for (let i = 0; i < state.tokens.length; i++) {
       const t = state.tokens[i];
       const meta = t.meta as ContainerMeta | undefined;
       if (
         t.type === "fm_container_open" && !isFastrLeafBlock(meta?.name ?? "")
       ) {
-        open.push(meta?.name ?? "");
+        open.push(meta);
       } else if (
         t.type === "fm_container_close" && !isFastrLeafBlock(meta?.name ?? "")
       ) {
         open.pop();
-      } else if (t.type === "heading_open" && open.at(-1) === "cover") {
+      } else if (t.type === "heading_open" && open.at(-1)?.name === "cover") {
+        const cover = open.at(-1)!;
         const inline = state.tokens[i + 1];
         const text = fastrPlainInlineText(
           inline?.type === "inline" ? inline.content : "",
@@ -692,7 +701,14 @@ export function createFastrMarkdownIt(): MarkdownIt {
           0,
           ...text.split(/[\s\-\u2010-\u2014/]+/).map((w) => [...w].length),
         );
-        if (longest > 0) t.attrSet("style", `--fm-title-chars: ${longest}`);
+        const box = t.tag === "h1" && cover.attrs["layout"] === "bulletin"
+          ? fastrCoverAccentStyle(fastrCoverAccentsOf(cover.attrs).box)
+          : undefined;
+        const style = [
+          longest > 0 ? `--fm-title-chars: ${longest}` : undefined,
+          box,
+        ].filter((d): d is string => d !== undefined).join("; ");
+        if (style.length > 0) t.attrSet("style", style);
       }
     }
     return true;

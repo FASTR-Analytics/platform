@@ -498,6 +498,13 @@ ${d}.fm-figure__caption {
 ${d}.fm-figure--capabove { display: grid; }
 ${d}.fm-figure--capabove > .fm-figure__caption { grid-row: 1; margin: 0 0 calc(0.5em * var(--fm-fit-caption, 1)); }
 ${d}.fm-caption-label { font-weight: 700; color: var(--fm-accent-text); }
+/* captionstyle=bold: the whole caption bold in the accent, its number
+   underlined, as a ministry bulletin sets it. */
+${d}.fm-caption--bold { font-weight: 700; color: var(--fm-accent-text); }
+${d}.fm-caption--bold > .fm-caption-label {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
 ${d}.fm-figure__source {
   margin: calc(0.4em * var(--fm-fit-caption, 1)) 0 0;
   font-size: calc(0.75em / var(--fm-fit-caption, 1));
@@ -967,7 +974,9 @@ ${d}.fm-cover__issue {
   align-self: stretch;
   margin-top: 1.6em;
   padding: 0.4em 1em;
-  background: var(--fm-accent);
+  /* The accent GROUND, which never re-scopes: inside an ink-toned cover
+     --fm-accent is the ground's ink, and the strip went white on white. */
+  background: var(--fm-accent-ground);
   color: var(--fm-accent-ground-ink);
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1305,6 +1314,10 @@ ${d}.fm-signer__label {
   margin-bottom: 0.5em;
 }
 ${d}.fm-signer__space { height: 3.5em; }
+/* align=right: the signers stand at the right, as a bulletin closes with
+   its officer's title and name. */
+${d}.fm-signoff--right { justify-content: flex-end; }
+${d}.fm-signoff--right > .fm-signer { flex: 0 1 auto; text-align: right; }
 ${d}.fm-signoff__at {
   flex: 0 0 100%;
   text-align: right;

@@ -82,7 +82,9 @@ import {
 import {
   fastrCaptionLabel,
   type FastrCaptionMeta,
+  type FastrFigureSettings,
   fastrSourceLabel,
+  readFastrFigureSettings,
 } from "./fastr_figure_captions.ts";
 import {
   fastrAccentTextFor,
@@ -437,6 +439,7 @@ class Builder {
   private readonly input: FastrWordBuildInput;
   private readonly c: Derived;
   private readonly page: FastrPageSetup;
+  private readonly figureSettings: FastrFigureSettings;
   private readonly sheetPx: [number, number];
   private readonly marginPx: number;
   private readonly columnPx: number;
@@ -492,6 +495,7 @@ class Builder {
     this.c = fastrDerivedColorsFor(tokens, input.colors);
     const settings = readFastrDocumentSettings(input.body);
     this.page = settings.page;
+    this.figureSettings = readFastrFigureSettings(input.body);
     this.sheetPx = fastrSheetPx(this.page);
     this.marginPx = fastrPageMarginPx(this.page.margin);
     this.columnPx = this.sheetPx[0] - 2 * this.marginPx;
@@ -897,7 +901,14 @@ class Builder {
           this.textRun(caption, {
             ...this.baseRun(),
             size: fastrWordHalfPoints(this.bodyPx * 0.85),
-            color: hexOrUndefined(p.inkMuted),
+            // captionstyle=bold: the whole caption bold in the accent.
+            ...(this.figureSettings.strong
+              ? {
+                bold: true,
+                color: hexOrUndefined(this.pal.accentText) ??
+                  hexOrUndefined(this.pal.ink),
+              }
+              : { color: hexOrUndefined(p.inkMuted) }),
           }),
         ],
         above ? { style: "Caption", keepNext: true } : { style: "Caption" },
@@ -936,20 +947,24 @@ class Builder {
   private captionLabelRuns(meta: FastrCaptionMeta | undefined): TextRun[] {
     if (meta?.n === undefined) return [];
     return [
-      this.textRun(`${fastrCaptionLabel(meta.kind, meta.n)} `, {
-        ...this.baseRun(),
-        size: fastrWordHalfPoints(this.bodyPx * 0.85),
-        bold: true,
-        color: hexOrUndefined(this.pal.accentText) ??
-          hexOrUndefined(this.pal.ink),
-      }),
+      this.textRun(
+        `${fastrCaptionLabel(meta.kind, meta.n, this.figureSettings.lang)} `,
+        {
+          ...this.baseRun(),
+          size: fastrWordHalfPoints(this.bodyPx * 0.85),
+          bold: true,
+          underline: this.figureSettings.strong,
+          color: hexOrUndefined(this.pal.accentText) ??
+            hexOrUndefined(this.pal.ink),
+        },
+      ),
     ];
   }
 
   // "Source : DHIS2 SNIS", small and muted, closing a figure.
   private sourceParagraph(source: string): Paragraph {
     return this.paragraph(
-      [this.textRun(`${fastrSourceLabel()} ${source}`, {
+      [this.textRun(`${fastrSourceLabel(this.figureSettings.lang)} ${source}`, {
         ...this.baseRun(),
         size: fastrWordHalfPoints(this.bodyPx * 0.75),
         color: hexOrUndefined(this.pal.inkMuted),
@@ -2039,7 +2054,7 @@ class Builder {
               font: style.font,
               size: style.size,
               color: style.color,
-              children: [
+              children: furniture?.pageNumbers === false ? [] : [
                 new Tab(),
                 `${xmlText(this.input.footer.pageWord)} `,
                 PageNumber.CURRENT,
@@ -2064,8 +2079,10 @@ class Builder {
     const side = {
       style: frame.style === "double"
         ? BorderStyle.THICK_THIN_SMALL_GAP
+        : frame.style === "heavy"
+        ? BorderStyle.THICK_THIN_MEDIUM_GAP
         : BorderStyle.SINGLE,
-      size: frame.style === "line" ? 6 : frame.style === "bold" ? 24 : 24,
+      size: frame.style === "line" ? 6 : frame.style === "heavy" ? 48 : 24,
       color,
       space: Math.min(31, Math.round(g.inset * 0.75)),
     };

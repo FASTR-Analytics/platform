@@ -65,11 +65,15 @@ Deno.test("settings come from the report header", () => {
     numbered: true,
     above: true,
     source: "DHIS2 SNIS",
+    strong: false,
+    lang: undefined,
   });
   assertEquals(readFastrFigureSettings("# Plain\n"), {
     numbered: false,
     above: false,
     source: undefined,
+    strong: false,
+    lang: undefined,
   });
   assertEquals(
     readFastrFigureSettings(":::report{source=none}\n").source,
@@ -98,6 +102,29 @@ Deno.test("figures and tables are numbered in two sequences", () => {
   } finally {
     setReportForgeLanguage("en");
   }
+});
+
+Deno.test("the report's own language sets its labels, whatever the interface's", () => {
+  // The interface is English here; the report says it is French.
+  const fr = BULLETIN.replace(":::report{", ":::report{lang=fr ");
+  const html = render(fr);
+  const nb = "\u00a0";
+  assertStringIncludes(html, `Tableau 1${nb}:</span> Cas de référence`);
+  assertStringIncludes(html, `Source${nb}: DHIS2 SNIS`);
+  // An unknown language is the interface's.
+  const xx = render(BULLETIN.replace(":::report{", ":::report{lang=xx "));
+  assertStringIncludes(xx, "Table 1:</span> Cas de référence");
+});
+
+Deno.test("captionstyle=bold sets the whole caption in the accent", () => {
+  const html = render(
+    BULLETIN.replace(":::report{", ":::report{captionstyle=bold "),
+  );
+  assertStringIncludes(
+    html,
+    `<figcaption class="fm-figure__caption fm-caption--bold"><span class="fm-caption-label">Figure 1:</span> Complétude`,
+  );
+  assert(!render(BULLETIN).includes("fm-caption--bold"));
 });
 
 Deno.test("English labels, and no numbers when the document does not ask", () => {

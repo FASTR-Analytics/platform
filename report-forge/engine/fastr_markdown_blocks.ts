@@ -644,16 +644,21 @@ export type FastrPageSetup = {
 //   header       a line centred in the top margin
 //   footer       replaces the document's title at the left of the running
 //                footer; `footer=none` leaves the page number alone
+//   pagenumbers  `none` prints no page number (with `footer=none`, the
+//                foot of the page is empty)
 //   footerrule   a stripe of one to four colours (literal colours or tone
 //                names) across the foot of the page, the column's width
 //   frame        a border round the page, inset in its margins: line, double
-//                (a heavy line and a hairline inside it) or bold;
-//                `framecolor=` a tone or a colour, the accent by default
+//                (a heavy line and a hairline inside it), bold, or heavy (a
+//                broad band and a fine line inside it);
+//                `framecolor=` a tone or a colour, the accent by default; a
+//                second colour (`framecolor="#000080 #0070c0"`) is the
+//                inner line's
 //
 // All of it stands in the margins, so no block's box moves and the editor's
 // pages and print's stay the same. A filling cover keeps the frame (it is
 // the sheet's, not the margin's) and drops the rest, as it drops the footer.
-export const FASTR_FRAME_STYLES = ["line", "double", "bold"] as const;
+export const FASTR_FRAME_STYLES = ["line", "double", "bold", "heavy"] as const;
 export type FastrFrameStyle = (typeof FASTR_FRAME_STYLES)[number];
 
 export type FastrPageFurniture = {
@@ -662,7 +667,13 @@ export type FastrPageFurniture = {
   footer: string | null | undefined;
   // CSS colours, left to right; empty for none.
   footerRule: string[];
-  frame: { style: FastrFrameStyle; color: string } | undefined;
+  // False: no page number at the foot (`pagenumbers=none`).
+  pageNumbers: boolean;
+  // `innerColor`: the inner line's, for a frame of two lines; absent, the
+  // frame is one colour.
+  frame:
+    | { style: FastrFrameStyle; color: string; innerColor?: string }
+    | undefined;
 };
 
 // A tone name as the colour of its ground, or a literal colour as written.
@@ -692,19 +703,22 @@ export function fastrPageFurnitureOf(
     .filter((c): c is string => c !== undefined)
     .slice(0, 4);
   const style = attrs["frame"];
+  const frameColors = (text("framecolor") ?? "").split(/\s+/)
+    .map(furnitureColor);
   const frame = typeof style === "string" &&
       (FASTR_FRAME_STYLES as readonly string[]).includes(style)
     ? {
       style: style as FastrFrameStyle,
-      color: furnitureColor(text("framecolor") ?? "") ??
-        "var(--fm-accent)",
+      color: frameColors[0] ?? "var(--fm-accent)",
+      ...(frameColors[1] === undefined ? {} : { innerColor: frameColors[1] }),
     }
     : undefined;
+  const pageNumbers = text("pagenumbers") !== "none";
   if (
     header === undefined && footer === undefined &&
-    footerRule.length === 0 && frame === undefined
+    footerRule.length === 0 && frame === undefined && pageNumbers
   ) return undefined;
-  return { header, footer, footerRule, frame };
+  return { header, footer, footerRule, pageNumbers, frame };
 }
 
 // Where the frame stands, px, for a page margin of `marginPx`: its inset from
@@ -719,6 +733,8 @@ export function fastrFrameGeometry(
     ? [{ at: 0, width: 1 }]
     : style === "bold"
     ? [{ at: 0, width: 4 }]
+    : style === "heavy"
+    ? [{ at: 0, width: 9 }, { at: 12, width: 2 }]
     : [{ at: 0, width: 3 }, { at: 6, width: 1 }];
   return { inset, lines };
 }
@@ -1039,10 +1055,45 @@ function countAttr(
   return Math.min(max, Math.max(min, n));
 }
 
-function titleHtml(cls: string, text: string | undefined): string {
+function titleHtml(
+  cls: string,
+  text: string | undefined,
+  style?: string,
+): string {
   return text === undefined
     ? ""
-    : `<div class="${cls}">${escapeReportHtml(text)}</div>`;
+    : `<div class="${cls}"${
+      style === undefined ? "" : ` style="${escapeReportHtml(style)}"`
+    }>${escapeReportHtml(text)}</div>`;
+}
+
+// A bulletin cover's own colours (`:::cover{layout=bulletin boxcolor="…"}`):
+// one colour for the title's box and the issue strip, or two, the box's then
+// the strip's. Literal colours, as a bulletin's green cover is not its
+// theme's accent; each carries the ink that reads on it. Set as standard
+// inline declarations (the sanitiser keeps those, not custom properties).
+export type FastrCoverAccents = {
+  box: { bg: string; ink: string } | undefined;
+  strip: { bg: string; ink: string } | undefined;
+};
+export function fastrCoverAccentsOf(
+  attrs: FastrContainerAttrs,
+): FastrCoverAccents {
+  const colors = (attrText(attrs, "boxcolor") ?? "").split(/\s+/)
+    .map((c) => safeCssColor(c))
+    .filter((c): c is string => c !== undefined);
+  const ground = (bg: string | undefined) =>
+    bg === undefined
+      ? undefined
+      : { bg, ink: isDarkCssColor(bg) === false ? "#1a1a1a" : "#ffffff" };
+  return { box: ground(colors[0]), strip: ground(colors[1] ?? colors[0]) };
+}
+export function fastrCoverAccentStyle(
+  g: { bg: string; ink: string } | undefined,
+): string | undefined {
+  return g === undefined
+    ? undefined
+    : `background-color: ${g.bg}; color: ${g.ink}`;
 }
 
 // A stat's or a card's `icon=`, drawn by the stylesheet (fm-icon--<name>).
@@ -1264,7 +1315,11 @@ function blockShapeFor(
       // The bulletin layout's own lines: the issue number in a strip under
       // the title, and the date at the foot of the page.
       const bulletin = layout === "bulletin"
-        ? titleHtml("fm-cover__issue", attrText(attrs, "issue")) +
+        ? titleHtml(
+          "fm-cover__issue",
+          attrText(attrs, "issue"),
+          fastrCoverAccentStyle(fastrCoverAccentsOf(attrs).strip),
+        ) +
           titleHtml("fm-cover__date", attrText(attrs, "date"))
         : "";
       return {
@@ -1299,7 +1354,9 @@ function blockShapeFor(
         .join(", ");
       return {
         tag: "div",
-        className: "fm-signoff",
+        className: attrs["align"] === "right"
+          ? "fm-signoff fm-signoff--right"
+          : "fm-signoff",
         leadingHtml: "",
         trailingHtml: at.length === 0
           ? ""

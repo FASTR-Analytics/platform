@@ -152,7 +152,10 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
     block     the title set as a solid block of the accent
     bulletin  an official bulletin: a masthead or logos row at the head,
               the title in a filled box, \`issue="N°07/2026"\` in a strip
-              under it, \`date="August 2026"\` at the foot of the page
+              under it, \`date="August 2026"\` at the foot of the page;
+              \`boxcolor="#9bbb59 #548235"\` colours the box and the strip
+              (one colour for both) when the bulletin's cover is not its
+              theme's accent
 
   :::masthead
   :::logos{src="image:<id> image:<id>"}
@@ -171,8 +174,9 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   :::
   :::
   A signature block: its signers side by side, each with room to sign, and
-  the place and date under them. Write it only when the user asks, with the
-  names they give; never invent a name.
+  the place and date under them. \`align=right\` stands them at the right.
+  Write it only when the user asks, with the names they give; never invent
+  a name.
 
   :::steps
   One paragraph per step. They are numbered automatically.
@@ -216,11 +220,16 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   when the user asks, and keep it when the report already has it:
   \`header="…"\` a line centred at the top of every page; \`footer="…"\`
   in place of the title at the foot (\`footer=none\` keeps the page number
-  alone); \`footerrule="#ce1126 #fcd116 #009460"\` a stripe of colours
-  under the footer; \`frame=line|double|bold\` a border round every page
-  (\`framecolor=\` a tone or a colour); \`sections=bar\` sets the section
-  headings as filled bars, their numbers in a tab with
-  \`numbering=sections\`.
+  alone); \`pagenumbers=none\` prints no page number (with \`footer=none\`
+  the foot is empty); \`footerrule="#ce1126 #fcd116 #009460"\` a stripe of
+  colours under the footer; \`frame=line|double|bold|heavy\` a border round
+  every page, heavy a broad band with a fine line inside it
+  (\`framecolor=\` a tone or a colour, or two: the band's, then the inner
+  line's); \`sections=bar\` sets the section headings as filled bars, their
+  numbers in a tab with \`numbering=sections\`.
+  \`lang=fr|en|pt\` is the language the report is WRITTEN in, which its
+  printed labels follow ("Tableau 2 :", "Source :"); keep it when it is
+  there.
 
   :::page{layout=story kicker="Kenema District"}
   :::slot{name=side}
@@ -334,7 +343,9 @@ user asks:
   captioned table ("Table 2:"), in two sequences, in document order; never
   write a number into a caption yourself, and never refer to a figure by a
   number you counted. \`captions=above\` sets each caption as a title over
-  its figure. \`source="…"\` puts a source line under every chart.
+  its figure. \`captionstyle=bold\` sets the whole caption bold in the
+  accent, its number underlined. \`source="…"\` puts a source line under
+  every chart.
   A figure's own \`{…}\` overrides the source (\`{source="PEV"}\`) or
   removes it (\`{source=none}\`), and \`{as=table}\` counts a chart that is
   a table in the table sequence. A markdown table takes its caption from a

@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-16T09:38:04.425Z",
-  "sourceCommit": "d58608b",
-  "sourceSubject": "The theme picker offers a new saved style, named as the host names them",
+  "timestamp": "2026-11-16T10:24:23.784Z",
+  "sourceCommit": "ee0a56b",
+  "sourceSubject": "Bulletin look: caption style, report language, no page numbers, heavy frame, cover colours",
   "sourceDirty": false,
   "target": "platform"
 }

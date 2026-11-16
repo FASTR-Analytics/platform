@@ -62,6 +62,29 @@ Deno.test("the blocks render with their classes and lines", () => {
   assert(listFastrContainerDefects(BODY).length === 0, "no defects");
 });
 
+Deno.test("a bulletin cover takes its own colours, and a sign-off may stand right", () => {
+  const html = renderFastrMarkdownToHtml(
+    BODY
+      .replace("layout=bulletin", `layout=bulletin boxcolor="#c4e0a0 #548235"`)
+      .replace(`:::signoff{`, ":::signoff{align=right "),
+    { lineAnchors: false },
+  );
+  // The box is light, so its ink is dark; the strip is dark, so light.
+  assertStringIncludes(
+    html,
+    `style="--fm-title-chars: 8; background-color: #c4e0a0; color: #1a1a1a"`,
+  );
+  assertStringIncludes(
+    html,
+    `<div class="fm-cover__issue" style="background-color: #548235; color: #ffffff">N°07/2026</div>`,
+  );
+  assertStringIncludes(html, `class="fm-signoff fm-signoff--right"`);
+  // Without the attributes, nothing inline.
+  const plain = renderFastrMarkdownToHtml(BODY, { lineAnchors: false });
+  assert(!plain.includes("background-color: #"));
+  assert(!plain.includes("fm-signoff--right"));
+});
+
 Deno.test("they keep whole on a page, and the Widgets menu offers them", () => {
   assert(FASTR_PAGED_ATOMIC_SELECTORS.includes(".fm-masthead"));
   assert(FASTR_PAGED_ATOMIC_SELECTORS.includes(".fm-signoff"));

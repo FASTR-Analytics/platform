@@ -5329,7 +5329,8 @@ class PageFrameMarker implements LayerMarker {
     readonly width: number,
     readonly height: number,
     readonly color: string,
-    readonly lines: { at: number; width: number }[],
+    // Each line's own colour: a two-line frame's inner line may differ.
+    readonly lines: { at: number; width: number; color: string }[],
   ) {}
   draw(): HTMLElement {
     const box = document.createElement("div");
@@ -5339,7 +5340,7 @@ class PageFrameMarker implements LayerMarker {
     for (const line of this.lines) {
       const edge = document.createElement("div");
       edge.style.cssText =
-        `position:absolute;inset:${line.at}px;border:${line.width}px solid ${this.color};`;
+        `position:absolute;inset:${line.at}px;border:${line.width}px solid ${line.color};`;
       box.append(edge);
     }
     return box;
@@ -5412,6 +5413,12 @@ const pageFrameLayer = layer({
       bottoms.set(page - 1, r.top - baseTop);
     }
     const g = fastrFrameGeometry(frame.style, geometry.marginPx);
+    const lines = g.lines.map((line, i) => ({
+      ...line,
+      color: i > 0 && frame.innerColor !== undefined
+        ? frame.innerColor
+        : frame.color,
+    }));
     const out: PageFrameMarker[] = [];
     let top = tops.get(1)!;
     for (let page = 1; page <= total; page++) {
@@ -5424,7 +5431,7 @@ const pageFrameLayer = layer({
           Math.round(sheetW - 2 * g.inset),
           Math.round(bottom - top - 2 * g.inset),
           frame.color,
-          g.lines,
+          lines,
         ),
       );
       top = bottom + bandH;
@@ -5619,7 +5626,9 @@ function seamParts(
       ? ""
       : furniture?.footer ?? pag.title;
     const num = document.createElement("span");
-    num.textContent = footerText(pag, page - 1);
+    num.textContent = furniture?.pageNumbers === false
+      ? ""
+      : footerText(pag, page - 1);
     foot.append(title, num);
     const rule = footerRuleElement(furniture, pag.marginPx);
     if (rule !== undefined) foot.append(rule);
