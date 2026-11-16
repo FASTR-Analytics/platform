@@ -95,7 +95,7 @@ Deno.test("the schema takes a full backbone and refuses a bad one", () => {
       templates: { use: "sometimes" },
     }).success,
   );
-  // A style body carries one, optionally.
+  // Every library style is a backbone: a body without one is refused.
   const body = {
     label: "Bulletin de district",
     description: "",
@@ -104,7 +104,7 @@ Deno.test("the schema takes a full backbone and refuses a bad one", () => {
     colors: null,
     productIds: null,
   };
-  assert(reportStyleBodySchema.safeParse(body).success);
+  assert(!reportStyleBodySchema.safeParse(body).success);
   assert(
     reportStyleBodySchema.safeParse({
       ...body,

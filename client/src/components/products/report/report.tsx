@@ -1396,19 +1396,11 @@ export function ReportEditor(p: Props) {
       });
       if (!res.success) return [];
       stylesById = new Map(res.data.map((style) => [style.id, style]));
-      // A style that carries a report backbone says so on its tile: picking
-      // it sets the house style the AI writes to, not just the colours.
+      // The library holds report backbones only.
       return res.data.map((style) => ({
         id: style.id,
         label: style.label,
-        description: style.backbone === null ? style.description : [
-          t3({
-            en: "Report backbone",
-            fr: "Ossature de rapport",
-            pt: "Estrutura de relatório",
-          }),
-          style.description,
-        ].filter((d) => d.trim().length > 0).join(" · "),
+        description: style.description,
         colors: style.colors,
       }));
     },
@@ -1418,26 +1410,30 @@ export function ReportEditor(p: Props) {
         props: {
           productId: p.productId,
           existing: palette ? stylesById.get(palette.id) : undefined,
+          measureReport,
         },
       });
     },
+    words: {
+      badge: t3({ en: "backbone", fr: "ossature", pt: "estrutura" }),
+      newLabel: t3({
+        en: "New report backbone",
+        fr: "Nouvelle ossature de rapport",
+        pt: "Nova estrutura de relatório",
+      }),
+      newHint: t3({
+        en: "From an example PDF, or measured from this report",
+        fr: "D'après un PDF exemple, ou mesurée sur ce rapport",
+        pt: "A partir de um PDF exemplo, ou medida neste relatório",
+      }),
+    },
   };
 
-  // "New report backbone from an example": the style editor opened empty, its
-  // drafting panel on top, for an example PDF the AI reads into a backbone.
-  async function newReportBackbone() {
-    await openComponent({
-      element: ReportStyleEditor,
-      props: { productId: p.productId },
-    });
-  }
-
-  // "Save as report backbone": this report's house style measured off its
-  // body and figures (measureReportBackbone), opened in the style editor for
-  // the person to review, generalise and save to the library.
-  async function saveAsReportBackbone() {
+  // This report measured into a backbone (measureReportBackbone): the style
+  // editor's "Measure this report", which the person then generalises.
+  function measureReport() {
     const pageStarts = forge?.getPageLayout()?.pageStarts;
-    const drafted = measureReportBackbone({
+    return measureReportBackbone({
       label: label(),
       body: body(),
       theme: fastrTheme(),
@@ -1446,13 +1442,6 @@ export function ReportEditor(p: Props) {
         f.bundle === undefined ? [] : [f.bundle.config.d.type]
       ),
       pages: pageStarts === undefined ? undefined : pageStarts.length + 1,
-    });
-    await openComponent({
-      element: ReportStyleEditor,
-      props: {
-        productId: p.productId,
-        draft: { ...drafted, source: "report" as const },
-      },
     });
   }
 
@@ -1739,25 +1728,6 @@ export function ReportEditor(p: Props) {
                   pt: "Criar uma cópia…",
                 }),
                 onClick: () => void duplicateReport(),
-              },
-              {
-                menu: "file",
-                dividerBefore: true,
-                label: t3({
-                  en: "New report backbone from an example…",
-                  fr: "Nouvelle ossature de rapport d'après un exemple…",
-                  pt: "Nova estrutura de relatório a partir de um exemplo…",
-                }),
-                onClick: () => void newReportBackbone(),
-              },
-              {
-                menu: "file",
-                label: t3({
-                  en: "Save as report backbone…",
-                  fr: "Enregistrer comme ossature de rapport…",
-                  pt: "Guardar como estrutura de relatório…",
-                }),
-                onClick: () => void saveAsReportBackbone(),
               },
             ]}
             banner={banners}

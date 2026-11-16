@@ -1023,78 +1023,70 @@ sheet over the REAL `fm-*` markup, scoped per tile
 ([fastr_theme_mock.tsx](report-forge/ui/screen/fastr_theme_mock.tsx)), so a
 preview is exactly what the report becomes.
 
-**Custom styles are palettes.** A custom style is a row in the MAIN-db
+**The style library is report backbones.** A row in the MAIN-db
 `report_styles` table (203; visibility per style, either this/selected REPORTS
-via a `product_ids` JSON list or NULL = instance-wide, since the restructure
-left no project to scope one to;
+via a `product_ids` JSON list or NULL = instance-wide;
 [server/db/instance/report_styles.ts](server/db/instance/report_styles.ts), CRUD
 on the product-scoped report routes: the path's report decides which styles are
 visible, list is `view` access and every mutation is `edit` and logged; an
 update or delete names a style visible to the path report, else it answers
 `REPORT_STYLE_NOT_FOUND` (404) as an unknown id does, and a create whose
 `productIds` leave out the path report is refused,
-`REPORT_STYLE_EXCLUDES_REPORT`, so an editor of one report never reaches a style
-made for others). Only its three `colors` (page, ink, accent) do anything: they
-override the palette of the theme the report is on. `brief` and `reference_css`,
-the AI design brief and the source stylesheet a style carried while reports
-could be written as html, are still stored and round-tripped, and nothing reads
-them (`lib/types/report_styles.ts`). The theme modal lists the styles as tiles
-of the default theme repainted in each palette (`FastrCustomThemeMock`) and they
-are created and edited in
-[report_style_editor.tsx](client/src/components/products/report/report_style_editor.tsx)
-(name, description, the three colours, visibility; delete lives there because a
-confirm dialog would replace the picker), which sends an existing row's `brief`
-and `referenceCss` back unchanged so a save does not wipe them. Choosing a style
-applies the default theme with that palette through `setReportStyle`, which
-resolves the style from its id, checks that it is visible to the report, and
-snapshots `{id,label,brief,referenceCss,colors}` into `config.customStyle`:
-always server-resolved, never a client-supplied blob. A report paints from that
-snapshot, so it keeps its look once the library row is edited or deleted, and
-`updateReportConfig` re-imposes the stored format, snapshot and `themeChosen`,
-which leaves `setReportStyle` as the only write that can change a report's
-custom style; duplicate and copy-from-version carry `config`.
-
-**Report backbones are styles that carry a house style.** A style row may also
-hold a `backbone` (JSON text, migration 229, with `backbone_source`: pdf, docx
-or report): the house style the AI writes a report to, as drafted from an
-example report and reviewed by a person
-([lib/types/report_backbone.ts](lib/types/report_backbone.ts)). It is the
-example's STYLE and its TYPICAL STRUCTURE, never its content: look (a theme id
-and the `:::report` figure conventions and page furniture, with
+`REPORT_STYLE_EXCLUDES_REPORT`). Every row carries a `backbone` (JSON text,
+migration 229, with `backbone_source`: pdf, docx or report); the palette-only
+custom styles the table held before were deleted (migration 230), and a body
+without a backbone is refused. A backbone is the house style the AI writes a
+report to, as drafted from an example and reviewed by a person
+([lib/types/report_backbone.ts](lib/types/report_backbone.ts)): the example's
+STYLE and its TYPICAL STRUCTURE, never its content: look (a theme id and the
+`:::report` figure conventions and page furniture, with
 `{Place} {Period} {Year} {Issue}` tokens in the header and footer), cover,
 sign-off labels, length (pages, words a page and a chart, the least a page may
 be filled), usual outline, template and block frequencies, chart preferences
-and voice (language, register, notes). Every field is a setting the platform
-already has or a number the brief and page checks read; none is CSS. The
-library, visibility and snapshot are the styles': `setReportStyle` snapshots
-the backbone with the colours and gives the report the backbone's theme when
-the engine knows it, and an update that sends no `backbone` keeps the stored
-one. The style editor is also the backbone's review and edit form
-([report_backbone_fields.tsx](client/src/components/products/report/report_backbone_fields.tsx)),
-and the picker's tile says "Report backbone". What the platform does with one
-is in [lib/report_backbone.ts](lib/report_backbone.ts), pinned by
-`server/tests/report_backbone_test.ts`: picking one writes its `:::report` line
-into the body (`applyReportBackboneHeader`, rebased like any programmatic edit;
-a body holding only that line and a title is still untouched, so the AI's
-new-report steps still run); the report AI's brief gains a "house style"
-section that overrides the format guide's composing defaults
-(`describeReportBackboneForBrief`, through `getEditingReportInstructions`);
-the page map holds the report to the backbone's own bars
+and voice (language, register, notes), plus the three `colors` that repaint the
+theme. Every field is a setting the platform already has or a number the brief
+and page checks read; none is CSS. `brief` and `reference_css` are leftovers of
+the html format, round-tripped and read by nothing. The theme modal lists the
+backbones as tiles of the default theme repainted in their colours
+(`FastrCustomThemeMock`, badge "backbone"), ends with a "New report backbone"
+tile (`palettes.words`), and each opens the backbone editor
+([report_style_editor.tsx](client/src/components/products/report/report_style_editor.tsx)
+with
+[report_backbone_fields.tsx](client/src/components/products/report/report_backbone_fields.tsx);
+delete lives there because a confirm dialog would replace the picker). A new
+one starts from an example PDF (the editor's "Start from an example report"
+panel,
+[draft_report_backbone.ts](client/src/components/products/report/draft_report_backbone.ts):
+the file goes to the model as a base64 document block through the AI proxy, so
+its usage and limits count as any AI call's) read by `runReportBackboneDraft`
+([lib/report_backbone_draft.ts](lib/report_backbone_draft.ts)): one structured
+call into a FLAT schema with no optional field, which `backboneFromDraft`
+checks against the engine's own lists (themes, cover layouts, frames,
+colours), dropping and listing what does not fit. Or "Measure this report"
+reads the report the editor was opened from, with no model
+(`measureReportBackbone`). Nothing is stored until it is saved.
+
+Choosing a backbone goes through `setReportStyle`, which resolves it from its
+id, checks that it is visible to the report, snapshots
+`{id,label,brief,referenceCss,colors,backbone}` into `config.customStyle`
+(always server-resolved, never a client-supplied blob) and gives the report the
+backbone's theme when the engine knows it. A report paints from that snapshot,
+so it keeps its look once the library row is edited or deleted (a report that
+used a deleted palette-only style keeps its colours that way), and
+`updateReportConfig` re-imposes the stored format, snapshot and `themeChosen`,
+which leaves `setReportStyle` as the only write that can change a report's
+custom style; duplicate and copy-from-version carry `config`. What the platform
+does with a backbone is in [lib/report_backbone.ts](lib/report_backbone.ts),
+pinned by `server/tests/report_backbone_test.ts`: picking one writes its
+`:::report` line into the body (`applyReportBackboneHeader`, rebased like any
+programmatic edit; a body holding only that line and a title is still
+untouched, so the AI's new-report steps still run); the report AI's brief gains
+a "house style" section that overrides the format guide's composing defaults
+(`describeReportBackboneForBrief`, through `getEditingReportInstructions`); the
+page map holds the report to the backbone's own bars
 (`reportBackbonePageLimits`, report-forge's `FastrPageLimits`); and a backbone
 whose blocks are all never or rare waives the "no blocks" refusal
-(`reportBackboneAllowsPlain`). A backbone is drafted in the style editor, opened
-empty from a report's File menu ("New report backbone from an example…"), from
-an example PDF (the "Draft a report backbone from an example report" panel,
-[draft_report_backbone.ts](client/src/components/products/report/draft_report_backbone.ts):
-the file goes to the model as a base64 document block through the AI proxy,
-so its usage and limits count as any AI call's) by `runReportBackboneDraft`
-([lib/report_backbone_draft.ts](lib/report_backbone_draft.ts)): one
-structured call into a FLAT schema with no optional field, which
-`backboneFromDraft` checks against the engine's own lists (themes, cover
-layouts, frames, colours), dropping and listing what does not fit. A report
-the platform already has is measured instead, with no model
-(`measureReportBackbone`, the File menu's "Save as report backbone…"). Either
-opens the style editor filled in, and nothing is stored until it is saved.
+(`reportBackboneAllowsPlain`).
 
 **Embeds are tokens in the body**: `![caption](figure:<uuid>)` and
 `![caption](image:<uuid>)`, where the caption IS the alt text. **Every token

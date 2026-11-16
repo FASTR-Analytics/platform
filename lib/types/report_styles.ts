@@ -1,8 +1,8 @@
 // =============================================================================
-// Custom report styles: user-authored palettes for reports, stored in the
-// MAIN database. A style may carry a report backbone (the house style the AI
-// writes to: lib/types/report_backbone.ts), which the UI calls a "Report
-// backbone". A style's colors override the palette of whichever theme the
+// The report-style library: REPORT BACKBONES (the house style the AI writes a
+// report to, with its colours: lib/types/report_backbone.ts), stored in the
+// MAIN database. Palette-only custom styles were retired (migration 230):
+// every row carries a backbone, and the UI calls them "Report backbones". A style's colors override the palette of whichever theme the
 // report is on; a report snapshots the style when it is applied (see
 // reports.ts `customStyle`). `brief` and `referenceCss` are what a style was
 // when reports could be written as html (an AI design brief and the source
@@ -58,9 +58,9 @@ export const reportStyleBodySchema = z.object({
   brief: z.string().max(REPORT_CUSTOM_BRIEF_MAX),
   referenceCss: z.string().max(REPORT_STYLE_REFERENCE_CSS_MAX).nullable(),
   colors: reportStyleColorsSchema.nullable(),
-  // Optional, so a palette-only client keeps working: absent leaves a
-  // stored backbone as it is on update (the editor sends it back).
-  backbone: reportBackboneSchema.nullable().optional(),
+  // Every library style is a report backbone (palette-only styles were
+  // retired, migration 230).
+  backbone: reportBackboneSchema,
   backboneSource: z.enum(REPORT_BACKBONE_SOURCES).nullable().optional(),
   productIds: z.array(z.string()).nullable(),
 });

@@ -58,20 +58,14 @@ function backboneOf(raw: string | null): ReportBackbone | null {
   return parsed.success ? parsed.data : null;
 }
 
-// What an update writes: the body's backbone when it sends one, else the
-// stored one (a palette-only client never wipes it).
+// The backbone columns a create or update writes.
 function backboneColumns(body: ReportStyleBody): {
-  set: boolean;
-  backbone: string | null;
+  backbone: string;
   source: string | null;
 } {
-  if (body.backbone === undefined) {
-    return { set: false, backbone: null, source: null };
-  }
   return {
-    set: true,
-    backbone: body.backbone === null ? null : JSON.stringify(body.backbone),
-    source: body.backbone === null ? null : body.backboneSource ?? null,
+    backbone: JSON.stringify(body.backbone),
+    source: body.backboneSource ?? null,
   };
 }
 
@@ -85,11 +79,15 @@ export async function listReportStylesForProduct(
     const rows = await mainDb<DBReportStyle[]>`
       SELECT * FROM report_styles ORDER BY label ASC
     `;
+    // A row whose backbone no longer parses is not offered: the library
+    // holds backbones only.
     return {
       success: true,
       data: rows
         .map(rowToStyle)
-        .filter((s) => reportStyleVisibleToProduct(s, productId)),
+        .filter((s) =>
+          s.backbone !== null && reportStyleVisibleToProduct(s, productId)
+        ),
     };
   });
 }
@@ -167,8 +165,8 @@ export async function updateReportStyle(
             brief = ${body.brief},
             reference_css = ${body.referenceCss},
             colors = ${body.colors ? JSON.stringify(body.colors) : null},
-            backbone = CASE WHEN ${bb.set} THEN ${bb.backbone} ELSE backbone END,
-            backbone_source = CASE WHEN ${bb.set} THEN ${bb.source} ELSE backbone_source END,
+            backbone = ${bb.backbone},
+            backbone_source = ${bb.source},
             product_ids = ${
           body.productIds ? JSON.stringify(body.productIds) : null
         },
