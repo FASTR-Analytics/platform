@@ -61,7 +61,14 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import { Button, Icon, Modal, type ModalProps, openModal } from "../kit/mod.ts";
+import {
+  Button,
+  DraftInput,
+  Icon,
+  Modal,
+  type ModalProps,
+  openModal,
+} from "../kit/mod.ts";
 import { Portal } from "solid-js/web";
 import { fastrThemeLabel } from "./fastr_theme_labels.ts";
 import {
@@ -369,6 +376,9 @@ function choiceControlsFor(name: FastrBlockName): ChoiceControl[] {
     case "report":
     case "card":
     case "quote":
+    case "masthead":
+    case "signoff":
+    case "signer":
     case "band":
     case "steps":
     case "pagebreak":
@@ -1019,6 +1029,245 @@ export function ReportToolbar(p: Props) {
                 <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
               </Show>
             </PopoverRow>
+            <PopoverRow
+              active={psAttr("sections") === "bar"}
+              onClick={() =>
+                p.onPatchPageSetup({
+                  sections: psAttr("sections") === "bar" ? undefined : "bar",
+                })}
+            >
+              <span class="rf:flex-1">
+                {t3({
+                  en: "Section headings as bars",
+                  fr: "Titres de section en bandeaux",
+                  pt: "Títulos de secção em faixas",
+                })}
+              </span>
+              <Show when={psAttr("sections") === "bar"}>
+                <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
+              </Show>
+            </PopoverRow>
+            {
+              /* Page furniture (FastrPageFurniture): what every page carries
+                in its margins. Text fields are written when the menu closes. */
+            }
+            <MenuFlyout
+              label={t3({
+                en: "Header and footer",
+                fr: "En-tête et pied de page",
+                pt: "Cabeçalho e rodapé",
+              })}
+            >
+              <div class="rf:bg-base-100 rf:ui-pad-sm rf:ui-spy-sm rf:shadow-floating rf:flex rf:w-72 rf:flex-col rf:rounded rf:border">
+                <DraftInput
+                  label={t3({
+                    en: "Header on every page",
+                    fr: "En-tête de chaque page",
+                    pt: "Cabeçalho de cada página",
+                  })}
+                  value={psAttr("header") ?? ""}
+                  placeholder={t3({
+                    en: "e.g. Monthly bulletin · N° 07",
+                    fr: "ex. Bulletin mensuel · N° 07",
+                    pt: "ex. Boletim mensal · N.º 07",
+                  })}
+                  onCommit={(v) =>
+                    p.onPatchPageSetup({
+                      header: v.length > 0 ? v : undefined,
+                    })}
+                />
+                <DraftInput
+                  label={t3({
+                    en: "Footer text (instead of the title)",
+                    fr: "Texte du pied de page (au lieu du titre)",
+                    pt: "Texto do rodapé (em vez do título)",
+                  })}
+                  value={psAttr("footer") === "none"
+                    ? ""
+                    : psAttr("footer") ?? ""}
+                  placeholder={t3({
+                    en: "The report's title",
+                    fr: "Le titre du rapport",
+                    pt: "O título do relatório",
+                  })}
+                  onCommit={(v) =>
+                    p.onPatchPageSetup({
+                      footer: v.length > 0 ? v : undefined,
+                    })}
+                />
+                <PopoverRow
+                  active={psAttr("footer") === "none"}
+                  onClick={() =>
+                    p.onPatchPageSetup({
+                      footer: psAttr("footer") === "none" ? undefined : "none",
+                    })}
+                >
+                  <span class="rf:flex-1">
+                    {t3({
+                      en: "Page number only",
+                      fr: "Numéro de page seulement",
+                      pt: "Só o número da página",
+                    })}
+                  </span>
+                  <Show when={psAttr("footer") === "none"}>
+                    <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
+                  </Show>
+                </PopoverRow>
+                <DraftInput
+                  label={t3({
+                    en: "Rule under the footer (colours)",
+                    fr: "Filet sous le pied de page (couleurs)",
+                    pt: "Filete sob o rodapé (cores)",
+                  })}
+                  value={psAttr("footerrule") ?? ""}
+                  placeholder="#ce1126 #fcd116 #009460"
+                  onCommit={(v) =>
+                    p.onPatchPageSetup({
+                      footerrule: v.length > 0 ? v : undefined,
+                    })}
+                />
+              </div>
+            </MenuFlyout>
+            <MenuFlyout
+              label={t3({
+                en: "Page frame",
+                fr: "Cadre de page",
+                pt: "Moldura da página",
+              })}
+            >
+              <div class="rf:bg-base-100 rf:ui-spy-sm rf:shadow-floating rf:flex rf:w-56 rf:flex-col rf:rounded rf:border rf:p-1">
+                <For
+                  each={[
+                    {
+                      value: undefined,
+                      label: t3({ en: "None", fr: "Aucun", pt: "Nenhuma" }),
+                    },
+                    {
+                      value: "line",
+                      label: t3({ en: "Line", fr: "Filet", pt: "Linha" }),
+                    },
+                    {
+                      value: "double",
+                      label: t3({ en: "Double", fr: "Double", pt: "Dupla" }),
+                    },
+                    {
+                      value: "bold",
+                      label: t3({ en: "Bold", fr: "Épais", pt: "Grossa" }),
+                    },
+                  ]}
+                >
+                  {(opt) => (
+                    <PopoverRow
+                      active={psAttr("frame") === opt.value}
+                      onClick={() =>
+                        p.onPatchPageSetup({
+                          frame: opt.value,
+                          ...(opt.value === undefined
+                            ? { framecolor: undefined }
+                            : {}),
+                        })}
+                    >
+                      <span class="rf:flex-1">{opt.label}</span>
+                      <Show when={psAttr("frame") === opt.value}>
+                        <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
+                      </Show>
+                    </PopoverRow>
+                  )}
+                </For>
+                <Show when={psAttr("frame") !== undefined}>
+                  <div class="rf:ui-pad-sm">
+                    <DraftInput
+                      label={t3({
+                        en: "Colour (a tone or a colour)",
+                        fr: "Couleur (un ton ou une couleur)",
+                        pt: "Cor (um tom ou uma cor)",
+                      })}
+                      value={psAttr("framecolor") ?? ""}
+                      placeholder={t3({
+                        en: "accent, ink or #1f3a93",
+                        fr: "accent, ink ou #1f3a93",
+                        pt: "accent, ink ou #1f3a93",
+                      })}
+                      onCommit={(v) =>
+                        p.onPatchPageSetup({
+                          framecolor: v.length > 0 ? v : undefined,
+                        })}
+                    />
+                  </div>
+                </Show>
+              </div>
+            </MenuFlyout>
+            {
+              /* The figure conventions (fastr_figure_captions.ts): numbered
+                captions, captions over the figure, and the source line every
+                figure carries unless it says otherwise. */
+            }
+            <PopoverRow
+              active={psAttr("figures") === "numbered"}
+              onClick={() =>
+                p.onPatchPageSetup({
+                  figures: psAttr("figures") === "numbered"
+                    ? undefined
+                    : "numbered",
+                })}
+            >
+              <span class="rf:flex-1">
+                {t3({
+                  en: "Numbered figures and tables",
+                  fr: "Figures et tableaux numérotés",
+                  pt: "Figuras e tabelas numeradas",
+                })}
+              </span>
+              <Show when={psAttr("figures") === "numbered"}>
+                <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
+              </Show>
+            </PopoverRow>
+            <PopoverRow
+              active={psAttr("captions") === "above"}
+              onClick={() =>
+                p.onPatchPageSetup({
+                  captions: psAttr("captions") === "above"
+                    ? undefined
+                    : "above",
+                })}
+            >
+              <span class="rf:flex-1">
+                {t3({
+                  en: "Captions above figures",
+                  fr: "Légendes au-dessus des figures",
+                  pt: "Legendas acima das figuras",
+                })}
+              </span>
+              <Show when={psAttr("captions") === "above"}>
+                <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
+              </Show>
+            </PopoverRow>
+            <MenuFlyout
+              label={t3({
+                en: "Figure source",
+                fr: "Source des figures",
+                pt: "Fonte das figuras",
+              })}
+            >
+              <div class="rf:bg-base-100 rf:ui-pad-sm rf:shadow-floating rf:w-72 rf:rounded rf:border">
+                <DraftInput
+                  label={t3({
+                    en: "Source line under every figure",
+                    fr: "Ligne de source sous chaque figure",
+                    pt: "Linha de fonte sob cada figura",
+                  })}
+                  value={psAttr("source") ?? ""}
+                  placeholder={t3({
+                    en: "e.g. DHIS2 SNIS",
+                    fr: "ex. DHIS2 SNIS",
+                    pt: "ex. DHIS2 SNIS",
+                  })}
+                  onCommit={(v) => p.onPatchPageSetup({
+                    source: v.length > 0 ? v : undefined,
+                  })}
+                />
+              </div>
+            </MenuFlyout>
             {
               /* The printed sheet is A4 (the page-size choice was removed
                 2026-09-30; a report that already names another size keeps
@@ -1479,6 +1728,26 @@ export function ReportToolbar(p: Props) {
             >
               {(close) => (
                 <div class="rf:ui-spy-sm rf:flex rf:w-56 rf:flex-col">
+                  {
+                    /* The table's caption: a `Table:` line over it, which a
+                      numbered document numbers "Tableau N". Written when the
+                      menu closes. */
+                  }
+                  <DraftInput
+                    label={t3({
+                      en: "Caption",
+                      fr: "Légende",
+                      pt: "Legenda",
+                    })}
+                    value={p.context()?.table?.caption ?? ""}
+                    placeholder={t3({
+                      en: "A title over the table",
+                      fr: "Un titre au-dessus du tableau",
+                      pt: "Um título sobre a tabela",
+                    })}
+                    onCommit={(v) => p.api()?.setTableCaption(v)}
+                  />
+                  <MenuDivider />
                   <For each={TABLE_ACTIONS()}>
                     {(row) => (
                       <>

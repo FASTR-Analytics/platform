@@ -2,7 +2,14 @@
 // ⚠️  DO NOT EDIT HERE - changes are overwritten on the next sync.
 //     Edit the report-forge repo, then run its ./sync.
 
-import { createUniqueId, For, type JSX, Show } from "solid-js";
+import {
+  createSignal,
+  createUniqueId,
+  For,
+  type JSX,
+  onCleanup,
+  Show,
+} from "solid-js";
 
 // A labelled single-line text input. 200px wide unless `fullWidth`.
 export function Input(p: {
@@ -88,5 +95,32 @@ export function Card(p: { children: JSX.Element }): JSX.Element {
     <div class="rf-card">
       <div class="rf-card__body">{p.children}</div>
     </div>
+  );
+}
+
+// A text field written when it closes (its popover or menu goes), not on
+// every keystroke: one edit to the document per change, and nothing written
+// when the text comes back to what it was.
+export function DraftInput(p: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  onCommit: (value: string) => void;
+}): JSX.Element {
+  const [draft, setDraft] = createSignal(p.value);
+  const start = p.value.trim();
+  onCleanup(() => {
+    const v = draft().trim();
+    if (v !== start) p.onCommit(v);
+  });
+  return (
+    <Input
+      label={p.label}
+      value={draft()}
+      placeholder={p.placeholder}
+      onChange={setDraft}
+      fullWidth
+      autoFocus
+    />
   );
 }

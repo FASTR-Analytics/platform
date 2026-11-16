@@ -978,11 +978,24 @@ export function fastrTemplateOverflow(
       ? m[1]
       : undefined;
     if (area === undefined) continue;
-    const px = Math.max(
-      kid.scrollHeight - kid.clientHeight,
-      kid.getBoundingClientRect().bottom - foot,
-      0,
-    );
+    // Clipped is a child box running past the area's content edge. Not the
+    // area's scrollHeight: that counts a theme's decoration drawn in a
+    // heading's margin (a pseudo-element rule) and a text run's font box
+    // past its line height, neither of which hides a word. An absolutely
+    // placed child is decoration too.
+    const box = kid.getBoundingClientRect();
+    const style = getComputedStyle(kid);
+    const inner = box.bottom - parseFloat(style.paddingBottom) -
+      parseFloat(style.borderBottomWidth);
+    let low = inner;
+    for (let j = 0; j < kid.children.length; j++) {
+      const child = kid.children[j];
+      const placed = getComputedStyle(child).position;
+      if (placed === "absolute" || placed === "fixed") continue;
+      const r = child.getBoundingClientRect();
+      if (r.height > 0 || r.width > 0) low = Math.max(low, r.bottom);
+    }
+    const px = Math.max(low - inner, box.bottom - foot, 0);
     if (px > 2) out.push({ area, px: Math.round(px) });
   }
   return out;

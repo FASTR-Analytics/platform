@@ -11,6 +11,7 @@
 // name. A host sets the language through setReportForgeLanguage.
 
 export * from "./embeds.ts";
+export * from "./fastr_figure_captions.ts";
 export * from "./fastr_live_regions.ts";
 export * from "./fastr_markdown_blocks.ts";
 export * from "./fastr_markdown_edits.ts";

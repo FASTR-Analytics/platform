@@ -489,6 +489,27 @@ ${d}.fm-figure__caption {
   color: var(--fm-ink-muted);
   line-height: calc(1.4 * var(--fm-fit-caption, 1));
 }
+/* The figure conventions (fastr_figure_captions.ts). A caption above its
+   figure takes the figure's first grid row, as a theme's figureCaption does;
+   its number is set in the accent. The source line closes the figure, so it
+   keeps with the chart on any page. A native table's caption is the table's
+   own <caption>, set as a figure's (the table's type is 0.94em of the body,
+   so the caption divides it back out). */
+${d}.fm-figure--capabove { display: grid; }
+${d}.fm-figure--capabove > .fm-figure__caption { grid-row: 1; margin: 0 0 calc(0.5em * var(--fm-fit-caption, 1)); }
+${d}.fm-caption-label { font-weight: 700; color: var(--fm-accent-text); }
+${d}.fm-figure__source {
+  margin: calc(0.4em * var(--fm-fit-caption, 1)) 0 0;
+  font-size: calc(0.75em / var(--fm-fit-caption, 1));
+  color: var(--fm-ink-muted);
+  line-height: calc(1.4 * var(--fm-fit-caption, 1));
+}
+${d}caption.fm-table__caption {
+  caption-side: top;
+  text-align: left;
+  margin: 0 0 calc(0.5em * var(--fm-fit-caption, 1));
+  font-size: calc(0.85em / 0.94 / var(--fm-fit-caption, 1));
+}
 
 /* ── Callouts ─────────────────────────────────────────────────────────────── */
 ${d}.fm-callout {
@@ -923,6 +944,42 @@ ${d}.fm-cover.fm-cover--frame .fm-dek {
   max-width: 34em;
 }
 
+/* Bulletin: an official bulletin's cover, everything on the axis: the title
+   set in a filled box of the accent, the issue number in a strip under it,
+   the date at the foot (fill=page pushes it there). A masthead or a logos
+   row inside it heads the page. */
+${d}.fm-cover.fm-cover--bulletin {
+  align-items: center;
+  text-align: center;
+}
+${d}.fm-cover.fm-cover--bulletin > .fm-masthead,
+${d}.fm-cover.fm-cover--bulletin > .fm-logos { align-self: stretch; }
+${d}.fm-cover.fm-cover--bulletin h1 {
+  --fm-cover-title-size: 3em;
+  text-align: center;
+  max-width: calc(14em * var(--fm-h-fit, 1));
+  padding: calc(0.3em * var(--fm-h-fit, 1)) calc(0.7em * var(--fm-h-fit, 1));
+  border-radius: 0.25em;
+  background: var(--fm-accent-ground);
+  color: var(--fm-accent-ground-ink);
+}
+${d}.fm-cover__issue {
+  align-self: stretch;
+  margin-top: 1.6em;
+  padding: 0.4em 1em;
+  background: var(--fm-accent);
+  color: var(--fm-accent-ground-ink);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+${d}.fm-cover__date {
+  margin-top: auto;
+  padding-top: 2em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 /* Split: the kicker across the head, then the title left and the sub right
    on a vertical rule, both at the foot — an editorial spread. */
 ${d}.fm-cover.fm-cover--split {
@@ -1043,6 +1100,27 @@ ${d}.fm-doc--numbered body > .fm-numbered--sub { counter-increment: fm-sub; }
 ${d}.fm-doc--numbered body > .fm-numbered--sub::before {
   content: counter(fm-sec) "." counter(fm-sub) " ";
   color: var(--fm-accent-text);
+}
+
+/* sections=bar: a section heading set as a filled bar, its number (when the
+   document numbers its sections) in an accent tab at its head. The bar is a
+   shadow spread round the heading's box and the tab is inline: neither
+   changes the box, so every theme still lays the page out to the default's
+   geometry and the editor's heading line (cm-fm-secbar, its number
+   cm-fm-secnum) stands where print's does. */
+${d}.fm-secbar, ${d}.cm-line.cm-fm-secbar {
+  background: var(--fm-ink);
+  color: var(--fm-page);
+  box-shadow: 0 0 0 0.3em var(--fm-ink);
+  border-radius: 1px;
+}
+${d}.fm-secbar.fm-numbered--sec::before, ${d}.cm-fm-secbar .cm-fm-secnum {
+  display: inline;
+  padding: 0 0.35em;
+  margin-right: 0.4em;
+  background: var(--fm-accent-ground);
+  color: var(--fm-accent-ground-ink);
+  box-decoration-break: clone;
 }
 
 /* ── Table of contents ────────────────────────────────────────────────────── */
@@ -1175,6 +1253,64 @@ ${d}.fm-logos.fm-tone, ${d}.fm-logos.fm-has-bg, ${d}.fm-logos.fm-has-bgimage {
   border-radius: var(--fm-radius);
 }
 ${d}.fm-tiles .fm-logos, ${d}.fm-columns .fm-logos { margin: 0; }
+
+/* ── Masthead (:::masthead) ───────────────────────────────────────────────── */
+/* A government masthead: the logos row inside it gives its first logo to the
+   left of the lines and its last to the right, the lines centred between
+   them. The row itself stands aside (display: contents) so its logos are the
+   grid's own items, at the row's size. */
+${d}.fm-masthead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 1.4em;
+  margin: 1.2em 0;
+  --fm-mt: 1.2em;
+  --fm-mb: 1.2em;
+  text-align: center;
+}
+${d}.fm-masthead > .fm-logos { display: contents; }
+${d}.fm-masthead > .fm-logos > * { grid-column: 1; grid-row: 1 / span 12; }
+${d}.fm-masthead > .fm-logos > .fm-logo {
+  height: 3em;
+  width: auto;
+  max-width: 9em;
+  object-fit: contain;
+}
+${d}.fm-masthead > .fm-logos--s > .fm-logo { height: 2em; }
+${d}.fm-masthead > .fm-logos--l > .fm-logo { height: 4.5em; }
+${d}.fm-masthead > .fm-logos > .fm-logo:last-child:not(:first-child) { grid-column: 3; }
+${d}.fm-masthead > .fm-logos > .fm-logo:not(:first-child):not(:last-child) { display: none; }
+${d}.fm-masthead > :not(.fm-logos) { grid-column: 2; margin: 0.1em 0; }
+${d}.fm-masthead > :not(.fm-logos):first-child,
+${d}.fm-masthead > .fm-logos + :not(.fm-logos) { margin-top: 0; }
+
+/* ── Sign-off (:::signoff, :::signer) ─────────────────────────────────────── */
+/* The signers side by side, each a label over the name and role written in
+   it and room to sign; the place and date under them, to the right. */
+${d}.fm-signoff {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 2.4em;
+  margin: 2.4em 0 1.2em;
+  --fm-mt: 2.4em;
+  --fm-mb: 1.2em;
+}
+${d}.fm-signer { flex: 1 1 0; min-width: 10em; }
+${d}.fm-signer > * { margin: 0 0 0.15em; }
+${d}.fm-signer__label {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  margin-bottom: 0.5em;
+}
+${d}.fm-signer__space { height: 3.5em; }
+${d}.fm-signoff__at {
+  flex: 0 0 100%;
+  text-align: right;
+  margin: 0.4em 0 0;
+  font-weight: 700;
+}
 
 ${buildFastrTemplateCss(d)}
 ${buildFastrIconCss(d)}
@@ -1939,6 +2075,21 @@ ${d}.fm-page-gutter__head {
   display: block;
   height: var(--fm-page-margin, 77px);
 }
+/* The running header (FastrPageFurniture), centred in the top margin as
+   print's @top-center box sets it, in the footer's type. */
+${d}.fm-page-gutter__head:has(> .fm-page-gutter__header) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0 var(--fm-bleed-pad);
+  font-size: 8.5pt;
+  color: var(--fm-ink-muted);
+}
+${d}.fm-page-gutter__header { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The footer's rule, placed in px by the editor (print's geometry). */
+${d}.fm-page-gutter__foot { position: relative; }
+${d}.fm-page-gutter__rule { position: absolute; pointer-events: none; }
 ${d}.cm-fm-page-head { display: block; }
 /* A seam INSIDE a rendered block (a callout, band or steps block that
    continues on the next page, or one that opens a page): centred on the

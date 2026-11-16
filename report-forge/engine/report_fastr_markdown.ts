@@ -31,6 +31,7 @@ import {
   fastrMarkClass,
   fastrMarkStyle,
   fastrPlainInlineText,
+  fastrReportHeaderAttrs,
   type FastrTocItem,
   fastrTocOptions,
   fastrTocSlug,
@@ -45,6 +46,19 @@ import {
   stepCodeFence,
 } from "./fastr_markdown_blocks.ts";
 import { escapeReportHtml } from "./embeds.ts";
+import {
+  FASTR_TABLE_CAPTION_RE,
+  type FastrCaptionKind,
+  fastrCaptionKindOf,
+  fastrCaptionLabel,
+  type FastrCaptionMeta,
+  type FastrFigureCounters,
+  type FastrFigureRenderContext,
+  type FastrFigureSettings,
+  fastrFigureSource,
+  fastrSourceLabel,
+  readFastrFigureSettings,
+} from "./fastr_figure_captions.ts";
 import { FASTR_ALIGN_SUFFIX_RE } from "./fastr_paragraph_align.ts";
 import { fastrPageTemplate } from "./fastr_page_templates.ts";
 
@@ -410,14 +424,83 @@ export function createFastrMarkdownIt(): MarkdownIt {
   };
 
   // ── Embed lines → <figure> + <figcaption> ──────────────────────────────────
+  // The figure conventions (fastr_figure_captions.ts) come from the document
+  // header, or, for an editor slice that cannot see the header, from the
+  // context the editor hands in (env.figures). Each figure's decisions are
+  // kept on its opening token as meta.fmCaption, which the Word export and
+  // fastrFigureNumbers read rather than re-deciding them.
   md.core.ruler.after("inline", "fm_figures", (state) => {
     const toks = state.tokens;
+    const ctx = (state.env as FastrParseEnv | undefined)?.figures;
+    const settings = ctx?.settings ?? readFastrFigureSettings(state.src ?? "");
+    const next: FastrFigureCounters = {
+      figure: ctx?.first.figure ?? 1,
+      table: ctx?.first.table ?? 1,
+    };
+    const take = (kind: FastrCaptionKind, captioned: boolean) =>
+      settings.numbered && captioned ? next[kind]++ : undefined;
+    const captionHtml = (meta: FastrCaptionMeta, tag: string, cls: string) =>
+      meta.caption.length === 0
+        ? ""
+        : `<${tag} class="${cls}">${
+          meta.n === undefined
+            ? ""
+            : `<span class="fm-caption-label">${
+              escapeReportHtml(fastrCaptionLabel(meta.kind, meta.n))
+            }</span> `
+        }${escapeReportHtml(meta.caption)}</${tag}>\n`;
+    const htmlToken = (content: string) => {
+      const t = new state.Token("html_block", "", 0);
+      t.block = true;
+      t.content = content;
+      return t;
+    };
     for (let i = 0; i + 2 < toks.length; i++) {
       if (toks[i].type !== "paragraph_open") continue;
       const inline = toks[i + 1];
       if (inline.type !== "inline" || toks[i + 2].type !== "paragraph_close") {
         continue;
       }
+
+      // `Table: <caption>` directly over a table (markdown-it lets a table
+      // interrupt the paragraph): the paragraph goes, and its words become
+      // the table's own <caption>, which keeps it with the table on any page.
+      const tableCap = FASTR_TABLE_CAPTION_RE.exec(inline.content);
+      const after = toks[i + 3];
+      const capMap = toks[i].map;
+      const tableMap = after?.map;
+      if (
+        tableCap !== null && after?.type === "table_open" &&
+        capMap !== null && tableMap !== null && tableMap !== undefined &&
+        capMap[1] === tableMap[0]
+      ) {
+        const caption = fastrPlainInlineText(tableCap[1]).trim();
+        const meta: FastrCaptionMeta = {
+          kind: "table",
+          n: take("table", caption.length > 0),
+          caption,
+          above: true,
+          source: undefined,
+        };
+        after.meta = { ...(after.meta ?? {}), fmCaption: meta };
+        // The caption's line belongs to the table now: an anchor on the
+        // table must still name the first line its block takes.
+        after.map = [capMap[0], tableMap[1]];
+        toks.splice(i, 3);
+        toks.splice(
+          i + 1,
+          0,
+          htmlToken(
+            captionHtml(
+              meta,
+              "caption",
+              "fm-figure__caption fm-table__caption",
+            ),
+          ),
+        );
+        continue;
+      }
+
       const kids = (inline.children ?? []).filter(
         (k) =>
           k.type !== "softbreak" &&
@@ -431,14 +514,16 @@ export function createFastrMarkdownIt(): MarkdownIt {
         : undefined;
       if (kids.length !== 1 && attrText === undefined) continue;
       if (kids[0].type !== "image") continue;
-      if (!EMBED_SRC_RE.test(kids[0].attrGet("src") ?? "")) continue;
+      const src = EMBED_SRC_RE.exec(kids[0].attrGet("src") ?? "");
+      if (src === null) continue;
 
+      const attrs = attrText === undefined ? {} : parseContainerAttrs(attrText);
       toks[i].tag = "figure";
       toks[i].attrJoin("class", "fm-figure");
       if (attrText !== undefined) {
         kids[1].content = "";
         inline.children = [kids[0]];
-        const widthClass = figureWidthClass(parseContainerAttrs(attrText));
+        const widthClass = figureWidthClass(attrs);
         if (widthClass !== "") toks[i].attrJoin("class", widthClass.trim());
       }
       toks[i + 2].tag = "figure";
@@ -446,15 +531,35 @@ export function createFastrMarkdownIt(): MarkdownIt {
       const caption = state.md.renderer
         .renderInlineAsText(kids[0].children ?? [], state.md.options, state.env)
         .trim();
-      if (caption.length > 0) {
-        const cap = new state.Token("html_block", "", 0);
-        cap.block = true;
-        cap.content = `<figcaption class="fm-figure__caption">${
-          escapeReportHtml(caption)
-        }</figcaption>\n`;
-        toks.splice(i + 2, 0, cap);
-        i++;
+      const kind = fastrCaptionKindOf(attrs);
+      const meta: FastrCaptionMeta = {
+        kind,
+        n: take(kind, caption.length > 0),
+        caption,
+        above: settings.above && caption.length > 0,
+        source: fastrFigureSource(
+          attrs,
+          settings,
+          src[1] as "figure" | "image",
+        ),
+      };
+      toks[i].meta = { ...(toks[i].meta ?? {}), fmCaption: meta };
+      // Above: the caption takes the figure's first grid row
+      // (fm-figure--capabove), so it is written where the reader meets it
+      // and the rows below fall in source order.
+      if (meta.above) toks[i].attrJoin("class", "fm-figure--capabove");
+      const extra: Token[] = [];
+      const cap = captionHtml(meta, "figcaption", "fm-figure__caption");
+      if (cap !== "") extra.push(htmlToken(cap));
+      if (meta.source !== undefined) {
+        extra.push(htmlToken(
+          `<p class="fm-figure__source">${
+            escapeReportHtml(fastrSourceLabel())
+          } ${escapeReportHtml(meta.source)}</p>\n`,
+        ));
       }
+      toks.splice(i + 2, 0, ...extra);
+      i += extra.length;
     }
     return true;
   });
@@ -548,6 +653,19 @@ export function createFastrMarkdownIt(): MarkdownIt {
           : undefined;
         if (rank !== undefined) {
           token.attrJoin("class", `fm-numbered fm-numbered--${rank}`);
+        }
+      }
+    }
+    // `sections=bar`: each section heading at the document's section level
+    // is set as a filled bar (fm-secbar), its number in a tab when the
+    // document numbers its sections. A class on the heading, as numbering
+    // is, so print's selectors match the source alone.
+    if (fastrReportHeaderAttrs(state.src ?? "")?.["sections"] === "bar") {
+      const level = fastrSectionLevel(state.tokens);
+      for (const s of fastrSectionHeadings(state.tokens)) {
+        const token = state.tokens[s.index];
+        if (s.pageLine === undefined && Number(token.tag.slice(1)) === level) {
+          token.attrJoin("class", "fm-secbar");
         }
       }
     }
@@ -792,6 +910,8 @@ let cachedMd: MarkdownIt | undefined;
 type FastrParseEnv = {
   // Author-written <style> elements and style attributes the compiler removed.
   authorStyle?: number;
+  // A slice's figure conventions and counts (FastrFigureRenderContext).
+  figures?: FastrFigureRenderContext;
 };
 
 // The token stream the renderer draws from, for readers that must agree with
@@ -906,10 +1026,70 @@ export function fastrBodyReferences(body: string): FastrBodyReferences {
 // Unsanitized HTML — every caller must run it through sanitizeReportHtml.
 export function renderFastrMarkdownToHtml(
   body: string,
-  opts: { lineAnchors: boolean },
+  opts: {
+    lineAnchors: boolean;
+    // A slice of a document (an editor region): the document's figure
+    // conventions and where the slice's counts start.
+    figures?: FastrFigureRenderContext;
+  },
 ): string {
   cachedMd ??= createFastrMarkdownIt();
-  return cachedMd.render(body, { lineAnchors: opts.lineAnchors });
+  return cachedMd.render(body, {
+    lineAnchors: opts.lineAnchors,
+    ...(opts.figures === undefined ? {} : { figures: opts.figures }),
+  });
+}
+
+export type FastrFigureIndex = {
+  settings: FastrFigureSettings;
+  // Every figure and captioned table the document numbers, by the 0-based
+  // line its block starts on, as the compiler numbered it (fm_figures).
+  numbers: Map<number, { kind: FastrCaptionKind; n: number }>;
+  // Whether any figure shows a source line (the figure reserve's probe
+  // carries one then: fastrFigureReserveProbeHtml).
+  anySource: boolean;
+};
+
+// The document's figure conventions, read back from one parse of it, so a
+// reader can never number a figure differently from the compiler. No parse
+// at all for a document that neither numbers its figures nor names a source.
+export function fastrFigureIndex(body: string): FastrFigureIndex {
+  const settings = readFastrFigureSettings(body);
+  const numbers = new Map<number, { kind: FastrCaptionKind; n: number }>();
+  let anySource = false;
+  if (settings.numbered || body.includes("source")) {
+    for (const t of parseFastrMarkdown(body)) {
+      const meta = (t.meta as { fmCaption?: FastrCaptionMeta } | null)
+        ?.fmCaption;
+      if (meta === undefined || t.map === null) continue;
+      if (meta.source !== undefined) anySource = true;
+      if (meta.n !== undefined) {
+        numbers.set(t.map[0], { kind: meta.kind, n: meta.n });
+      }
+    }
+  }
+  return { settings, numbers, anySource };
+}
+
+export function fastrFigureNumbers(
+  body: string,
+): Map<number, { kind: FastrCaptionKind; n: number }> {
+  return fastrFigureIndex(body).numbers;
+}
+
+// What an editor region starting on `line` (0-based) needs to number its
+// figures as the whole document does: the document's settings, and the
+// numbers taken by every figure and table above it.
+export function fastrFigureContextAt(
+  settings: FastrFigureSettings,
+  numbers: Map<number, { kind: FastrCaptionKind; n: number }>,
+  line: number,
+): FastrFigureRenderContext {
+  const first: FastrFigureCounters = { figure: 1, table: 1 };
+  for (const [at, { kind, n }] of numbers) {
+    if (at < line && n + 1 > first[kind]) first[kind] = n + 1;
+  }
+  return { settings, first };
 }
 
 // ── Page templates ───────────────────────────────────────────────────────────

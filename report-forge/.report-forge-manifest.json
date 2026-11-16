@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-09T03:08:55.002Z",
-  "sourceCommit": "69a6da5",
-  "sourceSubject": "get_page_template answers every layout a report uses in one call",
+  "timestamp": "2026-11-16T06:10:13.728Z",
+  "sourceCommit": "99722de",
+  "sourceSubject": "Bulletin cover, ministry masthead and sign-off blocks",
   "sourceDirty": false,
   "target": "platform"
 }

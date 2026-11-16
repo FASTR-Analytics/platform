@@ -23,6 +23,7 @@ import {
   addPageSlotItemEdit,
   applyTableCellAction,
   type EditResult,
+  FASTR_TABLE_CAPTION_RE,
   type FastrAlign,
   type FastrChartPalette,
   fastrContainerStackUpTo,
@@ -197,6 +198,13 @@ export type ReportEditorApi = {
     id: string,
     width: FastrFigureWidth,
   ) => void;
+  // FASTR Markdown: any of the figure's own `{…}` attributes (`source`,
+  // `as`); undefined or "" deletes a key.
+  setEmbedAttrs: (
+    kind: "figure" | "image",
+    id: string,
+    patch: FastrFencePatch,
+  ) => void;
   // Current text selection / cursor (surfaced to the AI).
   getSelection: () => ReportEditorSelection;
   // ── FASTR Markdown toolbar ────────────────────────────────────────────────
@@ -226,6 +234,8 @@ export type ReportEditorApi = {
   // Every paragraph the selection touches takes `align` (left = the default).
   setParagraphAlign: (align: FastrAlign) => void;
   toggleLinePrefix: (kind: "bullet" | "ordered" | "quote") => void;
+  // The caret's table's caption ("" removes it).
+  setTableCaption: (caption: string) => void;
   // Rows and columns around the caret's table cell.
   applyTableAction: (action: TableCellAction) => void;
   // CodeMirror's own find/replace panel, over the SOURCE — so it reaches
@@ -354,7 +364,11 @@ export type ReportBlockContext = {
   // Where the caret sits in a TABLE, so the toolbar can offer rows and
   // columns without the reader having to find the right-click menu. Undefined
   // when the caret is not in one.
-  table: { rowLine: number; cellIndex: number } | undefined;
+  // `caption` is the table's `Table:` caption (fastr_figure_captions.ts),
+  // when it has one.
+  table:
+    | { rowLine: number; cellIndex: number; caption: string | undefined }
+    | undefined;
   // The caret line is a figure or image embed line.
   embed: boolean;
   // The alignment of the paragraph the caret is in; undefined when the caret
@@ -705,6 +719,32 @@ export function ReportBodyEditor(p: Props) {
         collab.awareness,
       );
     }
+    // Select all inside an in-place editor (a title, a label, a stat, a
+    // paragraph, a cell) selects that editor's text. CodeMirror's own
+    // select-all would take the whole document, and the typing that
+    // follows replaced it. Heard in the capture phase, before CodeMirror.
+    view.contentDOM.addEventListener(
+      "keydown",
+      (e) => {
+        if (
+          !(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey ||
+          e.key.toLowerCase() !== "a"
+        ) return;
+        const island = e.target as HTMLElement | null;
+        if (
+          island === null || island === view?.contentDOM ||
+          !island.isContentEditable
+        ) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const sel = island.ownerDocument.getSelection();
+        const range = island.ownerDocument.createRange();
+        range.selectNodeContents(island);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      },
+      true,
+    );
     // A template's measured problems change after the edit that caused
     // them (its boxes settle later): the toolbar hears it then.
     view.contentDOM.addEventListener(FASTR_TEMPLATE_STATUS_EVENT, () => {
@@ -1072,7 +1112,9 @@ export function ReportBodyEditor(p: Props) {
     state: EditorState,
     line1: number,
     col: number,
-  ): { rowLine: number; cellIndex: number } | undefined {
+  ):
+    | { rowLine: number; cellIndex: number; caption: string | undefined }
+    | undefined {
     const text = state.doc.line(line1).text;
     if (!isTableRowText(text)) return undefined;
     // A one-line pipe paragraph is not a table: a delimiter row must sit
@@ -1095,7 +1137,44 @@ export function ReportBodyEditor(p: Props) {
       if (isDelimiter(state.doc.line(l).text)) hasRule = true;
     }
     if (!hasRule || isDelimiter(text)) return undefined;
-    return { rowLine: line1, cellIndex: tableCellIndexAt(text, col) };
+    const above = start > 1 ? state.doc.line(start - 1).text : "";
+    return {
+      rowLine: line1,
+      cellIndex: tableCellIndexAt(text, col),
+      caption: FASTR_TABLE_CAPTION_RE.exec(above)?.[1],
+    };
+  }
+
+  // The caret's table's `Table:` caption line: rewritten, written over the
+  // table (a blank line first when prose stands directly above it, or the
+  // caption would join that paragraph), or removed when emptied.
+  function setTableCaption(caption: string) {
+    const view = editableView();
+    if (!view) return;
+    const state = view.state;
+    const sel = state.selection.main;
+    const line = state.doc.lineAt(sel.from);
+    if (!tableAt(state, line.number, sel.from - line.from)) return;
+    let start = line.number;
+    while (start > 1 && isTableRowText(state.doc.line(start - 1).text)) {
+      start--;
+    }
+    const text = caption.replace(/\s+/g, " ").trim();
+    const head = state.doc.line(start);
+    const above = start > 1 ? state.doc.line(start - 1) : undefined;
+    if (above !== undefined && FASTR_TABLE_CAPTION_RE.test(above.text)) {
+      view.dispatch({
+        changes: text.length > 0
+          ? { from: above.from, to: above.to, insert: `Table: ${text}` }
+          : { from: above.from, to: head.from },
+      });
+      return;
+    }
+    if (text.length === 0) return;
+    const gap = above !== undefined && above.text.trim().length > 0 ? "\n" : "";
+    view.dispatch({
+      changes: { from: head.from, insert: `${gap}Table: ${text}\n` },
+    });
   }
 
   function emitContext(state: EditorState, docChanged: boolean) {
@@ -1299,6 +1378,22 @@ export function ReportBodyEditor(p: Props) {
     const next = updateEmbedLineAttrs(line.text, {
       width: width === "normal" ? undefined : width,
     });
+    if (next === undefined || next === line.text) return;
+    view.dispatch({ changes: { from: line.from, to: line.to, insert: next } });
+  }
+
+  // Only a lone embed line is a figure, so only it takes attributes.
+  function setEmbedAttrs(
+    kind: "figure" | "image",
+    id: string,
+    patch: FastrFencePatch,
+  ) {
+    const view = editableView();
+    if (!view) return;
+    const found = findToken(kind, id);
+    if (!found?.ownsLine) return;
+    const line = view.state.doc.lineAt(found.ref.start);
+    const next = updateEmbedLineAttrs(line.text, patch);
     if (next === undefined || next === line.text) return;
     view.dispatch({ changes: { from: line.from, to: line.to, insert: next } });
   }
@@ -1535,6 +1630,7 @@ export function ReportBodyEditor(p: Props) {
       removeEmbedToken,
       setEmbedCaption,
       setEmbedWidth,
+      setEmbedAttrs,
       getSelection,
       setBlockAttrs,
       insertPageSetup,
@@ -1551,6 +1647,7 @@ export function ReportBodyEditor(p: Props) {
       toggleLinePrefix,
       insertLink,
       insertTable,
+      setTableCaption,
       undo,
       redo,
       refresh,

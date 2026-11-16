@@ -36,6 +36,10 @@ import {
   FASTR_FIGURE_RESERVE_PROBE_HTML,
   FASTR_FIGURE_RESERVE_SLACK_PX,
   FASTR_FIGURE_RESERVE_VAR,
+  fastrFigureReserveProbeHtml,
+  fastrFooterRuleCss,
+  fastrFooterRuleGeometry,
+  fastrFrameGeometry,
   fastrPageMarginPx,
   type FastrPageSetup,
   fastrSheetPx,
@@ -92,6 +96,8 @@ export const FASTR_PAGED_ATOMIC_SELECTORS: readonly string[] = [
   ".fm-steps > *",
   ".fm-toc",
   ".fm-figure",
+  ".fm-masthead",
+  ".fm-signoff",
   "figure",
   "table",
   "tr",
@@ -190,6 +196,53 @@ function cssString(s: string): string {
   return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
+// The frame and the footer's rule (FastrPageFurniture), drawn on Paged.js's
+// own page boxes, never in the content area, so no block moves. The page box
+// is positioned (Paged.js's own sheet), so the frame insets from the sheet's
+// edge; a filling cover's page keeps it and loses the rule with the footer.
+function pageFurnitureCss(
+  furniture: FastrPageSetup["furniture"],
+  m: number,
+): string {
+  if (furniture === undefined) return "";
+  const out: string[] = [];
+  if (furniture.frame !== undefined) {
+    const g = fastrFrameGeometry(furniture.frame.style, m);
+    const pseudo = ["::before", "::after"];
+    g.lines.forEach((line, i) => {
+      const at = g.inset + line.at;
+      out.push(`.pagedjs_pagebox${pseudo[i]} {
+  content: "";
+  position: absolute;
+  inset: ${at}px;
+  border: ${line.width}px solid ${furniture.frame!.color};
+  pointer-events: none;
+  z-index: 4;
+}`);
+    });
+  }
+  if (furniture.footerRule.length > 0) {
+    const r = fastrFooterRuleGeometry(m, furniture.frame?.style);
+    out.push(`.pagedjs_margin-bottom { position: relative; }
+.pagedjs_margin-bottom::after {
+  content: "";
+  position: absolute;
+  left: ${m}px;
+  right: ${m}px;
+  bottom: ${r.bottom}px;
+  height: ${r.height}px;
+  background: ${fastrFooterRuleCss(furniture.footerRule)};
+  pointer-events: none;
+}
+.pagedjs_${COVER_PAGE_NAME}_page .pagedjs_margin-bottom::after { content: none; }`);
+  }
+  return out.length === 0
+    ? ""
+    : `/* ── Page furniture (FastrPageFurniture) ──────────────────────────────── */
+${out.join("\n")}
+`;
+}
+
 // The paged stylesheet. Appended AFTER the theme sheet (so it wins on order at
 // equal specificity) and only in a paged render — the .html export keeps the
 // browser's own print rules.
@@ -201,6 +254,7 @@ export function buildFastrPagedCss(
   // millimetres stood a fraction of a pixel off the editor's grid.
   const [w, h] = fastrSheetPx(page);
   const m = fastrPageMarginPx(page.margin);
+  const furniture = page.furniture;
   const footerType = `font-family: var(--fm-font-body);
     font-size: 8.5pt;
     color: var(--fm-ink-muted);
@@ -213,9 +267,25 @@ export function buildFastrPagedCss(
    page, where the running footer lives. */
 @page {
   size: ${w}px ${h}px;
-  margin: ${m}px 0;
+  margin: ${m}px 0;${
+    furniture?.header === undefined ? "" : `
+  @top-center {
+    content: ${cssString(furniture.header)};
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    padding: 0 ${m}px;
+    ${footerType}
+  }`
+  }
   @bottom-left {
-    content: string(fm-title);
+    content: ${
+    furniture?.footer === null
+      ? "none"
+      : furniture?.footer !== undefined
+      ? cssString(furniture.footer)
+      : "string(fm-title)"
+  };
     text-align: left;
     padding-left: ${m}px;
     ${footerType}
@@ -232,11 +302,14 @@ export function buildFastrPagedCss(
 }
 /* A cover's page: no margins, no footer, so its ground reaches the paper edge. */
 @page ${COVER_PAGE_NAME} {
-  margin: 0;
+  margin: 0;${
+    furniture?.header === undefined ? "" : `
+  @top-center { content: none; }`
+  }
   @bottom-left { content: none; }
   @bottom-right { content: none; }
 }
-
+${pageFurnitureCss(furniture, m)}
 /* The page is Paged.js's box now, not the viewport: no column cap, no page
    padding, and the bleed geometry is exactly the side inset. The runner reads
    the two --fm-print-* lengths to lay the source out at the column width
@@ -511,7 +584,9 @@ export function fastrPagedRunnerJs(
     // The figure reserve (FASTR_FIGURE_PAGE_CEILING's note), first: every
     // figure's height below depends on it.
     var reserveProbe = document.createElement("div");
-    reserveProbe.innerHTML = ${JSON.stringify(FASTR_FIGURE_RESERVE_PROBE_HTML)};
+    reserveProbe.innerHTML = document.querySelector(".fm-figure__source")
+      ? ${JSON.stringify(fastrFigureReserveProbeHtml(true))}
+      : ${JSON.stringify(FASTR_FIGURE_RESERVE_PROBE_HTML)};
     body.appendChild(reserveProbe);
     var reserve = 0;
     var probes = reserveProbe.querySelectorAll("[data-fm-reserve-probe]");

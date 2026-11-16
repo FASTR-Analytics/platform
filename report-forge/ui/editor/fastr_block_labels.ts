@@ -68,6 +68,16 @@ export function fastrBlockLabel(name: FastrBlockName): string {
       });
     case "logos":
       return t3({ en: "Logos", fr: "Logos", pt: "Logótipos" });
+    case "masthead":
+      return t3({
+        en: "Masthead",
+        fr: "En-tête officiel",
+        pt: "Cabeçalho oficial",
+      });
+    case "signoff":
+      return t3({ en: "Signatures", fr: "Signatures", pt: "Assinaturas" });
+    case "signer":
+      return t3({ en: "Signer", fr: "Signataire", pt: "Signatário" });
     case "report":
       return t3({
         en: "Page setup",
@@ -144,6 +154,24 @@ export function fastrBlockCaption(name: FastrBlockName): string {
         en: "The document's headings, listed and linked",
         fr: "Les titres du document, listés et liés",
         pt: "Os títulos do documento, listados e ligados",
+      });
+    case "masthead":
+      return t3({
+        en: "A ministry header: a logo each side of its lines",
+        fr: "Un en-tête officiel : un logo de chaque côté de ses lignes",
+        pt: "Um cabeçalho oficial: um logótipo de cada lado das linhas",
+      });
+    case "signoff":
+      return t3({
+        en: "Who wrote and approved it, with room to sign",
+        fr: "Qui l'a rédigé et approuvé, avec la place de signer",
+        pt: "Quem o redigiu e aprovou, com espaço para assinar",
+      });
+    case "signer":
+      return t3({
+        en: "One signer: a label, a name and a role",
+        fr: "Un signataire : un libellé, un nom et une fonction",
+        pt: "Um signatário: um rótulo, um nome e uma função",
       });
     case "logos":
       return t3({
@@ -245,6 +273,8 @@ export function fastrCoverLayoutLabel(layout: FastrCoverLayout): string {
         fr: "Titre en bloc",
         pt: "Título em bloco",
       });
+    case "bulletin":
+      return t3({ en: "Bulletin", fr: "Bulletin", pt: "Boletim" });
   }
 }
 
@@ -304,6 +334,12 @@ export function fastrBlockShortLabel(name: FastrBlockName): string {
         fr: "Saut de page",
         pt: "Quebra de página",
       });
+    case "masthead":
+      return t3({ en: "Masthead", fr: "En-tête", pt: "Cabeçalho" });
+    case "signoff":
+      return t3({ en: "Signatures", fr: "Signatures", pt: "Assinaturas" });
+    case "signer":
+      return t3({ en: "Signer", fr: "Signataire", pt: "Signatário" });
     case "logos":
       return t3({ en: "Logos", fr: "Logos", pt: "Logótipos" });
     case "report":

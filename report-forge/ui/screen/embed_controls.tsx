@@ -11,9 +11,12 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import type { FastrFigureWidth } from "../../engine/fastr_markdown_blocks.ts";
+import type {
+  FastrFencePatch,
+  FastrFigureWidth,
+} from "../../engine/fastr_markdown_blocks.ts";
 import { t3 } from "../../engine/i18n.ts";
-import { Icon, Input } from "../kit/mod.ts";
+import { DraftInput, Icon, Input } from "../kit/mod.ts";
 import {
   PopoverRow,
   ToolbarDivider,
@@ -32,6 +35,13 @@ export type SelectedEmbed = {
   caption: string;
   width?: FastrFigureWidth;
   imgFile?: string;
+  // The figure conventions (fastr_figure_captions.ts): its own `source=`
+  // ("none" hides the line), whether it counts as a table, the document's
+  // default source, and whether the document numbers its figures.
+  source?: string;
+  asTable?: boolean;
+  docSource?: string;
+  numbered?: boolean;
 };
 
 // The sizes the toolbar offers, narrowest first; "normal" (the column) is the
@@ -74,6 +84,8 @@ type ControlsProps = {
   onUpdateCaption: (id: string, caption: string) => void;
   // The figure's `{width=…}`.
   onSetWidth?: (width: FastrFigureWidth) => void;
+  // The figure's other `{…}` attributes (`source`, `as`).
+  onSetAttrs?: (patch: FastrFencePatch) => void;
   onChangeImageFile: (id: string, imgFile: string) => void;
   onDelete: () => void;
 };
@@ -315,6 +327,95 @@ export function EmbedToolbarControls(p: ControlsProps) {
                     </ToolbarPopover>
                   </>
                 )}
+              </Show>
+              <Show when={p.onSetAttrs && embed().width}>
+                <ToolbarDivider />
+                <ToolbarPopover
+                  label={
+                    <span class="rf:flex rf:items-center rf:gap-1">
+                      {t3({ en: "Source", fr: "Source", pt: "Fonte" })}
+                      <Show when={embed().source === "none"}>
+                        <span class="rf:text-base-content-muted">
+                          {t3({ en: "Hidden", fr: "Masquée", pt: "Oculta" })}
+                        </span>
+                      </Show>
+                    </span>
+                  }
+                  title={t3({
+                    en: "The source line under the figure",
+                    fr: "La ligne de source sous la figure",
+                    pt: "A linha de fonte sob a figura",
+                  })}
+                >
+                  {(close) => (
+                    <div class="rf:flex rf:w-72 rf:flex-col rf:gap-1">
+                      <DraftInput
+                        label={t3({
+                          en: "Source",
+                          fr: "Source",
+                          pt: "Fonte",
+                        })}
+                        value={embed().source === "none"
+                          ? ""
+                          : embed().source ?? ""}
+                        placeholder={embed().docSource ??
+                          t3({
+                            en: "e.g. DHIS2 SNIS",
+                            fr: "ex. DHIS2 SNIS",
+                            pt: "ex. DHIS2 SNIS",
+                          })}
+                        onCommit={(v) =>
+                          p.onSetAttrs?.({
+                            source: v.length > 0 ? v : undefined,
+                          })}
+                      />
+                      <PopoverRow
+                        active={embed().source === "none"}
+                        onClick={() => {
+                          p.onSetAttrs?.({
+                            source: embed().source === "none"
+                              ? undefined
+                              : "none",
+                          });
+                          close();
+                        }}
+                      >
+                        <span class="rf:flex-1">
+                          {t3({
+                            en: "No source line",
+                            fr: "Pas de ligne de source",
+                            pt: "Sem linha de fonte",
+                          })}
+                        </span>
+                        <Show when={embed().source === "none"}>
+                          <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
+                        </Show>
+                      </PopoverRow>
+                      <Show when={embed().numbered}>
+                        <PopoverRow
+                          active={embed().asTable === true}
+                          onClick={() => {
+                            p.onSetAttrs?.({
+                              as: embed().asTable ? undefined : "table",
+                            });
+                            close();
+                          }}
+                        >
+                          <span class="rf:flex-1">
+                            {t3({
+                              en: "Number as a table",
+                              fr: "Numéroter comme un tableau",
+                              pt: "Numerar como tabela",
+                            })}
+                          </span>
+                          <Show when={embed().asTable}>
+                            <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
+                          </Show>
+                        </PopoverRow>
+                      </Show>
+                    </div>
+                  )}
+                </ToolbarPopover>
               </Show>
               <ToolbarDivider />
               <ToolbarPillButton danger onClick={() => p.onDelete()}>

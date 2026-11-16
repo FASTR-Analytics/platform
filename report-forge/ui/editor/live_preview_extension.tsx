@@ -36,6 +36,7 @@ import {
   EditorView,
   keymap,
   layer,
+  type LayerMarker,
   type Rect,
   RectangleMarker,
   ViewPlugin,
@@ -72,7 +73,6 @@ import {
   FASTR_ALIGN_SUFFIX_RE,
   FASTR_BLOCK_NAMES,
   FASTR_FIGURE_PAGE_CEILING,
-  FASTR_FIGURE_RESERVE_PROBE_HTML,
   FASTR_FIGURE_RESERVE_SLACK_PX,
   FASTR_FIGURE_RESERVE_VAR,
   FASTR_TEMPLATE_SLACK_PX,
@@ -81,8 +81,17 @@ import {
   fastrBlockFillsPage,
   type FastrBlockName,
   fastrDocumentOutline,
+  fastrFigureContextAt,
+  fastrFigureContextKey,
+  type FastrFigureIndex,
+  fastrFigureIndex,
+  type FastrFigureRenderContext,
+  fastrFigureReserveProbeHtml,
   fastrFigureShare,
   fastrFigureWidthOfLine,
+  fastrFooterRuleCss,
+  fastrFooterRuleGeometry,
+  fastrFrameGeometry,
   type FastrLayoutBlock,
   type FastrLayoutGeometry,
   type FastrLayoutHint,
@@ -98,7 +107,10 @@ import {
   fastrPageArea,
   type FastrPagedPage,
   type FastrPagedResult,
+  type FastrPageFurniture,
+  fastrPageTemplate,
   fastrParagraphAligns,
+  fastrReportHeaderAttrs,
   fastrStripInlineSyntax,
   fastrSuffixInsertOffset,
   fastrSurfaceTone,
@@ -303,7 +315,37 @@ function menuAnchor(
 
 // The block chrome that edits in place: [root class, child class, attr,
 // placeholder, whether an untitled block grows a ghost row to click into].
-export function chromeAttrRows(): [string, string, string, string, boolean][] {
+// Each row: the block's class, the class path of the element showing the
+// attribute (` > ` between levels), the attribute, its placeholder, and
+// whether an active block that lacks it grows a ghost to type into (or,
+// for a page template's own attributes, whether its layout takes it).
+export type ChromeAttrRow = [
+  string,
+  string,
+  string,
+  string,
+  boolean | ((container: HTMLElement) => boolean),
+];
+
+// A page template's attribute (`kicker`, `number`, `delta`) gets a ghost
+// only when its layout declares it; a slot's (`title`, `label`, `cite`)
+// only when its layout's slot does.
+function templateTakes(attr: string): (container: HTMLElement) => boolean {
+  return (container) => {
+    const tpl = container.closest(".fm-tpl");
+    const layout = /\bfm-tpl--([a-z0-9-]+)\b/.exec(tpl?.className ?? "")?.[1];
+    const template = fastrPageTemplate(layout);
+    if (template === undefined) return false;
+    if (container.classList.contains("fm-tpl")) {
+      return template.attrs.some((a) => a.name === attr);
+    }
+    const slot = /\bfm-tpl-slot--([a-z0-9-]+)\b/.exec(container.className)?.[1];
+    return template.slots.find((s) => s.name === slot)?.attrs?.includes(attr) ??
+      false;
+  };
+}
+
+export function chromeAttrRows(): ChromeAttrRow[] {
   return [
     [
       "fm-callout",
@@ -349,6 +391,90 @@ export function chromeAttrRows(): [string, string, string, string, boolean][] {
     ],
     [
       "fm-quote",
+      "fm-quote__cite",
+      "cite",
+      t3({ en: "Source…", fr: "Source…", pt: "Fonte…" }),
+      false,
+    ],
+    // The bulletin cover's issue strip and date (a ghost to type into only
+    // on that layout).
+    [
+      "fm-cover",
+      "fm-cover__issue",
+      "issue",
+      t3({ en: "Issue number…", fr: "Numéro…", pt: "Número…" }),
+      (container) => container.classList.contains("fm-cover--bulletin"),
+    ],
+    [
+      "fm-cover",
+      "fm-cover__date",
+      "date",
+      t3({ en: "Date…", fr: "Date…", pt: "Data…" }),
+      (container) => container.classList.contains("fm-cover--bulletin"),
+    ],
+    // A signer's label, and the place and date a sign-off is signed at.
+    [
+      "fm-signer",
+      "fm-signer__label",
+      "label",
+      t3({ en: "Label…", fr: "Libellé…", pt: "Rótulo…" }),
+      true,
+    ],
+    // A target card's progress: where it stands today, and the words for it.
+    [
+      "fm-card",
+      "fm-card__progress > fm-card__progress-value",
+      "progress",
+      t3({ en: "Progress…", fr: "Progrès…", pt: "Progresso…" }),
+      false,
+    ],
+    [
+      "fm-card",
+      "fm-card__progress > fm-card__progress-label",
+      "progress-label",
+      t3({ en: "Label…", fr: "Libellé…", pt: "Rótulo…" }),
+      false,
+    ],
+    // A page template's own words: its kicker, an opener's number, the
+    // change between the halves of a comparison.
+    [
+      "fm-tpl",
+      "fm-kicker",
+      "kicker",
+      t3({ en: "Kicker…", fr: "Surtitre…", pt: "Antetítulo…" }),
+      templateTakes("kicker"),
+    ],
+    [
+      "fm-tpl",
+      "fm-tpl__number",
+      "number",
+      t3({ en: "Number…", fr: "Numéro…", pt: "Número…" }),
+      templateTakes("number"),
+    ],
+    [
+      "fm-tpl",
+      "fm-tpl__delta",
+      "delta",
+      t3({ en: "Change…", fr: "Évolution…", pt: "Variação…" }),
+      templateTakes("delta"),
+    ],
+    // A template area's label, title and the cite under its quote.
+    [
+      "fm-tpl-slot",
+      "fm-tpl-slot__label",
+      "label",
+      t3({ en: "Label…", fr: "Libellé…", pt: "Rótulo…" }),
+      templateTakes("label"),
+    ],
+    [
+      "fm-tpl-slot",
+      "fm-tpl-slot__title",
+      "title",
+      t3({ en: "Title…", fr: "Titre…", pt: "Título…" }),
+      templateTakes("title"),
+    ],
+    [
+      "fm-tpl-slot",
       "fm-quote__cite",
       "cite",
       t3({ en: "Source…", fr: "Source…", pt: "Fonte…" }),
@@ -407,6 +533,26 @@ function selectionTouches(
 
 // ── The widgets ──────────────────────────────────────────────────────────────
 
+// The document's figure index (fastrFigureIndex), once per document version:
+// a Text is immutable, so it keys the cache.
+const figureIndexCache = new WeakMap<DocText, FastrFigureIndex>();
+function figureIndexOf(state: EditorState): FastrFigureIndex {
+  const hit = figureIndexCache.get(state.doc);
+  if (hit !== undefined) return hit;
+  const index = fastrFigureIndex(state.doc.toString());
+  figureIndexCache.set(state.doc, index);
+  return index;
+}
+// What a region starting on `line` (0-based) needs to set its figures as
+// print sets them.
+function figureContextOf(
+  state: EditorState,
+  line: number,
+): FastrFigureRenderContext {
+  const index = figureIndexOf(state);
+  return fastrFigureContextAt(index.settings, index.numbers, line);
+}
+
 class RegionWidget extends WidgetType {
   constructor(
     readonly kind: FastrLiveRegion["kind"],
@@ -426,6 +572,10 @@ class RegionWidget extends WidgetType {
     // The collapsed gap above a block with no blank line over it, px
     // (docRhythmOf): the first content child's margin-top.
     readonly gapTop = 0,
+    // The document's figure conventions and the counts above this region
+    // (fastr_figure_captions.ts): a slice cannot see the `:::report` header
+    // or the figures before it, so it is told.
+    readonly figures: FastrFigureRenderContext | undefined = undefined,
   ) {
     super();
   }
@@ -433,10 +583,13 @@ class RegionWidget extends WidgetType {
   override eq(other: RegionWidget): boolean {
     // Source + kind only — theming is external CSS, so a re-theme never
     // touches the editor; a remote edit inside the region changes the source
-    // and re-creates just this widget.
+    // and re-creates just this widget. A figure renumbered by an edit above
+    // it is redrawn too.
     return other.kind === this.kind && other.sourceKey === this.sourceKey &&
       other.startLine === this.startLine && other.active === this.active &&
-      other.first === this.first && other.gapTop === this.gapTop;
+      other.first === this.first && other.gapTop === this.gapTop &&
+      fastrFigureContextKey(other.figures) ===
+        fastrFigureContextKey(this.figures);
   }
 
   override toDOM(view: EditorView): HTMLElement {
@@ -586,7 +739,10 @@ class RegionWidget extends WidgetType {
     dom.setAttribute("data-region-end", String(this.endLine));
 
     dom.innerHTML = sanitizeReportHtml(
-      renderFastrMarkdownToHtml(this.source, { lineAnchors: true }),
+      renderFastrMarkdownToHtml(this.source, {
+        lineAnchors: true,
+        figures: this.figures,
+      }),
     );
     // Peer carets and presence go in a layer that is ALWAYS the first child:
     // the sheet clamps the widget's first/last CONTENT child's margins, so an
@@ -803,8 +959,12 @@ class RegionWidget extends WidgetType {
         const [rootCls, childCls, attr, placeholder, ghost] of CHROME_ATTRS
       ) {
         if (!container.classList.contains(rootCls)) continue;
-        let el = container.querySelector<HTMLElement>(`:scope > .${childCls}`);
-        if (!el && ghost && this.active) {
+        const childSel = childCls.split(" > ").map((c) => `.${c}`).join(
+          " > ",
+        );
+        let el = container.querySelector<HTMLElement>(`:scope > ${childSel}`);
+        const ghosts = typeof ghost === "function" ? ghost(container) : ghost;
+        if (!el && ghosts && this.active && !childCls.includes(" > ")) {
           el = document.createElement("div");
           el.className = childCls;
           container.prepend(el);
@@ -824,7 +984,7 @@ class RegionWidget extends WidgetType {
           placeholder,
           () =>
             view.contentDOM.querySelector<HTMLElement>(
-              `[data-region-line="${startLine}"] [data-line="${rel}"] > .${childCls}`,
+              `[data-region-line="${startLine}"] [data-line="${rel}"] > ${childSel}`,
             ),
         );
       }
@@ -3411,6 +3571,8 @@ function buildRevealedRegion(
               false,
               false,
               line.text,
+              0,
+              figureContextOf(state, item.line1 - 1),
             ),
             block: true,
           }),
@@ -3593,6 +3755,7 @@ function buildLiveState(
         firstLine !== undefined && r.region.startLine + 1 === firstLine,
         sourceKey,
         gapTop,
+        figureContextOf(state, r.region.startLine),
       );
     builder.add(r.from, r.to, Decoration.replace({ widget, block: true }));
   }
@@ -3844,10 +4007,14 @@ function buildSurfaceLines(state: EditorState): DecorationSet {
   // renderer's fastrSectionLevel reads it) and the one below. A page
   // template's heading is a section too: its widget draws it, but it counts,
   // so the sections after it carry print's numbers.
-  const numbered = readFastrDocumentSettings(state.doc.sliceString(0, 4096))
+  const head = state.doc.sliceString(0, 4096);
+  const numbered = readFastrDocumentSettings(head)
     .className.includes("fm-doc--numbered");
+  // sections=bar: the section headings are set as bars (fm-secbar), at the
+  // same level the renderer finds.
+  const barred = fastrReportHeaderAttrs(head)?.["sections"] === "bar";
   let secLevel = 0;
-  if (numbered) {
+  if (numbered || barred) {
     let d = 0;
     for (
       const { text, inCode, fence } of scanContainerLines(
@@ -3987,14 +4154,17 @@ function buildSurfaceLines(state: EditorState): DecorationSet {
     }
     const m = HEADING_LINE_RE.exec(text);
     if (m) {
+      const level = m[1].length;
+      const bar = barred && depth === 0 && level === secLevel
+        ? " cm-fm-secbar"
+        : "";
       ranges.push(
         Decoration.line({
-          class: `cm-fm-h${m[1].length}${gapCls(index)}`,
+          class: `cm-fm-h${m[1].length}${bar}${gapCls(index)}`,
           attributes: gapAttrs(index),
         })
           .range(from),
       );
-      const level = m[1].length;
       if (numbered && depth > 0 && templateHeading) {
         templateHeading = false;
         sec++;
@@ -5144,6 +5314,125 @@ function docGroundPlugin(resolver: EmbedResolver) {
   );
 }
 
+// ── Page frames ──────────────────────────────────────────────────────────────
+// The document's `frame=` (FastrPageFurniture), drawn round every page the
+// editor shows, as print draws it round every printed page: a box inset in
+// the page's margins (fastrFrameGeometry), so nothing on the page moves.
+// A page's top is the foot of the gap before it (the seam's band, measured
+// where it is rendered), page 1's the document's top; a page whose seams are
+// out of CodeMirror's rendered range follows the one before it at a page and
+// a gap's height, which is every page's height in the editor.
+class PageFrameMarker implements LayerMarker {
+  constructor(
+    readonly left: number,
+    readonly top: number,
+    readonly width: number,
+    readonly height: number,
+    readonly color: string,
+    readonly lines: { at: number; width: number }[],
+  ) {}
+  draw(): HTMLElement {
+    const box = document.createElement("div");
+    box.className = "cm-fm-page-frame";
+    box.style.cssText =
+      `position:absolute;left:${this.left}px;top:${this.top}px;width:${this.width}px;height:${this.height}px;pointer-events:none;`;
+    for (const line of this.lines) {
+      const edge = document.createElement("div");
+      edge.style.cssText =
+        `position:absolute;inset:${line.at}px;border:${line.width}px solid ${this.color};`;
+      box.append(edge);
+    }
+    return box;
+  }
+  update(dom: HTMLElement, prev: PageFrameMarker): boolean {
+    if (
+      prev.color !== this.color ||
+      JSON.stringify(prev.lines) !== JSON.stringify(this.lines)
+    ) return false;
+    dom.style.left = `${this.left}px`;
+    dom.style.top = `${this.top}px`;
+    dom.style.width = `${this.width}px`;
+    dom.style.height = `${this.height}px`;
+    return true;
+  }
+  eq(other: PageFrameMarker): boolean {
+    return other.left === this.left && other.top === this.top &&
+      other.width === this.width && other.height === this.height &&
+      other.color === this.color &&
+      JSON.stringify(other.lines) === JSON.stringify(this.lines);
+  }
+}
+
+const pageFrameLayer = layer({
+  above: true,
+  class: "cm-fm-frame-layer",
+  update: (u) =>
+    u.docChanged || u.geometryChanged || u.viewportChanged ||
+    u.transactions.some((tr) =>
+      tr.effects.some((e) => e.is(setPagination) || e.is(setPrintMetrics))
+    ),
+  markers(view) {
+    const frame = readFastrDocumentSettings(
+      view.state.doc.sliceString(0, 4096),
+    ).page.furniture?.frame;
+    const pag = view.state.field(paginationField, false)?.pagination;
+    const geometry = readPageBoxGeometry(view);
+    const total = pag?.result.total ?? 0;
+    if (frame === undefined || geometry === undefined || total === 0) {
+      return [];
+    }
+    const scrollRect = view.scrollDOM.getBoundingClientRect();
+    const baseTop = scrollRect.top - view.scrollDOM.scrollTop;
+    const baseLeft = scrollRect.left - view.scrollDOM.scrollLeft;
+    const content = view.contentDOM.getBoundingClientRect();
+    const sheetW = geometry.sheetPx ?? content.width;
+    const sheetLeft = content.left + (content.width - sheetW) / 2 - baseLeft;
+    // Measured page tops and bottoms, by page number, from the seams' bands.
+    const tops = new Map<number, number>([[1, view.documentTop - baseTop]]);
+    const bottoms = new Map<number, number>();
+    let bandH = 30;
+    for (
+      const seam of Array.from(
+        view.contentDOM.querySelectorAll<HTMLElement>(
+          ".fm-page-gutter[data-page]",
+        ),
+      )
+    ) {
+      const page = Number(seam.getAttribute("data-page"));
+      if (!Number.isFinite(page)) continue;
+      const band = seam.querySelector<HTMLElement>(".fm-page-gutter__band");
+      if (band === null) {
+        // After the last page: its foot is the page's bottom.
+        bottoms.set(page - 1, seam.getBoundingClientRect().bottom - baseTop);
+        continue;
+      }
+      const r = band.getBoundingClientRect();
+      bandH = r.height;
+      tops.set(page, r.bottom - baseTop);
+      bottoms.set(page - 1, r.top - baseTop);
+    }
+    const g = fastrFrameGeometry(frame.style, geometry.marginPx);
+    const out: PageFrameMarker[] = [];
+    let top = tops.get(1)!;
+    for (let page = 1; page <= total; page++) {
+      top = tops.get(page) ?? top;
+      const bottom = bottoms.get(page) ?? top + geometry.pageH;
+      out.push(
+        new PageFrameMarker(
+          Math.round(sheetLeft + g.inset),
+          Math.round(top + g.inset),
+          Math.round(sheetW - 2 * g.inset),
+          Math.round(bottom - top - 2 * g.inset),
+          frame.color,
+          g.lines,
+        ),
+      );
+      top = bottom + bandH;
+    }
+    return out;
+  },
+});
+
 // ── Page boxes ───────────────────────────────────────────────────────────────
 // Where the printed pages start, from the host's paginator (paginate_report.ts:
 // the SAME paged document the server prints, laid out in a hidden frame). The
@@ -5157,6 +5446,12 @@ export type EditorPagination = {
   result: FastrPagedResult;
   // The running footer's title, drawn on the seam.
   title: string;
+  // What the document prints in every page's margins (FastrPageFurniture):
+  // the seam draws the header, the footer's own text and its rule as print's
+  // margin boxes do.
+  furniture?: FastrPageFurniture;
+  // The page margin, px: where the footer's rule stands (print's geometry).
+  marginPx?: number;
   // Per page number, the padding (px) that brings the page box up to the
   // printed page's height at the sheet's scale, written in place by
   // pageBoxPlugin as pages are measured; a seam re-created on scroll reads
@@ -5315,14 +5610,19 @@ function seamParts(
   const starting = pag.result.pages[page - 1];
   const filler = pag.fillers?.get(page - 1);
   const shift = filler !== undefined && filler < 0 ? filler : 0;
+  const furniture = pag.furniture;
   if (ending !== undefined && !ending.cover) {
     const foot = document.createElement("div");
     foot.className = "fm-page-gutter__foot";
     const title = document.createElement("span");
-    title.textContent = pag.title;
+    title.textContent = furniture?.footer === null
+      ? ""
+      : furniture?.footer ?? pag.title;
     const num = document.createElement("span");
     num.textContent = footerText(pag, page - 1);
     foot.append(title, num);
+    const rule = footerRuleElement(furniture, pag.marginPx);
+    if (rule !== undefined) foot.append(rule);
     if (shift < 0) foot.style.marginTop = `${shift}px`;
     parts.push(foot);
   }
@@ -5331,12 +5631,49 @@ function seamParts(
     band.className = "fm-page-gutter__band";
     parts.push(band);
     if (starting === undefined || (!starting.cover && !starting.flushTop)) {
-      const head = document.createElement("div");
-      head.className = "fm-page-gutter__head";
-      parts.push(head);
+      parts.push(pageHeadElement(furniture?.header));
     }
   }
   return parts;
+}
+
+// A page's top margin, with the running header centred in it as print's
+// @top-center box sets it.
+function pageHeadElement(header: string | undefined): HTMLElement {
+  const head = document.createElement("div");
+  head.className = "fm-page-gutter__head";
+  if (header !== undefined) {
+    const text = document.createElement("span");
+    text.className = "fm-page-gutter__header";
+    text.textContent = header;
+    head.append(text);
+  }
+  return head;
+}
+
+// The running footer's rule (footerrule=), placed in the foot as print's
+// stylesheet places it in the bottom margin box.
+function footerRuleElement(
+  furniture: FastrPageFurniture | undefined,
+  marginPx: number | undefined,
+): HTMLElement | undefined {
+  if (
+    furniture === undefined || furniture.footerRule.length === 0 ||
+    marginPx === undefined
+  ) {
+    return undefined;
+  }
+  // Print's geometry (fastrFooterRuleGeometry), so the two stand on the same
+  // pixel: the column's width, its distance up from the sheet's foot.
+  const g = fastrFooterRuleGeometry(marginPx, furniture.frame?.style);
+  const rule = document.createElement("div");
+  rule.className = "fm-page-gutter__rule";
+  rule.style.left = `${marginPx}px`;
+  rule.style.right = `${marginPx}px`;
+  rule.style.bottom = `${g.bottom}px`;
+  rule.style.height = `${g.height}px`;
+  rule.style.background = fastrFooterRuleCss(furniture.footerRule);
+  return rule;
 }
 
 // A seam inside a table, before the row that opens the page: a row of its
@@ -5373,12 +5710,16 @@ function seamRow(
 // Before the document's first line when page 1 is not a cover: its top
 // margin.
 class PageHeadWidget extends WidgetType {
-  // Page 1's template ground, when a toned page template takes page 1.
-  constructor(readonly ground: string | undefined) {
+  // Page 1's template ground, when a toned page template takes page 1, and
+  // the running header (FastrPageFurniture).
+  constructor(
+    readonly ground: string | undefined,
+    readonly header: string | undefined = undefined,
+  ) {
     super();
   }
   override eq(other: PageHeadWidget): boolean {
-    return other.ground === this.ground;
+    return other.ground === this.ground && other.header === this.header;
   }
   override toDOM(): HTMLElement {
     const dom = document.createElement("div");
@@ -5387,9 +5728,7 @@ class PageHeadWidget extends WidgetType {
     if (this.ground !== undefined) {
       dom.setAttribute("data-start-ground", this.ground);
     }
-    const head = document.createElement("div");
-    head.className = "fm-page-gutter__head";
-    dom.append(head);
+    dom.append(pageHeadElement(this.header));
     return dom;
   }
   override get estimatedHeight(): number {
@@ -5515,7 +5854,10 @@ function buildPaginationState(
   if (first !== undefined && !first.cover && !first.flushTop) {
     decos.push(
       Decoration.widget({
-        widget: new PageHeadWidget(pag.grounds.get(1)),
+        widget: new PageHeadWidget(
+          pag.grounds.get(1),
+          pag.furniture?.header,
+        ),
         block: true,
         side: -2,
       })
@@ -5851,6 +6193,10 @@ export type PrintMetrics = {
   // when the sheet could not lay the probe out: a CSS variable on the
   // editor, which the figure cap reads.
   figReserve: number | undefined;
+  // Whether the reserve was measured with a source line under the figure
+  // (FastrFigureIndex.anySource): the document's answer changing measures
+  // the metrics again.
+  figSource: boolean;
 };
 export const setPrintMetrics = StateEffect.define<PrintMetrics>();
 export const printMetricsField = StateField.define<PrintMetrics | undefined>({
@@ -5895,7 +6241,10 @@ function regionKeyOf(r: FastrLiveRegion): string {
   return `fm-${name}`;
 }
 // Print's margins for every block kind, measured in the editor's own sheet.
-function measurePrintMetrics(oracle: HeightOracle): PrintMetrics {
+function measurePrintMetrics(
+  oracle: HeightOracle,
+  figSource: boolean,
+): PrintMetrics {
   const margins: Record<string, { mt: number; mb: number }> = {};
   const m = (tag: string, cls = "") => ({
     mt: oracle.printMarginTop(tag, cls),
@@ -5946,7 +6295,8 @@ function measurePrintMetrics(oracle: HeightOracle): PrintMetrics {
     liGap: margins.list.mt,
     liIndent: snapPx(oracle.printPaddingLeft("ul")),
     bqPad: snapPx(oracle.printPaddingTop("blockquote")),
-    figReserve: oracle.figureReserve(),
+    figReserve: oracle.figureReserve(figSource),
+    figSource,
   };
 }
 type DocRhythm = {
@@ -6343,15 +6693,15 @@ class HeightOracle {
   // The figure reserve, px, measured as print's runner measures it
   // (FASTR_FIGURE_PAGE_CEILING's note): the probe in this sheet at the
   // column's width.
-  figureReserve(): number | undefined {
-    const key = "\u0007reserve";
+  figureReserve(source: boolean): number | undefined {
+    const key = source ? "\u0007reserve-source" : "\u0007reserve";
     const hit = this.cache.get(key);
     if (hit !== undefined) return hit;
     const box = this.ensure();
     if (box === undefined) return undefined;
     const holder = document.createElement("div");
     holder.style.whiteSpace = "normal";
-    holder.innerHTML = FASTR_FIGURE_RESERVE_PROBE_HTML;
+    holder.innerHTML = fastrFigureReserveProbeHtml(source);
     box.replaceChildren(holder);
     let reserve = 0;
     for (
@@ -7536,8 +7886,12 @@ function pageBoxPlugin(resolver: EmbedResolver) {
         // rhythm (every blank line's height) is made of them. Measured again
         // when the geometry changes (another theme, another width).
         const metricsStanding = view.state.field(printMetricsField, false);
-        if (metricsStanding === undefined || epochChanged) {
-          const measured = measurePrintMetrics(this.oracle);
+        const figSource = figureIndexOf(view.state).anySource;
+        if (
+          metricsStanding === undefined || epochChanged ||
+          metricsStanding.figSource !== figSource
+        ) {
+          const measured = measurePrintMetrics(this.oracle, figSource);
           if (
             metricsStanding === undefined ||
             JSON.stringify(measured) !== JSON.stringify(metricsStanding)
@@ -7996,6 +8350,7 @@ export function livePreviewExtensions(
     stretchField,
     paginationPlugin,
     pageBoxPlugin(resolver),
+    pageFrameLayer,
     rowSeamKeymap,
     heldLinesPlugin,
     islandCarryPlugin,

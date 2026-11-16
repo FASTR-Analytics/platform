@@ -13,6 +13,9 @@ import {
 } from "report-forge";
 import kitchenSink from "../../tests/fixtures/kitchen_sink.md?raw";
 import manySections from "../../tests/fixtures/many_sections.md?raw";
+import figureConventions from "../../tests/fixtures/figure_conventions.md?raw";
+import pageFurniture from "../../tests/fixtures/page_furniture.md?raw";
+import bulletinCover from "../../tests/fixtures/bulletin_cover.md?raw";
 
 const START = `# Quarterly review
 
@@ -32,13 +35,20 @@ export function App() {
   const params = new URLSearchParams(location.search);
   // ?doc picks a fixture (the harness uses them), `templates` every page
   // template's example, or, with `new`, a document
-  // nobody has chosen a look for; ?reader mounts read-only.
+  // nobody has chosen a look for; ?reader mounts read-only; ?lang=fr|pt
+  // sets the interface language.
   const doc = params.get("doc");
   const [body, setBody] = createSignal(
     doc === "sink"
       ? kitchenSink
       : doc === "sections"
       ? manySections
+      : doc === "conventions"
+      ? figureConventions
+      : doc === "furniture"
+      ? pageFurniture
+      : doc === "bulletin"
+      ? bulletinCover
       : doc === "new"
       ? "# Quarterly review\n"
       : doc === "templates"
@@ -79,6 +89,7 @@ export function App() {
         <ReportForge
           title="Quarterly review"
           canEdit={!params.has("reader")}
+          language={(params.get("lang") as "en" | "fr" | "pt" | null) ?? "en"}
           body={body()}
           onBodyChange={setBody}
           settings={settings()}

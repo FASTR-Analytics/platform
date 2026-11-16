@@ -29,6 +29,7 @@ import {
   scanContainerLines,
 } from "./fastr_markdown_blocks.ts";
 import { parseReportEmbedLine } from "./embeds.ts";
+import { FASTR_TABLE_CAPTION_RE } from "./fastr_figure_captions.ts";
 
 export type FastrLiveRegion = {
   kind: "container" | "leaf" | "table" | "embed";
@@ -64,6 +65,19 @@ const DELIMITER_ROW_RE = /^\|?[ \t]*:?-+:?[ \t]*(\|[ \t]*:?-+:?[ \t]*)*\|?$/;
 function isDelimiterRow(text: string): boolean {
   const t = text.trim();
   return t.includes("|") && DELIMITER_ROW_RE.test(t);
+}
+
+// A table's header row at `i`: a line with a pipe, the delimiter row under it.
+function isTableHeaderAt(
+  scanned: { text: string; inCode: boolean; fence: unknown }[],
+  i: number,
+): boolean {
+  const s = scanned[i];
+  const next = scanned[i + 1];
+  return s !== undefined && !s.inCode && s.fence === undefined &&
+    s.text.includes("|") && s.text.trim().length > 0 &&
+    next !== undefined && !next.inCode && next.fence === undefined &&
+    isDelimiterRow(next.text);
 }
 
 export function fastrLiveRegions(lines: Iterable<string>): FastrLiveRegion[] {
@@ -131,15 +145,14 @@ export function fastrLiveRegions(lines: Iterable<string>): FastrLiveRegion[] {
       i++;
       continue;
     }
-    const next = scanned[i + 1];
-    if (
-      boundaryBefore &&
-      s.text.includes("|") &&
-      s.text.trim().length > 0 &&
-      next !== undefined && !next.inCode && next.fence === undefined &&
-      isDelimiterRow(next.text)
-    ) {
-      let j = i + 2;
+    // A `Table: <caption>` line directly over a table's header belongs to the
+    // table (the compiler makes it the table's <caption>), so the region
+    // opens on it.
+    const captioned = boundaryBefore &&
+      FASTR_TABLE_CAPTION_RE.test(s.text) &&
+      isTableHeaderAt(scanned, i + 1);
+    if (captioned || (boundaryBefore && isTableHeaderAt(scanned, i))) {
+      let j = i + (captioned ? 3 : 2);
       while (j < scanned.length) {
         const t = scanned[j];
         if (

@@ -33,7 +33,9 @@ import {
   findReportEmbeds,
   isFastrEmbedLine,
   logosSnippet,
+  parseContainerAttrs,
   readFastrDocumentSettings,
+  readFastrFigureSettings,
   scanContainerLines,
 } from "../../engine/mod.ts";
 import { setReportForgeLanguage, t3 } from "../../engine/i18n.ts";
@@ -411,8 +413,15 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       splits: [],
     },
     title: title(),
+    furniture: readFastrDocumentSettings(p.body).page.furniture,
+    marginPx: pageBoxOf(p.body).geometry.marginPx,
     fillers: new Map<number, number>(),
   });
+  // The page furniture's own key: a header, footer or rule edited redraws
+  // the seams at once, as a title change does.
+  const furnitureKey = createMemo(() =>
+    JSON.stringify(readFastrDocumentSettings(p.body).page.furniture ?? null)
+  );
   onCleanup(() => paginator.dispose());
   // Typing, and an embed's size landing: after the debounce. Everything that
   // re-lays the whole document (theme, palette, title): now.
@@ -436,7 +445,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   createEffect(
     on(sizeTick, () => editorApi?.refreshEmbedSizes(), { defer: true }),
   );
-  createEffect(on([theme, colors, title], () => {
+  createEffect(on([theme, colors, title, furnitureKey], () => {
     editorApi?.setPagination(emptyPagination());
     paginator.requestNow();
   }));
@@ -508,6 +517,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     kind: EmbedKind,
     id: string,
   ): FastrFigureWidth | undefined {
+    const line = figureLineForId(kind, id);
+    return line === undefined ? undefined : fastrFigureWidthOfLine(line);
+  }
+  // The line of a figure (an embed alone on its line), first occurrence.
+  function figureLineForId(kind: EmbedKind, id: string): string | undefined {
     const src = p.body;
     const ref = findReportEmbeds(src).find(
       (r) => r.kind === kind && r.id === id,
@@ -516,7 +530,27 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     const from = src.lastIndexOf("\n", ref.start - 1) + 1;
     const nl = src.indexOf("\n", ref.end);
     const line = src.slice(from, nl === -1 ? src.length : nl);
-    return isFastrEmbedLine(line) ? fastrFigureWidthOfLine(line) : undefined;
+    return isFastrEmbedLine(line) ? line : undefined;
+  }
+  // The figure conventions the toolbar shows for a figure: its own source
+  // and numbering sequence, and the document's (fastr_figure_captions.ts).
+  function captionOptionsForId(
+    kind: EmbedKind,
+    id: string,
+  ): Pick<SelectedEmbed, "source" | "asTable" | "docSource" | "numbered"> {
+    const line = figureLineForId(kind, id);
+    const settings = readFastrFigureSettings(p.body);
+    const block = line === undefined
+      ? undefined
+      : /\)\s*(\{[^}]*\})\s*$/.exec(line)?.[1];
+    const attrs = block === undefined ? {} : parseContainerAttrs(block);
+    const source = attrs["source"];
+    return {
+      source: typeof source === "string" ? source : undefined,
+      asTable: attrs["as"] === "table",
+      docSource: kind === "figure" ? settings.source : undefined,
+      numbered: settings.numbered,
+    };
   }
   const selectedEmbedDetail = createMemo<SelectedEmbed | undefined>(() => {
     const sel = selectedEmbed();
@@ -528,6 +562,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         id: sel.id,
         caption: captionForId("figure", sel.id),
         width: widthForId("figure", sel.id),
+        ...captionOptionsForId("figure", sel.id),
       };
     }
     const ib = images()[sel.id];
@@ -538,6 +573,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       caption: captionForId("image", sel.id),
       width: widthForId("image", sel.id),
       imgFile: ib.imgFile,
+      ...captionOptionsForId("image", sel.id),
     };
   });
 
@@ -804,6 +840,12 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     editorApi?.setEmbedWidth(sel.kind, sel.id, width);
   }
 
+  function handleSetEmbedAttrs(patch: FastrFencePatch) {
+    const sel = selectedEmbed();
+    if (!sel) return;
+    editorApi?.setEmbedAttrs(sel.kind, sel.id, patch);
+  }
+
   async function handleChangeImageFile(id: string, imgFile: string) {
     const ib = images()[id];
     if (!ib) return;
@@ -906,6 +948,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
                 figureControls={p.figures?.controls}
                 onUpdateCaption={handleUpdateCaption}
                 onSetWidth={handleSetEmbedWidth}
+                onSetAttrs={handleSetEmbedAttrs}
                 onChangeImageFile={(id, file) =>
                   void handleChangeImageFile(id, file)}
                 onDelete={handleDelete}

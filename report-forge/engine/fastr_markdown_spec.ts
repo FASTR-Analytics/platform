@@ -57,6 +57,16 @@ export const FASTR_BLOCK_SNIPPETS: { name: FastrBlockName; snippet: string }[] =
       snippet: `:::logos{align=center}`,
     },
     {
+      name: "masthead",
+      snippet:
+        `:::masthead\n:::logos{align=spread}\nMinistry of Health\nRegional health directorate\n:::`,
+    },
+    {
+      name: "signoff",
+      snippet:
+        `:::signoff{place="City" date="1 January 2026"}\n:::signer{label="Prepared by"}\n**Name**\nRole\n:::\n:::signer{label="Approved by"}\n**Name**\nRole\n:::\n:::`,
+    },
+    {
       name: "steps",
       snippet:
         `:::steps\nInvestigate the two weakest regions first.\n\nDocument what the strongest region changed.\n\nRe-read this once a full year of data is in.\n:::`,
@@ -140,6 +150,29 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
     split     title left, sub right on a vertical rule — a spread
     minimal   top-set and quiet, a hairline foot
     block     the title set as a solid block of the accent
+    bulletin  an official bulletin: a masthead or logos row at the head,
+              the title in a filled box, \`issue="N°07/2026"\` in a strip
+              under it, \`date="August 2026"\` at the foot of the page
+
+  :::masthead
+  :::logos{src="image:<id> image:<id>"}
+  Ministry of Health
+  Regional health directorate
+  :::
+  A government masthead: the logos row's first logo stands left of the
+  lines and its last right, the lines centred between them. The logos are
+  the user's, placed from Widgets → Logos, as for any logos row. It heads a
+  cover or the first page.
+
+  :::signoff{place="City" date="11 September 2026"}
+  :::signer{label="Prepared by"}
+  **Name**
+  Role, contact
+  :::
+  :::
+  A signature block: its signers side by side, each with room to sign, and
+  the place and date under them. Write it only when the user asks, with the
+  names they give; never invent a name.
 
   :::steps
   One paragraph per step. They are numbered automatically.
@@ -179,6 +212,15 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   Reports print on A4. \`orientation\` is portrait or landscape: the
   printed sheet, and what the editor's page boxes show. Landscape suits a
   report built around wide tables. Never write a page size.
+  Page furniture, for a report set as an official bulletin; write it only
+  when the user asks, and keep it when the report already has it:
+  \`header="…"\` a line centred at the top of every page; \`footer="…"\`
+  in place of the title at the foot (\`footer=none\` keeps the page number
+  alone); \`footerrule="#ce1126 #fcd116 #009460"\` a stripe of colours
+  under the footer; \`frame=line|double|bold\` a border round every page
+  (\`framecolor=\` a tone or a colour); \`sections=bar\` sets the section
+  headings as filled bars, their numbers in a tab with
+  \`numbering=sections\`.
 
   :::page{layout=story kicker="Kenema District"}
   :::slot{name=side}
@@ -281,6 +323,25 @@ opening paragraph). {width=small} (half the column) prints labels too small
 to read: never write it unless the user asks. Never shrink a chart to make a
 page fit; move prose instead. {width=full} runs edge to edge like a band: for
 the one chart a report is built around, at most, never for emphasis.
+
+Figure conventions, for a report set as a ministry bulletin sets its charts.
+They are the \`:::report\` header's, so leave them as they are unless the
+user asks:
+
+  :::report{figures=numbered captions=above source="DHIS2 SNIS"}
+
+  \`figures=numbered\` numbers every captioned figure ("Figure 3:") and
+  captioned table ("Table 2:"), in two sequences, in document order; never
+  write a number into a caption yourself, and never refer to a figure by a
+  number you counted. \`captions=above\` sets each caption as a title over
+  its figure. \`source="…"\` puts a source line under every chart.
+  A figure's own \`{…}\` overrides the source (\`{source="PEV"}\`) or
+  removes it (\`{source=none}\`), and \`{as=table}\` counts a chart that is
+  a table in the table sequence. A markdown table takes its caption from a
+  \`Table: <caption>\` line directly over its header row (no blank line
+  between); write one for every table in a numbered report. An analysis
+  that follows a figure is an ordinary paragraph after it, and a bulletin
+  often opens it with a bold lead-in: \`**Analysis:** …\`.
 
 Composing a report — this matters as much as the syntax:
 
@@ -504,7 +565,7 @@ Rules:
   never inside a \`card\` or a \`col\` — a stat nested that way is rejected.
 - Attribute values with spaces need quotes; a bare word is a flag.
 - Figures and images use the markdown embed token on its own line —
-  ![caption](figure:<id>) — and render as a figure with the caption beneath.
-  Do not wrap them in HTML.
+  ![caption](figure:<id>) — and render as a figure with the caption beneath
+  (above, with \`captions=above\` on the report). Do not wrap them in HTML.
 - A heading inside a block is not a document section; keep \`#\` headings at the
   top level so sections stay addressable.`;

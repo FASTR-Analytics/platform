@@ -49,6 +49,9 @@ export const FASTR_BLOCK_NAMES = [
   "report",
   "page",
   "slot",
+  "masthead",
+  "signoff",
+  "signer",
 ] as const;
 export type FastrBlockName = (typeof FASTR_BLOCK_NAMES)[number];
 
@@ -627,7 +630,124 @@ export type FastrPageSetup = {
   size: FastrPageSize;
   orientation: FastrPageOrientation;
   margin: FastrPageMargin;
+  // What every page carries in its margins (FastrPageFurniture). Absent:
+  // the plain running footer and nothing else.
+  furniture?: FastrPageFurniture;
 };
+
+// ── Page furniture ───────────────────────────────────────────────────────────
+// What a bulletin prints in every page's margins, from the `:::report` header:
+//
+//   :::report{header="BULLETIN · SNIS · N° 04" footer="DPS Mamou"
+//             footerrule="#ce1126 #fcd116 #009460" frame=double}
+//
+//   header       a line centred in the top margin
+//   footer       replaces the document's title at the left of the running
+//                footer; `footer=none` leaves the page number alone
+//   footerrule   a stripe of one to four colours (literal colours or tone
+//                names) across the foot of the page, the column's width
+//   frame        a border round the page, inset in its margins: line, double
+//                (a heavy line and a hairline inside it) or bold;
+//                `framecolor=` a tone or a colour, the accent by default
+//
+// All of it stands in the margins, so no block's box moves and the editor's
+// pages and print's stay the same. A filling cover keeps the frame (it is
+// the sheet's, not the margin's) and drops the rest, as it drops the footer.
+export const FASTR_FRAME_STYLES = ["line", "double", "bold"] as const;
+export type FastrFrameStyle = (typeof FASTR_FRAME_STYLES)[number];
+
+export type FastrPageFurniture = {
+  header: string | undefined;
+  // undefined: the document's title, as before; null: nothing.
+  footer: string | null | undefined;
+  // CSS colours, left to right; empty for none.
+  footerRule: string[];
+  frame: { style: FastrFrameStyle; color: string } | undefined;
+};
+
+// A tone name as the colour of its ground, or a literal colour as written.
+function furnitureColor(v: string): string | undefined {
+  const tone = fastrToneOf(v);
+  if (tone !== undefined && tone !== "default") {
+    return `var(--fm-${tone}-ground)`;
+  }
+  return safeCssColor(v);
+}
+
+export function fastrPageFurnitureOf(
+  attrs: FastrContainerAttrs,
+): FastrPageFurniture | undefined {
+  const text = (k: string) => {
+    const v = attrs[k];
+    return typeof v === "string" && v.trim().length > 0
+      ? v.replace(/\s+/g, " ").trim()
+      : undefined;
+  };
+  const header = text("header");
+  const footerText = text("footer");
+  const footer = footerText === "none" ? null : footerText;
+  const footerRule = (text("footerrule") ?? "")
+    .split(/\s+/)
+    .map(furnitureColor)
+    .filter((c): c is string => c !== undefined)
+    .slice(0, 4);
+  const style = attrs["frame"];
+  const frame = typeof style === "string" &&
+      (FASTR_FRAME_STYLES as readonly string[]).includes(style)
+    ? {
+      style: style as FastrFrameStyle,
+      color: furnitureColor(text("framecolor") ?? "") ??
+        "var(--fm-accent)",
+    }
+    : undefined;
+  if (
+    header === undefined && footer === undefined &&
+    footerRule.length === 0 && frame === undefined
+  ) return undefined;
+  return { header, footer, footerRule, frame };
+}
+
+// Where the frame stands, px, for a page margin of `marginPx`: its inset from
+// the sheet's edge and its lines, outermost first, each as the distance in
+// from that inset and a width. One table for print and the editor.
+export function fastrFrameGeometry(
+  style: FastrFrameStyle,
+  marginPx: number,
+): { inset: number; lines: { at: number; width: number }[] } {
+  const inset = Math.round(marginPx * 0.22);
+  const lines = style === "line"
+    ? [{ at: 0, width: 1 }]
+    : style === "bold"
+    ? [{ at: 0, width: 4 }]
+    : [{ at: 0, width: 3 }, { at: 6, width: 1 }];
+  return { inset, lines };
+}
+
+// The running footer's rule: its distance up from the sheet's foot and its
+// height, px. Under the footer's text, clear of a frame.
+export function fastrFooterRuleGeometry(
+  marginPx: number,
+  frame: FastrFrameStyle | undefined,
+): { bottom: number; height: number } {
+  const height = 3;
+  if (frame === undefined) {
+    return { bottom: Math.round(marginPx * 0.3), height };
+  }
+  const g = fastrFrameGeometry(frame, marginPx);
+  const last = g.lines[g.lines.length - 1];
+  return { bottom: g.inset + last.at + last.width + 3, height };
+}
+
+// The rule's stripes as one gradient, equal widths left to right.
+export function fastrFooterRuleCss(colors: string[]): string {
+  if (colors.length === 1) return colors[0];
+  const step = 100 / colors.length;
+  return `linear-gradient(to right, ${
+    colors.map((c, i) =>
+      `${c} ${(i * step).toFixed(4)}% ${((i + 1) * step).toFixed(4)}%`
+    ).join(", ")
+  })`;
+}
 
 export const FASTR_PAGE_MARGIN_MM: Record<FastrPageMargin, number> = {
   narrow: 10,
@@ -747,6 +867,8 @@ export function readFastrDocumentSettings(body: string): FastrDocumentSettings {
         "normal",
       ) as FastrPageMargin,
     };
+    const furniture = fastrPageFurnitureOf(attrs);
+    if (furniture !== undefined) page.furniture = furniture;
     return {
       className: [
         "fm-doc",
@@ -761,6 +883,19 @@ export function readFastrDocumentSettings(body: string): FastrDocumentSettings {
     };
   }
   return empty;
+}
+
+// The `:::report{…}` header's attributes, or undefined when the body has none.
+// The same walk as readFastrDocumentSettings: the first header wins and a
+// fence inside a code block is literal text.
+export function fastrReportHeaderAttrs(
+  body: string,
+): FastrContainerAttrs | undefined {
+  for (const { inCode, fence } of scanContainerLines(body.split("\n"))) {
+    if (inCode) continue;
+    if (fence?.kind === "open" && fence.name === "report") return fence.attrs;
+  }
+  return undefined;
 }
 
 // ── Paragraph alignment ──────────────────────────────────────────────────────
@@ -830,9 +965,18 @@ export const FASTR_FIGURE_RESERVE_VAR = "--fm-fig-reserve";
 // section headings. The empty div stands in for the image; it is a flow
 // root too, or the caption's top margin would collapse through it (and out
 // of a frame with no top padding) where an image would hold it in.
-export const FASTR_FIGURE_RESERVE_PROBE_HTML = ["h1", "h2"].map((tag) =>
-  `<div data-fm-reserve-probe style="display:flow-root"><${tag} class="fm-top">X</${tag}><figure class="fm-figure"><div style="display:flow-root"></div><figcaption class="fm-figure__caption">X</figcaption></figure></div>`
-).join("");
+// A document whose figures carry a source line (fastr_figure_captions.ts)
+// measures its probe with one too: print's runner asks whether the document
+// shows one, the editor whether its figure index found one.
+export function fastrFigureReserveProbeHtml(source: boolean): string {
+  const line = source ? `<p class="fm-figure__source">X</p>` : "";
+  return ["h1", "h2"].map((tag) =>
+    `<div data-fm-reserve-probe style="display:flow-root"><${tag} class="fm-top">X</${tag}><figure class="fm-figure"><div style="display:flow-root"></div><figcaption class="fm-figure__caption">X</figcaption>${line}</figure></div>`
+  ).join("");
+}
+export const FASTR_FIGURE_RESERVE_PROBE_HTML = fastrFigureReserveProbeHtml(
+  false,
+);
 // Covers the editor's layout safety (the room it keeps free at every page's
 // foot) and a pixel of rounding between the editor's sheet and print's.
 export const FASTR_FIGURE_RESERVE_SLACK_PX = 8;
@@ -924,6 +1068,7 @@ export const FASTR_COVER_LAYOUTS = [
   "split",
   "minimal",
   "block",
+  "bulletin",
 ] as const;
 export type FastrCoverLayout = (typeof FASTR_COVER_LAYOUTS)[number];
 // A cover is a band at the head of page 1 at its natural height, the report
@@ -1116,6 +1261,12 @@ function blockShapeFor(
     case "cover": {
       const layout = oneOf(attrs, "layout", FASTR_COVER_LAYOUTS, "classic");
       const fill = oneOf(attrs, "fill", FASTR_COVER_FILLS, "auto");
+      // The bulletin layout's own lines: the issue number in a strip under
+      // the title, and the date at the foot of the page.
+      const bulletin = layout === "bulletin"
+        ? titleHtml("fm-cover__issue", attrText(attrs, "issue")) +
+          titleHtml("fm-cover__date", attrText(attrs, "date"))
+        : "";
       return {
         tag: "section",
         className: [
@@ -1125,9 +1276,45 @@ function blockShapeFor(
           fill === "page" ? "fm-cover--fill" : "",
         ].filter((c) => c.length > 0).join(" "),
         leadingHtml: titleHtml("fm-kicker", attrText(attrs, "kicker")),
-        trailingHtml: titleHtml("fm-dek", attrText(attrs, "sub")),
+        trailingHtml: titleHtml("fm-dek", attrText(attrs, "sub")) + bulletin,
       };
     }
+    // A government masthead: its logos row's first logo stands left of the
+    // lines inside it and its last right, the lines centred between them
+    // (the stylesheet's grid). The logos stay an ordinary `:::logos` row, so
+    // they are chosen and edited as any logo row is.
+    case "masthead":
+      return {
+        tag: "div",
+        className: "fm-masthead",
+        leadingHtml: "",
+        trailingHtml: "",
+      };
+    // A sign-off: its signers side by side, and the place and date the
+    // document is signed at under them, to the right.
+    case "signoff": {
+      const place = attrText(attrs, "place");
+      const date = attrText(attrs, "date");
+      const at = [place, date].filter((v): v is string => v !== undefined)
+        .join(", ");
+      return {
+        tag: "div",
+        className: "fm-signoff",
+        leadingHtml: "",
+        trailingHtml: at.length === 0
+          ? ""
+          : `<p class="fm-signoff__at">${escapeReportHtml(at)}</p>`,
+      };
+    }
+    // One signer: a small label ("Prepared by"), the name and role written
+    // inside it, and room left to sign.
+    case "signer":
+      return {
+        tag: "div",
+        className: "fm-signer",
+        leadingHtml: titleHtml("fm-signer__label", attrText(attrs, "label")),
+        trailingHtml: `<div class="fm-signer__space" aria-hidden="true"></div>`,
+      };
     // A page template: a whole printed page whose composition `layout` picks
     // (fastr_page_templates.ts; the stylesheet's fm-tpl--* grids). An unknown
     // layout still renders, as a plain page, and the validator says so.

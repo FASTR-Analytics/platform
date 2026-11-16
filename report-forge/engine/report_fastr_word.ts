@@ -30,14 +30,19 @@ import {
   Document,
   ExternalHyperlink,
   Footer,
+  Header,
   HeadingLevel,
+  HeightRule,
   type IBorderOptions,
   ImageRun,
+  type IPageBordersOptions,
   type IParagraphOptions,
   type IPropertiesOptions,
   type ISectionPropertiesOptions,
   LevelFormat,
   LineRuleType,
+  PageBorderDisplay,
+  PageBorderOffsetFrom,
   PageNumber,
   PageOrientation,
   Paragraph,
@@ -61,6 +66,7 @@ import {
   fastrFigureShare,
   type FastrFigureWidth,
   fastrFigureWidthOfClass,
+  fastrFrameGeometry,
   fastrLogoAlign,
   fastrLogoImageIds,
   fastrLogoSize,
@@ -73,6 +79,11 @@ import {
   readFastrDocumentSettings,
   rgbChannel,
 } from "./fastr_markdown_blocks.ts";
+import {
+  fastrCaptionLabel,
+  type FastrCaptionMeta,
+  fastrSourceLabel,
+} from "./fastr_figure_captions.ts";
 import {
   fastrAccentTextFor,
   fastrDerivedColorsFor,
@@ -854,7 +865,11 @@ class Builder {
   // `cls` is the compiled figure's class list, which carries its width
   // (fm-figure--small etc.): the `{…}` block itself was claimed by the
   // compiler before the token stream got here.
-  private figure(inline: Token, cls = ""): void {
+  private figure(
+    inline: Token,
+    cls = "",
+    meta: FastrCaptionMeta | undefined = undefined,
+  ): void {
     const img = (inline.children ?? []).find((k) => k.type === "image");
     if (img === undefined) return;
     const caption = inlineText(img.children ?? []).trim();
@@ -871,16 +886,20 @@ class Builder {
       return;
     }
     const hasCaption = caption.length > 0;
-    // The theme's caption placement (FastrThemeSpec.figureCaption): above, it
-    // opens the figure and is kept with the chart below it.
-    const above = hasCaption && this.captionAbove;
+    // The caption placement: the document's `captions=above`, or the
+    // theme's (FastrThemeSpec.figureCaption). Above, it opens the figure
+    // and is kept with the chart below it.
+    const above = hasCaption && (this.captionAbove || meta?.above === true);
     const captionParagraph = () =>
       this.paragraph(
-        [this.textRun(caption, {
-          ...this.baseRun(),
-          size: fastrWordHalfPoints(this.bodyPx * 0.85),
-          color: hexOrUndefined(p.inkMuted),
-        })],
+        [
+          ...this.captionLabelRuns(meta),
+          this.textRun(caption, {
+            ...this.baseRun(),
+            size: fastrWordHalfPoints(this.bodyPx * 0.85),
+            color: hexOrUndefined(p.inkMuted),
+          }),
+        ],
         above ? { style: "Caption", keepNext: true } : { style: "Caption" },
         above
           ? {
@@ -888,21 +907,77 @@ class Builder {
             after: fastrWordTwips(this.bodyPx * 0.5),
             line: 336,
           }
-          : { after: fastrWordTwips(this.bodyPx * 1.6), line: 336 },
+          : {
+            after: fastrWordTwips(
+              this.bodyPx * (meta?.source !== undefined ? 0.3 : 1.6),
+            ),
+            line: 336,
+          },
       );
+    const source = meta?.source;
     if (above) this.push(captionParagraph());
     this.push(this.paragraph([run], {
       alignment: AlignmentType.CENTER,
-      keepNext: hasCaption && !above,
+      keepNext: (hasCaption && !above) || source !== undefined,
       keepLines: true,
     }, {
       before: above ? 0 : fastrWordTwips(this.bodyPx * 0.6),
-      after: hasCaption && !above
+      after: (hasCaption && !above) || source !== undefined
         ? fastrWordTwips(this.bodyPx * 0.5)
         : fastrWordTwips(this.bodyPx * 1.6),
       line: 240,
     }));
     if (hasCaption && !above) this.push(captionParagraph());
+    if (source !== undefined) this.push(this.sourceParagraph(source));
+  }
+
+  // "Figure 3 :" in bold accent ahead of a caption, when the document
+  // numbers its figures (fastr_figure_captions.ts).
+  private captionLabelRuns(meta: FastrCaptionMeta | undefined): TextRun[] {
+    if (meta?.n === undefined) return [];
+    return [
+      this.textRun(`${fastrCaptionLabel(meta.kind, meta.n)} `, {
+        ...this.baseRun(),
+        size: fastrWordHalfPoints(this.bodyPx * 0.85),
+        bold: true,
+        color: hexOrUndefined(this.pal.accentText) ??
+          hexOrUndefined(this.pal.ink),
+      }),
+    ];
+  }
+
+  // "Source : DHIS2 SNIS", small and muted, closing a figure.
+  private sourceParagraph(source: string): Paragraph {
+    return this.paragraph(
+      [this.textRun(`${fastrSourceLabel()} ${source}`, {
+        ...this.baseRun(),
+        size: fastrWordHalfPoints(this.bodyPx * 0.75),
+        color: hexOrUndefined(this.pal.inkMuted),
+      })],
+      {},
+      { after: fastrWordTwips(this.bodyPx * 1.6), line: 336 },
+    );
+  }
+
+  // A native table's `Table:` caption, opening the table and kept with it.
+  private tableCaption(meta: FastrCaptionMeta): void {
+    if (meta.caption.length === 0) return;
+    this.push(this.paragraph(
+      [
+        ...this.captionLabelRuns(meta),
+        this.textRun(meta.caption, {
+          ...this.baseRun(),
+          size: fastrWordHalfPoints(this.bodyPx * 0.85),
+          color: hexOrUndefined(this.pal.inkMuted),
+        }),
+      ],
+      { style: "Caption", keepNext: true },
+      {
+        before: fastrWordTwips(this.bodyPx * 0.6),
+        after: fastrWordTwips(this.bodyPx * 0.5),
+        line: 336,
+      },
+    ));
   }
 
   // ── Design blocks, as their text ──────────────────────────────────────────
@@ -942,6 +1017,9 @@ class Builder {
           this.coverDepth--;
         }
         this.plainLine(attrs["sub"]);
+        // The bulletin layout's issue number and date.
+        this.plainLine(attrs["issue"], { bold: true });
+        this.plainLine(attrs["date"]);
         // A cover that fills its page is a title page: what follows it
         // starts the next one.
         if (String(attrs["fill"] ?? "").toLowerCase() === "page") {
@@ -1063,6 +1141,21 @@ class Builder {
       case "logos":
         this.logos(attrs);
         break;
+      // A sign-off, plainly: each signer's label over what it holds, then
+      // the place and date. A masthead falls to the default: its logos row,
+      // then its lines.
+      case "signer":
+        this.plainLine(attrs["label"], { bold: true }, true);
+        this.walk(i + 1, close);
+        break;
+      case "signoff": {
+        this.walk(i + 1, close);
+        const at = [attrs["place"], attrs["date"]]
+          .filter((v): v is string => typeof v === "string" && v.length > 0)
+          .join(", ");
+        this.plainLine(at.length > 0 ? at : undefined, { bold: true });
+        break;
+      }
       default:
         // col outside columns, or an unknown name: its content, plainly.
         this.walk(i + 1, close);
@@ -1203,6 +1296,10 @@ class Builder {
     // fm-numbered--sub): a numbered document's sections and subsections, at
     // whatever level it writes them, and a page template's own heading.
     const classes = (open.attrGet("class") ?? "").split(/\s+/);
+    // sections=bar: the bar is the paragraph's shading, the heading set in
+    // the page's colour on the ink, its number in the accent's ink.
+    const bar = classes.includes("fm-secbar");
+    if (bar) base.color = hexOrUndefined(p.ground);
     if (this.numbered && classes.includes("fm-numbered")) {
       let prefix: string;
       if (classes.includes("fm-numbered--sec")) {
@@ -1214,7 +1311,10 @@ class Builder {
         prefix = `${this.sec}.${this.sub} `;
       }
       children.push(
-        this.textRun(prefix, { ...base, color: hexOrUndefined(p.accentText) }),
+        this.textRun(prefix, {
+          ...base,
+          color: bar ? hexOrUndefined(p.ground) : hexOrUndefined(p.accentText),
+        }),
       );
     }
     children.push(...this.inline(inline?.children ?? [], base));
@@ -1237,6 +1337,15 @@ class Builder {
       keepNext: true,
       keepLines: true,
       ...(align ? { alignment: WORD_ALIGN[align] } : {}),
+      ...(bar
+        ? {
+          shading: {
+            type: ShadingType.CLEAR,
+            fill: hexOrUndefined(p.ink),
+            color: "auto",
+          },
+        }
+        : {}),
     }, {
       before: this.emitted ? fastrWordTwips(before) : 0,
       after: fastrWordTwips(px * cut.fit * FASTR_HEADING_SPACE.bottom),
@@ -1251,15 +1360,15 @@ class Builder {
     let end = i + 2;
     if (open.tag === "figure") {
       if (inline?.type === "inline") {
-        this.figure(inline, open.attrGet("class") ?? "");
+        this.figure(
+          inline,
+          open.attrGet("class") ?? "",
+          (open.meta as { fmCaption?: FastrCaptionMeta } | null)?.fmCaption,
+        );
       }
-      // The figcaption the compiler inserted after the close.
-      if (
-        this.tokens[end + 1]?.type === "html_block" &&
-        /figcaption/.test(this.tokens[end + 1].content)
-      ) {
-        end++;
-      }
+      // The caption and source lines the compiler inserted before the
+      // close: the figure above has already written them.
+      while (this.tokens[end]?.type === "html_block") end++;
       return end;
     }
     const { run } = this.decorated();
@@ -1678,6 +1787,9 @@ class Builder {
 
   private table(i: number): number {
     const tokens = this.tokens;
+    const caption = (tokens[i].meta as { fmCaption?: FastrCaptionMeta } | null)
+      ?.fmCaption;
+    if (caption !== undefined) this.tableCaption(caption);
     let end = i;
     for (let k = i + 1; k < tokens.length; k++) {
       if (
@@ -1820,13 +1932,94 @@ class Builder {
 
   // ── The document ──────────────────────────────────────────────────────────
 
+  // A furniture colour (FastrPageFurniture): a tone's ground by the palette,
+  // a literal as written.
+  private furnitureHex(css: string): string | undefined {
+    const p = this.pageGround?.palette ?? basePalette(this.c);
+    const tone = /^var\(--fm-([a-z]+)(?:-ground)?\)$/.exec(css)?.[1];
+    if (tone === "accent") return hexOrUndefined(p.accent);
+    if (tone === "ink") return hexOrUndefined(p.ink);
+    if (tone === "paper") return hexOrUndefined(p.surface);
+    if (tone === "warm") return hexOrUndefined(p.semantic.danger);
+    return hexOrUndefined(css);
+  }
+
+  // The running header, centred, when the document sets one.
+  private header(): Header | undefined {
+    const text = this.page.furniture?.header;
+    if (text === undefined) return undefined;
+    const p = this.pageGround?.palette ?? basePalette(this.c);
+    return new Header({
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 0, after: 0, line: 240 },
+          children: [
+            this.textRun(text, {
+              font: this.bodyFont,
+              size: 17,
+              color: hexOrUndefined(p.inkMuted),
+            }),
+          ],
+        }),
+      ],
+    });
+  }
+
+  // The footer's rule: a one-row table of equal cells, one per colour, the
+  // column's width, three pixels tall (Word draws no multi-coloured rule).
+  private footerRule(): Table | undefined {
+    const colors = (this.page.furniture?.footerRule ?? [])
+      .map((c) => this.furnitureHex(c))
+      .filter((c): c is string => c !== undefined);
+    if (colors.length === 0) return undefined;
+    const total = fastrWordTwips(this.columnPx);
+    const none = { style: BorderStyle.NONE, size: 0, color: "auto" };
+    return new Table({
+      layout: TableLayoutType.FIXED,
+      width: { size: total, type: WidthType.DXA },
+      columnWidths: colors.map(() => Math.round(total / colors.length)),
+      borders: {
+        top: none,
+        bottom: none,
+        left: none,
+        right: none,
+        insideHorizontal: none,
+        insideVertical: none,
+      },
+      rows: [
+        new TableRow({
+          height: { value: fastrWordTwips(3), rule: HeightRule.EXACT },
+          children: colors.map((fill) =>
+            new TableCell({
+              width: {
+                size: Math.round(total / colors.length),
+                type: WidthType.DXA,
+              },
+              shading: { type: ShadingType.CLEAR, fill, color: "auto" },
+              margins: { top: 0, bottom: 0, left: 0, right: 0 },
+              children: [
+                new Paragraph({
+                  spacing: { before: 0, after: 0, line: 20 },
+                  children: [],
+                }),
+              ],
+            })
+          ),
+        }),
+      ],
+    });
+  }
+
   private footer(): Footer {
     const p = this.pageGround?.palette ?? basePalette(this.c);
+    const furniture = this.page.furniture;
     const style: RunStyle = {
       font: this.bodyFont,
       size: 17,
       color: hexOrUndefined(p.inkMuted),
     };
+    const rule = this.footerRule();
     return new Footer({
       children: [
         new Paragraph({
@@ -1836,7 +2029,12 @@ class Builder {
           }],
           spacing: { before: 0, after: 0, line: 240 },
           children: [
-            this.textRun(this.input.title, style),
+            this.textRun(
+              furniture?.footer === null
+                ? ""
+                : furniture?.footer ?? this.input.title,
+              style,
+            ),
             new TextRun({
               font: style.font,
               size: style.size,
@@ -1851,8 +2049,36 @@ class Builder {
             }),
           ],
         }),
+        ...(rule === undefined ? [] : [rule]),
       ],
     });
+  }
+
+  // The frame (FastrPageFurniture) as Word's own page borders, inset from
+  // the page's edge as the sheet insets it.
+  private pageBorders(): IPageBordersOptions | undefined {
+    const frame = this.page.furniture?.frame;
+    if (frame === undefined) return undefined;
+    const color = this.furnitureHex(frame.color) ?? "auto";
+    const g = fastrFrameGeometry(frame.style, this.marginPx);
+    const side = {
+      style: frame.style === "double"
+        ? BorderStyle.THICK_THIN_SMALL_GAP
+        : BorderStyle.SINGLE,
+      size: frame.style === "line" ? 6 : frame.style === "bold" ? 24 : 24,
+      color,
+      space: Math.min(31, Math.round(g.inset * 0.75)),
+    };
+    return {
+      pageBorders: {
+        display: PageBorderDisplay.ALL_PAGES,
+        offsetFrom: PageBorderOffsetFrom.PAGE,
+      },
+      pageBorderTop: side,
+      pageBorderRight: side,
+      pageBorderBottom: side,
+      pageBorderLeft: side,
+    };
   }
 
   private pageProperties(): NonNullable<ISectionPropertiesOptions["page"]> {
@@ -1871,9 +2097,14 @@ class Builder {
         right: m,
         bottom: m,
         left: m,
-        header: 0,
+        header: this.page.furniture?.header === undefined
+          ? 0
+          : Math.round(m / 2),
         footer: Math.round(m / 2),
       },
+      ...(this.pageBorders() === undefined
+        ? {}
+        : { borders: this.pageBorders() }),
     };
   }
 
@@ -1904,6 +2135,9 @@ class Builder {
       return {
         properties,
         footers: { default: this.footer() },
+        ...(this.header() === undefined
+          ? {}
+          : { headers: { default: this.header()! } }),
         children: s.children,
       };
     });
