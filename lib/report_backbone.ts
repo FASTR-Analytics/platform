@@ -15,6 +15,7 @@ import {
   type FastrReportTheme,
   isFastrReportTheme,
   parseContainerFence,
+  REPORT_FORGE_LANGUAGES,
   scanContainerLines,
   updateContainerFenceLine,
 } from "../report-forge/engine/mod.ts";
@@ -78,6 +79,13 @@ export function reportBackboneHeaderAttrs(
     if (v !== undefined && v.trim().length > 0) out[k] = v.trim();
   }
   if (b.structure?.numberedSections === true) out.numbering = "sections";
+  // The labels it prints ("Tableau 2 :", "Source :") follow the language it
+  // is written in, whatever the reader's interface is set to.
+  const lang = b.voice?.language;
+  if (
+    out.lang === undefined && lang !== undefined &&
+    (REPORT_FORGE_LANGUAGES as readonly string[]).includes(lang)
+  ) out.lang = lang;
   return out;
 }
 
@@ -153,9 +161,18 @@ This report is written to a REPORT BACKBONE, a house style taken from an example
   if (c !== undefined) {
     const parts: string[] = [];
     if (c.layout) parts.push(`\`layout=${c.layout}\``);
-    if (c.tone) parts.push(`\`tone=${c.tone}\``);
+    if (c.tone === "default") {
+      parts.push("`tone=default` (the plain white page: never ink)");
+    } else if (c.tone) parts.push(`\`tone=${c.tone}\``);
     if (c.fill) parts.push("`fill=page` (a title page of its own)");
-    if (c.kicker) parts.push(`a kicker like "${c.kicker}"`);
+    if (c.boxColor && c.layout === "bulletin") {
+      parts.push(`\`boxcolor="${c.boxColor}"\` (its title box and strip)`);
+    }
+    parts.push(
+      c.kicker
+        ? `a kicker like "${c.kicker}"`
+        : "NO kicker (whatever the guide says about always giving one)",
+    );
     if (c.sub) parts.push(`a sub like "${c.sub}"`);
     if (c.issue) parts.push(`an issue line like "${c.issue}"`);
     if (c.date) parts.push(`a date line like "${c.date}"`);
@@ -169,6 +186,7 @@ This report is written to a REPORT BACKBONE, a house style taken from an example
       cover +=
         " Leave a `:::logos` line at its head without sources: the user adds the logos.";
     }
+    if (c.upperTitle) cover += " Write the title in CAPITALS.";
     cover +=
       " Fill each like-this text with this report's own words (its place, period, number).";
     out.push(cover);
@@ -176,9 +194,11 @@ This report is written to a REPORT BACKBONE, a house style taken from an example
 
   if (b.signoff !== undefined && b.signoff.labels.length > 0) {
     out.push(
-      `**The close.** End with a \`:::signoff\` holding one \`:::signer\` for each of ${
+      `**The close.** End with a \`:::signoff\`${
+        b.signoff.right ? "{align=right}" : ""
+      } holding one \`:::signer\` for each of ${
         b.signoff.labels.map((l) => `"${l}"`).join(", ")
-      }, each with **Name** and Role as placeholders for the user to fill: never invent a name.`,
+      }, each with **Name** and Role as placeholders for the user to fill: never invent a name. No heading over it, and no place or date unless the user gives them.`,
     );
   }
 
@@ -238,6 +258,31 @@ This report is written to a REPORT BACKBONE, a house style taken from an example
     if (s.figureLeadIn) {
       parts.push(
         `The paragraph after each figure opens with the bold lead-in \`**${s.figureLeadIn}**\`.`,
+      );
+    }
+    if (s.headings === false) {
+      parts.push(
+        "It has NO section headings: write no `#` or `##` heading in the body. Each figure's caption is its section's title, so a section is the figure line (its caption, the chart, the source) followed by its analysis paragraph, and the next figure follows straight on. The outline above is the ORDER of the figures, not headings to write.",
+      );
+    }
+    if (s.introduction === false) {
+      parts.push(
+        "It has no introduction: the first figure follows the cover.",
+      );
+    }
+    if (s.conclusion === false) {
+      parts.push(
+        "It has no conclusion or recommendations section: the last analysis is followed by the sign-off (or ends the report).",
+      );
+    }
+    if (s.figureIntro === false) {
+      parts.push(
+        'No sentence announces a figure before it ("The chart below shows…"): the caption introduces it.',
+      );
+    }
+    if (s.justified === true) {
+      parts.push(
+        "Its body text is justified: end every prose paragraph's last line with ` {align=justify}`.",
       );
     }
     if (parts.length > 0) out.push(`**Structure.** ${parts.join("\n")}`);

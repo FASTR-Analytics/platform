@@ -20,9 +20,11 @@ import {
   isUntouchedReport,
   measureReportBackbone,
   readFastrDocumentSettings,
+  renderFastrMarkdownToHtml,
   type ReportBackbone,
   reportBackboneAllowsPlain,
   type ReportBackboneDraftOutput,
+  reportBackboneHeaderAttrs,
   reportBackbonePageLimits,
   reportBackboneSchema,
   reportBackboneTheme,
@@ -229,24 +231,31 @@ Deno.test("the house-style section overrides the guide's defaults", () => {
 });
 
 const DRAFT: ReportBackboneDraftOutput = {
+  traits: [
+    "figuresNumbered",
+    "captionsAbove",
+    "captionsBold",
+    "oneFigurePerSection",
+    "justified",
+    "coverFillsPage",
+    "coverTitleCapitals",
+    "signoffRight",
+  ],
   name: "Bulletin mensuel de district",
   description: "Un bulletin mensuel par formation sanitaire.",
   pageColor: "#FFFFFF",
   inkColor: "#222222",
   accentColor: "#15225e",
   theme: "no-such-theme",
-  figuresNumbered: true,
-  captionsAbove: true,
-  sourceLine: "DHIS2 SNIS",
+  sourceLine: "Source : DHIS2 SNIS",
   headerText: "",
   footerText: "",
-  frame: "double",
-  frameColor: "navy",
+  frame: "heavy",
+  frameColor: "navy #0070C0",
   footerRuleColors: ["#ce1126", "#fcd116", "#009460", "bad"],
-  numberedSections: false,
-  sectionBars: false,
   coverLayout: "bulletin",
-  coverFillsPage: true,
+  coverGround: "white",
+  coverColors: "#C4E0A0 #548235",
   coverKicker: "",
   coverSub: "District sanitaire de {Place}",
   coverIssue: "N°{Issue}/{Year}",
@@ -263,7 +272,6 @@ const DRAFT: ReportBackboneDraftOutput = {
     purpose: "une figure et son analyse",
     repeat: true,
   }],
-  oneFigurePerSection: true,
   figureLeadIn: "Analyse :",
   templates: "never",
   widgets: {
@@ -297,8 +305,40 @@ Deno.test("a draft becomes a checked backbone, and what does not fit is said", (
     accent: "#15225e",
   });
   assertEquals(d.backbone.look.theme, undefined);
-  assertEquals(d.backbone.look.report?.frame, "double");
-  assertEquals(d.backbone.look.report?.framecolor, undefined);
+  assertEquals(d.backbone.look.report?.frame, "heavy");
+  // The outer colour is not a hex: the one that is stands alone.
+  assertEquals(d.backbone.look.report?.framecolor, "#0070c0");
+  assertEquals(d.backbone.look.report?.captionstyle, "bold");
+  // The label is the report's to print; only the source is kept.
+  assertEquals(d.backbone.look.report?.source, "DHIS2 SNIS");
+  assertEquals(d.backbone.look.report?.pagenumbers, "none");
+  assertEquals(d.backbone.look.report?.footer, "none");
+  assertEquals(d.backbone.cover?.tone, "default");
+  assertEquals(d.backbone.cover?.boxColor, "#c4e0a0 #548235");
+  assertEquals(d.backbone.cover?.upperTitle, true);
+  assertEquals(d.backbone.signoff?.right, true);
+  assertEquals(d.backbone.structure?.headings, false);
+  assertEquals(d.backbone.structure?.introduction, false);
+  assertEquals(d.backbone.structure?.conclusion, false);
+  assertEquals(d.backbone.structure?.figureIntro, false);
+  assertEquals(d.backbone.structure?.justified, true);
+  // The traits an example shares with the format's defaults are not said.
+  const usual = backboneFromDraft({
+    ...DRAFT,
+    traits: [
+      ...DRAFT.traits.filter((t) => t !== "justified"),
+      "sectionHeadings",
+      "introduction",
+      "conclusion",
+      "figureIntroSentence",
+      "pageNumbers",
+    ],
+  }).backbone;
+  assertEquals(usual.structure?.headings, undefined);
+  assertEquals(usual.structure?.introduction, undefined);
+  assertEquals(usual.structure?.justified, undefined);
+  assertEquals(usual.look.report?.pagenumbers, undefined);
+  assertEquals(usual.look.report?.footer, undefined);
   assertEquals(
     d.backbone.look.report?.footerrule,
     "#ce1126 #fcd116 #009460",
@@ -311,6 +351,43 @@ Deno.test("a draft becomes a checked backbone, and what does not fit is said", (
   assert(d.warnings.some((w) => w.includes("no-such-theme")));
   assert(d.warnings.some((w) => w.includes("navy")));
   assert(d.warnings.some((w) => w.includes('"bad"')));
+});
+
+Deno.test("a bulletin with no headings is briefed as one", () => {
+  const b = backboneFromDraft({ ...DRAFT, frameColor: "#000080 #0070C0" })
+    .backbone;
+  // The labels follow the report's language.
+  assertEquals(reportBackboneHeaderAttrs(b).lang, "fr");
+  assertEquals(reportBackboneHeaderAttrs(b).framecolor, "#000080 #0070c0");
+  const text = describeReportBackboneForBrief("Bulletin", b);
+  for (
+    const s of [
+      "lang=fr",
+      "captionstyle=bold",
+      "pagenumbers=none",
+      "`tone=default`",
+      '`boxcolor="#c4e0a0 #548235"`',
+      "NO kicker",
+      "title in CAPITALS",
+      "`:::signoff`{align=right}",
+      "No heading over it",
+      "NO section headings",
+      "no introduction",
+      "no conclusion",
+      "No sentence announces a figure",
+      "{align=justify}",
+    ]
+  ) assertStringIncludes(text, s);
+  // A body written to it prints its labels in French and its cover
+  // in its own colours.
+  const body = applyReportBackboneHeader(
+    `:::cover{layout=bulletin tone=default boxcolor="${b.cover?.boxColor}" issue="N°7"}\n# BULLETIN\n:::\n\n![Complétude](figure:a)\n`,
+    b,
+  );
+  const html = renderFastrMarkdownToHtml(body, { lineAnchors: false });
+  assertStringIncludes(html, "Figure 1\u00a0:");
+  assertStringIncludes(html, "fm-caption--bold");
+  assertStringIncludes(html, "background-color: #548235");
 });
 
 Deno.test("a FASTR report is measured into a backbone", () => {

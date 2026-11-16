@@ -40,25 +40,55 @@ import type { ReportStyleColors } from "./types/report_styles.ts";
 
 const freqOrNone = z.enum(["", ...REPORT_BACKBONE_FREQUENCIES]);
 
+// What the example shows, each named only when it does (the prompt says
+// what each means).
+export const REPORT_BACKBONE_DRAFT_TRAITS = [
+  "figuresNumbered",
+  "captionsAbove",
+  "captionsBold",
+  "pageNumbers",
+  "numberedSections",
+  "sectionBars",
+  "sectionHeadings",
+  "introduction",
+  "conclusion",
+  "figureIntroSentence",
+  "oneFigurePerSection",
+  "justified",
+  "coverFillsPage",
+  "coverTitleCapitals",
+  "signoffRight",
+] as const;
+type DraftTrait = (typeof REPORT_BACKBONE_DRAFT_TRAITS)[number];
+
+// The cover's ground as the model sees it, and the tone each one is.
+const COVER_GROUNDS = ["white", "dark", "accent", "pale"] as const;
+const COVER_TONES: Record<(typeof COVER_GROUNDS)[number], string> = {
+  white: "default",
+  dark: "ink",
+  accent: "accent",
+  pale: "paper",
+};
+
 export const reportBackboneDraftOutputSchema = z.object({
+  // The yes-or-no traits, as one list: a boolean field each made the
+  // compiled grammar too large for structured outputs.
+  traits: z.array(z.enum(REPORT_BACKBONE_DRAFT_TRAITS)),
   name: z.string(),
   description: z.string(),
   pageColor: z.string(),
   inkColor: z.string(),
   accentColor: z.string(),
   theme: z.string(),
-  figuresNumbered: z.boolean(),
-  captionsAbove: z.boolean(),
   sourceLine: z.string(),
   headerText: z.string(),
   footerText: z.string(),
   frame: z.enum(["", ...FASTR_FRAME_STYLES]),
   frameColor: z.string(),
   footerRuleColors: z.array(z.string()),
-  numberedSections: z.boolean(),
-  sectionBars: z.boolean(),
   coverLayout: z.string(),
-  coverFillsPage: z.boolean(),
+  coverGround: z.enum(["", ...COVER_GROUNDS]),
+  coverColors: z.string(),
   coverKicker: z.string(),
   coverSub: z.string(),
   coverIssue: z.string(),
@@ -75,7 +105,6 @@ export const reportBackboneDraftOutputSchema = z.object({
     purpose: z.string(),
     repeat: z.boolean(),
   })),
-  oneFigurePerSection: z.boolean(),
   figureLeadIn: z.string(),
   templates: freqOrNone,
   widgets: z.object(
@@ -97,8 +126,11 @@ export type ReportBackboneDraftOutput = z.infer<
 
 // One line per theme the model may name: its faces and colours, from the
 // engine's own tokens, so a new theme is offered without editing this file.
+// Not offered: `legacy` is the old markdown look, kept for converting
+// markdown reports, not a house style to write to.
+const UNOFFERED_THEMES = new Set(["legacy"]);
 function themeLines(): string {
-  return fastrThemeIds().map((id) => {
+  return fastrThemeIds().filter((id) => !UNOFFERED_THEMES.has(id)).map((id) => {
     const t = fastrThemeTokens(id);
     const face = (f: string) => f.split(",")[0].replaceAll('"', "").trim();
     return `- ${id}: headings in ${face(t.fontHeading)}, text in ${
@@ -115,22 +147,22 @@ MEASURE, do not guess: count the pages, the words on typical pages (body text, n
 Answer every field. "" or 0 or [] means the example has none of it, or it cannot be told.
 
 Fields:
+- traits: every one of these the example shows (leave out those it does not): figuresNumbered (figures and tables carry numbers, "Figure 3", "Tableau 2"); captionsAbove (their titles stand over them); captionsBold (the WHOLE caption is bold in the accent colour, not just its number); pageNumbers (the pages carry page numbers); numberedSections (the section headings carry numbers); sectionBars (the section headings are set as filled bars); sectionHeadings (the body has section headings, larger titles over its sections; leave it out when its only titles are the figure and table captions); introduction (an introduction section); conclusion (a conclusion or recommendations section); figureIntroSentence (a sentence before a figure announces it, "The chart below shows…"; leave it out when a caption follows the previous analysis directly); oneFigurePerSection (each section is one figure or table and its analysis); justified (the body text is justified, both edges straight); coverFillsPage (the cover is a page of its own); coverTitleCapitals (the cover title is set in capitals); signoffRight (the signature block stands at the right).
 - name: a short name for the style, in the example's language ("Bulletin mensuel de district"). description: one line saying what kind of report it is.
-- pageColor, inkColor, accentColor: hex colours of the page, the body text and the main accent (headings, title boxes, rules).
-- theme: the closest of these themes by its type and feel (the colours are set separately), or "":
+- pageColor, inkColor, accentColor: hex colours of the page, the body text and the accent the BODY uses (figure captions, headings, rules). A cover's own colours are asked for separately (coverBoxColor), so take the accent from the inner pages.
+- theme: the closest of these themes, chosen by the BODY TEXT's typeface first (the colours are set separately): a plain office sans (Arial, Calibri, Century Gothic, Helvetica, Verdana) is "default"; a condensed sans is "assessment"; a serif body is "editorial" or "broadsheet"; a serif headline over a sans body is "ministry" or "executive". The rest are designed looks an office document rarely has. The themes:
 ${themeLines()}
-- figuresNumbered: figures and tables carry numbers ("Figure 3", "Tableau 2"). captionsAbove: their titles stand over them. sourceLine: the source printed under figures ("DHIS2 SNIS"), or "".
-- headerText / footerText: the line printed at the top / foot of every page (tokens for its place, period, issue), or "". frame: a border drawn round every page: "line" (a hairline), "double" (a heavy line with a thin one inside), "bold" (one heavy line), or "". frameColor: its hex. footerRuleColors: the colours of a stripe across the foot of each page (e.g. a national flag's), left to right, or [].
-- numberedSections: the section headings carry numbers. sectionBars: the section headings are set as filled bars.
+- sourceLine: the source printed under figures, without its label ("DHIS2 SNIS", not "Source : DHIS2 SNIS"), or "".
+- headerText / footerText: the line printed at the top / foot of every page (tokens for its place, period, issue), or "". frame: a border drawn round every page: "line" (a hairline), "double" (a medium line with a thin one inside), "bold" (one heavy line), "heavy" (a broad coloured band, clearly thicker than a rule, usually with a fine line of another colour beside it: an official Word page border), or "". frameColor: its hex, or two ("#000080 #0070c0") when its fine line is another colour: the main line's first. footerRuleColors: the colours of a stripe across the foot of each page (e.g. a national flag's), left to right, or [].
 - coverLayout: the cover's composition, one of ${
     FASTR_COVER_LAYOUTS.join(", ")
-  } ("bulletin" is an official bulletin's: masthead, the title in a filled box, an issue strip, the date at the foot; "frame" a framed formal cover; "centered" all on the axis), or "" when there is no cover. coverFillsPage: the cover is a page of its own. coverKicker / coverSub / coverIssue / coverDate: its small line over the title, its line under it, its issue number and its date line, with tokens.
-- mastheadLines: an official masthead's lines (the ministry, the directorate), word for word, top to bottom, or []. logoCount: how many logos the cover carries.
+  } ("bulletin" is an official bulletin's: masthead, the title in a filled box, an issue strip, the date at the foot; "frame" a framed formal cover; "centered" all on the axis), or "" when there is no cover. coverGround: the cover page's background: white (the plain page, the usual for an official bulletin), dark, accent (the whole page in a colour) or pale. coverColors: the hex of the filled box the title sits in, then of the strip holding the issue number ("#c4e0a0 #548235"; one hex when they match), when the cover has them (they are often not the body's accent: a green title box over blue captions), else "". coverKicker / coverSub / coverIssue / coverDate: its small line over the title, its line under it, its issue number and its date line, with tokens.
+- mastheadLines: an official masthead's lines (the ministry, the directorate), word for word, top to bottom, EXCEPT that the name of the region, district or town the example is about is written {Place} ("Direction Préfectorale de la santé de {Place}"); the country's own lines stay as printed. Or []. logoCount: how many logos the cover carries.
 - signoffLabels: the labels of a signature block at the end ("Prepared by", "Approved by"), never the names, or [].
 - pagesTypical: its length in pages. wordsPerPage: words of body text on a typical page. wordsPerFigure: words that read each chart. leastPageFillPercent: how full its emptier pages normally are (a page holding one chart and a short analysis may be 35).
-- outline: its usual sections in order, each a role ("Data quality", "Indicator") and a one-line purpose in general terms; repeat=true for a section repeated for each indicator or topic. oneFigurePerSection: each section is one figure or table and its analysis. figureLeadIn: the words that open the analysis after each figure, as printed ("Analyse :"), or "".
-- templates: how often it uses whole designed pages (summary pages, divider pages, scorecards): never, rare, normal, often.
-- widgets: how often it uses each kind of block: callout (a boxed caveat or finding), tiles and stat (key-number boxes), columns (text set beside text or a chart), quote, band (a full-width coloured strip), steps (numbered actions), contents (a table of contents), logos, masthead, signoff.
+- outline: its usual sections in order, each a role ("Data quality", "Indicator") and a one-line purpose in general terms; repeat=true for a section repeated for each indicator or topic. figureLeadIn: the words that open the analysis after each figure, as printed ("Analyse :"), or "".
+- templates: how often it uses whole designed pages laid out in the document itself (summary pages of boxes, divider pages): never, rare, normal, often. A screenshot or exported image of a dashboard, a matrix or a chart pasted into a page is a FIGURE (count it in chartTypes), never a template.
+- widgets: how often it uses each kind of block, counted on the pages: callout (a boxed caveat or finding), tiles and stat (key-number boxes), columns (text set beside text or a chart), quote, band (a full-width coloured strip holding text), steps (numbered actions), contents (a table of contents), logos, masthead, signoff. "never" for any it does not show: a coloured chart, table or screenshot is not a band, and a masthead and logos on the cover alone are "rare".
 - chartTypes: the kinds of figure it uses, most used first: chart (bars), table, timeseries (lines over time), map, pie. chartBreakdown: what its charts are broken down by, in words ("by health facility"). chartComparison: what a period is compared with. chartsNotPossible: forms it draws that the platform cannot, in words, from these only: a target or threshold line drawn across a chart, bars with a line on a second axis, a running (year-to-date) total beside the period's value. The platform DOES draw grouped and stacked bars, horizontal ranked bars, tables with cells coloured by thresholds (data-quality matrices included), lines over time, maps and pies: never list those.
 - language: the report's language code ("fr"). register: formal, plain or technical. notes: a few sentences on how it reads (how analysis paragraphs are built, what they always say, what tone), in general terms, for a writer of a new report in this style.`;
 }
@@ -205,6 +237,15 @@ export function backboneFromDraft(
       ? Math.round(Math.min(hi, Math.max(lo, n)))
       : undefined;
 
+  const has = (t: DraftTrait) => d.traits.includes(t);
+  const hexes = (v: string, what: string) =>
+    [
+      ...new Set(
+        v.split(/[\s,]+/).map((c) => hex(c, what)).filter((c): c is string =>
+          c !== undefined
+        ),
+      ),
+    ].slice(0, 2);
   const page = hex(d.pageColor, "The page colour");
   const ink = hex(d.inkColor, "The text colour");
   const accent = hex(d.accentColor, "The accent colour");
@@ -220,9 +261,14 @@ export function backboneFromDraft(
   }
 
   const report: Record<string, string> = {};
-  if (d.figuresNumbered) report.figures = "numbered";
-  if (d.captionsAbove) report.captions = "above";
-  const source = words(d.sourceLine, 120);
+  if (has("figuresNumbered")) report.figures = "numbered";
+  if (has("captionsAbove")) report.captions = "above";
+  // "Source : DHIS2 SNIS" is the label and the source; the label is printed
+  // by the report (in its own language), so only the source is kept.
+  const source = words(
+    d.sourceLine.replace(/^\s*(sources?|fontes?)\s*:\s*/i, ""),
+    120,
+  );
   if (source) report.source = source;
   const header = words(d.headerText, 200);
   if (header) report.header = header;
@@ -230,13 +276,19 @@ export function backboneFromDraft(
   if (footer) report.footer = footer;
   if (d.frame !== "") {
     report.frame = d.frame;
-    const fc = hex(d.frameColor, "The frame colour");
-    if (fc) report.framecolor = fc;
+    const fc = hexes(d.frameColor, "The frame colour");
+    if (fc.length > 0) report.framecolor = fc.join(" ");
+  }
+  if (has("captionsBold")) report.captionstyle = "bold";
+  if (!has("pageNumbers")) {
+    report.pagenumbers = "none";
+    // No page number and no footer line: the foot of the page is empty.
+    if (report.footer === undefined) report.footer = "none";
   }
   const rule = d.footerRuleColors.map((c) => hex(c, "A footer rule colour"))
     .filter((c): c is string => c !== undefined).slice(0, 4);
   if (rule.length > 0) report.footerrule = rule.join(" ");
-  if (d.sectionBars) report.sections = "bar";
+  if (has("sectionBars")) report.sections = "bar";
 
   let layout: string | undefined = d.coverLayout.trim();
   if (layout === "") layout = undefined;
@@ -251,6 +303,7 @@ export function backboneFromDraft(
   ).slice(0, 6);
   const hasCover = layout !== undefined || masthead.length > 0 ||
     d.coverIssue.trim() !== "" || d.coverDate.trim() !== "";
+  const boxColors = hexes(d.coverColors, "A cover colour");
 
   const widgets: Record<string, string> = {};
   for (const w of REPORT_BACKBONE_WIDGETS) {
@@ -280,7 +333,10 @@ export function backboneFromDraft(
       ? {
         cover: {
           ...(layout ? { layout } : {}),
-          ...(d.coverFillsPage ? { fill: true } : {}),
+          ...(d.coverGround !== "" ? { tone: COVER_TONES[d.coverGround] } : {}),
+          ...(has("coverFillsPage") ? { fill: true } : {}),
+          ...(boxColors.length > 0 ? { boxColor: boxColors.join(" ") } : {}),
+          ...(has("coverTitleCapitals") ? { upperTitle: true } : {}),
           ...(words(d.coverKicker, 200)
             ? { kicker: words(d.coverKicker, 200) }
             : {}),
@@ -296,7 +352,11 @@ export function backboneFromDraft(
         },
       }
       : {}),
-    ...(labels.length > 0 ? { signoff: { labels } } : {}),
+    ...(labels.length > 0
+      ? {
+        signoff: { labels, ...(has("signoffRight") ? { right: true } : {}) },
+      }
+      : {}),
     length: {
       ...(pages
         ? {
@@ -314,11 +374,17 @@ export function backboneFromDraft(
     },
     structure: {
       ...(outline.length > 0 ? { outline } : {}),
-      ...(d.numberedSections ? { numberedSections: true } : {}),
-      ...(d.oneFigurePerSection ? { oneFigurePerSection: true } : {}),
+      ...(has("numberedSections") ? { numberedSections: true } : {}),
+      ...(has("oneFigurePerSection") ? { oneFigurePerSection: true } : {}),
       ...(words(d.figureLeadIn, 40)
         ? { figureLeadIn: words(d.figureLeadIn, 40) }
         : {}),
+      // Said only when the example departs from the format's defaults.
+      ...(has("sectionHeadings") ? {} : { headings: false }),
+      ...(has("introduction") ? {} : { introduction: false }),
+      ...(has("conclusion") ? {} : { conclusion: false }),
+      ...(has("figureIntroSentence") ? {} : { figureIntro: false }),
+      ...(has("justified") ? { justified: true } : {}),
     },
     ...(d.templates !== "" ? { templates: { use: d.templates } } : {}),
     ...(Object.keys(widgets).length > 0 ? { widgets } : {}),
@@ -396,6 +462,9 @@ export function measureReportBackbone(args: {
   let cover: FastrContainerAttrs | undefined;
   const masthead: string[] = [];
   const signers: string[] = [];
+  let signoffRight = false;
+  let paragraphs = 0;
+  let justified = 0;
   const open: string[] = [];
   const outline: { role: string; purpose: string }[] = [];
   let proseWords = 0;
@@ -406,6 +475,9 @@ export function measureReportBackbone(args: {
       if (fence.name === "cover" && cover === undefined) cover = fence.attrs;
       if (fence.name === "signer" && typeof fence.attrs.label === "string") {
         signers.push(fence.attrs.label);
+      }
+      if (fence.name === "signoff" && fence.attrs.align === "right") {
+        signoffRight = true;
       }
       if (!isFastrLeafBlock(fence.name)) open.push(fence.name);
       continue;
@@ -429,6 +501,8 @@ export function measureReportBackbone(args: {
     }
     if (open.length === 0 && !t.startsWith("|") && !t.startsWith("![")) {
       proseWords += t.split(/\s+/).length;
+      paragraphs++;
+      if (/\{align=justify\}\s*$/.test(t)) justified++;
     }
   }
 
@@ -468,6 +542,12 @@ export function measureReportBackbone(args: {
       ? {
         cover: {
           ...(coverText("layout") ? { layout: coverText("layout") } : {}),
+          ...(coverText("tone")
+            ? { tone: coverText("tone")!.slice(0, 20) }
+            : {}),
+          ...(coverText("boxcolor")
+            ? { boxColor: coverText("boxcolor")!.slice(0, 40) }
+            : {}),
           ...(cover.fill === "page" ? { fill: true } : {}),
           ...(coverText("kicker") ? { kicker: coverText("kicker") } : {}),
           ...(coverText("sub") ? { sub: coverText("sub") } : {}),
@@ -482,7 +562,12 @@ export function measureReportBackbone(args: {
       }
       : {}),
     ...(signers.length > 0
-      ? { signoff: { labels: signers.slice(0, 3).map((l) => l.slice(0, 60)) } }
+      ? {
+        signoff: {
+          labels: signers.slice(0, 3).map((l) => l.slice(0, 60)),
+          ...(signoffRight ? { right: true } : {}),
+        },
+      }
       : {}),
     length: {
       ...(pages !== undefined
@@ -502,8 +587,12 @@ export function measureReportBackbone(args: {
         : {}),
     },
     structure: {
-      ...(outline.length > 0 ? { outline } : {}),
+      ...(outline.length > 0 ? { outline } : { headings: false }),
       ...(numbered ? { numberedSections: true } : {}),
+      // Most of its paragraphs are justified: the style is.
+      ...(paragraphs > 0 && justified * 2 > paragraphs
+        ? { justified: true }
+        : {}),
     },
     templates: { use: frequencyOf(counts.get("page") ?? 0) },
     widgets,

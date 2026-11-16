@@ -81,6 +81,9 @@ export const REPORT_BACKBONE_HEADER_ATTRS = [
   "header",
   "footer",
   "orientation",
+  "captionstyle",
+  "pagenumbers",
+  "lang",
 ] as const;
 export type ReportBackboneHeaderAttr =
   (typeof REPORT_BACKBONE_HEADER_ATTRS)[number];
@@ -103,8 +106,14 @@ export const reportBackboneSchema = z.object({
   }),
   cover: z.object({
     layout: text(20).optional(),
+    // Its ground, a tone name; "default" is the plain page (a white cover).
     tone: text(20).optional(),
     fill: z.boolean().optional(),
+    // A bulletin cover's own colours: its title box's, then its issue
+    // strip's ("#c4e0a0 #548235"), when they are not the theme's accent.
+    boxColor: text(40).optional(),
+    // The title is set in capitals.
+    upperTitle: z.boolean().optional(),
     kicker: text(200).optional(),
     sub: text(200).optional(),
     issue: text(80).optional(),
@@ -117,6 +126,8 @@ export const reportBackboneSchema = z.object({
   signoff: z.object({
     // "Prepared by", "Approved by": labels only, names are never invented.
     labels: z.array(text(60)).max(3),
+    // The signers stand at the right of the page.
+    right: z.boolean().optional(),
   }).optional(),
   length: z.object({
     pagesMin: z.number().int().min(1).max(200).optional(),
@@ -138,6 +149,17 @@ export const reportBackboneSchema = z.object({
     // The words that open the paragraph after each figure ("Analyse :").
     figureLeadIn: text(40).optional(),
     oneFigurePerSection: z.boolean().optional(),
+    // False: the body has no section headings; each figure's numbered
+    // caption is its section's title (a district bulletin's shape).
+    headings: z.boolean().optional(),
+    // False: it has no introduction / no conclusion section.
+    introduction: z.boolean().optional(),
+    conclusion: z.boolean().optional(),
+    // False: a figure follows the text before it with no sentence
+    // announcing it ("The chart below shows…").
+    figureIntro: z.boolean().optional(),
+    // The body text is justified.
+    justified: z.boolean().optional(),
   }).optional(),
   templates: z.object({
     use: frequency.optional(),

@@ -127,6 +127,24 @@ export function ReportBackboneFields(p: Props) {
             checked={header("sections") === "bar"}
             onChange={(c) => setHeader("sections", c ? "bar" : undefined)}
           />
+          <Checkbox
+            label={t3({
+              en: "Whole caption bold in the accent",
+              fr: "Légende entière en gras",
+              pt: "Legenda inteira a negrito",
+            })}
+            checked={header("captionstyle") === "bold"}
+            onChange={(c) => setHeader("captionstyle", c ? "bold" : undefined)}
+          />
+          <Checkbox
+            label={t3({
+              en: "Page numbers",
+              fr: "Numéros de page",
+              pt: "Números de página",
+            })}
+            checked={header("pagenumbers") !== "none"}
+            onChange={(c) => setHeader("pagenumbers", c ? undefined : "none")}
+          />
         </div>
         <Input
           label={t3({
@@ -174,9 +192,9 @@ export function ReportBackboneFields(p: Props) {
           />
           <Input
             label={t3({
-              en: "Frame colour",
-              fr: "Couleur du cadre",
-              pt: "Cor da moldura",
+              en: "Frame colour (and inner line's)",
+              fr: "Couleur du cadre (et du filet intérieur)",
+              pt: "Cor da moldura (e do filete interior)",
             })}
             value={header("framecolor")}
             onChange={(v) => setHeader("framecolor", v)}
@@ -232,15 +250,99 @@ export function ReportBackboneFields(p: Props) {
             fullWidth
           />
         </div>
-        <Checkbox
-          label={t3({
-            en: "The cover is a page of its own",
-            fr: "La couverture est une page entière",
-            pt: "A capa é uma página inteira",
-          })}
-          checked={b().cover?.fill === true}
-          onChange={(c) => set({ cover: { ...b().cover, fill: c } })}
-        />
+        <div class="grid grid-cols-2 gap-3">
+          <Select
+            label={t3({
+              en: "Cover background",
+              fr: "Fond de la couverture",
+              pt: "Fundo da capa",
+            })}
+            value={b().cover?.tone ?? DEFAULT_OPTION}
+            options={[
+              {
+                value: DEFAULT_OPTION,
+                label: t3({
+                  en: "The AI's choice",
+                  fr: "Au choix de l'IA",
+                  pt: "À escolha da IA",
+                }),
+              },
+              {
+                value: "default",
+                label: t3({
+                  en: "White page",
+                  fr: "Page blanche",
+                  pt: "Página branca",
+                }),
+              },
+              {
+                value: "ink",
+                label: t3({ en: "Dark", fr: "Sombre", pt: "Escuro" }),
+              },
+              {
+                value: "accent",
+                label: t3({
+                  en: "Accent colour",
+                  fr: "Couleur d'accent",
+                  pt: "Cor de destaque",
+                }),
+              },
+              {
+                value: "paper",
+                label: t3({ en: "Pale", fr: "Pâle", pt: "Claro" }),
+              },
+            ]}
+            onChange={(v) =>
+              set({ cover: { ...b().cover, tone: v === "" ? undefined : v } })}
+            fullWidth
+          />
+          <Input
+            label={t3({
+              en: "Title box and issue strip colours",
+              fr: "Couleurs du cadre du titre et du bandeau",
+              pt: "Cores da caixa do título e da faixa",
+            })}
+            value={b().cover?.boxColor ?? ""}
+            onChange={(v) =>
+              set({ cover: { ...b().cover, boxColor: v.trim() || undefined } })}
+            fullWidth
+          />
+        </div>
+        <div class="flex flex-wrap gap-4">
+          <Checkbox
+            label={t3({
+              en: "The cover is a page of its own",
+              fr: "La couverture est une page entière",
+              pt: "A capa é uma página inteira",
+            })}
+            checked={b().cover?.fill === true}
+            onChange={(c) => set({ cover: { ...b().cover, fill: c } })}
+          />
+          <Checkbox
+            label={t3({
+              en: "Title in capitals",
+              fr: "Titre en majuscules",
+              pt: "Título em maiúsculas",
+            })}
+            checked={b().cover?.upperTitle === true}
+            onChange={(c) =>
+              set({ cover: { ...b().cover, upperTitle: c || undefined } })}
+          />
+          <Checkbox
+            label={t3({
+              en: "Sign-off at the right",
+              fr: "Signature à droite",
+              pt: "Assinatura à direita",
+            })}
+            checked={b().signoff?.right === true}
+            onChange={(c) => {
+              const so = b().signoff;
+              if (so !== undefined) {
+                set({ signoff: { ...so, right: c || undefined } });
+              }
+            }}
+          />
+        </div>
         <TextArea
           label={t3({
             en: "Masthead lines (one per line; logos go either side)",
@@ -267,7 +369,11 @@ export function ReportBackboneFields(p: Props) {
           value={(b().signoff?.labels ?? []).join(", ")}
           onChange={(v) => {
             const labels = list(v, /,/).slice(0, 3);
-            set({ signoff: labels.length === 0 ? undefined : { labels } });
+            set({
+              signoff: labels.length === 0
+                ? undefined
+                : { ...b().signoff, labels },
+            });
           }}
           fullWidth
         />
@@ -393,6 +499,39 @@ export function ReportBackboneFields(p: Props) {
             checked={b().structure?.oneFigurePerSection === true}
             onChange={(c) =>
               set({ structure: { ...b().structure, oneFigurePerSection: c } })}
+          />
+        </div>
+        {
+          /* Unticked says the example departs from the format's default; the
+            default itself is stored as absent. */
+        }
+        <div class="flex flex-wrap gap-4">
+          <For each={STRUCTURE_DEFAULT_ON}>
+            {(f) => (
+              <Checkbox
+                label={f.label()}
+                checked={b().structure?.[f.key] !== false}
+                onChange={(c) =>
+                  set({
+                    structure: {
+                      ...b().structure,
+                      [f.key]: c ? undefined : false,
+                    },
+                  })}
+              />
+            )}
+          </For>
+          <Checkbox
+            label={t3({
+              en: "Justified text",
+              fr: "Texte justifié",
+              pt: "Texto justificado",
+            })}
+            checked={b().structure?.justified === true}
+            onChange={(c) =>
+              set({
+                structure: { ...b().structure, justified: c || undefined },
+              })}
           />
         </div>
       </Group>
@@ -585,6 +724,45 @@ export function ReportBackboneFields(p: Props) {
     </div>
   );
 }
+
+// The structure's yes-by-default traits, which an example may lack.
+const STRUCTURE_DEFAULT_ON: {
+  key: "headings" | "introduction" | "conclusion" | "figureIntro";
+  label: () => string;
+}[] = [
+  {
+    key: "headings",
+    label: () =>
+      t3({
+        en: "Section headings",
+        fr: "Titres de section",
+        pt: "Títulos de secção",
+      }),
+  },
+  {
+    key: "introduction",
+    label: () =>
+      t3({
+        en: "An introduction",
+        fr: "Une introduction",
+        pt: "Uma introdução",
+      }),
+  },
+  {
+    key: "conclusion",
+    label: () =>
+      t3({ en: "A conclusion", fr: "Une conclusion", pt: "Uma conclusão" }),
+  },
+  {
+    key: "figureIntro",
+    label: () =>
+      t3({
+        en: "A sentence introduces each figure",
+        fr: "Une phrase annonce chaque figure",
+        pt: "Uma frase anuncia cada figura",
+      }),
+  },
+];
 
 function Group(p: { title: string; children: JSX.Element }) {
   return (

@@ -1060,9 +1060,15 @@ panel,
 the file goes to the model as a base64 document block through the AI proxy, so
 its usage and limits count as any AI call's) read by `runReportBackboneDraft`
 ([lib/report_backbone_draft.ts](lib/report_backbone_draft.ts)): one structured
-call into a FLAT schema with no optional field, which `backboneFromDraft`
-checks against the engine's own lists (themes, cover layouts, frames,
-colours), dropping and listing what does not fit. Or "Measure this report"
+call into a FLAT schema with no optional field (its yes-or-no answers are one
+`traits` list: a boolean field each made the compiled grammar too large for
+structured outputs), which `backboneFromDraft` checks against the engine's own
+lists (themes, cover layouts, frames, colours), dropping and listing what does
+not fit. A trait the example shares with the format's defaults is not stored;
+only a departure is (no section headings, no introduction or conclusion, no
+sentence announcing a figure), and the brief states each as an override. The
+report's language becomes the header's `lang=`, so its printed labels
+("Tableau 2 :", "Source :") follow it rather than the reader's interface. Or "Measure this report"
 reads the report the editor was opened from, with no model
 (`measureReportBackbone`). Nothing is stored until it is saved.
 
