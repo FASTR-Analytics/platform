@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-17T02:19:29.544Z",
-  "sourceCommit": "fee69eb",
-  "sourceSubject": "Official cover pages: bulletin, letterhead, seal and banner; the masthead block is gone",
+  "timestamp": "2026-11-17T06:04:50.293Z",
+  "sourceCommit": "f1680aa",
+  "sourceSubject": "Logo sizes: five steps, picker size choice, wide logos grow on covers",
   "sourceDirty": false,
   "target": "platform"
 }

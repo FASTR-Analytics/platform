@@ -22,6 +22,7 @@ import {
   fastrFigureWidthOfLine,
   fastrLayoutHints,
   fastrLogoImageIds,
+  fastrLogoSize,
   fastrLogoSrcAttr,
   type FastrOpenFence,
   fastrOpenFenceOnLine,
@@ -795,37 +796,41 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   async function insertLogos() {
     const host = p.imageHost;
     if (!host) return;
-    const files = await openModal({
+    const picked = await openModal({
       element: LogoPicker,
-      props: { host, initial: [], editing: false },
+      props: { host, initial: [], initialSize: "m", editing: false },
     });
-    if (!files || files.length === 0) return;
-    const ids = await registerLogos(files);
-    editorApi?.insertBlockOnNewLine(logosSnippet(ids));
+    if (!picked || picked.files.length === 0) return;
+    const ids = await registerLogos(picked.files);
+    editorApi?.insertBlockOnNewLine(logosSnippet(ids, picked.size));
   }
 
   async function editLogos(fence: FastrOpenFence) {
     const host = p.imageHost;
     if (!host || !canEdit()) return;
     const had = fastrLogoImageIds(fence.attrs);
-    const files = await openModal({
+    const picked = await openModal({
       element: LogoPicker,
       props: {
         host,
         initial: had.map((id) => images()[id]?.imgFile).filter(
           (f): f is string => f !== undefined,
         ),
+        initialSize: fastrLogoSize(fence.attrs),
         editing: true,
       },
     });
-    if (!files || files.length === 0) return;
-    const ids = await registerLogos(files, had);
+    if (!picked || picked.files.length === 0) return;
+    const ids = await registerLogos(picked.files, had);
     // The picker was open for a while: a collaborator may have moved the
     // block. Patch the logos fence that still names what this one named, or
     // nothing.
     const line = findLogosFence(p.body, fence.line, fence.attrs.src);
     if (line === undefined) return;
-    editorApi?.setBlockAttrs(line, { src: fastrLogoSrcAttr(ids) });
+    editorApi?.setBlockAttrs(line, {
+      src: fastrLogoSrcAttr(ids),
+      size: picked.size === "m" ? undefined : picked.size,
+    });
   }
 
   // By id, not by the selection: a caption typed just before a click away

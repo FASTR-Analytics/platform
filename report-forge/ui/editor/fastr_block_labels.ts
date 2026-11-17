@@ -295,12 +295,16 @@ export function fastrLogoAlignLabel(align: FastrLogoAlign): string {
 
 export function fastrLogoSizeLabel(size: FastrLogoSize): string {
   switch (size) {
+    case "xs":
+      return t3({ en: "Extra small", fr: "Très petit", pt: "Muito pequeno" });
     case "s":
       return t3({ en: "Small", fr: "Petit", pt: "Pequeno" });
     case "m":
       return t3({ en: "Medium", fr: "Moyen", pt: "Médio" });
     case "l":
       return t3({ en: "Large", fr: "Grand", pt: "Grande" });
+    case "xl":
+      return t3({ en: "Extra large", fr: "Très grand", pt: "Muito grande" });
   }
 }
 

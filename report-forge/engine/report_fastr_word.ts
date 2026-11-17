@@ -61,6 +61,7 @@ import {
 } from "docx";
 import {
   FASTR_FIGURE_PAGE_CEILING,
+  FASTR_LOGO_ROW_EM,
   fastrBreakMode,
   type FastrContainerAttrs,
   fastrFigureShare,
@@ -1649,7 +1650,7 @@ class Builder {
   // lays them out (report_fastr_css.ts .fm-logos). A row wider than the
   // column scales down whole, aspects kept.
   private logos(attrs: FastrContainerAttrs): void {
-    const heightEm = { s: 2, m: 3, l: 4.5 }[fastrLogoSize(attrs)];
+    const heightEm = FASTR_LOGO_ROW_EM[fastrLogoSize(attrs)];
     const gap = this.bodyPx * 1.6;
     const figs = fastrLogoImageIds(attrs)
       .map((id) => this.input.image(id))

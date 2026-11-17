@@ -205,7 +205,7 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   chapter turn in a long report, below a page that is already about full,
   and never to tidy a page.
 
-  :::logos{src="image:<id> image:<id>" align=left|center|right|spread size=s|m|l}
+  :::logos{src="image:<id> image:<id>" align=left|center|right|spread size=xs|s|m|l|xl}
   A row of logos: the ministry's, the partners', FASTR's. One line, no
   closing \`:::\`. Each logo is an image the USER placed from Widgets → Logos,
   so never invent an \`image:\` id: keep, move or re-align a logos line that

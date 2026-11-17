@@ -70,6 +70,7 @@ export function App() {
   // For the harness: the editor's handle and the live body.
   const w = window as unknown as Record<string, unknown>;
   w.__body = body;
+  w.__setImages = setImages;
 
   return (
     <div

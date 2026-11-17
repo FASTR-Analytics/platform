@@ -4,6 +4,8 @@
 
 import { createSignal, For, Show } from "solid-js";
 import { t3 } from "../../engine/i18n.ts";
+import { FASTR_LOGO_SIZES, type FastrLogoSize } from "../../engine/mod.ts";
+import { fastrLogoSizeLabel } from "../editor/fastr_block_labels.ts";
 import {
   Button,
   FormError,
@@ -15,17 +17,22 @@ import { requestImageUpload } from "./image_picker.tsx";
 import type { ReportForgeImageHost } from "./types.ts";
 
 // The logos of a `:::logos` row, left to right: the host's own logos and the
-// images it already has (upload one here too). Returns the chosen files in
-// order: the same `imgFile` values an image record carries.
+// images it already has (upload one here too), and the row's size. Returns
+// the chosen files in order (the same `imgFile` values an image record
+// carries) and the size.
 
 type Props = {
   host: ReportForgeImageHost;
   initial: string[];
+  initialSize: FastrLogoSize;
   editing: boolean;
 };
 
-export function LogoPicker(p: ModalProps<Props, string[]>) {
+export type LogoPickerResult = { files: string[]; size: FastrLogoSize };
+
+export function LogoPicker(p: ModalProps<Props, LogoPickerResult>) {
   const [chosen, setChosen] = createSignal<string[]>([...p.initial]);
+  const [size, setSize] = createSignal<FastrLogoSize>(p.initialSize);
   const [uploading, setUploading] = createSignal(false);
   const [err, setErr] = createSignal<string>();
 
@@ -103,7 +110,7 @@ export function LogoPicker(p: ModalProps<Props, string[]>) {
           label: p.editing
             ? t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" })
             : t3({ en: "Insert", fr: "Insérer", pt: "Inserir" }),
-          onClick: () => p.close(chosen()),
+          onClick: () => p.close({ files: chosen(), size: size() }),
           disabled: chosen().length === 0,
         },
       ]}
@@ -154,6 +161,25 @@ export function LogoPicker(p: ModalProps<Props, string[]>) {
               )}
             </SortableList>
           </Show>
+        </div>
+
+        <div class="rf:ui-spy-sm">
+          <div class="rf:ui-text-caption">
+            {t3({ en: "Size", fr: "Taille", pt: "Tamanho" })}
+          </div>
+          <div class="rf:flex rf:flex-wrap rf:gap-1">
+            <For each={FASTR_LOGO_SIZES}>
+              {(z) => (
+                <Button
+                  size="sm"
+                  outline={size() !== z}
+                  onClick={() => setSize(z)}
+                >
+                  {fastrLogoSizeLabel(z)}
+                </Button>
+              )}
+            </For>
+          </div>
         </div>
 
         <Show when={builtIn().length > 0}>

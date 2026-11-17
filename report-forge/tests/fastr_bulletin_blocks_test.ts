@@ -12,14 +12,19 @@ import { assert, assertStringIncludes } from "@std/assert";
 import { Packer } from "docx";
 import JSZip from "jszip";
 import {
+  buildFastrStructureCss,
   buildFastrWordDocument,
   coverSnippet,
   createFastrMarkdownIt,
   FASTR_BLOCK_SNIPPETS,
   FASTR_COVER_LAYOUTS,
+  FASTR_COVER_LOGO_EM,
+  FASTR_LOGO_ROW_EM,
+  FASTR_LOGO_SIZES,
   FASTR_OFFICIAL_COVER_LAYOUTS,
   FASTR_PAGED_ATOMIC_SELECTORS,
   listFastrContainerDefects,
+  logosSnippet,
   renderFastrMarkdownToHtml,
 } from "../engine/mod.ts";
 
@@ -142,6 +147,39 @@ Deno.test("every official cover has a head, with or without logos and lines", ()
     banner,
     `<div class="fm-cover__head" style="background-color: #1f4e79; color: #ffffff">`,
   );
+});
+
+Deno.test("logos come in five sizes, each larger than the last, on a cover too", () => {
+  for (const ems of [FASTR_LOGO_ROW_EM, FASTR_COVER_LOGO_EM]) {
+    const steps = FASTR_LOGO_SIZES.map((z) => ems[z]);
+    assert(steps.every((v, k) => k === 0 || v > steps[k - 1]), String(steps));
+  }
+  const css = buildFastrStructureCss();
+  for (const z of FASTR_LOGO_SIZES) {
+    const html = renderFastrMarkdownToHtml(
+      BODY.replace(":::logos{", `:::logos{size=${z} `),
+      { lineAnchors: false },
+    );
+    assertStringIncludes(html, `fm-logos--${z}`);
+    if (z === "m") continue;
+    assertStringIncludes(
+      css,
+      `.fm-logos--${z} { height: ${FASTR_LOGO_ROW_EM[z]}em; }`,
+    );
+    assertStringIncludes(
+      css,
+      `.fm-cover__head > .fm-logos--${z} { --fm-logo-h: ${
+        FASTR_COVER_LOGO_EM[z]
+      }em; }`,
+    );
+  }
+  // An unknown size is the default; the default is never written.
+  assertStringIncludes(
+    renderFastrMarkdownToHtml(`:::logos{size=huge}`, { lineAnchors: false }),
+    "fm-logos--m",
+  );
+  assert(!logosSnippet(["a"], "m").includes("size"));
+  assertStringIncludes(logosSnippet(["a"], "xl"), `size=xl}`);
 });
 
 Deno.test("they keep whole on a page, and the masthead block is gone", () => {

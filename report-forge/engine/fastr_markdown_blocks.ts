@@ -14,7 +14,7 @@
 //   :::columns{cols=2}  :::col{span=2} … :::      :::
 //   :::quote{cite="Dr N. Kamara"} … :::
 //   :::pagebreak                                    ← leaf, ends the printed page
-//   :::logos{src="image:<id> image:<id>" align=center size=m} ← leaf, a logo row
+//   :::logos{src="image:<id> image:<id>" align=center size=m} ← leaf, a logo row (size xs…xl)
 //
 // A container's design lives entirely in the theme stylesheet (report_fastr_css.ts)
 // — the body never carries CSS, which is what makes the format hand-editable and
@@ -1181,8 +1181,27 @@ export const FASTR_TEMPLATE_SLACK_PX = 8;
 // logo has loaded.
 export const FASTR_LOGO_ALIGNS = ["left", "center", "right", "spread"] as const;
 export type FastrLogoAlign = (typeof FASTR_LOGO_ALIGNS)[number];
-export const FASTR_LOGO_SIZES = ["s", "m", "l"] as const;
+// Smallest to largest; the row's height, and on an official cover the
+// logos' own (report_fastr_css.ts). `m` is the default.
+export const FASTR_LOGO_SIZES = ["xs", "s", "m", "l", "xl"] as const;
 export type FastrLogoSize = (typeof FASTR_LOGO_SIZES)[number];
+// A row's height in body ems, per size: in the body (and in Word), and at
+// the head of an official cover, where logos stand larger. The sheet and
+// the Word export both read these.
+export const FASTR_LOGO_ROW_EM: Record<FastrLogoSize, number> = {
+  xs: 1.5,
+  s: 2,
+  m: 3,
+  l: 4.5,
+  xl: 6.5,
+};
+export const FASTR_COVER_LOGO_EM: Record<FastrLogoSize, number> = {
+  xs: 2.2,
+  s: 3,
+  m: 4.5,
+  l: 6,
+  xl: 8.5,
+};
 const LOGO_SRC_RE = /^image:[A-Za-z0-9_-]+$/;
 
 // The `src` tokens that name an image, in order. Anything else is dropped
@@ -1210,8 +1229,12 @@ export function fastrLogoSrcAttr(imageIds: readonly string[]): string {
   return imageIds.map((id) => `image:${id}`).join(" ");
 }
 
-export function logosSnippet(imageIds: readonly string[]): string {
-  return `:::logos{src="${fastrLogoSrcAttr(imageIds)}"}`;
+export function logosSnippet(
+  imageIds: readonly string[],
+  size?: FastrLogoSize,
+): string {
+  const z = size === undefined || size === "m" ? "" : ` size=${size}`;
+  return `:::logos{src="${fastrLogoSrcAttr(imageIds)}"${z}}`;
 }
 
 // Per-block markup, BEFORE the shared surface attributes are folded in.

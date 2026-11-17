@@ -22,8 +22,11 @@ import {
 } from "./report_fastr_template_css.ts";
 import {
   cssColorLuminance,
+  FASTR_COVER_LOGO_EM,
   FASTR_FIGURE_PAGE_CEILING,
   FASTR_FIGURE_RESERVE_VAR,
+  FASTR_LOGO_ROW_EM,
+  FASTR_LOGO_SIZES,
   fastrFigureShare,
   safeCssColor,
 } from "./fastr_markdown_blocks.ts";
@@ -295,6 +298,17 @@ const FIGURE_CAP =
   `calc(var(--fm-page-area, 100vh) - var(${FASTR_FIGURE_RESERVE_VAR}, calc(var(--fm-page-area, 100vh) * ${
     Number((1 - FASTR_FIGURE_PAGE_CEILING).toFixed(4))
   })))`;
+
+// One rule per logo size other than the default: `prop` at that size's ems.
+function logoSizeRules(
+  base: string,
+  ems: Record<(typeof FASTR_LOGO_SIZES)[number], number>,
+  prop: string,
+): string {
+  return FASTR_LOGO_SIZES.filter((z) => z !== "m").map((z) =>
+    `${base}--${z} { ${prop}: ${ems[z]}em; }`
+  ).join("\n");
+}
 
 export function buildFastrStructureCss(scope = ""): string {
   const { root, d } = selectors(scope);
@@ -961,16 +975,25 @@ ${d}.fm-cover.fm-cover--frame .fm-dek {
 ${d}.fm-cover__head { align-self: stretch; margin: 0 0 2.6em; }
 ${d}.fm-cover__lines { margin: 0; line-height: 1.5; font-size: 0.95em; }
 ${d}.fm-cover__lines::first-line { font-weight: 700; }
-${d}.fm-cover__head > .fm-logos { margin: 0; }
+/* A head's logos stand at their size's height (--fm-logo-h, which each
+   layout scales), and a wide one grows with it, to twice that across. */
+${d}.fm-cover__head > .fm-logos { margin: 0; --fm-logo-h: ${FASTR_COVER_LOGO_EM.m}em; }
+${
+    logoSizeRules(
+      `${d}.fm-cover__head > .fm-logos`,
+      FASTR_COVER_LOGO_EM,
+      "--fm-logo-h",
+    )
+  }
 ${d}.fm-cover__head > .fm-logos--empty { visibility: hidden; }
 ${d}.fm-cover__head > .fm-logos > .fm-logo {
-  height: 4.5em;
+  height: var(--fm-logo-h);
   width: auto;
-  max-width: 9em;
+  /* Never past its own column (a bulletin's side of the lines), where a
+     large wide logo shrinks rather than run over the lines. */
+  max-width: min(100%, calc(2 * var(--fm-logo-h)));
   object-fit: contain;
 }
-${d}.fm-cover__head > .fm-logos--s > .fm-logo { height: 3em; }
-${d}.fm-cover__head > .fm-logos--l > .fm-logo { height: 6em; }
 /* Bulletin and banner: the row's first logo left of the lines, its last
    right, the lines centred between two equal columns whatever stands in
    them (one logo, two or none). The row stands aside (display: contents) so
@@ -1061,9 +1084,10 @@ ${d}.fm-cover.fm-cover--letterhead > .fm-cover__head {
   border-bottom: var(--fm-border-width) solid currentColor;
   margin-bottom: 4em;
 }
-${d}.fm-cover--letterhead > .fm-cover__head > .fm-logos { height: 4.5em; gap: 1.6em; }
-${d}.fm-cover--letterhead > .fm-cover__head > .fm-logos--s { height: 3em; }
-${d}.fm-cover--letterhead > .fm-cover__head > .fm-logos--l { height: 6em; }
+${d}.fm-cover--letterhead > .fm-cover__head > .fm-logos {
+  height: var(--fm-logo-h);
+  gap: 1.6em;
+}
 ${d}.fm-cover--letterhead > .fm-cover__head > .fm-logos--empty { width: 12em; }
 ${d}.fm-cover--letterhead > .fm-cover__head > .fm-logos > .fm-logo { height: 100%; }
 ${d}.fm-cover.fm-cover--letterhead h1 {
@@ -1092,12 +1116,10 @@ ${d}.fm-cover.fm-cover--seal > .fm-cover__head {
   margin-bottom: 3.4em;
 }
 ${d}.fm-cover--seal > .fm-cover__head > .fm-logos {
-  height: 6em;
+  height: calc(var(--fm-logo-h) * 4 / 3);
   justify-content: center;
   gap: 2em;
 }
-${d}.fm-cover--seal > .fm-cover__head > .fm-logos--s { height: 4em; }
-${d}.fm-cover--seal > .fm-cover__head > .fm-logos--l { height: 8em; }
 ${d}.fm-cover--seal > .fm-cover__head > .fm-logos--empty { width: 8em; }
 ${d}.fm-cover--seal > .fm-cover__head > .fm-logos > .fm-logo { height: 100%; }
 ${d}.fm-cover.fm-cover--seal h1 {
@@ -1384,13 +1406,12 @@ ${d}.fm-logos {
   justify-content: flex-start;
   gap: 1.6em;
   box-sizing: content-box;
-  height: 3em;
+  height: ${FASTR_LOGO_ROW_EM.m}em;
   margin: 1.2em 0;
   --fm-mt: 1.2em;
   --fm-mb: 1.2em;
 }
-${d}.fm-logos--s { height: 2em; }
-${d}.fm-logos--l { height: 4.5em; }
+${logoSizeRules(`${d}.fm-logos`, FASTR_LOGO_ROW_EM, "height")}
 ${d}.fm-logos--center { justify-content: center; }
 ${d}.fm-logos--right { justify-content: flex-end; }
 ${d}.fm-logos--spread { justify-content: space-between; }
