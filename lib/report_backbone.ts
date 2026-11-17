@@ -179,12 +179,12 @@ This report is written to a REPORT BACKBONE, a house style taken from an example
     let cover = `**The cover.** Open with a \`:::cover\`: ${parts.join(", ")}.`;
     if (c.masthead !== undefined && c.masthead.length > 0) {
       cover +=
-        ` Put a \`:::masthead\` first inside it, holding a \`:::logos\` line (left without sources: the user adds the logos) and these lines, word for word: ${
+        ` Inside it, before its title, put a \`:::logos\` line (left without sources: the user adds the logos), then these ministry lines, one per line, word for word: ${
           c.masthead.map((l) => `"${l}"`).join(" / ")
         }.`;
     } else if ((c.logoSlots ?? 0) > 0) {
       cover +=
-        " Leave a `:::logos` line at its head without sources: the user adds the logos.";
+        " Inside it, before its title, leave a `:::logos` line without sources: the user adds the logos.";
     }
     if (c.upperTitle) cover += " Write the title in CAPITALS.";
     cover +=
@@ -305,9 +305,10 @@ This report is written to a REPORT BACKBONE, a house style taken from an example
   if (w !== undefined && Object.keys(w).length > 0) {
     out.push(
       `**Blocks.** ${
-        Object.entries(w).map(([name, f]) =>
-          `\`${name}\` ${FREQUENCY_WORDS[f as ReportBackboneFrequency]}`
-        ).join("; ")
+        Object.entries(w).filter(([name]) => name !== "masthead").map((
+          [name, f],
+        ) => `\`${name}\` ${FREQUENCY_WORDS[f as ReportBackboneFrequency]}`)
+          .join("; ")
       }. A block not listed keeps the guide's advice.`,
     );
   }

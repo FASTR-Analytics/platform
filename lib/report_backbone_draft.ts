@@ -28,8 +28,8 @@ import {
   REPORT_BACKBONE_COMPARISONS,
   REPORT_BACKBONE_FREQUENCIES,
   REPORT_BACKBONE_HEADER_ATTRS,
+  REPORT_BACKBONE_OFFERED_WIDGETS,
   REPORT_BACKBONE_REGISTERS,
-  REPORT_BACKBONE_WIDGETS,
   type ReportBackbone,
   type ReportBackboneChartType,
   type ReportBackboneFrequency,
@@ -93,7 +93,7 @@ export const reportBackboneDraftOutputSchema = z.object({
   coverSub: z.string(),
   coverIssue: z.string(),
   coverDate: z.string(),
-  mastheadLines: z.array(z.string()),
+  ministryLines: z.array(z.string()),
   logoCount: z.number(),
   signoffLabels: z.array(z.string()),
   pagesTypical: z.number(),
@@ -109,8 +109,11 @@ export const reportBackboneDraftOutputSchema = z.object({
   templates: freqOrNone,
   widgets: z.object(
     Object.fromEntries(
-      REPORT_BACKBONE_WIDGETS.map((w) => [w, freqOrNone]),
-    ) as Record<(typeof REPORT_BACKBONE_WIDGETS)[number], typeof freqOrNone>,
+      REPORT_BACKBONE_OFFERED_WIDGETS.map((w) => [w, freqOrNone]),
+    ) as Record<
+      (typeof REPORT_BACKBONE_OFFERED_WIDGETS)[number],
+      typeof freqOrNone
+    >,
   ),
   chartTypes: z.array(z.enum(REPORT_BACKBONE_CHART_TYPES)),
   chartBreakdown: z.string(),
@@ -156,8 +159,8 @@ ${themeLines()}
 - headerText / footerText: the line printed at the top / foot of every page (tokens for its place, period, issue), or "". frame: a border drawn round every page: "line" (a hairline), "double" (a medium line with a thin one inside), "bold" (one heavy line), "heavy" (a broad coloured band, clearly thicker than a rule, usually with a fine line of another colour beside it: an official Word page border), or "". frameColor: its hex, or two ("#000080 #0070c0") when its fine line is another colour: the main line's first. footerRuleColors: the colours of a stripe across the foot of each page (e.g. a national flag's), left to right, or [].
 - coverLayout: the cover's composition, one of ${
     FASTR_COVER_LAYOUTS.join(", ")
-  } ("bulletin" is an official bulletin's: masthead, the title in a filled box, an issue strip, the date at the foot; "frame" a framed formal cover; "centered" all on the axis), or "" when there is no cover. coverGround: the cover page's background: white (the plain page, the usual for an official bulletin), dark, accent (the whole page in a colour) or pale. coverColors: the hex of the filled box the title sits in, then of the strip holding the issue number ("#c4e0a0 #548235"; one hex when they match), when the cover has them (they are often not the body's accent: a green title box over blue captions), else "". coverKicker / coverSub / coverIssue / coverDate: its small line over the title, its line under it, its issue number and its date line, with tokens.
-- mastheadLines: an official masthead's lines (the ministry, the directorate), word for word, top to bottom, EXCEPT that the name of the region, district or town the example is about is written {Place} ("Direction Préfectorale de la santé de {Place}"); the country's own lines stay as printed. Or []. logoCount: how many logos the cover carries.
+  }, or "" when there is no cover. A ministry's cover with its logos and ministry lines is one of the official four: "bulletin" (a logo each side of the centred ministry lines, the title in a filled box, an issue strip, the date at the foot), "letterhead" (the logos in a row across the top, the lines set left under them over a rule, the title set left), "seal" (the logos centred over the centred lines, the title on the axis with no box) or "banner" (the logos and lines in a coloured band across the top of the page, the title below). The others: "frame" a framed formal cover, "centered" all on the axis. coverGround: the cover page's background: white (the plain page, the usual for an official bulletin), dark, accent (the whole page in a colour) or pale. coverColors: the hex of the filled box the title sits in (or of a banner's band), then of the strip holding the issue number ("#c4e0a0 #548235"; one hex when they match), when the cover has them (they are often not the body's accent: a green title box over blue captions), else "". coverKicker / coverSub / coverIssue / coverDate: its small line over the title, its line under it, its issue number and its date line, with tokens.
+- ministryLines: the ministry's lines at the head of the cover (the country, the ministry, the directorate), word for word, top to bottom, EXCEPT that the name of the region, district or town the example is about is written {Place} ("Direction Préfectorale de la santé de {Place}"); the country's own lines stay as printed. Or []. logoCount: how many logos the cover carries.
 - signoffLabels: the labels of a signature block at the end ("Prepared by", "Approved by"), never the names, or [].
 - pagesTypical: its length in pages. wordsPerPage: words of body text on a typical page. wordsPerFigure: words that read each chart. leastPageFillPercent: how full its emptier pages normally are (a page holding one chart and a short analysis may be 35).
 - outline: its usual sections in order, each a role ("Data quality", "Indicator") and a one-line purpose in general terms; repeat=true for a section repeated for each indicator or topic. figureLeadIn: the words that open the analysis after each figure, as printed ("Analyse :"), or "".
@@ -298,7 +301,7 @@ export function backboneFromDraft(
     );
     layout = undefined;
   }
-  const masthead = d.mastheadLines.map((l) => words(l, 200)).filter(
+  const masthead = d.ministryLines.map((l) => words(l, 200)).filter(
     (l): l is string => l !== undefined,
   ).slice(0, 6);
   const hasCover = layout !== undefined || masthead.length > 0 ||
@@ -306,7 +309,7 @@ export function backboneFromDraft(
   const boxColors = hexes(d.coverColors, "A cover colour");
 
   const widgets: Record<string, string> = {};
-  for (const w of REPORT_BACKBONE_WIDGETS) {
+  for (const w of REPORT_BACKBONE_OFFERED_WIDGETS) {
     if (d.widgets[w] !== "") widgets[w] = d.widgets[w];
   }
   const outline = d.outline.map((o) => ({
@@ -461,6 +464,8 @@ export function measureReportBackbone(args: {
   const counts = new Map<string, number>();
   let cover: FastrContainerAttrs | undefined;
   const masthead: string[] = [];
+  let coverTitled = false;
+  let coverLogos = 0;
   const signers: string[] = [];
   let signoffRight = false;
   let paragraphs = 0;
@@ -473,6 +478,14 @@ export function measureReportBackbone(args: {
     if (fence?.kind === "open") {
       counts.set(fence.name, (counts.get(fence.name) ?? 0) + 1);
       if (fence.name === "cover" && cover === undefined) cover = fence.attrs;
+      if (fence.name === "logos" && open.includes("cover")) {
+        coverLogos = Math.max(
+          coverLogos,
+          typeof fence.attrs.src === "string"
+            ? fence.attrs.src.split(/\s+/).filter((s) => s !== "").length
+            : 1,
+        );
+      }
       if (fence.name === "signer" && typeof fence.attrs.label === "string") {
         signers.push(fence.attrs.label);
       }
@@ -488,10 +501,20 @@ export function measureReportBackbone(args: {
     }
     const t = text.trim();
     if (t === "") continue;
-    if (open.at(-1) === "masthead" && masthead.length < 6) {
-      masthead.push(t.slice(0, 200));
-      continue;
+    // An official cover's ministry lines: its own lines before its title
+    // (a cover saved with the retired masthead block holds them there).
+    if (
+      (open.at(-1) === "masthead" ||
+        (open.at(-1) === "cover" && !coverTitled)) && masthead.length < 6
+    ) {
+      if (/^#{1,6}\s/.test(t)) {
+        coverTitled = true;
+      } else {
+        masthead.push(t.slice(0, 200));
+        continue;
+      }
     }
+    if (open.at(-1) === "cover") continue;
     const h = open.length === 0 ? SECTION_HEADING_RE.exec(t) : null;
     if (h) {
       if (outline.length < 30) {
@@ -509,7 +532,7 @@ export function measureReportBackbone(args: {
   const widgets: Partial<
     Record<ReportBackboneWidget, ReportBackboneFrequency>
   > = {};
-  for (const w of REPORT_BACKBONE_WIDGETS) {
+  for (const w of REPORT_BACKBONE_OFFERED_WIDGETS) {
     widgets[w] = frequencyOf(counts.get(w) ?? 0);
   }
   const typeCounts = new Map<ReportBackboneChartType, number>();
@@ -558,6 +581,7 @@ export function measureReportBackbone(args: {
             ? { date: coverText("date")!.slice(0, 80) }
             : {}),
           ...(masthead.length > 0 ? { masthead } : {}),
+          ...(coverLogos > 0 ? { logoSlots: Math.min(4, coverLogos) } : {}),
         },
       }
       : {}),

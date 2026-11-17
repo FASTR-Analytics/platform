@@ -5,8 +5,8 @@ import {
   REPORT_BACKBONE_CHART_TYPES,
   REPORT_BACKBONE_COMPARISONS,
   REPORT_BACKBONE_FREQUENCIES,
+  REPORT_BACKBONE_OFFERED_WIDGETS,
   REPORT_BACKBONE_REGISTERS,
-  REPORT_BACKBONE_WIDGETS,
   type ReportBackbone,
   type ReportBackboneChartType,
   type ReportBackboneFrequency,
@@ -345,9 +345,10 @@ export function ReportBackboneFields(p: Props) {
         </div>
         <TextArea
           label={t3({
-            en: "Masthead lines (one per line; logos go either side)",
-            fr: "Lignes de l'en-tête officiel (une par ligne)",
-            pt: "Linhas do cabeçalho oficial (uma por linha)",
+            en: "Ministry lines on the cover, above the title (one per line)",
+            fr:
+              "Lignes du ministère sur la couverture, au-dessus du titre (une par ligne)",
+            pt: "Linhas do ministério na capa, acima do título (uma por linha)",
           })}
           value={(b().cover?.masthead ?? []).join("\n")}
           onChange={(v) =>
@@ -561,7 +562,7 @@ export function ReportBackboneFields(p: Props) {
           fullWidth
         />
         <div class="grid grid-cols-3 gap-3">
-          <For each={[...REPORT_BACKBONE_WIDGETS]}>
+          <For each={[...REPORT_BACKBONE_OFFERED_WIDGETS]}>
             {(w: ReportBackboneWidget) => (
               <Select
                 label={w}

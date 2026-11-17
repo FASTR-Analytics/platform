@@ -26,6 +26,9 @@ export type ReportBackboneFrequency =
   (typeof REPORT_BACKBONE_FREQUENCIES)[number];
 
 // The blocks a backbone says how often to use (FASTR Markdown's own names).
+// `masthead` is read for backbones saved while it was a block, and neither
+// asked for nor briefed (REPORT_BACKBONE_OFFERED_WIDGETS): a ministry's lines
+// and logos are an official cover's own now (`cover.masthead`).
 export const REPORT_BACKBONE_WIDGETS = [
   "callout",
   "tiles",
@@ -40,6 +43,9 @@ export const REPORT_BACKBONE_WIDGETS = [
   "signoff",
 ] as const;
 export type ReportBackboneWidget = (typeof REPORT_BACKBONE_WIDGETS)[number];
+export const REPORT_BACKBONE_OFFERED_WIDGETS = REPORT_BACKBONE_WIDGETS.filter(
+  (w) => w !== "masthead",
+);
 
 // A visualization preset's presentation type (presentation_objects.ts).
 export const REPORT_BACKBONE_CHART_TYPES = [
@@ -118,7 +124,8 @@ export const reportBackboneSchema = z.object({
     sub: text(200).optional(),
     issue: text(80).optional(),
     date: text(80).optional(),
-    // The ministry lines of a masthead, word for word.
+    // The ministry lines an official cover carries above its title, word
+    // for word (the field keeps the name it was saved under).
     masthead: z.array(text(200)).max(6).optional(),
     // How many logos the cover carries; the logos are always the user's.
     logoSlots: z.number().int().min(0).max(4).optional(),

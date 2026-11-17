@@ -1307,7 +1307,13 @@ edit), `cover` (both taking `kicker`/`sub` masthead lines; a cover also takes
 `layout=classic|centered|poster|spine|frame|split|minimal|block`, the
 compositions `FASTR_COVER_LAYOUTS` in fastr_markdown_blocks names and the
 `.fm-cover--*` rules in report_fastr_css draw — every layout on every tone,
-masthead lines kept as DIRECT children for the editor's islands) and `steps` (a
+masthead lines kept as DIRECT children for the editor's islands — plus the four
+OFFICIAL covers `bulletin|letterhead|seal|banner`
+(`FASTR_OFFICIAL_COVER_LAYOUTS`), a ministry's title page: the `:::logos` line
+and the paragraph of ministry lines that lead one, before its title, are its
+head, which the compiler wraps in `fm-cover__head` and each layout composes;
+each takes `issue=` and `date=`, no kicker, and stands with no logos or lines.
+They replaced the `:::masthead` block, which is gone) and `steps` (a
 process list numbered by a CSS counter, so inserting a step never renumbers by
 hand); an unknown name still groups its content (a typo must never swallow the
 document) and is reported as a defect. The other leaves are `pagebreak`, `logos`

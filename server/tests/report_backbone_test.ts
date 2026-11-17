@@ -204,7 +204,7 @@ Deno.test("the house-style section overrides the guide's defaults", () => {
       'header="Bulletin mensuel · {Place} · {Period}"',
       "Replace the {Place}",
       "`layout=bulletin`",
-      "`:::masthead`",
+      "then these ministry lines, one per line",
       "Ministère de la Santé et de l'Hygiène Publique",
       '"Le Gestionnaire des données"',
       "never invent a name",
@@ -260,7 +260,7 @@ const DRAFT: ReportBackboneDraftOutput = {
   coverSub: "District sanitaire de {Place}",
   coverIssue: "N°{Issue}/{Year}",
   coverDate: "{Period}",
-  mastheadLines: ["Ministère de la Santé", ""],
+  ministryLines: ["Ministère de la Santé", ""],
   logoCount: 2,
   signoffLabels: ["Le Gestionnaire des données"],
   pagesTypical: 15,
@@ -284,7 +284,6 @@ const DRAFT: ReportBackboneDraftOutput = {
     steps: "never",
     contents: "",
     logos: "rare",
-    masthead: "rare",
     signoff: "rare",
   },
   chartTypes: ["chart", "table", "chart"],
@@ -395,11 +394,9 @@ Deno.test("a FASTR report is measured into a backbone", () => {
     ":::report{figures=numbered frame=line numbering=sections}",
     "",
     ':::cover{layout=bulletin fill=page issue="N°07/2026"}',
-    ":::masthead",
-    ":::logos{align=spread}",
+    ':::logos{src="image:a image:b"}',
     "Ministère de la Santé",
-    ":::",
-    "",
+    "Direction préfectorale",
     "# Bulletin",
     ":::",
     "",
@@ -429,12 +426,37 @@ Deno.test("a FASTR report is measured into a backbone", () => {
   assertEquals(b.structure?.numberedSections, true);
   assertEquals(b.cover?.layout, "bulletin");
   assertEquals(b.cover?.issue, "N°07/2026");
-  assertEquals(b.cover?.masthead, ["Ministère de la Santé"]);
+  // The official cover's own lines and logos.
+  assertEquals(b.cover?.masthead, [
+    "Ministère de la Santé",
+    "Direction préfectorale",
+  ]);
+  assertEquals(b.cover?.logoSlots, 2);
   assertEquals(b.signoff?.labels, ["Rédacteur"]);
-  assertEquals(b.widgets?.masthead, "rare");
+  // The retired masthead block is not measured as a block.
+  assertEquals(b.widgets?.masthead, undefined);
   assertEquals(b.widgets?.band, "never");
   assertEquals(b.templates?.use, "never");
   assertEquals(b.charts?.preferred, ["chart"]);
   assertEquals(b.structure?.outline?.map((o) => o.role), ["Complétude"]);
   assert(m.warnings[0].includes("{Place}"));
+  // A cover saved with the retired masthead block keeps its lines.
+  const old = measureReportBackbone({
+    label: "Ancien",
+    body: [
+      ":::cover{layout=bulletin}",
+      ":::masthead",
+      ":::logos",
+      "Ministère de la Santé",
+      ":::",
+      "",
+      "# Bulletin",
+      ":::",
+    ].join("\n"),
+    theme: undefined,
+    colors: null,
+    figureTypes: [],
+    pages: 1,
+  }).backbone;
+  assertEquals(old.cover?.masthead, ["Ministère de la Santé"]);
 });
