@@ -23,6 +23,7 @@ import {
   FASTR_LOGO_SIZES,
   FASTR_OFFICIAL_COVER_LAYOUTS,
   FASTR_PAGED_ATOMIC_SELECTORS,
+  fastrCoverColorParts,
   listFastrContainerDefects,
   logosSnippet,
   renderFastrMarkdownToHtml,
@@ -96,6 +97,46 @@ Deno.test("a bulletin cover takes its own colours, and a sign-off may stand righ
   const plain = renderFastrMarkdownToHtml(BODY, { lineAnchors: false });
   assert(!plain.includes("background-color: #"));
   assert(!plain.includes("fm-signoff--right"));
+});
+
+Deno.test("each part of an official cover takes its own colour", () => {
+  const issueOf = (html: string) =>
+    /<div class="fm-cover__issue"([^>]*)>/.exec(html)![1];
+  const dateOf = (html: string) =>
+    /<div class="fm-cover__date"([^>]*)>/.exec(html)![1];
+  const at = (layout: string, attrs: string) =>
+    renderFastrMarkdownToHtml(
+      BODY.replace("layout=bulletin", `layout=${layout} ${attrs}`),
+      { lineAnchors: false },
+    );
+  // A bulletin: the issue's strip; its date's text.
+  const b = at("bulletin", `issuecolor="#548235" datecolor="#1f4e79"`);
+  assertStringIncludes(
+    issueOf(b),
+    `style="background-color: #548235; color: #ffffff"`,
+  );
+  assertStringIncludes(dateOf(b), `style="color: #1f4e79"`);
+  // A letterhead has no strip: the colour is the issue's text, never a
+  // ground behind it (the older two-colour boxcolor= included).
+  for (
+    const attrs of [`issuecolor="#548235"`, `boxcolor="#c4e0a0 #548235"`]
+  ) {
+    const l = at("letterhead", attrs);
+    assertStringIncludes(issueOf(l), `style="color: #548235"`);
+    assert(!issueOf(l).includes("background"), attrs);
+  }
+  // Unset, the issue follows the box; `accent` is the theme's.
+  assertStringIncludes(
+    issueOf(at("bulletin", `boxcolor="#1f4e79"`)),
+    "background-color: #1f4e79",
+  );
+  assert(
+    !issueOf(at("bulletin", `boxcolor="#1f4e79" issuecolor=accent`))
+      .includes("style"),
+  );
+  assert(fastrCoverColorParts("bulletin").includes("box"));
+  assert(!fastrCoverColorParts("seal").includes("box"));
+  assert(fastrCoverColorParts("classic").length === 0);
 });
 
 Deno.test("every official cover has a head, with or without logos and lines", () => {

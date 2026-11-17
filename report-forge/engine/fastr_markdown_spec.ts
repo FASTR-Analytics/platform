@@ -170,9 +170,11 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   The \`:::logos\` line is the user's (they choose the logos on it), so
   write it without sources and never invent an \`image:\` id; keep one that
   is there. Both are optional: an official cover stands with no logos and
-  no lines. \`boxcolor="#9bbb59 #548235"\` colours a bulletin's title box
-  and strip, or a banner's band, when they are not the theme's accent (one
-  colour for both). An official cover takes no kicker.
+  no lines. Its own colours, when they are not the theme's accent:
+  \`boxcolor=#9bbb59\` a bulletin's title box or a banner's band,
+  \`issuecolor=#548235\` the issue number (its strip, or its text on a
+  letterhead or a seal; unset, the box's colour), \`datecolor=\` the date.
+  An official cover takes no kicker.
 
   :::signoff{place="City" date="11 September 2026"}
   :::signer{label="Prepared by"}

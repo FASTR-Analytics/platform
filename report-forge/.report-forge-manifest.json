@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-17T07:42:37.466Z",
-  "sourceCommit": "d0261ab",
-  "sourceSubject": "Theme picker: the host's saved styles under their own ruled heading",
+  "timestamp": "2026-11-17T07:54:24.744Z",
+  "sourceCommit": "2810fae",
+  "sourceSubject": "Cover colours: the title box, issue number and date each take their own",
   "sourceDirty": false,
   "target": "platform"
 }

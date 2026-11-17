@@ -30,6 +30,9 @@ import {
   FASTR_TONES,
   type FastrAlign,
   type FastrBlockName,
+  fastrCoverAccentsOf,
+  type FastrCoverColorPart,
+  fastrCoverColorParts,
   type FastrCoverPreset,
   type FastrFencePatch,
   type FastrInkRole,
@@ -2019,6 +2022,36 @@ export function ReportToolbar(p: Props) {
                     )}
                   </Popover>
                 </Show>
+
+                {
+                  /* An official cover's own colours: its title box or band,
+                    its issue number, its date. */
+                }
+                <Show
+                  when={block().name === "cover" &&
+                    fastrCoverColorParts(attrValue("layout")).length > 0}
+                >
+                  <Popover
+                    label={
+                      <span class="rf:flex rf:items-center rf:gap-1.5">
+                        <CoverColorDots attrs={block().attrs} />
+                        {t3({ en: "Colours", fr: "Couleurs", pt: "Cores" })}
+                      </span>
+                    }
+                    title={t3({
+                      en: "Cover colours",
+                      fr: "Couleurs de la couverture",
+                      pt: "Cores da capa",
+                    })}
+                  >
+                    {() => (
+                      <CoverColorsPanel
+                        attrs={block().attrs}
+                        onPatch={patchGround}
+                      />
+                    )}
+                  </Popover>
+                </Show>
               </div>
             </>
           )}
@@ -2656,6 +2689,121 @@ function InkPanel(p: {
         onLiteral={p.onLiteral}
         onPick={p.onPick}
       />
+    </div>
+  );
+}
+
+// An official cover's colours (fastrCoverAccentsOf), one part at a time:
+// the parts its layout has, each a fixed colour or the theme's. Every change
+// writes all three attributes in one fence rewrite, in their plain form (an
+// older two-colour boxcolor= comes apart into boxcolor= and issuecolor=).
+function coverColorNow(attrs: FastrOpenFence["attrs"]) {
+  const a = fastrCoverAccentsOf(attrs);
+  return { box: a.box?.bg, issue: a.issue?.bg, date: a.date };
+}
+
+function coverColorPartLabel(
+  part: FastrCoverColorPart,
+  layout: string | undefined,
+): string {
+  switch (part) {
+    case "box":
+      return layout === "banner"
+        ? t3({ en: "Band", fr: "Bandeau", pt: "Faixa" })
+        : t3({ en: "Title box", fr: "Cadre du titre", pt: "Caixa do título" });
+    case "issue":
+      return t3({ en: "Issue number", fr: "Numéro", pt: "Número" });
+    case "date":
+      return t3({ en: "Date", fr: "Date", pt: "Data" });
+  }
+}
+
+function CoverColorDots(p: { attrs: FastrOpenFence["attrs"] }) {
+  const layout = () => {
+    const v = p.attrs["layout"];
+    return typeof v === "string" ? v : undefined;
+  };
+  return (
+    <span class="rf:flex rf:-space-x-1">
+      <For each={fastrCoverColorParts(layout())}>
+        {(part) => {
+          const c = () => coverColorNow(p.attrs)[part];
+          return (
+            <span
+              class="rf:bg-base-100 rf:inline-block rf:h-3.5 rf:w-3.5 rf:rounded-full rf:border"
+              style={c() === undefined
+                ? undefined
+                : { "background-color": c() }}
+            />
+          );
+        }}
+      </For>
+    </span>
+  );
+}
+
+function CoverColorsPanel(p: {
+  attrs: FastrOpenFence["attrs"];
+  onPatch: (patch: FastrFencePatch) => void;
+}) {
+  const layout = () => {
+    const v = p.attrs["layout"];
+    return typeof v === "string" ? v : undefined;
+  };
+  const parts = () => fastrCoverColorParts(layout());
+  const [part, setPart] = createSignal<FastrCoverColorPart>(parts()[0]);
+  const current = () => coverColorNow(p.attrs)[part()];
+  function set(color: string | undefined) {
+    const now = { ...coverColorNow(p.attrs), [part()]: color };
+    p.onPatch({
+      boxcolor: now.box,
+      // Unset, the issue would take the box's colour: the theme's is said.
+      issuecolor: now.issue === undefined
+        ? now.box === undefined ? undefined : "accent"
+        : now.issue === now.box
+        ? undefined
+        : now.issue,
+      datecolor: now.date,
+    });
+  }
+  return (
+    <div class="rf:flex rf:w-56 rf:flex-col">
+      <div class="rf:flex rf:flex-col rf:gap-0.5 rf:pb-2">
+        <For each={parts()}>
+          {(k) => (
+            <PopoverRow active={part() === k} onClick={() => setPart(k)}>
+              <span class="rf:flex rf:flex-1 rf:items-center rf:gap-1.5">
+                <span
+                  class="rf:bg-base-100 rf:inline-block rf:h-3.5 rf:w-3.5 rf:rounded-full rf:border"
+                  style={coverColorNow(p.attrs)[k] === undefined
+                    ? undefined
+                    : { "background-color": coverColorNow(p.attrs)[k] }}
+                />
+                <span>{coverColorPartLabel(k, layout())}</span>
+              </span>
+              <Show when={part() === k}>
+                <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
+              </Show>
+            </PopoverRow>
+          )}
+        </For>
+      </div>
+      <PopoverRow
+        active={current() === undefined}
+        onClick={() => set(undefined)}
+      >
+        <span class="rf:flex-1">
+          {t3({
+            en: "The theme's colour",
+            fr: "La couleur du thème",
+            pt: "A cor do tema",
+          })}
+        </span>
+        <Show when={current() === undefined}>
+          <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
+        </Show>
+      </PopoverRow>
+      <LiteralColours literal={current()} onLiteral={(c) => set(c)} />
     </div>
   );
 }

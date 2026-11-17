@@ -1066,15 +1066,37 @@ function titleHtml(
     }>${escapeReportHtml(text)}</div>`;
 }
 
-// A bulletin cover's own colours (`:::cover{layout=bulletin boxcolor="…"}`):
-// one colour for the title's box and the issue strip, or two, the box's then
-// the strip's. Literal colours, as a bulletin's green cover is not its
-// theme's accent; each carries the ink that reads on it. Set as standard
-// inline declarations (the sanitiser keeps those, not custom properties).
+// An official cover's own colours, literal ones, as a bulletin's green cover
+// is not its theme's accent:
+//   boxcolor=    the title's box (bulletin) or the band (banner)
+//   issuecolor=  the issue number: its strip on a bulletin or a banner, its
+//                text on a letterhead or a seal. `accent` is the theme's.
+//   datecolor=   the date's text
+// Unset, the issue takes the box's colour. An older `boxcolor="A B"` gives
+// the box A and the issue B. A ground carries the ink that reads on it. Set
+// as standard inline declarations (the sanitiser keeps those, not custom
+// properties).
+export type FastrCoverGround = { bg: string; ink: string };
 export type FastrCoverAccents = {
-  box: { bg: string; ink: string } | undefined;
-  strip: { bg: string; ink: string } | undefined;
+  box: FastrCoverGround | undefined;
+  issue: FastrCoverGround | undefined;
+  date: string | undefined;
 };
+// The colour parts each official layout has, in the order the editor offers
+// them: a letterhead and a seal have no title box.
+export type FastrCoverColorPart = "box" | "issue" | "date";
+export function fastrCoverColorParts(
+  layout: string | undefined,
+): FastrCoverColorPart[] {
+  if (layout === "bulletin" || layout === "banner") {
+    return ["box", "issue", "date"];
+  }
+  return isFastrOfficialCover(layout) ? ["issue", "date"] : [];
+}
+// Layouts whose issue number stands in a strip of colour.
+function issueIsStrip(layout: string | undefined): boolean {
+  return layout === "bulletin" || layout === "banner";
+}
 export function fastrCoverAccentsOf(
   attrs: FastrContainerAttrs,
 ): FastrCoverAccents {
@@ -1085,7 +1107,30 @@ export function fastrCoverAccentsOf(
     bg === undefined
       ? undefined
       : { bg, ink: isDarkCssColor(bg) === false ? "#1a1a1a" : "#ffffff" };
-  return { box: ground(colors[0]), strip: ground(colors[1] ?? colors[0]) };
+  const issueAttr = attrText(attrs, "issuecolor")?.trim();
+  const issue = issueAttr === undefined
+    ? colors[1] ?? colors[0]
+    : issueAttr === "accent"
+    ? undefined
+    : safeCssColor(issueAttr);
+  const date = attrText(attrs, "datecolor");
+  return {
+    box: ground(colors[0]),
+    issue: ground(issue),
+    date: date === undefined ? undefined : safeCssColor(date),
+  };
+}
+// The issue number's declarations on a cover of `layout`: its strip's
+// ground, or (no strip) its text colour.
+function fastrCoverIssueStyle(
+  layout: string,
+  attrs: FastrContainerAttrs,
+): string | undefined {
+  const issue = fastrCoverAccentsOf(attrs).issue;
+  if (issue === undefined) return undefined;
+  return issueIsStrip(layout)
+    ? fastrCoverAccentStyle(issue)
+    : `color: ${issue.bg}`;
 }
 export function fastrCoverAccentStyle(
   g: { bg: string; ink: string } | undefined,
@@ -1362,9 +1407,15 @@ function blockShapeFor(
         ? titleHtml(
           "fm-cover__issue",
           attrText(attrs, "issue"),
-          fastrCoverAccentStyle(fastrCoverAccentsOf(attrs).strip),
+          fastrCoverIssueStyle(layout, attrs),
         ) +
-          titleHtml("fm-cover__date", attrText(attrs, "date"))
+          titleHtml(
+            "fm-cover__date",
+            attrText(attrs, "date"),
+            ((d) => d === undefined ? undefined : `color: ${d}`)(
+              fastrCoverAccentsOf(attrs).date,
+            ),
+          )
         : "";
       return {
         tag: "section",
