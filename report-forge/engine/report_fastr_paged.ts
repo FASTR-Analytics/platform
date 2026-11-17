@@ -96,7 +96,6 @@ export const FASTR_PAGED_ATOMIC_SELECTORS: readonly string[] = [
   ".fm-steps > *",
   ".fm-toc",
   ".fm-figure",
-  ".fm-masthead",
   ".fm-signoff",
   "figure",
   "table",

@@ -75,6 +75,7 @@ import {
   FASTR_FIGURE_PAGE_CEILING,
   FASTR_FIGURE_RESERVE_SLACK_PX,
   FASTR_FIGURE_RESERVE_VAR,
+  FASTR_OFFICIAL_COVER_LAYOUTS,
   FASTR_TEMPLATE_SLACK_PX,
   fastrAlignAwareInsert,
   fastrAlignSuffixOf,
@@ -349,6 +350,13 @@ function templateTakes(attr: string): (container: HTMLElement) => boolean {
   };
 }
 
+// A cover element drawn as one of the official layouts.
+function isOfficialCoverEl(el: HTMLElement): boolean {
+  return FASTR_OFFICIAL_COVER_LAYOUTS.some((l) =>
+    el.classList.contains(`fm-cover--${l}`)
+  );
+}
+
 export function chromeAttrRows(): ChromeAttrRow[] {
   return [
     [
@@ -365,19 +373,21 @@ export function chromeAttrRows(): ChromeAttrRow[] {
       t3({ en: "Title…", fr: "Titre…", pt: "Título…" }),
       true,
     ],
+    // A cover is a band too: the official covers take no kicker either way.
     [
       "fm-band",
       "fm-kicker",
       "kicker",
       t3({ en: "Kicker…", fr: "Surtitre…", pt: "Antetítulo…" }),
-      true,
+      (container) => !isOfficialCoverEl(container),
     ],
+    // An official cover takes no kicker: its ministry lines are its head.
     [
       "fm-cover",
       "fm-kicker",
       "kicker",
       t3({ en: "Kicker…", fr: "Surtitre…", pt: "Antetítulo…" }),
-      true,
+      (container) => !isOfficialCoverEl(container),
     ],
     [
       "fm-band",
@@ -407,14 +417,14 @@ export function chromeAttrRows(): ChromeAttrRow[] {
       "fm-cover__issue",
       "issue",
       t3({ en: "Issue number…", fr: "Numéro…", pt: "Número…" }),
-      (container) => container.classList.contains("fm-cover--bulletin"),
+      (container) => isOfficialCoverEl(container),
     ],
     [
       "fm-cover",
       "fm-cover__date",
       "date",
       t3({ en: "Date…", fr: "Date…", pt: "Data…" }),
-      (container) => container.classList.contains("fm-cover--bulletin"),
+      (container) => isOfficialCoverEl(container),
     ],
     // A signer's label, and the place and date a sign-off is signed at.
     [

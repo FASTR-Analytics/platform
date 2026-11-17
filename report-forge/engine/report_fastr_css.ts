@@ -951,15 +951,70 @@ ${d}.fm-cover.fm-cover--frame .fm-dek {
   max-width: 34em;
 }
 
-/* Bulletin: an official bulletin's cover, everything on the axis: the title
-   set in a filled box of the accent, the issue number in a strip under it,
-   the date at the foot (fill=page pushes it there). A masthead or a logos
-   row inside it heads the page. */
+/* ── Official covers (FASTR_OFFICIAL_COVER_LAYOUTS) ─────────────────────── */
+/* A ministry's title page: its logos row and its ministry lines lead the
+   cover as its HEAD (fm-cover__head, wrapped by the compiler), which each
+   layout composes; then the title, the sub, the issue and the date at the
+   foot (fill=page pushes it there). Every layout stands with no logos and no
+   lines. An empty logos row keeps its box but prints nothing (the editor
+   shows its slot there to click), so the editor's page is print's. */
+${d}.fm-cover__head { align-self: stretch; margin: 0 0 2.6em; }
+${d}.fm-cover__lines { margin: 0; line-height: 1.5; font-size: 0.95em; }
+${d}.fm-cover__lines::first-line { font-weight: 700; }
+${d}.fm-cover__head > .fm-logos { margin: 0; }
+${d}.fm-cover__head > .fm-logos--empty { visibility: hidden; }
+${d}.fm-cover__head > .fm-logos > .fm-logo {
+  height: 4.5em;
+  width: auto;
+  max-width: 9em;
+  object-fit: contain;
+}
+${d}.fm-cover__head > .fm-logos--s > .fm-logo { height: 3em; }
+${d}.fm-cover__head > .fm-logos--l > .fm-logo { height: 6em; }
+/* Bulletin and banner: the row's first logo left of the lines, its last
+   right, the lines centred between two equal columns whatever stands in
+   them (one logo, two or none). The row stands aside (display: contents) so
+   its logos are the grid's own items. */
+${d}.fm-cover.fm-cover--bulletin > .fm-cover__head,
+${d}.fm-cover.fm-cover--banner > .fm-cover__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, max-content) minmax(0, 1fr);
+  align-items: center;
+  column-gap: 1.4em;
+  text-align: center;
+}
+${d}.fm-cover--bulletin > .fm-cover__head > .fm-logos:not(.fm-logos--empty),
+${d}.fm-cover--banner > .fm-cover__head > .fm-logos:not(.fm-logos--empty) {
+  display: contents;
+}
+${d}.fm-cover--bulletin > .fm-cover__head > .fm-logos > *,
+${d}.fm-cover--banner > .fm-cover__head > .fm-logos > *,
+${d}.fm-cover--bulletin > .fm-cover__head > .fm-logos--empty,
+${d}.fm-cover--banner > .fm-cover__head > .fm-logos--empty {
+  grid-column: 1;
+  grid-row: 1 / span 12;
+  justify-self: start;
+}
+${d}.fm-cover--bulletin > .fm-cover__head > .fm-logos--empty,
+${d}.fm-cover--banner > .fm-cover__head > .fm-logos--empty { width: 7em; }
+${d}.fm-cover--bulletin > .fm-cover__head > .fm-logos > .fm-logo:last-child:not(:first-child),
+${d}.fm-cover--banner > .fm-cover__head > .fm-logos > .fm-logo:last-child:not(:first-child) {
+  grid-column: 3;
+  justify-self: end;
+}
+${d}.fm-cover--bulletin > .fm-cover__head > .fm-logos > .fm-logo:not(:first-child):not(:last-child),
+${d}.fm-cover--banner > .fm-cover__head > .fm-logos > .fm-logo:not(:first-child):not(:last-child) {
+  display: none;
+}
+${d}.fm-cover--bulletin > .fm-cover__head > :not(.fm-logos),
+${d}.fm-cover--banner > .fm-cover__head > :not(.fm-logos) { grid-column: 2; }
+
+/* Bulletin: everything on the axis, the title set in a filled box of the
+   accent, the issue number in a strip under it. */
 ${d}.fm-cover.fm-cover--bulletin {
   align-items: center;
   text-align: center;
 }
-${d}.fm-cover.fm-cover--bulletin > .fm-masthead,
 ${d}.fm-cover.fm-cover--bulletin > .fm-logos { align-self: stretch; }
 ${d}.fm-cover.fm-cover--bulletin h1 {
   --fm-cover-title-size: 3em;
@@ -987,6 +1042,98 @@ ${d}.fm-cover__date {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* Letterhead: the logos in a row across the top and the ministry lines set
+   left under them, closed by a rule; the title, sub, issue and date set
+   left below. */
+${d}.fm-cover.fm-cover--letterhead {
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+}
+${d}.fm-cover.fm-cover--letterhead > .fm-cover__head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1em;
+  padding-bottom: 1.4em;
+  border-bottom: var(--fm-border-width) solid currentColor;
+  margin-bottom: 4em;
+}
+${d}.fm-cover--letterhead > .fm-cover__head > .fm-logos { height: 4.5em; gap: 1.6em; }
+${d}.fm-cover--letterhead > .fm-cover__head > .fm-logos--s { height: 3em; }
+${d}.fm-cover--letterhead > .fm-cover__head > .fm-logos--l { height: 6em; }
+${d}.fm-cover--letterhead > .fm-cover__head > .fm-logos--empty { width: 12em; }
+${d}.fm-cover--letterhead > .fm-cover__head > .fm-logos > .fm-logo { height: 100%; }
+${d}.fm-cover.fm-cover--letterhead h1 {
+  --fm-cover-title-size: 2.8em;
+  text-align: left;
+}
+${d}.fm-cover.fm-cover--letterhead .fm-dek { border-top: none; padding-top: 0; }
+${d}.fm-cover.fm-cover--letterhead .fm-cover__issue {
+  align-self: flex-start;
+  padding: 0;
+  background: none;
+  color: var(--fm-accent-text);
+}
+
+/* Seal: the logos centred over the centred ministry lines, the title on the
+   axis under them with no box, the issue in the accent. */
+${d}.fm-cover.fm-cover--seal {
+  align-items: center;
+  text-align: center;
+}
+${d}.fm-cover.fm-cover--seal > .fm-cover__head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2em;
+  margin-bottom: 3.4em;
+}
+${d}.fm-cover--seal > .fm-cover__head > .fm-logos {
+  height: 6em;
+  justify-content: center;
+  gap: 2em;
+}
+${d}.fm-cover--seal > .fm-cover__head > .fm-logos--s { height: 4em; }
+${d}.fm-cover--seal > .fm-cover__head > .fm-logos--l { height: 8em; }
+${d}.fm-cover--seal > .fm-cover__head > .fm-logos--empty { width: 8em; }
+${d}.fm-cover--seal > .fm-cover__head > .fm-logos > .fm-logo { height: 100%; }
+${d}.fm-cover.fm-cover--seal h1 {
+  --fm-cover-title-size: 2.8em;
+  text-align: center;
+  max-width: calc(16em * var(--fm-h-fit, 1));
+}
+${d}.fm-cover.fm-cover--seal .fm-dek { max-width: 28em; }
+${d}.fm-cover.fm-cover--seal .fm-cover__issue {
+  align-self: center;
+  padding: 0;
+  background: none;
+  color: var(--fm-accent-text);
+  letter-spacing: 0.12em;
+}
+
+/* Banner: the head is a band of the accent across the top of the page, edge
+   to edge (its own boxcolor= colours it), the logos either side of the
+   lines; the title on the page below, on the axis. */
+${d}.fm-cover.fm-cover--banner {
+  align-items: center;
+  text-align: center;
+  padding-top: 0;
+}
+${d}.fm-cover.fm-cover--banner > .fm-cover__head {
+  margin: 0 calc(-1 * var(--fm-bleed-pad)) 4em;
+  /* From the sheet's top edge: the cover's own top padding, then the band's. */
+  padding: 3.2em var(--fm-bleed-pad) 2em;
+  background: var(--fm-accent-ground);
+  color: var(--fm-accent-ground-ink);
+  align-self: stretch;
+}
+${d}.fm-cover.fm-cover--banner h1 {
+  --fm-cover-title-size: 3em;
+  text-align: center;
+  max-width: calc(14em * var(--fm-h-fit, 1));
 }
 
 /* Split: the kicker across the head, then the title left and the sub right
@@ -1263,36 +1410,6 @@ ${d}.fm-logos.fm-tone, ${d}.fm-logos.fm-has-bg, ${d}.fm-logos.fm-has-bgimage {
 }
 ${d}.fm-tiles .fm-logos, ${d}.fm-columns .fm-logos { margin: 0; }
 
-/* ── Masthead (:::masthead) ───────────────────────────────────────────────── */
-/* A government masthead: the logos row inside it gives its first logo to the
-   left of the lines and its last to the right, the lines centred between
-   them. The row itself stands aside (display: contents) so its logos are the
-   grid's own items, at the row's size. */
-${d}.fm-masthead {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: 1.4em;
-  margin: 1.2em 0;
-  --fm-mt: 1.2em;
-  --fm-mb: 1.2em;
-  text-align: center;
-}
-${d}.fm-masthead > .fm-logos { display: contents; }
-${d}.fm-masthead > .fm-logos > * { grid-column: 1; grid-row: 1 / span 12; }
-${d}.fm-masthead > .fm-logos > .fm-logo {
-  height: 3em;
-  width: auto;
-  max-width: 9em;
-  object-fit: contain;
-}
-${d}.fm-masthead > .fm-logos--s > .fm-logo { height: 2em; }
-${d}.fm-masthead > .fm-logos--l > .fm-logo { height: 4.5em; }
-${d}.fm-masthead > .fm-logos > .fm-logo:last-child:not(:first-child) { grid-column: 3; }
-${d}.fm-masthead > .fm-logos > .fm-logo:not(:first-child):not(:last-child) { display: none; }
-${d}.fm-masthead > :not(.fm-logos) { grid-column: 2; margin: 0.1em 0; }
-${d}.fm-masthead > :not(.fm-logos):first-child,
-${d}.fm-masthead > .fm-logos + :not(.fm-logos) { margin-top: 0; }
 
 /* ── Sign-off (:::signoff, :::signer) ─────────────────────────────────────── */
 /* The signers side by side, each a label over the name and role written in
@@ -1382,6 +1499,15 @@ ${d} .fm-cover {
 ${d} .fm-cover.fm-cover--spine { padding-left: 2em; }
 ${d} .fm-cover.fm-cover--frame::before { inset: 1.2em; }
 ${d} .fm-cover.fm-cover--minimal { padding-top: 3em; }
+/* An official cover holds a page's worth (logos, ministry lines, title,
+   issue): drawn smaller and from the top, so the tile shows all of it. */
+${d} .fm-cover.fm-cover--bulletin, ${d} .fm-cover.fm-cover--letterhead,
+${d} .fm-cover.fm-cover--seal, ${d} .fm-cover.fm-cover--banner {
+  font-size: 0.66em;
+  justify-content: flex-start;
+}
+${d} .fm-cover.fm-cover--banner { padding-top: 0; }
+${d} .fm-cover.fm-cover--banner > .fm-cover__head { margin-inline: -2.6em; padding: 2em 2.6em 1.6em; }
 `;
 }
 
@@ -2198,6 +2324,7 @@ ${d}.fm-pagebreak.fm-pagebreak--editor::before, ${d}.fm-pagebreak.fm-pagebreak--
 /* A logos row with nothing in it yet: a dashed slot the author clicks to
    choose the logos (the widget adds the label). Border-box, so the slot is
    print's box to the pixel. */
+${d}.fm-cover__head > .fm-logos--empty { visibility: visible; }
 ${d}.fm-logos--empty {
   justify-content: center;
   border: 1px dashed var(--fm-ink-muted);

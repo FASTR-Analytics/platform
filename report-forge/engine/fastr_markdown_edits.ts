@@ -26,6 +26,7 @@ import {
   type FastrMarkAttrs,
   isEmptyFastrMarkAttrs,
   isFastrLeafBlock,
+  isFastrOfficialCover,
   parseContainerFence,
   parseFastrMarkAttrs,
   safeCssColor,
@@ -1244,15 +1245,53 @@ export const FASTR_COVER_PRESETS: readonly FastrCoverPreset[] = [
   { layout: "block", tone: "default" },
 ];
 
-export type CoverSnippetText = { kicker: string; title: string; sub: string };
+// The official covers (FASTR_OFFICIAL_COVER_LAYOUTS), the picker's second
+// group: a title page of their own on the plain page, each with its logos
+// row and ministry lines.
+export const FASTR_OFFICIAL_COVER_PRESETS: readonly FastrCoverPreset[] = [
+  { layout: "bulletin", tone: "default" },
+  { layout: "letterhead", tone: "default" },
+  { layout: "seal", tone: "default" },
+  { layout: "banner", tone: "default" },
+];
+
+export type CoverSnippetText = {
+  kicker: string;
+  title: string;
+  sub: string;
+  // An official cover's ministry lines, issue and date.
+  lines?: string[];
+  issue?: string;
+  date?: string;
+};
 
 // The cover a preset inserts (and the markup its thumbnail renders). Classic
 // and the default tone are the renderer's fallbacks, so they are left off
-// the fence rather than written as noise.
+// the fence rather than written as noise. An official cover leads with an
+// empty logos row (the user's to fill) and its ministry lines, and takes no
+// kicker.
 export function coverSnippet(
   preset: FastrCoverPreset,
   text: CoverSnippetText,
 ): string {
+  const q = (v: string) => v.replace(/"/g, "'");
+  if (isFastrOfficialCover(preset.layout)) {
+    const attrs = [
+      `layout=${preset.layout}`,
+      "tone=default",
+      "fill=page",
+      `sub="${q(text.sub)}"`,
+      text.issue ? `issue="${q(text.issue)}"` : "",
+      text.date ? `date="${q(text.date)}"` : "",
+    ].filter((a) => a.length > 0).join(" ");
+    return [
+      `:::cover{${attrs}}`,
+      ":::logos",
+      ...(text.lines ?? []),
+      `# ${text.title}`,
+      ":::",
+    ].join("\n");
+  }
   const attrs = [
     preset.tone === "default" ? "" : `tone=${preset.tone}`,
     preset.layout === "classic" ? "" : `layout=${preset.layout}`,
@@ -1701,7 +1740,9 @@ export function insertPageTemplateEdit(
     target = blockStartLine(doc, lines, target);
   }
   const header = fastrRegionAtLine(doc, 1);
-  if (header?.name === "report" && target !== undefined && target < header.to1) {
+  if (
+    header?.name === "report" && target !== undefined && target < header.to1
+  ) {
     target = header.to1;
   }
   if (target === undefined || target >= lines.length) {

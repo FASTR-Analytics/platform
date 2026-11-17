@@ -68,12 +68,6 @@ export function fastrBlockLabel(name: FastrBlockName): string {
       });
     case "logos":
       return t3({ en: "Logos", fr: "Logos", pt: "Logótipos" });
-    case "masthead":
-      return t3({
-        en: "Masthead",
-        fr: "En-tête officiel",
-        pt: "Cabeçalho oficial",
-      });
     case "signoff":
       return t3({ en: "Signatures", fr: "Signatures", pt: "Assinaturas" });
     case "signer":
@@ -154,12 +148,6 @@ export function fastrBlockCaption(name: FastrBlockName): string {
         en: "The document's headings, listed and linked",
         fr: "Les titres du document, listés et liés",
         pt: "Os títulos do documento, listados e ligados",
-      });
-    case "masthead":
-      return t3({
-        en: "A ministry header: a logo each side of its lines",
-        fr: "Un en-tête officiel : un logo de chaque côté de ses lignes",
-        pt: "Um cabeçalho oficial: um logótipo de cada lado das linhas",
       });
     case "signoff":
       return t3({
@@ -274,7 +262,21 @@ export function fastrCoverLayoutLabel(layout: FastrCoverLayout): string {
         pt: "Título em bloco",
       });
     case "bulletin":
-      return t3({ en: "Bulletin", fr: "Bulletin", pt: "Boletim" });
+      return t3({
+        en: "Ministry bulletin",
+        fr: "Bulletin ministériel",
+        pt: "Boletim ministerial",
+      });
+    case "letterhead":
+      return t3({ en: "Letterhead", fr: "En-tête", pt: "Papel timbrado" });
+    case "seal":
+      return t3({ en: "Seal", fr: "Sceau", pt: "Selo" });
+    case "banner":
+      return t3({
+        en: "Ministry band",
+        fr: "Bandeau ministériel",
+        pt: "Faixa ministerial",
+      });
   }
 }
 
@@ -334,8 +336,6 @@ export function fastrBlockShortLabel(name: FastrBlockName): string {
         fr: "Saut de page",
         pt: "Quebra de página",
       });
-    case "masthead":
-      return t3({ en: "Masthead", fr: "En-tête", pt: "Cabeçalho" });
     case "signoff":
       return t3({ en: "Signatures", fr: "Signatures", pt: "Assinaturas" });
     case "signer":

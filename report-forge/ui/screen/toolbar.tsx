@@ -24,6 +24,7 @@ import {
   FASTR_INK_ROLES,
   FASTR_LOGO_ALIGNS,
   FASTR_LOGO_SIZES,
+  FASTR_OFFICIAL_COVER_PRESETS,
   FASTR_PAGE_TEMPLATES,
   FASTR_TOC_DEFAULT_DEPTH,
   FASTR_TONES,
@@ -376,7 +377,6 @@ function choiceControlsFor(name: FastrBlockName): ChoiceControl[] {
     case "report":
     case "card":
     case "quote":
-    case "masthead":
     case "signoff":
     case "signer":
     case "band":
@@ -656,6 +656,7 @@ export function ReportToolbar(p: Props) {
                                 fr: "Ce que couvre ce rapport, et pour qui",
                                 pt: "O que este relatório cobre, e para quem",
                               }),
+                              ...officialCoverText(),
                             }),
                           );
                           close();
@@ -2292,33 +2293,71 @@ function CoverPicker(p: {
       fr: "Ce que couvre ce rapport",
       pt: "O que este relatório cobre",
     }),
+    ...officialCoverText(),
   });
-  return (
-    <div class="rf:bg-base-100 rf:ui-pad-sm rf:shadow-floating rf:w-80 rf:rounded rf:border">
-      <div class="rf:grid rf:grid-cols-2 rf:gap-2">
-        <For each={FASTR_COVER_PRESETS}>
-          {(preset) => (
-            <button
-              type="button"
-              class="rf:ui-hoverable-base-200 rf:flex rf:flex-col rf:gap-1 rf:rounded rf:p-1 rf:text-left"
-              onClick={() => p.onPick(preset)}
-            >
-              <div
-                class={`fm-cover-tile rf:border-base-300 rf:w-full rf:border ${p.scopeClass}`}
-                innerHTML={renderFastrMarkdownToHtml(
-                  coverSnippet(preset, tileText()),
-                  { lineAnchors: false },
-                )}
-              />
-              <div class="rf:text-xs">
-                {fastrCoverLayoutLabel(preset.layout)}
-              </div>
-            </button>
-          )}
-        </For>
-      </div>
+  // One group of tiles, each the real cover under the current theme.
+  const tiles = (presets: readonly FastrCoverPreset[]) => (
+    <div class="rf:grid rf:grid-cols-2 rf:gap-2">
+      <For each={presets}>
+        {(preset) => (
+          <button
+            type="button"
+            class="rf:ui-hoverable-base-200 rf:flex rf:flex-col rf:gap-1 rf:rounded rf:p-1 rf:text-left"
+            onClick={() => p.onPick(preset)}
+          >
+            <div
+              class={`fm-cover-tile rf:border-base-300 rf:w-full rf:border ${p.scopeClass}`}
+              innerHTML={renderFastrMarkdownToHtml(
+                coverSnippet(preset, tileText()),
+                { lineAnchors: false },
+              )}
+            />
+            <div class="rf:text-xs">
+              {fastrCoverLayoutLabel(preset.layout)}
+            </div>
+          </button>
+        )}
+      </For>
     </div>
   );
+  return (
+    <div class="rf:bg-base-100 rf:ui-pad-sm rf:ui-spy-sm rf:shadow-floating rf:w-80 rf:rounded rf:border">
+      {tiles(FASTR_COVER_PRESETS)}
+      <div class="rf:text-base-content-muted rf:text-xs rf:font-700">
+        {t3({
+          en: "Official covers: logos and ministry lines",
+          fr: "Couvertures officielles : logos et en-tête du ministère",
+          pt: "Capas oficiais: logótipos e cabeçalho do ministério",
+        })}
+      </div>
+      {tiles(FASTR_OFFICIAL_COVER_PRESETS)}
+    </div>
+  );
+}
+
+// An official cover's starting words: its ministry lines, issue and date.
+function officialCoverText() {
+  return {
+    lines: [
+      t3({
+        en: "REPUBLIC OF EXAMPLE",
+        fr: "RÉPUBLIQUE D'EXEMPLE",
+        pt: "REPÚBLICA DE EXEMPLO",
+      }),
+      t3({
+        en: "Ministry of Health",
+        fr: "Ministère de la Santé",
+        pt: "Ministério da Saúde",
+      }),
+      t3({
+        en: "Regional health directorate",
+        fr: "Direction régionale de la santé",
+        pt: "Direção regional de saúde",
+      }),
+    ],
+    issue: t3({ en: "No. 01/2026", fr: "N°01/2026", pt: "N.º 01/2026" }),
+    date: t3({ en: "January 2026", fr: "Janvier 2026", pt: "Janeiro 2026" }),
+  };
 }
 
 function TemplatePicker(p: {

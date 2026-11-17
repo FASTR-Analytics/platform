@@ -2,9 +2,9 @@
 // ⚠️  DO NOT EDIT HERE - changes are overwritten on the next sync.
 //     Edit the report-forge repo, then run its ./sync.
 
-// Pins the bulletin blocks: the masthead (a logos row's first and last logo
-// either side of its lines), the sign-off and its signers, and the bulletin
-// cover's issue strip and date, in HTML and in the plain Word export.
+// Pins the bulletin blocks: the official covers (their head of logos and
+// ministry lines, issue strip and date), the sign-off and its signers, in
+// HTML and in the plain Word export.
 //
 // Run: deno test -A report-forge/tests/fastr_bulletin_blocks_test.ts
 
@@ -13,9 +13,11 @@ import { Packer } from "docx";
 import JSZip from "jszip";
 import {
   buildFastrWordDocument,
+  coverSnippet,
   createFastrMarkdownIt,
   FASTR_BLOCK_SNIPPETS,
   FASTR_COVER_LAYOUTS,
+  FASTR_OFFICIAL_COVER_LAYOUTS,
   FASTR_PAGED_ATOMIC_SELECTORS,
   listFastrContainerDefects,
   renderFastrMarkdownToHtml,
@@ -23,11 +25,9 @@ import {
 
 const BODY =
   `:::cover{layout=bulletin fill=page issue="N°07/2026" date="Août 2026"}
-:::masthead
 :::logos{src="image:a image:b" align=spread}
 Ministère de la Santé
 Direction préfectorale
-:::
 
 # Bulletin mensuel
 :::
@@ -51,7 +51,15 @@ Deno.test("the blocks render with their classes and lines", () => {
   assertStringIncludes(html, `class="fm-band fm-cover fm-cover--bulletin`);
   assertStringIncludes(html, `<div class="fm-cover__issue">N°07/2026</div>`);
   assertStringIncludes(html, `<div class="fm-cover__date">Août 2026</div>`);
-  assertStringIncludes(html, `class="fm-masthead"`);
+  // The logos row and the lines are the cover's head.
+  assertStringIncludes(
+    html,
+    `<div class="fm-cover__head">\n<div class="fm-logos`,
+  );
+  assertStringIncludes(
+    html,
+    `<p class="fm-cover__lines">Ministère de la Santé<br>\nDirection préfectorale</p>\n</div>`,
+  );
   assertStringIncludes(html, `src="image:a"`);
   assertStringIncludes(html, `<div class="fm-signer__label">Rédacteur</div>`);
   assertStringIncludes(
@@ -85,13 +93,65 @@ Deno.test("a bulletin cover takes its own colours, and a sign-off may stand righ
   assert(!plain.includes("fm-signoff--right"));
 });
 
-Deno.test("they keep whole on a page, and the Widgets menu offers them", () => {
-  assert(FASTR_PAGED_ATOMIC_SELECTORS.includes(".fm-masthead"));
+Deno.test("every official cover has a head, with or without logos and lines", () => {
+  for (const layout of FASTR_OFFICIAL_COVER_LAYOUTS) {
+    const cover = BODY.replace("layout=bulletin", `layout=${layout}`);
+    const html = renderFastrMarkdownToHtml(cover, { lineAnchors: false });
+    assertStringIncludes(html, `fm-cover--${layout}`);
+    assertStringIncludes(html, `<div class="fm-cover__head">`);
+    assertStringIncludes(html, `<div class="fm-cover__issue">N°07/2026</div>`);
+    // Lines only, logos only, neither: a head while there is something to
+    // hold, and the cover renders all the same.
+    const linesOnly = renderFastrMarkdownToHtml(
+      cover.replace(/:::logos\{[^}]*\}\n/, ""),
+      { lineAnchors: false },
+    );
+    assertStringIncludes(linesOnly, `<div class="fm-cover__head">\n<p`);
+    const bare = renderFastrMarkdownToHtml(
+      `:::cover{layout=${layout} fill=page}\n# Titre\n:::\n`,
+      { lineAnchors: false },
+    );
+    assert(!bare.includes("fm-cover__head"), layout);
+    assertStringIncludes(bare, "<h1");
+    assert(listFastrContainerDefects(cover).length === 0, layout);
+    // The snippet the cover picker inserts is clean too.
+    const snippet = coverSnippet({ layout, tone: "default" }, {
+      kicker: "K",
+      title: "Titre",
+      sub: "Sous-titre",
+      lines: ["MINISTÈRE"],
+      issue: "N°1",
+      date: "Mai",
+    });
+    assert(!snippet.includes("kicker"), snippet);
+    assertStringIncludes(snippet, ":::logos\nMINISTÈRE\n# Titre");
+    assert(listFastrContainerDefects(snippet).length === 0, snippet);
+  }
+  // Not on any other cover: its lines are an ordinary paragraph.
+  const classic = renderFastrMarkdownToHtml(
+    BODY.replace("layout=bulletin", "layout=centered"),
+    { lineAnchors: false },
+  );
+  assert(!classic.includes("fm-cover__head"));
+  // A banner's own colour paints its band.
+  const banner = renderFastrMarkdownToHtml(
+    BODY.replace("layout=bulletin", `layout=banner boxcolor="#1f4e79"`),
+    { lineAnchors: false },
+  );
+  assertStringIncludes(
+    banner,
+    `<div class="fm-cover__head" style="background-color: #1f4e79; color: #ffffff">`,
+  );
+});
+
+Deno.test("they keep whole on a page, and the masthead block is gone", () => {
   assert(FASTR_PAGED_ATOMIC_SELECTORS.includes(".fm-signoff"));
   const names = FASTR_BLOCK_SNIPPETS.map((r) => r.name);
-  assert(names.includes("masthead") && names.includes("signoff"));
+  assert(
+    !(names as string[]).includes("masthead") && names.includes("signoff"),
+  );
   for (const r of FASTR_BLOCK_SNIPPETS) {
-    if (r.name !== "masthead" && r.name !== "signoff") continue;
+    if (r.name !== "signoff") continue;
     assert(listFastrContainerDefects(r.snippet).length === 0, r.name);
   }
 });

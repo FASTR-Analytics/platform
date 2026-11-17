@@ -49,7 +49,6 @@ export const FASTR_BLOCK_NAMES = [
   "report",
   "page",
   "slot",
-  "masthead",
   "signoff",
   "signer",
 ] as const;
@@ -1120,8 +1119,30 @@ export const FASTR_COVER_LAYOUTS = [
   "minimal",
   "block",
   "bulletin",
+  "letterhead",
+  "seal",
+  "banner",
 ] as const;
 export type FastrCoverLayout = (typeof FASTR_COVER_LAYOUTS)[number];
+// The OFFICIAL covers: a ministry's title page, its logos and its ministry
+// lines part of the cover itself. A `:::logos` line and a paragraph of lines
+// (one per line) leading the cover, before its title, are its head
+// (`fm-cover__head`, set by the compiler): bulletin a logo each side of the
+// centred lines, the title in a filled box; letterhead the logos in a row
+// across the top and the lines set left; seal the logos centred over the
+// centred lines; banner the head as a coloured band across the top. Each
+// carries an issue strip and a date at the foot, and each stands as well
+// with no logos or no lines.
+export const FASTR_OFFICIAL_COVER_LAYOUTS: readonly FastrCoverLayout[] = [
+  "bulletin",
+  "letterhead",
+  "seal",
+  "banner",
+];
+export function isFastrOfficialCover(layout: unknown): boolean {
+  return typeof layout === "string" &&
+    (FASTR_OFFICIAL_COVER_LAYOUTS as readonly string[]).includes(layout);
+}
 // A cover is a band at the head of page 1 at its natural height, the report
 // continuing below it; `fill=page` makes it a title page of its own, edge to
 // edge with no footer (the stylesheets' fm-cover--fill rules).
@@ -1312,9 +1333,9 @@ function blockShapeFor(
     case "cover": {
       const layout = oneOf(attrs, "layout", FASTR_COVER_LAYOUTS, "classic");
       const fill = oneOf(attrs, "fill", FASTR_COVER_FILLS, "auto");
-      // The bulletin layout's own lines: the issue number in a strip under
+      // An official cover's own lines: the issue number in a strip under
       // the title, and the date at the foot of the page.
-      const bulletin = layout === "bulletin"
+      const bulletin = isFastrOfficialCover(layout)
         ? titleHtml(
           "fm-cover__issue",
           attrText(attrs, "issue"),
@@ -1334,17 +1355,6 @@ function blockShapeFor(
         trailingHtml: titleHtml("fm-dek", attrText(attrs, "sub")) + bulletin,
       };
     }
-    // A government masthead: its logos row's first logo stands left of the
-    // lines inside it and its last right, the lines centred between them
-    // (the stylesheet's grid). The logos stay an ordinary `:::logos` row, so
-    // they are chosen and edited as any logo row is.
-    case "masthead":
-      return {
-        tag: "div",
-        className: "fm-masthead",
-        leadingHtml: "",
-        trailingHtml: "",
-      };
     // A sign-off: its signers side by side, and the place and date the
     // document is signed at under them, to the right.
     case "signoff": {

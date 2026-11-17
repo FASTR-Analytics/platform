@@ -1,12 +1,11 @@
 :::report{frame=double numbering=sections figures=numbered captions=above source="DHIS2 SNIS"}
 
-:::cover{tone=paper layout=bulletin fill=page issue="N°07/2026" date="Août 2026" kicker="République · Travail · Justice · Solidarité"}
-:::masthead
+:::cover{tone=paper layout=bulletin fill=page issue="N°07/2026" date="Août 2026"}
 :::logos{align=spread}
+République · Travail · Justice · Solidarité
 Ministère de la Santé et de l'Hygiène Publique
 Inspection régionale de la santé
 Direction préfectorale de la santé
-:::
 
 # Bulletin mensuel de juillet 2026
 

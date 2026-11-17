@@ -1157,8 +1157,7 @@ class Builder {
         this.logos(attrs);
         break;
       // A sign-off, plainly: each signer's label over what it holds, then
-      // the place and date. A masthead falls to the default: its logos row,
-      // then its lines.
+      // the place and date.
       case "signer":
         this.plainLine(attrs["label"], { bold: true }, true);
         this.walk(i + 1, close);

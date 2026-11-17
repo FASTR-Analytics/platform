@@ -40,6 +40,7 @@ import {
   fastrToneOf,
   figureWidthClass,
   isFastrLeafBlock,
+  isFastrOfficialCover,
   parseContainerAttrs,
   parseContainerFence,
   parseFastrMarkAttrs,
@@ -597,6 +598,77 @@ export function createFastrMarkdownIt(): MarkdownIt {
         if (br?.type === "softbreak" || br?.type === "hardbreak") kids.pop();
       }
       open.attrJoin("class", `fm-align-${m[1]}`);
+    }
+    return true;
+  });
+
+  // ── An official cover's head ───────────────────────────────────────────────
+  // On an official cover (isFastrOfficialCover), the `:::logos` line and the
+  // paragraph of ministry lines that lead it, before its title, are its HEAD:
+  // wrapped in `fm-cover__head`, the lines marked `fm-cover__lines`, which
+  // each layout composes (a logo each side of the lines, a row over them, a
+  // band). Blank lines between them stay inside. A banner's `boxcolor=`
+  // colours its band. Nothing else on the cover moves.
+  md.core.ruler.push("fm_cover_head", (state) => {
+    const toks = state.tokens;
+    for (let i = 0; i < toks.length; i++) {
+      const open = toks[i];
+      const meta = open.meta as ContainerMeta | undefined;
+      if (
+        open.type !== "fm_container_open" || meta?.name !== "cover" ||
+        !isFastrOfficialCover(meta.attrs["layout"])
+      ) continue;
+      // The leading run of its direct children that are logos rows,
+      // paragraphs or blank lines.
+      let j = i + 1;
+      let runEnd = -1;
+      while (j < toks.length) {
+        const t = toks[j];
+        if (t.type === "fm_space") {
+          j++;
+          continue;
+        }
+        const m = t.meta as ContainerMeta | undefined;
+        if (
+          t.type === "fm_container_open" && m?.name === "logos" &&
+          toks[j + 1]?.type === "fm_container_close"
+        ) {
+          j += 2;
+          runEnd = j;
+          continue;
+        }
+        if (t.type === "paragraph_open") {
+          let k = j + 1;
+          while (k < toks.length && toks[k].type !== "paragraph_close") k++;
+          if (k >= toks.length) break;
+          t.attrJoin("class", "fm-cover__lines");
+          j = k + 1;
+          runEnd = j;
+          continue;
+        }
+        break;
+      }
+      if (runEnd < 0) continue;
+      const html = (content: string) => {
+        const t = new state.Token("html_block", "", 0);
+        t.block = true;
+        t.content = content;
+        return t;
+      };
+      const band = meta.attrs["layout"] === "banner"
+        ? fastrCoverAccentStyle(fastrCoverAccentsOf(meta.attrs).box)
+        : undefined;
+      toks.splice(runEnd, 0, html("</div>\n"));
+      toks.splice(
+        i + 1,
+        0,
+        html(
+          `<div class="fm-cover__head"${
+            band === undefined ? "" : ` style="${escapeReportHtml(band)}"`
+          }>\n`,
+        ),
+      );
+      i = runEnd + 1;
     }
     return true;
   });

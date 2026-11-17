@@ -57,11 +57,6 @@ export const FASTR_BLOCK_SNIPPETS: { name: FastrBlockName; snippet: string }[] =
       snippet: `:::logos{align=center}`,
     },
     {
-      name: "masthead",
-      snippet:
-        `:::masthead\n:::logos{align=spread}\nMinistry of Health\nRegional health directorate\n:::`,
-    },
-    {
       name: "signoff",
       snippet:
         `:::signoff{place="City" date="1 January 2026"}\n:::signer{label="Prepared by"}\n**Name**\nRole\n:::\n:::signer{label="Approved by"}\n**Name**\nRole\n:::\n:::`,
@@ -150,22 +145,34 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
     split     title left, sub right on a vertical rule — a spread
     minimal   top-set and quiet, a hairline foot
     block     the title set as a solid block of the accent
-    bulletin  an official bulletin: a masthead or logos row at the head,
-              the title in a filled box, \`issue="N°07/2026"\` in a strip
-              under it, \`date="August 2026"\` at the foot of the page;
-              \`boxcolor="#9bbb59 #548235"\` colours the box and the strip
-              (one colour for both) when the bulletin's cover is not its
-              theme's accent
+  The OFFICIAL covers, a ministry's title page:
+    bulletin    a logo each side of the centred ministry lines, the title
+                in a filled box, the issue in a strip under it
+    letterhead  the logos in a row across the top, the ministry lines set
+                left under them over a rule, the title set left below
+    seal        the logos centred over the centred ministry lines, the
+                title on the axis with no box
+    banner      the logos and ministry lines in a band of the accent across
+                the top of the page, the title on the page below
+  Each takes \`issue="N°07/2026"\` and \`date="August 2026"\` (the date at
+  the foot of the page), and is written with \`fill=page\` and
+  \`tone=default\`. Its logos and ministry lines lead it, before the
+  title, one ministry line per line:
 
-  :::masthead
-  :::logos{src="image:<id> image:<id>"}
+  :::cover{layout=bulletin tone=default fill=page issue="N°07/2026" date="August 2026"}
+  :::logos
+  REPUBLIC OF EXAMPLE
   Ministry of Health
   Regional health directorate
+  # Monthly bulletin
   :::
-  A government masthead: the logos row's first logo stands left of the
-  lines and its last right, the lines centred between them. The logos are
-  the user's, placed from Widgets → Logos, as for any logos row. It heads a
-  cover or the first page.
+
+  The \`:::logos\` line is the user's (they choose the logos on it), so
+  write it without sources and never invent an \`image:\` id; keep one that
+  is there. Both are optional: an official cover stands with no logos and
+  no lines. \`boxcolor="#9bbb59 #548235"\` colours a bulletin's title box
+  and strip, or a banner's band, when they are not the theme's accent (one
+  colour for both). An official cover takes no kicker.
 
   :::signoff{place="City" date="11 September 2026"}
   :::signer{label="Prepared by"}
