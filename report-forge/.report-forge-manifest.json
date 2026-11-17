@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-16T10:24:23.784Z",
-  "sourceCommit": "ee0a56b",
-  "sourceSubject": "Bulletin look: caption style, report language, no page numbers, heavy frame, cover colours",
+  "timestamp": "2026-11-17T02:03:21.927Z",
+  "sourceCommit": "4f42313",
+  "sourceSubject": "A figure's caption and source line edit in place",
   "sourceDirty": false,
   "target": "platform"
 }

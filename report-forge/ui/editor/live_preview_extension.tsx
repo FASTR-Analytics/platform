@@ -111,6 +111,7 @@ import {
   fastrPageTemplate,
   fastrParagraphAligns,
   fastrReportHeaderAttrs,
+  fastrSourceLabel,
   fastrStripInlineSyntax,
   fastrSuffixInsertOffset,
   fastrSurfaceTone,
@@ -130,8 +131,10 @@ import {
   parseContainerFence,
   parseFastrMarkAttrs,
   readFastrDocumentSettings,
+  readFastrFigureSettings,
   renderFastrMarkdownToHtml,
   renderFastrTocHtml,
+  rewriteReportEmbedToken,
   safeCssColor,
   scanContainerLines,
   scanFastrPages,
@@ -140,6 +143,7 @@ import {
   TILES_MAX_COLS,
   tilesChildInfo,
   updateContainerFenceLine,
+  updateEmbedLineAttrs,
 } from "../../engine/mod.ts";
 import { t3 } from "../../engine/i18n.ts";
 import {
@@ -865,6 +869,31 @@ class RegionWidget extends WidgetType {
     // Everything inside the render edits IN PLACE — the block never has to
     // reveal its source to be edited.
     const sourceLines = this.source.split("\n");
+    // A figure's caption and source line edit in place, as a callout's title
+    // does: click the words and type (attachFigureTextEditors).
+    const figureSettings = this.figures?.settings ??
+      readFastrFigureSettings(this.source);
+    for (
+      const figEl of Array.from(
+        dom.querySelectorAll<HTMLElement>("figure.fm-figure[data-line]"),
+      )
+    ) {
+      const rel = Number(figEl.getAttribute("data-line"));
+      if (!Number.isFinite(rel) || sourceLines[rel] === undefined) continue;
+      const startLine = this.startLine;
+      attachFigureTextEditors(
+        figEl,
+        view,
+        this.startLine + rel + 1,
+        sourceLines[rel],
+        figureSettings,
+        this.active,
+        () =>
+          view.contentDOM.querySelector<HTMLElement>(
+            `[data-region-line="${startLine}"] figure[data-line="${rel}"]`,
+          ),
+      );
+    }
     for (
       const statEl of Array.from(
         dom.querySelectorAll<HTMLElement>(".fm-stat[data-line]"),
@@ -1837,6 +1866,10 @@ export function attachAttrEditor(
   // flips the region active, which recreates the widget DOM (ghost pieces
   // included), so activation must land on the POST-rebuild element.
   locate?: () => HTMLElement | null | undefined,
+  // The line rewritten for a new value. Absent: `attr` patched on the line's
+  // open fence. A figure's caption and source line pass their own (the
+  // embed token and its `{…}`).
+  rewrite?: (lineText: string, value: string) => string | undefined,
 ) {
   el.classList.add("cm-fm-attr");
   el.setAttribute("data-placeholder", placeholder);
@@ -1847,7 +1880,9 @@ export function attachAttrEditor(
     if (value === committed) return;
     if (line1 > view.state.doc.lines) return;
     const line = view.state.doc.line(line1);
-    const patched = updateContainerFenceLine(line.text, { [attr]: value });
+    const patched = rewrite
+      ? rewrite(line.text, value)
+      : updateContainerFenceLine(line.text, { [attr]: value });
     committed = value;
     if (patched === undefined || patched === line.text) return;
     view.dispatch({
@@ -1939,6 +1974,130 @@ export function attachAttrEditor(
       el.blur();
     }
   });
+}
+
+// A figure's caption and its source line, edited in place like any block's
+// text (attachAttrEditor): click the words and type. The printed label
+// ("Figure 3 :", "Source :") is the document's and stays put; only the words
+// after it are the figure's own. The caption is the embed token's
+// `![caption]`; the source is the line's `{source=…}`: the document's own
+// source (the `:::report` header's) clears the figure's, and an emptied line
+// is `source=none`, hidden (the toolbar's Source control brings it back).
+// While the figure's block is active, a figure without a caption, or without
+// a source line in a document that sets figure conventions, shows a ghost to
+// click into.
+export function attachFigureTextEditors(
+  figEl: HTMLElement,
+  view: EditorView,
+  line1: number,
+  lineText: string,
+  settings: {
+    numbered: boolean;
+    above: boolean;
+    source: string | undefined;
+    lang?: Parameters<typeof fastrSourceLabel>[0];
+  },
+  active: boolean,
+  locateFigure: () => HTMLElement | null | undefined,
+) {
+  const ref = findReportEmbeds(lineText)[0];
+  if (ref === undefined) return;
+  const doc = figEl.ownerDocument;
+
+  // The caption's words, in a span of their own after the label.
+  let caption = figEl.querySelector<HTMLElement>(
+    ":scope > .fm-figure__caption",
+  );
+  if (caption === null && active) {
+    caption = doc.createElement("figcaption");
+    caption.className = "fm-figure__caption";
+    const mount = figEl.querySelector(":scope > [data-embed-id]");
+    // Above: the grid puts the caption first wherever it stands.
+    if (mount !== null) mount.after(caption);
+    else figEl.append(caption);
+  }
+  if (caption !== null) {
+    let words = caption.querySelector<HTMLElement>(
+      ":scope > .fm-caption-text",
+    );
+    if (words === null) {
+      words = doc.createElement("span");
+      words.className = "fm-caption-text";
+      const label = caption.querySelector(":scope > .fm-caption-label");
+      const rest = Array.from(caption.childNodes).filter((n) => n !== label);
+      for (const n of rest) words.append(n);
+      // The space between the label and the words stays outside them.
+      const first = words.firstChild;
+      if (first?.nodeType === 3) {
+        first.textContent = (first.textContent ?? "").replace(/^\s+/, "");
+      }
+      if (label !== null) caption.append(doc.createTextNode(" "));
+      caption.append(words);
+    }
+    attachAttrEditor(
+      words,
+      view,
+      line1,
+      "caption",
+      ref.caption,
+      t3({ en: "Caption…", fr: "Légende…", pt: "Legenda…" }),
+      () =>
+        locateFigure()?.querySelector<HTMLElement>(
+          ":scope > .fm-figure__caption > .fm-caption-text",
+        ),
+      (text, value) => {
+        const r = findReportEmbeds(text)[0];
+        if (r === undefined) return undefined;
+        return text.slice(0, r.start) +
+          rewriteReportEmbedToken(r, { caption: value }) + text.slice(r.end);
+      },
+    );
+  }
+
+  // The source line: the words after its label.
+  const conventions = settings.numbered || settings.above ||
+    settings.source !== undefined;
+  let source = figEl.querySelector<HTMLElement>(":scope > .fm-figure__source");
+  if (source === null && active && conventions && ref.kind === "figure") {
+    source = doc.createElement("p");
+    source.className = "fm-figure__source";
+    figEl.append(source);
+  }
+  if (source === null) return;
+  let words = source.querySelector<HTMLElement>(":scope > .fm-source-text");
+  const label = fastrSourceLabel(settings.lang);
+  if (words === null) {
+    const text = source.textContent ?? "";
+    const own = text.startsWith(label) ? text.slice(label.length).trim() : text;
+    source.textContent = "";
+    const labelEl = doc.createElement("span");
+    labelEl.className = "fm-source-label";
+    labelEl.textContent = label;
+    words = doc.createElement("span");
+    words.className = "fm-source-text";
+    words.textContent = own;
+    source.append(labelEl, doc.createTextNode(" "), words);
+  }
+  attachAttrEditor(
+    words,
+    view,
+    line1,
+    "source",
+    words.textContent ?? "",
+    t3({ en: "Source…", fr: "Source…", pt: "Fonte…" }),
+    () =>
+      locateFigure()?.querySelector<HTMLElement>(
+        ":scope > .fm-figure__source > .fm-source-text",
+      ),
+    (text, value) =>
+      updateEmbedLineAttrs(text, {
+        source: value.length === 0
+          ? "none"
+          : value === settings.source
+          ? undefined
+          : value,
+      }),
+  );
 }
 
 // A stat's value/label/delta edit in place wherever the stat renders — in
