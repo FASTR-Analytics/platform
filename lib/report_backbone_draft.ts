@@ -16,6 +16,7 @@ import {
   FASTR_COVER_LAYOUTS,
   FASTR_FRAME_STYLES,
   type FastrContainerAttrs,
+  fastrCoverAccentsOf,
   fastrReportHeaderAttrs,
   fastrThemeIds,
   fastrThemeTokens,
@@ -548,6 +549,15 @@ export function measureReportBackbone(args: {
   const pages = args.pages !== undefined && args.pages > 0
     ? args.pages
     : undefined;
+  // The cover's own colours as the backbone keeps them: the box's (or
+  // band's), then the issue number's when it differs.
+  const coverColors = (attrs: NonNullable<typeof cover>) => {
+    const a = fastrCoverAccentsOf(attrs);
+    const box = a.box?.bg;
+    const issue = a.issue?.bg;
+    if (box === undefined) return issue;
+    return issue === undefined || issue === box ? box : `${box} ${issue}`;
+  };
   const coverText = (k: string) =>
     typeof cover?.[k] === "string"
       ? (cover[k] as string).slice(0, 200)
@@ -568,8 +578,8 @@ export function measureReportBackbone(args: {
           ...(coverText("tone")
             ? { tone: coverText("tone")!.slice(0, 20) }
             : {}),
-          ...(coverText("boxcolor")
-            ? { boxColor: coverText("boxcolor")!.slice(0, 40) }
+          ...(coverColors(cover) !== undefined
+            ? { boxColor: coverColors(cover) }
             : {}),
           ...(cover.fill === "page" ? { fill: true } : {}),
           ...(coverText("kicker") ? { kicker: coverText("kicker") } : {}),

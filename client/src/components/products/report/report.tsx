@@ -1416,6 +1416,11 @@ export function ReportEditor(p: Props) {
     },
     words: {
       badge: t3({ en: "backbone", fr: "ossature", pt: "estrutura" }),
+      section: t3({
+        en: "Report backbones",
+        fr: "Ossatures de rapport",
+        pt: "Estruturas de relatório",
+      }),
       newLabel: t3({
         en: "New report backbone",
         fr: "Nouvelle ossature de rapport",

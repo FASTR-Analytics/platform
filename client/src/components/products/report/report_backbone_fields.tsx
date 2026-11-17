@@ -298,9 +298,10 @@ export function ReportBackboneFields(p: Props) {
           />
           <Input
             label={t3({
-              en: "Title box and issue strip colours",
-              fr: "Couleurs du cadre du titre et du bandeau",
-              pt: "Cores da caixa do título e da faixa",
+              en: "Cover colours: title box (or band), then issue number",
+              fr:
+                "Couleurs de couverture : cadre du titre (ou bandeau), puis numéro",
+              pt: "Cores da capa: caixa do título (ou faixa), depois número",
             })}
             value={b().cover?.boxColor ?? ""}
             onChange={(v) =>

@@ -165,8 +165,27 @@ This report is written to a REPORT BACKBONE, a house style taken from an example
       parts.push("`tone=default` (the plain white page: never ink)");
     } else if (c.tone) parts.push(`\`tone=${c.tone}\``);
     if (c.fill) parts.push("`fill=page` (a title page of its own)");
-    if (c.boxColor && c.layout === "bulletin") {
-      parts.push(`\`boxcolor="${c.boxColor}"\` (its title box and strip)`);
+    // The stored pair is the title box's (or band's) colour, then the issue
+    // number's; the cover writes each as its own attribute, and a
+    // letterhead or a seal, which has no box, only the issue's.
+    const [boxHex, issueHex] = (c.boxColor ?? "").split(/\s+/).filter((h) =>
+      h.length > 0
+    );
+    if (boxHex !== undefined) {
+      if (c.layout === "bulletin" || c.layout === "banner") {
+        parts.push(
+          `\`boxcolor=${boxHex}\` (its ${
+            c.layout === "banner" ? "band" : "title box"
+          })`,
+        );
+        if (issueHex !== undefined) {
+          parts.push(`\`issuecolor=${issueHex}\` (its issue number's strip)`);
+        }
+      } else if (c.layout === "letterhead" || c.layout === "seal") {
+        parts.push(
+          `\`issuecolor=${issueHex ?? boxHex}\` (its issue number's colour)`,
+        );
+      }
     }
     parts.push(
       c.kicker
