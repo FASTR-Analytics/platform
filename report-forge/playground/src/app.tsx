@@ -106,6 +106,28 @@ export function App() {
             },
             library,
           }}
+          palettes={params.has("palettes")
+            ? {
+              // A demo saved style, to see the picker's own section.
+              list: () =>
+                Promise.resolve([{
+                  id: "demo",
+                  label: "Bulletin mensuel",
+                  description: "A district monthly bulletin",
+                  colors: {
+                    page: "#ffffff",
+                    ink: "#1a1a1a",
+                    accent: "#1f4e79",
+                  },
+                }]),
+              edit: () => Promise.resolve(),
+              words: {
+                badge: "backbone",
+                newLabel: "New report backbone",
+                section: "Report backbones",
+              },
+            }
+            : undefined}
           ref={(api: ReportForgeApi) => (w.__forge = api)}
         />
       </div>

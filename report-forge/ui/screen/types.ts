@@ -153,7 +153,13 @@ export type ReportForgeProps = {
   palettes?: {
     list: () => Promise<ReportPalette[]>;
     edit?: (palette: ReportPalette | undefined) => Promise<void>;
-    words?: { badge: string; newLabel: string; newHint?: string };
+    words?: {
+      badge: string;
+      newLabel: string;
+      newHint?: string;
+      // The heading over them, under the built-in themes.
+      section?: string;
+    };
   };
   // Prints the paged document to a PDF (the package's server entry is the
   // printer). Absent, Download offers Word and .html only.

@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-17T06:04:50.293Z",
-  "sourceCommit": "f1680aa",
-  "sourceSubject": "Logo sizes: five steps, picker size choice, wide logos grow on covers",
+  "timestamp": "2026-11-17T07:42:37.466Z",
+  "sourceCommit": "d0261ab",
+  "sourceSubject": "Theme picker: the host's saved styles under their own ruled heading",
   "sourceDirty": false,
   "target": "platform"
 }

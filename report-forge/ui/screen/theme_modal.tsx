@@ -50,7 +50,12 @@ type Props = ModalProps<
     listPalettes?: () => Promise<ReportPalette[]>;
     canEditPalettes: boolean;
     // What the host calls them (ReportForgeProps.palettes.words).
-    paletteWords?: { badge: string; newLabel: string; newHint?: string };
+    paletteWords?: {
+      badge: string;
+      newLabel: string;
+      newHint?: string;
+      section?: string;
+    };
     // Applies the choice (the host stores it). Rejects with the reason when
     // it could not, which the modal shows.
     apply: (choice: ThemeChoice) => Promise<void>;
@@ -169,6 +174,22 @@ export function ThemeModal(p: Props) {
               );
             }}
           </For>
+        </div>
+        {/* The host's own styles, ruled off from the built-in themes. */}
+        <Show when={customStyles().length > 0 || p.canEditPalettes}>
+          <div class="rf:flex rf:items-center rf:gap-3 rf:pt-2">
+            <span class="rf:text-base-content-muted rf:text-xs rf:font-700">
+              {p.paletteWords?.section ??
+                t3({
+                  en: "Saved styles",
+                  fr: "Styles enregistrés",
+                  pt: "Estilos guardados",
+                })}
+            </span>
+            <div class="rf:border-base-300 rf:flex-1 rf:border-t" />
+          </div>
+        </Show>
+        <div class="rf:grid rf:grid-cols-2 rf:gap-3 rf:md:grid-cols-3 rf:xl:grid-cols-4">
           <For each={customStyles()}>
             {(style) => {
               const sel: Sel = { kind: "custom", style };
