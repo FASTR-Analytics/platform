@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -12,13 +12,13 @@ import type {
 } from "./deps.ts";
 import {
   CHART_LIMITS_LENGTH_MESSAGE,
-  chartLimitsMatchHeaders,
+  chartLimitsMatchMembers,
   type Conforms,
-  zChartBounds,
-  zChartScaleAxisLimits,
-  zHeaderItems,
-  zHeaderSortConfig,
+  zChartUncertainty,
+  zChartValueAxisLimits,
+  zDataDimension,
   zJsonArray,
+  zMemberSortConfig,
   zPeriodType,
   zUncertaintyConfig,
   zValues5D,
@@ -36,13 +36,13 @@ export const zTimeseriesJsonDataConfig = z.object({
   labelReplacements: z.record(z.string(), z.string()).optional(),
   sort: z
     .object({
-      series: zHeaderSortConfig.optional(),
-      lane: zHeaderSortConfig.optional(),
-      tier: zHeaderSortConfig.optional(),
-      pane: zHeaderSortConfig.optional(),
+      series: zMemberSortConfig.optional(),
+      lane: zMemberSortConfig.optional(),
+      tier: zMemberSortConfig.optional(),
+      pane: zMemberSortConfig.optional(),
     })
     .optional(),
-  yScaleAxisLabel: z.string().optional(),
+  yValueAxisLabel: z.string().optional(),
 });
 const _zTimeseriesJsonDataConfigConforms: Conforms<
   z.infer<typeof zTimeseriesJsonDataConfig>,
@@ -60,18 +60,21 @@ const _zTimeseriesDataJsonConforms: Conforms<
 
 const zTimeseriesDataTransformedObject = z.object({
   isTransformed: z.literal(true),
-  periodType: zPeriodType,
-  timeMin: z.number(),
-  timeMax: z.number(),
-  nTimePoints: z.number(),
-  seriesHeaders: zHeaderItems,
-  laneHeaders: zHeaderItems,
-  tierHeaders: zHeaderItems,
-  paneHeaders: zHeaderItems,
+  period: z.object({
+    name: z.string(),
+    periodType: zPeriodType,
+    timeMin: z.number(),
+    nTimePoints: z.number(),
+    nBlankRows: z.number(),
+  }),
+  series: zDataDimension.optional(),
+  lane: zDataDimension.optional(),
+  tier: zDataDimension.optional(),
+  pane: zDataDimension.optional(),
   values: zValues5D,
-  bounds: zChartBounds.optional(),
-  scaleAxisLimits: zChartScaleAxisLimits,
-  yScaleAxisLabel: z.string().optional(),
+  uncertaintyValues: zChartUncertainty.optional(),
+  valueAxisLimits: zChartValueAxisLimits,
+  yValueAxisLabel: z.string().optional(),
 });
 const _zTimeseriesDataTransformedConforms: Conforms<
   z.infer<typeof zTimeseriesDataTransformedObject>,
@@ -80,7 +83,7 @@ const _zTimeseriesDataTransformedConforms: Conforms<
 
 export const zTimeseriesDataTransformed: z.ZodType<TimeseriesDataTransformed> =
   zTimeseriesDataTransformedObject.refine(
-    chartLimitsMatchHeaders,
+    chartLimitsMatchMembers,
     CHART_LIMITS_LENGTH_MESSAGE,
   );
 

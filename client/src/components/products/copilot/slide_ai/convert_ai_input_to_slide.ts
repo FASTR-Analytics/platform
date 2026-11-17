@@ -1,8 +1,8 @@
 import {
+  AIToolFailure,
   createCanvasRenderContextBrowser,
   type ItemLayoutNode,
   type LayoutNode,
-  loadFontsWithTimeout,
   optimizePageLayout,
   type OptimizerConfig,
   type PageContentItem,
@@ -16,16 +16,11 @@ import type {
   Slide,
   SlideDeckConfig,
 } from "lib";
-import {
-  getAllSlideFontVariants,
-  getSlideDeckThemeSpec,
-  PAGE_HEIGHT_DU,
-  PAGE_WIDTH_DU,
-  slideConfigSchema,
-} from "lib";
-import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
+import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU, slideConfigSchema } from "lib";
+import { buildSlidePage } from "./measure_slide_overflow.ts";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
+import { assertImageAsset } from "../_shared/mod.ts";
 import { buildLayoutFromSpec } from "./layout_spec_helpers";
 
 /**
@@ -36,22 +31,17 @@ import { buildLayoutFromSpec } from "./layout_spec_helpers";
  *
  * The optimizer is fed through the renderer's own path: the provisional slide
  * goes through convertSlideToPageInputs, and the optimizer gets that page's
- * chrome, style and items. `overflow` is therefore the flag the deck's canvas
- * badges, which a caller that writes the slide for the model reports: the
- * model cannot see the badge.
+ * chrome, style and items.
  */
 export async function convertAiInputToSlide(
   scope: PackageScope,
   slideInput: AiSlideInput,
   metrics: MetricWithStatus[],
   deckConfig: SlideDeckConfig,
-): Promise<{ slide: Slide; overflow: boolean }> {
+): Promise<Slide> {
   // Cover and section pass through unchanged
   if (slideInput.type === "cover" || slideInput.type === "section") {
-    return {
-      slide: slideConfigSchema.parse(slideInput) as Slide,
-      overflow: false,
-    };
+    return slideConfigSchema.parse(slideInput) as Slide;
   }
 
   // Content slide - resolve figures and optimize layout
@@ -63,10 +53,16 @@ export async function convertAiInputToSlide(
     );
   }
 
+  const { blocks, layoutPreference, layoutRows, ...settings } = slideInput;
   const resolvedBlocks: ContentBlock[] = [];
 
-  for (const block of slideInput.blocks) {
+  for (const block of blocks) {
     if (block.type === "text") {
+      resolvedBlocks.push(block);
+      continue;
+    }
+    if (block.type === "image") {
+      assertImageAsset(block.imgFile);
       resolvedBlocks.push(block);
       continue;
     }
@@ -76,7 +72,7 @@ export async function convertAiInputToSlide(
       resolvedBlocks.push(figureBlock);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      throw new Error(
+      throw new AIToolFailure(
         `Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`,
       );
     }
@@ -85,10 +81,9 @@ export async function convertAiInputToSlide(
   const generateId = createIdGeneratorForLayout();
 
   // An exact layout: the blocks fill the given grid in reading order, and
-  // the optimizer is not consulted. Overflow is not measured on this path,
-  // as on update_slide's layoutChange: the canvas badges it.
-  if (slideInput.layoutRows) {
-    const rows = slideInput.layoutRows;
+  // the optimizer is not consulted.
+  if (layoutRows) {
+    const rows = layoutRows;
     const cells = rows.reduce((n, r) => n + r.length, 0);
     if (cells !== resolvedBlocks.length) {
       throw new Error(
@@ -115,23 +110,14 @@ export async function convertAiInputToSlide(
         }))
       ),
     );
-    return {
-      slide: slideConfigSchema.parse({
-        type: "content",
-        header: slideInput.header,
-        layout,
-        split: slideInput.split,
-      }) as Slide,
-      overflow: false,
-    };
+    return slideConfigSchema.parse({ ...settings, layout }) as Slide;
   }
 
   const blocksById = new Map(
     resolvedBlocks.map((block) => [generateId(), block] as const),
   );
   const provisional = slideConfigSchema.parse({
-    type: "content",
-    header: slideInput.header,
+    ...settings,
     layout: {
       type: "rows",
       id: generateId(),
@@ -143,16 +129,7 @@ export async function convertAiInputToSlide(
     },
   }) as Slide;
 
-  const fontFamily = getSlideDeckThemeSpec(deckConfig.theme).fontFamily;
-  await loadFontsWithTimeout(getAllSlideFontVariants(fontFamily));
-
-  const res = await convertSlideToPageInputs(
-    provisional,
-    undefined,
-    deckConfig,
-  );
-  if (!res.success) throw new Error(res.err);
-  const page = res.data;
+  const page = await buildSlidePage(provisional, deckConfig);
   if (page.type !== "freeform") {
     throw new Error(`Content slide converted to a ${page.type} page`);
   }
@@ -163,18 +140,13 @@ export async function convertAiInputToSlide(
     leafItems(page.content),
     page,
     page.style,
-    getOptimizerConfig(slideInput.layoutPreference, resolvedBlocks.length),
+    getOptimizerConfig(layoutPreference, resolvedBlocks.length),
   );
 
-  return {
-    slide: slideConfigSchema.parse({
-      type: "content",
-      header: slideInput.header,
-      layout: restoreBlocks(result.best.layout, blocksById),
-      split: slideInput.split,
-    }) as Slide,
-    overflow: result.best.score.overflow === 1,
-  };
+  return slideConfigSchema.parse({
+    ...settings,
+    layout: restoreBlocks(result.best.layout, blocksById),
+  }) as Slide;
 }
 
 function leafItems(

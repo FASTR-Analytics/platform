@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -9,38 +9,38 @@ import type { RectCoordsDims, RenderContext } from "./deps.ts";
 import type { MeasuredPage, PageInputs } from "./types.ts";
 
 type PageRendererType = {
-  isType(item: unknown): item is PageInputs;
+  isType(inputs: unknown): inputs is PageInputs;
   measure(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: PageInputs,
+    inputs: PageInputs,
   ): MeasuredPage;
   render(rc: RenderContext, mPage: MeasuredPage): void;
   measureAndRender(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: PageInputs,
+    inputs: PageInputs,
   ): void;
 };
 
 export const PageRenderer: PageRendererType = {
-  isType(item: unknown): item is PageInputs {
+  isType(inputs: unknown): inputs is PageInputs {
     return (
-      typeof item === "object" &&
-      item !== null &&
-      "type" in item &&
-      ((item as PageInputs).type === "cover" ||
-        (item as PageInputs).type === "freeform" ||
-        (item as PageInputs).type === "section")
+      typeof inputs === "object" &&
+      inputs !== null &&
+      "type" in inputs &&
+      ((inputs as PageInputs).type === "cover" ||
+        (inputs as PageInputs).type === "freeform" ||
+        (inputs as PageInputs).type === "section")
     );
   },
 
   measure(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: PageInputs,
+    inputs: PageInputs,
   ): MeasuredPage {
-    return measurePage(rc, bounds, item);
+    return measurePage(rc, bounds, inputs);
   },
 
   render(rc: RenderContext, mPage: MeasuredPage): void {
@@ -50,9 +50,9 @@ export const PageRenderer: PageRendererType = {
   measureAndRender(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: PageInputs,
+    inputs: PageInputs,
   ): void {
-    const mPage = measurePage(rc, bounds, item);
+    const mPage = measurePage(rc, bounds, inputs);
     renderPage(rc, mPage);
   },
 };

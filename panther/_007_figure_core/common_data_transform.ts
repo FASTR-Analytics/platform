@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -6,14 +6,21 @@
 // Transforms raw JSON data into multi-dimensional value arrays for chart rendering
 import {
   assert,
+  BLANK_SENTINEL,
+  compareBlankLast,
   createArray,
+  createDimensionMembers,
+  type DataDimension,
+  type DimensionMember,
   getValidNumberOrUndefined,
-  type HeaderItem,
+  isBlankValue,
+  type MemberSortConfig,
+  sortDimensionMembers,
   sum,
 } from "./deps.ts";
 import type {
-  ChartScaleAxisLimits,
-  ChartScaleAxisPaneLimits,
+  ChartValueAxisLimits,
+  ChartValueAxisPaneLimits,
   JsonArray,
   JsonArrayItem,
 } from "./types.ts";
@@ -30,41 +37,106 @@ export function validateDataInput(
   }
 }
 
-// The sentinel header id/label collectHeaders emits for an axis with no
-// disaggregation configured (prop undefined) — a single implicit member
-// standing in for "all data, undivided" on that axis.
-export const NO_DISAGGREGATION_HEADER_ID = "default";
-
-export function collectHeaders(
+// A dimension, named from its prop, or undefined when no prop is given.
+// Members come in first-seen row order (the value columns, for "--v") before
+// labelReplacements and the sort apply.
+export function buildDataDimension(
+  jsonArray: JsonArray,
+  prop: string,
+  valueProps: string[],
+  labelReplacements: Record<string, string> | undefined,
+  sort: MemberSortConfig | undefined,
+): DataDimension;
+export function buildDataDimension(
   jsonArray: JsonArray,
   prop: string | undefined,
   valueProps: string[],
-  defaultValue: string = NO_DISAGGREGATION_HEADER_ID,
-): string[] {
-  const headers: string[] = prop ? [] : [defaultValue];
-
-  for (const obj of jsonArray) {
-    if (prop && prop !== "--v" && !headers.includes(String(obj[prop]))) {
-      headers.push(String(obj[prop]));
-    }
+  labelReplacements: Record<string, string> | undefined,
+  sort: MemberSortConfig | undefined,
+): DataDimension | undefined;
+export function buildDataDimension(
+  jsonArray: JsonArray,
+  prop: string | undefined,
+  valueProps: string[],
+  labelReplacements: Record<string, string> | undefined,
+  sort: MemberSortConfig | undefined,
+): DataDimension | undefined {
+  if (prop === undefined) {
+    return undefined;
   }
-
-  if (prop === "--v") {
-    headers.push(...valueProps);
-  }
-
-  return headers;
+  const ids = prop === "--v"
+    ? valueProps
+    : collectDimensionIds(jsonArray, prop);
+  return {
+    name: prop,
+    members: sortDimensionMembers(
+      createDimensionMembers(ids, labelReplacements),
+      sort,
+    ),
+  };
 }
 
-export function getHeaderIndex(
+export function getDimensionId(row: JsonArrayItem, prop: string): string {
+  const value = row[prop];
+  return isBlankValue(value) ? BLANK_SENTINEL : String(value);
+}
+
+export function validateDimensionProps(
+  jsonArray: JsonArray,
+  dimensionProps: Record<string, string | undefined>,
+): void {
+  validateDistinctDimensions(dimensionProps);
+  Object.values(dimensionProps).forEach((prop) =>
+    validateDimensionPresent(jsonArray, prop)
+  );
+}
+
+// A prop that no row carries is a misspelling, never a column of blanks.
+function validateDimensionPresent(
+  jsonArray: JsonArray,
   prop: string | undefined,
+): void {
+  if (prop === undefined || prop === "--v" || jsonArray.length === 0) {
+    return;
+  }
+  if (!jsonArray.some((row) => Object.hasOwn(row, prop))) {
+    throw new Error(`No row has dimension "${prop}"`);
+  }
+}
+
+function collectDimensionIds(jsonArray: JsonArray, prop: string): string[] {
+  return [...new Set(jsonArray.map((row) => getDimensionId(row, prop)))];
+}
+
+function validateDistinctDimensions(
+  dimensionProps: Record<string, string | undefined>,
+): void {
+  const propByDimension = new Map<string, string>();
+  for (const [key, dimension] of Object.entries(dimensionProps)) {
+    if (dimension === undefined) {
+      continue;
+    }
+    const prop = `${key}Prop`;
+    const other = propByDimension.get(dimension);
+    if (other !== undefined) {
+      throw new Error(
+        `${other} and ${prop} are both given dimension "${dimension}"`,
+      );
+    }
+    propByDimension.set(dimension, prop);
+  }
+}
+
+export function getMemberIndex(
+  dimension: DataDimension | undefined,
   valueProp: string,
   obj: JsonArrayItem,
-  headers: HeaderItem[],
 ): number {
-  if (!prop) return 0;
-  if (prop === "--v") return headers.findIndex((h) => h.id === valueProp);
-  return headers.findIndex((h) => h.id === String(obj[prop]));
+  if (!dimension) return 0;
+  const id = dimension.name === "--v"
+    ? valueProp
+    : getDimensionId(obj, dimension.name);
+  return dimension.members.findIndex((h) => h.id === id);
 }
 
 export function checkValuePropsAssignment(
@@ -79,44 +151,44 @@ export function checkValuePropsAssignment(
   }
 }
 
-export function calculateChartScaleLimits(
+export function calculateChartValueAxisLimits(
   values: (number | undefined)[][][][][],
-  dimensions: {
-    paneCount: number;
-    tierCount: number;
-    laneCount: number;
-    seriesCount: number;
-    lastDimCount: number;
+  counts: {
+    nPanes: number;
+    nTiers: number;
+    nLanes: number;
+    nSerieses: number;
+    nValues: number;
   },
   stacked: boolean,
-): ChartScaleAxisLimits {
-  const paneLimits: ChartScaleAxisPaneLimits[] = createArray(
-    dimensions.paneCount,
+): ChartValueAxisLimits {
+  const paneLimits: ChartValueAxisPaneLimits[] = createArray(
+    counts.nPanes,
     () => ({
       valueMin: Number.POSITIVE_INFINITY,
       valueMax: Number.NEGATIVE_INFINITY,
-      tierLimits: createArray(dimensions.tierCount, () => ({
+      tierLimits: createArray(counts.nTiers, () => ({
         valueMin: Number.POSITIVE_INFINITY,
         valueMax: Number.NEGATIVE_INFINITY,
       })),
-      laneLimits: createArray(dimensions.laneCount, () => ({
+      laneLimits: createArray(counts.nLanes, () => ({
         valueMin: Number.POSITIVE_INFINITY,
         valueMax: Number.NEGATIVE_INFINITY,
       })),
     }),
   );
 
-  for (let i_pane = 0; i_pane < dimensions.paneCount; i_pane++) {
-    for (let i_tier = 0; i_tier < dimensions.tierCount; i_tier++) {
-      for (let i_lane = 0; i_lane < dimensions.laneCount; i_lane++) {
+  for (let i_pane = 0; i_pane < counts.nPanes; i_pane++) {
+    for (let i_tier = 0; i_tier < counts.nTiers; i_tier++) {
+      for (let i_lane = 0; i_lane < counts.nLanes; i_lane++) {
         if (stacked) {
           for (
-            let i_lastDim = 0;
-            i_lastDim < dimensions.lastDimCount;
-            i_lastDim++
+            let i_value = 0;
+            i_value < counts.nValues;
+            i_value++
           ) {
             const valuesToSum = values[i_pane][i_tier][i_lane]
-              .map((s) => s[i_lastDim])
+              .map((s) => s[i_value])
               .filter((v): v is number => v !== undefined);
 
             if (valuesToSum.length === 0) continue;
@@ -129,15 +201,15 @@ export function calculateChartScaleLimits(
         } else {
           for (
             let i_series = 0;
-            i_series < dimensions.seriesCount;
+            i_series < counts.nSerieses;
             i_series++
           ) {
             for (
-              let i_lastDim = 0;
-              i_lastDim < dimensions.lastDimCount;
-              i_lastDim++
+              let i_value = 0;
+              i_value < counts.nValues;
+              i_value++
             ) {
-              const value = values[i_pane][i_tier][i_lane][i_series][i_lastDim];
+              const value = values[i_pane][i_tier][i_lane][i_series][i_value];
 
               if (value === undefined) continue;
 
@@ -150,7 +222,7 @@ export function calculateChartScaleLimits(
   }
 
   // Fallback to 0..1 where a pane/tier/lane had no data.
-  for (let i_pane = 0; i_pane < dimensions.paneCount; i_pane++) {
+  for (let i_pane = 0; i_pane < counts.nPanes; i_pane++) {
     const pl = paneLimits[i_pane];
     if (!isFinite(pl.valueMin)) pl.valueMin = 0;
     if (!isFinite(pl.valueMax)) pl.valueMax = 1;
@@ -168,7 +240,7 @@ export function calculateChartScaleLimits(
 }
 
 function updateLimits(
-  paneLimits: ChartScaleAxisPaneLimits[],
+  paneLimits: ChartValueAxisPaneLimits[],
   i_pane: number,
   i_tier: number,
   i_lane: number,
@@ -203,23 +275,23 @@ function updateLimits(
 // JSON-sourced configs.
 export function validateChartMembership(
   membership: Record<string, unknown> | undefined,
-  allowedAxes: string[],
-  scaleDirectionAxis: string,
+  allowedDimensions: string[],
+  valueDirectionDimension: string,
   chartName: string,
 ): void {
   if (!membership) {
     return;
   }
   for (const [key, value] of Object.entries(membership)) {
-    if (!allowedAxes.includes(key)) {
-      if (key === scaleDirectionAxis) {
+    if (!allowedDimensions.includes(key)) {
+      if (key === valueDirectionDimension) {
         throw new Error(
-          `membership.${key} is not allowed on ${chartName}: "${key}" carries the scale limits, and raggedness applies only along the categorical (text-axis) direction`,
+          `membership.${key} is not allowed on ${chartName}: "${key}" carries the value axis limits, and raggedness applies only along the categorical (text-axis) direction`,
         );
       }
       throw new Error(
-        `Unknown membership axis "${key}" on ${chartName} (allowed: ${
-          allowedAxes.join(", ")
+        `Unknown membership dimension "${key}" on ${chartName} (allowed: ${
+          allowedDimensions.join(", ")
         })`,
       );
     }
@@ -232,23 +304,25 @@ export function validateChartMembership(
 }
 
 // Early-throw validation for a chart's `proportional` config (ragged-table
-// layout). `bands` sizes each band by its visible slot count (per-band
-// visibility implied); `panes` additionally makes pane extents proportional
-// so slot thickness is uniform across the whole chart. `panes` presupposes
-// `bands`, so a bare { panes: true } normalizes to both on (the caller reads
-// the flags via resolveChartProportional) and the explicit contradiction
-// { bands: false, panes: true } throws here.
+// layout). `lanes` (chart-ov) or `tiers` (chart-oh) sizes each tier or lane by
+// its visible slot count (per-tier-or-lane visibility implied); `panes`
+// additionally makes pane extents proportional so slot thickness is uniform
+// across the whole chart. `panes` presupposes the tier-or-lane key, so a bare
+// { panes: true } normalizes to both on (the caller reads the flags via
+// resolveChartProportional) and the explicit contradiction
+// { lanes: false, panes: true } throws here.
 export function validateChartProportional(
   proportional: Record<string, unknown> | undefined,
+  tierOrLaneKey: "tiers" | "lanes",
   chartName: string,
 ): void {
   if (!proportional) {
     return;
   }
   for (const [key, value] of Object.entries(proportional)) {
-    if (key !== "bands" && key !== "panes") {
+    if (key !== tierOrLaneKey && key !== "panes") {
       throw new Error(
-        `Unknown proportional key "${key}" on ${chartName} (allowed: bands, panes)`,
+        `Unknown proportional key "${key}" on ${chartName} (allowed: ${tierOrLaneKey}, panes)`,
       );
     }
     if (value !== undefined && typeof value !== "boolean") {
@@ -257,40 +331,55 @@ export function validateChartProportional(
       );
     }
   }
-  if (proportional.bands === false && proportional.panes === true) {
+  if (proportional[tierOrLaneKey] === false && proportional.panes === true) {
     throw new Error(
-      `Invalid proportional config on ${chartName}: panes: true requires bands (cross-pane proportional sizing presupposes per-band extents)`,
+      `Invalid proportional config on ${chartName}: panes: true requires ${tierOrLaneKey} (cross-pane proportional sizing presupposes proportional ${tierOrLaneKey})`,
     );
   }
 }
 
-// Effective proportional flags after normalization (panes implies bands).
+// Effective proportional flags after normalization (panes implies the
+// tier-or-lane key).
 export function resolveChartProportional(
-  proportional: { bands?: boolean; panes?: boolean } | undefined,
-): { bands: boolean; panes: boolean } {
+  proportional: ChartOVOrOHProportional | undefined,
+  tierOrLaneKey: "tiers" | "lanes",
+): { tiersOrLanes: boolean; panes: boolean } {
   const panes = proportional?.panes === true;
-  return { bands: proportional?.bands === true || panes, panes };
+  return {
+    tiersOrLanes: proportional?.[tierOrLaneKey] === true || panes,
+    panes,
+  };
 }
 
+// The union of chart-ov's and chart-oh's proportional shapes, as the shared
+// transform reads it; validateChartProportional rejects the other figure's key.
+export type ChartOVOrOHProportional = {
+  lanes?: boolean;
+  tiers?: boolean;
+  panes?: boolean;
+};
+
 // Per-pane visible subsets for unbalanced membership, shared by the
-// indicator/tier/lane derivations. An axis member is visible in a pane iff
+// indicator/tier/lane derivations. A dimension member is visible in a pane iff
 // ANY cell for it has a defined value OR a defined uncertainty bound (a
 // member with bounds but no point estimate must still render its bounds).
 // Indices come out in ascending global (storage) order; a value sort then
-// reorders the indicator masks via orderVisibleByPane / orderVisibleByPaneBand.
+// reorders the indicator masks via orderVisibleByPane / orderVisibleByPaneTierOrLane.
 type PaneTensor = (number | undefined)[][][][]; // [tier][lane][series][indicator]
-type ChartBoundsTensors = {
+type ChartUncertaintyTensors = {
   ub: (number | undefined)[][][][][];
   lb: (number | undefined)[][][][][];
 };
 
 function deriveVisibleByPane(
   values: (number | undefined)[][][][][],
-  bounds: ChartBoundsTensors | undefined,
+  uncertaintyValues: ChartUncertaintyTensors | undefined,
   n: number,
   memberHasDefined: (paneTensor: PaneTensor, i: number) => boolean,
 ): number[][] {
-  const tensors = bounds ? [values, bounds.ub, bounds.lb] : [values];
+  const tensors = uncertaintyValues
+    ? [values, uncertaintyValues.ub, uncertaintyValues.lb]
+    : [values];
   return values.map((_, i_pane) => {
     const visible: number[] = [];
     for (let i = 0; i < n; i++) {
@@ -304,12 +393,12 @@ function deriveVisibleByPane(
 
 export function deriveVisibleIndicatorsByPane(
   values: (number | undefined)[][][][][],
-  bounds: ChartBoundsTensors | undefined,
+  uncertaintyValues: ChartUncertaintyTensors | undefined,
   nIndicators: number,
 ): number[][] {
   return deriveVisibleByPane(
     values,
-    bounds,
+    uncertaintyValues,
     nIndicators,
     (paneTensor, i_indicator) =>
       paneTensor.some((tier) =>
@@ -320,76 +409,83 @@ export function deriveVisibleIndicatorsByPane(
   );
 }
 
-// Per-(pane, band) visible indicator subsets for proportional band layout.
-// The band axis is the categorical band direction: tiers on ChartOH, lanes
-// on ChartOV. Visibility unions across the scale-direction dim + series
+// Per-(pane, tier or lane) visible indicator subsets for proportional tier-or-lane layout.
+// The tier-or-lane dimension is the categorical direction: tiers on ChartOH, lanes
+// on ChartOV. Visibility unions across the value-direction dim + series
 // (lanes+series per tier on OH; tiers+series per lane on OV), scanning
 // values AND bounds — same rule as the per-pane masks. Returned arrays are
-// indexed [pane][GLOBAL band index][visible global indicator indices]; a
-// band with no data in a pane gets [] and is dropped for that pane by the
+// indexed [pane][GLOBAL tier-or-lane index][visible global indicator indices]; a
+// tier or lane with no data in a pane gets [] and is dropped for that pane by the
 // geometry (never asserted against — it is legitimate data). Indices come out
-// in storage order; a value sort reorders them via orderVisibleByPaneBand.
-export function deriveVisibleIndicatorsByPaneBand(
+// in storage order; a value sort reorders them via orderVisibleByPaneTierOrLane.
+export function deriveVisibleIndicatorsByPaneTierOrLane(
   values: (number | undefined)[][][][][],
-  bounds: ChartBoundsTensors | undefined,
+  uncertaintyValues: ChartUncertaintyTensors | undefined,
   nIndicators: number,
-  bandAxis: "tier" | "lane",
+  tierOrLaneDimension: "tier" | "lane",
 ): number[][][] {
-  const tensors = bounds ? [values, bounds.ub, bounds.lb] : [values];
+  const tensors = uncertaintyValues
+    ? [values, uncertaintyValues.ub, uncertaintyValues.lb]
+    : [values];
   return values.map((paneTensor, i_pane) => {
-    const nBands = bandAxis === "tier"
+    const nTiersOrLanes = tierOrLaneDimension === "tier"
       ? paneTensor.length
       : (paneTensor[0]?.length ?? 0);
-    const bands: number[][] = [];
-    for (let i_band = 0; i_band < nBands; i_band++) {
+    const tiersOrLanes: number[][] = [];
+    for (let i_tierOrLane = 0; i_tierOrLane < nTiersOrLanes; i_tierOrLane++) {
       const visible: number[] = [];
       for (let i = 0; i < nIndicators; i++) {
         const hasDefined = tensors.some((tensor) => {
           const pt = tensor[i_pane];
-          if (bandAxis === "tier") {
-            return pt[i_band].some((lane) =>
+          if (tierOrLaneDimension === "tier") {
+            return pt[i_tierOrLane].some((lane) =>
               lane.some((series) => series[i] !== undefined)
             );
           }
           return pt.some((tier) =>
-            tier[i_band].some((series) => series[i] !== undefined)
+            tier[i_tierOrLane].some((series) => series[i] !== undefined)
           );
         });
         if (hasDefined) {
           visible.push(i);
         }
       }
-      bands.push(visible);
+      tiersOrLanes.push(visible);
     }
-    return bands;
+    return tiersOrLanes;
   });
 }
 
 export type ValueSortDirection = "ascending" | "descending";
 
-// Stable, so ties keep the order the mask arrived in (storage order).
+// Stable, so ties keep the order the mask arrived in (storage order). The
+// blank indicator follows every named one whatever its value.
 function orderByKey(
   visible: number[],
+  indicators: DimensionMember[],
   key: (i: number) => number,
   direction: ValueSortDirection,
 ): number[] {
   const sign = direction === "descending" ? -1 : 1;
-  return [...visible].sort((a, b) => sign * (key(a) - key(b)));
+  return [...visible].sort((a, b) =>
+    compareBlankLast(indicators[a], indicators[b]) || sign * (key(a) - key(b))
+  );
 }
 
 function sumDefined(cells: (number | undefined)[][], i: number): number {
   return cells.reduce((acc, series) => acc + (series[i] ?? 0), 0);
 }
 
-// A value sort keys on the sum over every series and every band-axis member
+// A value sort keys on the sum over every series and every tier-or-lane member
 // (lanes on OV, tiers on OH: the members that share one scale), at member 0
-// of the scale-direction axis, whose members carry their own limits and so
+// of the value-direction dimension, whose members carry their own limits and so
 // cannot be summed. The sort is a presentation order on the masks; storage
-// and the headers keep sort.indicator order.
+// and the members keep sort.indicator order.
 export function orderVisibleByPane(
   visibleByPane: number[][],
   values: (number | undefined)[][][][][],
-  bandAxis: "tier" | "lane",
+  indicators: DimensionMember[],
+  tierOrLaneDimension: "tier" | "lane",
   direction: ValueSortDirection | undefined,
 ): number[][] {
   if (direction === undefined) {
@@ -397,44 +493,52 @@ export function orderVisibleByPane(
   }
   return visibleByPane.map((visible, i_pane) => {
     const paneTensor = values[i_pane];
-    const bandCells = bandAxis === "lane"
+    const tierOrLaneCells = tierOrLaneDimension === "lane"
       ? paneTensor[0]
       : paneTensor.map((tier) => tier[0]);
     return orderByKey(
       visible,
-      (i) => bandCells.reduce((acc, cells) => acc + sumDefined(cells, i), 0),
+      indicators,
+      (i) =>
+        tierOrLaneCells.reduce((acc, cells) => acc + sumDefined(cells, i), 0),
       direction,
     );
   });
 }
 
-export function orderVisibleByPaneBand(
-  visibleByPaneBand: number[][][],
+export function orderVisibleByPaneTierOrLane(
+  visibleByPaneTierOrLane: number[][][],
   values: (number | undefined)[][][][][],
-  bandAxis: "tier" | "lane",
+  indicators: DimensionMember[],
+  tierOrLaneDimension: "tier" | "lane",
   direction: ValueSortDirection | undefined,
 ): number[][][] {
   if (direction === undefined) {
-    return visibleByPaneBand;
+    return visibleByPaneTierOrLane;
   }
-  return visibleByPaneBand.map((bands, i_pane) =>
-    bands.map((visible, i_band) => {
-      const cells = bandAxis === "lane"
-        ? values[i_pane][0][i_band]
-        : values[i_pane][i_band][0];
-      return orderByKey(visible, (i) => sumDefined(cells, i), direction);
+  return visibleByPaneTierOrLane.map((tiersOrLanes, i_pane) =>
+    tiersOrLanes.map((visible, i_tierOrLane) => {
+      const cells = tierOrLaneDimension === "lane"
+        ? values[i_pane][0][i_tierOrLane]
+        : values[i_pane][i_tierOrLane][0];
+      return orderByKey(
+        visible,
+        indicators,
+        (i) => sumDefined(cells, i),
+        direction,
+      );
     })
   );
 }
 
 export function deriveVisibleTiersByPane(
   values: (number | undefined)[][][][][],
-  bounds: ChartBoundsTensors | undefined,
+  uncertaintyValues: ChartUncertaintyTensors | undefined,
   nTiers: number,
 ): number[][] {
   return deriveVisibleByPane(
     values,
-    bounds,
+    uncertaintyValues,
     nTiers,
     (paneTensor, i_tier) =>
       paneTensor[i_tier].some((lane) =>
@@ -445,12 +549,12 @@ export function deriveVisibleTiersByPane(
 
 export function deriveVisibleLanesByPane(
   values: (number | undefined)[][][][][],
-  bounds: ChartBoundsTensors | undefined,
+  uncertaintyValues: ChartUncertaintyTensors | undefined,
   nLanes: number,
 ): number[][] {
   return deriveVisibleByPane(
     values,
-    bounds,
+    uncertaintyValues,
     nLanes,
     (paneTensor, i_lane) =>
       paneTensor.some((tier) =>
@@ -459,67 +563,41 @@ export function deriveVisibleLanesByPane(
   );
 }
 
-export type ProcessedHeaders = {
-  series: HeaderItem[];
-  lane: HeaderItem[];
-  tier: HeaderItem[];
-  pane: HeaderItem[];
+export type DataDimensions = {
+  series: DataDimension | undefined;
+  lane: DataDimension | undefined;
+  tier: DataDimension | undefined;
+  pane: DataDimension | undefined;
 };
 
 export function fillValuesWithDuplicateCheck(
   values: (number | undefined)[][][][][],
   jsonArray: JsonArray,
   valueProps: string[],
-  headers: ProcessedHeaders,
-  props: {
-    seriesProp?: string;
-    laneProp?: string;
-    tierProp?: string;
-    paneProp?: string;
-  },
+  dimensions: DataDimensions,
   getLastDimensionIndex: (obj: JsonArrayItem, valueProp: string) => number,
 ): void {
   for (const obj of jsonArray) {
     for (const valueProp of valueProps) {
       const value = getValidNumberOrUndefined(obj[valueProp]);
 
-      const i_lastDim = getLastDimensionIndex(obj, valueProp);
-      const i_series = getHeaderIndex(
-        props.seriesProp,
-        valueProp,
-        obj,
-        headers.series,
-      );
-      const i_lane = getHeaderIndex(
-        props.laneProp,
-        valueProp,
-        obj,
-        headers.lane,
-      );
-      const i_tier = getHeaderIndex(
-        props.tierProp,
-        valueProp,
-        obj,
-        headers.tier,
-      );
-      const i_pane = getHeaderIndex(
-        props.paneProp,
-        valueProp,
-        obj,
-        headers.pane,
-      );
+      const i_value = getLastDimensionIndex(obj, valueProp);
+      const i_series = getMemberIndex(dimensions.series, valueProp, obj);
+      const i_lane = getMemberIndex(dimensions.lane, valueProp, obj);
+      const i_tier = getMemberIndex(dimensions.tier, valueProp, obj);
+      const i_pane = getMemberIndex(dimensions.pane, valueProp, obj);
 
       assert(i_series >= 0);
       assert(i_lane >= 0);
       assert(i_tier >= 0);
       assert(i_pane >= 0);
-      assert(i_lastDim >= 0);
+      assert(i_value >= 0);
 
-      if (values[i_pane][i_tier][i_lane][i_series][i_lastDim] !== undefined) {
+      if (values[i_pane][i_tier][i_lane][i_series][i_value] !== undefined) {
         throw new Error("Duplicate values");
       }
 
-      values[i_pane][i_tier][i_lane][i_series][i_lastDim] = value;
+      values[i_pane][i_tier][i_lane][i_series][i_value] = value;
     }
   }
 }

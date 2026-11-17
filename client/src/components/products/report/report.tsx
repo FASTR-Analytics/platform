@@ -130,7 +130,9 @@ import {
   type VizFigureCollabBinding,
 } from "~/components/_shared/figure_editor/mod.ts";
 import {
+  buildReportFigureInputs,
   DuplicateProductsModal,
+  type FigureGround,
   type FigureSource,
   type FigureStaleContext,
   manageAccessLabel,
@@ -155,6 +157,7 @@ import { ShareReport } from "./share_report";
 import { ReportStyleEditor } from "./report_style_editor";
 import {
   createFigureSizeCache,
+  figureDarkInkForColors,
   figureLightInkForColors,
 } from "~/generate_report/mod";
 import { VersionHistoryEditor } from "~/components/products/_shared/version_history/mod.ts";
@@ -267,12 +270,22 @@ export function ReportEditor(p: Props) {
   const themeCss = createMemo(() =>
     buildFastrReportCss(fastrTheme(), fastrColors())
   );
-  const inkTheme = createMemo(() => {
+  const pageColors = createMemo(() => {
     const tok = fastrThemeTokens(fastrTheme());
-    return figureLightInkForColors(
-      fastrColors() ?? { page: tok.page, ink: tok.ink, accent: tok.accent },
-    );
+    return fastrColors() ??
+      { page: tok.page, ink: tok.ink, accent: tok.accent };
   });
+  const inkTheme = createMemo(() => figureLightInkForColors(pageColors()));
+  // Each figure's ground as its embed last measured it. A figure whose embed
+  // has not drawn is taken to sit on the page, in the ink Report Forge gives
+  // the page.
+  const figureGrounds = new Map<string, FigureGround>();
+  function figureGround(id: string): FigureGround {
+    return figureGrounds.get(id) ?? {
+      color: pageColors().page,
+      ink: inkTheme() ?? figureDarkInkForColors(pageColors()),
+    };
+  }
   // The lastUpdated we last saw from the server — round-tripped for optimistic
   // concurrency.
   const [lastUpdated, setLastUpdated] = createSignal<string>("");
@@ -420,6 +433,7 @@ export function ReportEditor(p: Props) {
             onMeasured={fp.onMeasured}
             inkFor={fp.inkFor}
             chartPalette={fp.chartPalette}
+            onGround={(ground) => figureGrounds.set(fp.id, ground)}
           />
         )}
       </Show>
@@ -763,6 +777,15 @@ export function ReportEditor(p: Props) {
           };
         },
         applyFigureUpdate: (figureId, block) => updateFigure(figureId, block),
+        getFigureLook: (figureId) => {
+          const figure = figures()[figureId];
+          if (!figure) return undefined;
+          const ground = figureGround(figureId);
+          return {
+            draw: buildReportFigureInputs(figure, chartPalette(), ground.ink),
+            ground: ground.color,
+          };
+        },
       },
     );
   });

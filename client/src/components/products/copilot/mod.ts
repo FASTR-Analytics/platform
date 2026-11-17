@@ -2,6 +2,7 @@ export {
   getClientToolsForDeckBlueprints,
   getClientToolsForDrafts,
   getClientToolsForFigureEditor,
+  getClientToolsForImageAssets,
   getClientToolsForProducts,
   getClientToolsForReportEditor,
   getClientToolsForSlides,

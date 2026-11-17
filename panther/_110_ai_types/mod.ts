@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -13,6 +13,8 @@ export type {
   DocumentSource,
   EffortLevel,
   EphemeralSection,
+  ImageContentBlock,
+  ImageMediaType,
   MessageParam,
   MessagePayload,
   OutputConfig,
@@ -21,6 +23,7 @@ export type {
   ThinkingConfig,
   ThinkingParam,
   ToolDefinition,
+  ToolResultContent,
   Usage,
   UserMessageParam,
 } from "./types.ts";
@@ -33,6 +36,7 @@ export {
   DEFAULT_MODEL_CONFIG,
   getMaxOutputTokens,
   getSupportedEffortLevels,
+  IMAGE_LIMITS,
   MAX_OUTPUT_TOKENS,
   MODEL_MAX_OUTPUT_TOKENS,
   MODEL_OPTIONS,
@@ -66,14 +70,18 @@ export {
   getUserFacingAIErrorMessage,
   hashRequestPrefix,
   legacyStripEphemeralMarkers,
+  limitToolResultImages,
   reconcileRequestPrefix,
+  RELEASED_IMAGE_TEXT,
+  releaseImages,
   releaseUnansweredCarriers,
   renderOutgoingMessages,
   repairStrandedToolUse,
   selectTurnSections,
+  STOPPED_REPLY_PLACEHOLDER,
   STRIPPED_THINKING_PLACEHOLDER,
   stripThinkingBlocks,
-  trimDanglingServerToolUse,
+  trimUnansweredServerToolUse,
 } from "./turn_logic.ts";
 
 export type {

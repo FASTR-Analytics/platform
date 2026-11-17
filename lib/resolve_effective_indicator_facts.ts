@@ -39,7 +39,7 @@ import type { DisaggregationPossibleValuesStatus } from "./types/presentation_ob
 //     indicator is displayed, that indicator's rule. An id that declares no
 //     rule, a count beside percents, is never coloured by a neighbour's.
 //   axisFormat: the collapsed format, ONLY for figure-wide decisions that
-//     cannot be per-value: a shared scale axis and the things derived from it.
+//     cannot be per-value: a shared value axis and the things derived from it.
 //   displayedRules: the distinct rules among the displayed indicators, each
 //     with its owning format, for the derived `indicator` legend.
 //

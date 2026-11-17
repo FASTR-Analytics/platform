@@ -1,7 +1,11 @@
-import { getSlideTitle, type Slide } from "lib";
+import { getSlideTitle, type Slide, type SlideDeckConfig } from "lib";
 import type { OpenSlide } from "~/components/instance/copilot/mod.ts";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
-import { extractBlocksFromLayout } from "./extract_blocks_from_layout";
+import { extractBlocksFromLayout } from "./layout_structure.ts";
+import {
+  describeSlideOverflow,
+  measureSlideOverflow,
+} from "./measure_slide_overflow.ts";
 
 function getContentSummary(slide: Slide): string {
   if (slide.type !== "content") return "";
@@ -21,13 +25,27 @@ function getContentSummary(slide: Slide): string {
   const textCount = blockCounts.get("text") || 0;
   if (textCount > 0) parts.push(`${textCount} text`);
 
+  const imageCount = blockCounts.get("image") || 0;
+  if (imageCount > 0) parts.push(`${imageCount} image`);
+
   return parts.length > 0 ? ` [${parts.join(", ")}]` : "";
 }
 
-function slideLine(slideId: string, marker: string, slide: Slide): string {
-  return `  ${slideId}${marker} (${slide.type}): "${getSlideTitle(slide)}"${
-    getContentSummary(slide)
-  }`;
+async function slideLines(
+  slideId: string,
+  marker: string,
+  slide: Slide,
+  deckConfig: SlideDeckConfig,
+): Promise<string> {
+  const line = `  ${slideId}${marker} (${slide.type}): "${
+    getSlideTitle(slide)
+  }"${getContentSummary(slide)}`;
+  if (slide.type !== "content") return line;
+  // One slide that cannot be measured must not hide the rest of the deck.
+  const overflow = await measureSlideOverflow(slide, deckConfig).catch(
+    (err: unknown) => err instanceof Error ? err : new Error(String(err)),
+  );
+  return `${line}\n    ${describeSlideOverflow(slideId, overflow)}`;
 }
 
 // The open slide's line is read from its draft, so it matches the canvas,
@@ -36,14 +54,15 @@ export async function getDeckSummaryForAI(
   productId: string,
   slideIds: string[],
   openSlide: OpenSlide | undefined,
+  deckConfig: SlideDeckConfig,
 ): Promise<string> {
   const lineFor = async (slideId: string): Promise<string> => {
     if (openSlide?.slideId === slideId) {
-      return slideLine(slideId, " (open)", openSlide.getDraft());
+      return slideLines(slideId, " (open)", openSlide.getDraft(), deckConfig);
     }
     const res = await getSlideFromCacheOrFetch(productId, slideId);
     return res.success
-      ? slideLine(slideId, "", res.data.slide)
+      ? slideLines(slideId, "", res.data.slide, deckConfig)
       : `  ${slideId}: [Failed to load: ${res.err}]`;
   };
   return [

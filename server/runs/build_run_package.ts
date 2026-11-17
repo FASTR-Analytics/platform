@@ -5,6 +5,7 @@ import {
   catalogExpressionEvaluationStrict,
   type DatasetType,
   type DisaggregationOption,
+  familiesOfDatasetTypes,
   getAssetToImportName,
   postAggregationExpressionStrict,
   RUN_MANIFEST_SCHEMA_VERSION,
@@ -293,6 +294,7 @@ export async function buildRunPackageIntoTmp(
   const summary: RunSummary = {
     manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
     provenance: "wizard",
+    families: familiesOfDatasetTypes(datasets.map((d) => d.datasetType)),
     moduleIds: runModules.map((m) => m.id),
     metricCount: runMetrics.length,
     totalRowCount: runResultsObjects.reduce((sum, ro) => sum + ro.rowCount, 0),

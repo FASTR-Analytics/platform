@@ -1,7 +1,6 @@
 # Height Constraints and Layout Algorithms
 
-This document explains how the layouter handles height allocation using `minH`
-and `maxH` constraints.
+This document explains how the layouter handles height allocation using `minH` and `maxH` constraints.
 
 ## Core Concept
 
@@ -10,8 +9,7 @@ Every node has height constraints: `{ minH: number, maxH: number }`.
 - **minH**: The minimum height the node can be (never shrink below this)
 - **maxH**: The maximum height the node can be (never grow beyond this)
 
-The layouter's job is to **fill available space** while respecting these
-constraints.
+The layouter's job is to **fill available space** while respecting these constraints.
 
 ## Layout Structure
 
@@ -25,8 +23,7 @@ A layout is a tree of nodes:
 
 ### Items
 
-Items get their constraints from the `ItemHeightMeasurer` function provided by
-the caller. The layouter is content-agnostic.
+Items get their constraints from the `ItemHeightMeasurer` function provided by the caller. The layouter is content-agnostic.
 
 ### Rows Container
 
@@ -37,8 +34,7 @@ rows.minH = sum(children's minH) + gaps
 rows.maxH = sum(children's maxH) + gaps
 ```
 
-Extra space is distributed among children that can grow (where
-`currentH < maxH`).
+Extra space is distributed among children that can grow (where `currentH < maxH`).
 
 ### Cols Container
 
@@ -49,9 +45,7 @@ cols.minH = max(children's minH)
 cols.maxH = max(children's maxH)
 ```
 
-Row height = min(container height, max of children's maxH). Each child gets row
-height, capped by their individual `maxH`. Children with smaller `maxH` have
-gaps below them.
+Row height = min(container height, max of children's maxH). Each child gets row height, capped by their individual `maxH`. Children with smaller `maxH` have gaps below them.
 
 ## Node-Level Overrides
 
@@ -69,8 +63,7 @@ createRowsNode([...], {
 });
 ```
 
-**Important:** `minH` and `maxH` overrides represent **total heights**
-(including padding and borders), not content-only heights. For example:
+**Important:** `minH` and `maxH` overrides represent **total heights** (including padding and borders), not content-only heights. For example:
 
 ```typescript
 // Item with 10px padding on all sides
@@ -83,12 +76,9 @@ createItemNode(data, {
 
 **Use cases:**
 
-1. **Flexible spacers:** Content returns fixed height, but node sets
-   `maxH: Infinity`
-2. **Override renderer constraints:** Force a figure to have `minH: 0` for
-   flexible sizing
-3. **Container size limits:** Cap a rows container at `maxH: 500` regardless of
-   content
+1. **Flexible spacers:** Content returns fixed height, but node sets `maxH: Infinity`
+2. **Override renderer constraints:** Force a figure to have `minH: 0` for flexible sizing
+3. **Container size limits:** Cap a rows container at `maxH: 500` regardless of content
 
 ## Measurement Algorithm
 
@@ -194,23 +184,16 @@ Both cols containers are flexible, so they divide the container height equally.
 
 The layouter warns about constraint conflicts:
 
-- **HEIGHT_OVERFLOW**: In cols, when
-  `max(children's minH) > min(children's maxH)`. This means children can't all
-  fit at their minimum heights.
+- **HEIGHT_OVERFLOW**: In cols, when `max(children's minH) > min(children's maxH)`. This means children can't all fit at their minimum heights.
 
 ## Key Points
 
-1. **Fill is implicit** - Everything fills available space by default,
-   constrained only by minH/maxH
+1. **Fill is implicit** - Everything fills available space by default, constrained only by minH/maxH
 
-2. **minH is iron-clad** - Content is never shrunk below minH. Gaps are
-   acceptable; constraint violations get warnings.
+2. **minH is iron-clad** - Content is never shrunk below minH. Gaps are acceptable; constraint violations get warnings.
 
-3. **maxH limits growth** - In cols, the smallest maxH limits the row height for
-   all siblings
+3. **maxH limits growth** - In cols, the smallest maxH limits the row height for all siblings
 
-4. **Node overrides are powerful** - Set `maxH: Infinity` on any node to make it
-   flexible, regardless of its content's natural constraints
+4. **Node overrides are powerful** - Set `maxH: Infinity` on any node to make it flexible, regardless of its content's natural constraints
 
-5. **Constraints propagate** - A rows container's constraints are the sum of its
-   children; a cols container's constraints are the intersection of its children
+5. **Constraints propagate** - A rows container's constraints are the sum of its children; a cols container's constraints are the intersection of its children

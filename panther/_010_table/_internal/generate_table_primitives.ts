@@ -1,22 +1,33 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  buildItem,
   Coordinates,
+  itemCoordinate,
   type Primitive,
   RectCoordsDims,
   sum,
+  toDimensionMember,
   Z_INDEX,
 } from "../deps.ts";
 import type { MeasuredTable } from "../types.ts";
+import { tableColGroups, tableRowGroups } from "../types.ts";
+import {
+  buildColGroupMembersByColIndex,
+  buildRowMemberLookups,
+} from "./measure_table.ts";
 
 export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
   const primitives: Primitive[] = [];
   const s = mTable.mergedStyle;
   const d = mTable.transformedData;
   const m = mTable.measuredInfo;
+  const colGroups = tableColGroups(d);
+  const { rowGroupMembers } = buildRowMemberLookups(tableRowGroups(d));
+  const colGroupMembers = buildColGroupMembersByColIndex(colGroups);
 
   const extraTop = m.extraTopPaddingForRows;
   const extraBottom = m.extraBottomPaddingForRows;
@@ -37,38 +48,45 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
       const colGroupContentWidth = cghi.colGroupInnerWidth -
         s.colHeaderPadding.totalPx();
 
-      let textPosition: Coordinates | undefined;
-      if (cghi.mText) {
-        const yOffset = m.colGroupHeaderMaxHeight - cghi.mText.dims.h();
-        textPosition = new Coordinates([
+      const text = cghi.mText === undefined ? {} : {
+        mText: cghi.mText,
+        position: new Coordinates([
           currentX + s.colHeaderPadding.pl() + colGroupContentWidth / 2,
           m.colGroupHeadersInnerY +
           s.colHeaderPadding.pt() +
-          yOffset,
-        ]);
-      }
+          (m.colGroupHeaderMaxHeight - cghi.mText.dims.h()),
+        ]),
+      };
 
+      const member = toDimensionMember(
+        colGroups[i_colGroup].id,
+        colGroups[i_colGroup].label,
+      );
+      const bounds = new RectCoordsDims({
+        x: currentX,
+        y: m.colGroupHeadersInnerY,
+        w: cghi.colGroupInnerWidth,
+        h: bgH,
+      });
       primitives.push({
         type: "table-col-header",
         key: `table-col-group-header-${i_colGroup}`,
-        bounds: new RectCoordsDims({
-          x: currentX,
-          y: m.colGroupHeadersInnerY,
-          w: cghi.colGroupInnerWidth,
-          h: bgH,
-        }),
+        item: buildItem([itemCoordinate(d.cols?.groupDimension, member)]),
+        part: "header",
+        bounds,
+        hitBounds: bounds,
         zIndex: Z_INDEX.TABLE_HEADER_BG,
         meta: {
           i_col: undefined,
-          label: d.colGroups[i_colGroup].label ?? "",
+          label: colGroups[i_colGroup].label ?? "",
           isGroupHeader: true,
           i_colGroup,
+          member,
         },
         backgroundColor: cghi.headerStyle.backgroundColor,
-        mText: cghi.mText,
-        textPosition,
-        textAlignH: "center",
-        textAlignV: "top",
+        ...text,
+        alignH: "center",
+        alignV: "top",
       });
 
       currentX += cghi.colGroupInnerWidth + s.gridLineWidth;
@@ -92,56 +110,66 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
       const colHeaderContentWidth = colWidth -
         s.colHeaderPadding.totalPx();
 
-      let textPosition: Coordinates | RectCoordsDims | undefined;
-      let textAlignH: "left" | "center" | "right" = "center";
-      let textAlignV: "top" | "middle" | "bottom" = "top";
-      if (chi.mText) {
-        const isRotated = chi.mText.rotation !== "horizontal";
-        if (isRotated) {
-          // Rotated headers keep forced placement — alignment of
-          // sideways-rendered text is not supported.
-          textPosition = new Coordinates([
+      const text = chi.mText === undefined
+        ? { alignH: "center" as const, alignV: "top" as const }
+        : chi.mText.rotation !== "horizontal"
+        // Rotated headers keep forced placement — alignment of
+        // sideways-rendered text is not supported.
+        ? {
+          mText: chi.mText,
+          position: new Coordinates([
             currentX + s.colHeaderPadding.pl() + colHeaderContentWidth / 2,
             m.colHeadersInnerY +
             s.colHeaderPadding.pt() +
             m.colHeaderMaxHeight,
-          ]);
-          textAlignV = "bottom";
-        } else {
-          textPosition = new RectCoordsDims({
+          ]),
+          alignH: "center" as const,
+          alignV: "bottom" as const,
+        }
+        : {
+          mText: chi.mText,
+          alignRcd: new RectCoordsDims({
             x: currentX + s.colHeaderPadding.pl(),
             y: m.colHeadersInnerY + s.colHeaderPadding.pt(),
             w: colHeaderContentWidth,
             h: m.colHeaderMaxHeight,
-          });
-          textAlignH = chi.headerStyle.alignH;
-          textAlignV = chi.headerStyle.alignV;
-        }
-      }
+          }),
+          alignH: chi.headerStyle.alignH,
+          alignV: chi.headerStyle.alignV,
+        };
 
+      const member = toDimensionMember(chi.id, chi.label);
+      const bounds = new RectCoordsDims({
+        x: currentX,
+        y: m.colHeadersInnerY,
+        w: colWidth,
+        h: bgH,
+      });
       primitives.push({
         type: "table-col-header",
         key: `table-col-header-${chi.index}`,
-        bounds: new RectCoordsDims({
-          x: currentX,
-          y: m.colHeadersInnerY,
-          w: colWidth,
-          h: bgH,
-        }),
+        item: buildItem([
+          itemCoordinate(d.cols?.dimension, member),
+          itemCoordinate(
+            d.cols?.groupDimension,
+            colGroupMembers[chi.index],
+          ),
+        ]),
+        part: "header",
+        bounds,
+        hitBounds: bounds,
         zIndex: Z_INDEX.TABLE_HEADER_BG,
         meta: {
           i_col: chi.index,
           // "\n" keeps multi-line (wrapped or formatter-produced) labels
           // faithful — group (:58) and row (:179) metadata carry the raw
-          // resolved label, so the item header must not diverge.
+          // resolved label, so the item's member must not diverge.
           label: chi.mText?.lines.map((l) => l.text).join("\n") ?? "",
           isGroupHeader: false,
+          member,
         },
         backgroundColor: chi.headerStyle.backgroundColor,
-        mText: chi.mText,
-        textPosition,
-        textAlignH,
-        textAlignV,
+        ...text,
       });
 
       currentX += colWidth + s.gridLineWidth;
@@ -172,34 +200,50 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
         ? `table-row-group-header-${groupHeaderSeqIdx}`
         : `table-row-header-${rhi.index}`;
 
+      const member = toDimensionMember(rhi.id, rhi.label);
+      const bounds = new RectCoordsDims({
+        x: m.rowHeadersInnerX,
+        y: currentY,
+        w: m.firstCellX - m.rowHeadersInnerX,
+        h: rowHeight,
+      });
       primitives.push({
         type: "table-row-header",
         key,
-        bounds: new RectCoordsDims({
-          x: m.rowHeadersInnerX,
-          y: currentY,
-          w: m.firstCellX - m.rowHeadersInnerX,
-          h: rowHeight,
-        }),
+        item: buildItem(
+          rhi.index === "group-header"
+            ? [itemCoordinate(d.rows?.groupDimension, member)]
+            : [
+              itemCoordinate(d.rows?.dimension, member),
+              itemCoordinate(
+                d.rows?.groupDimension,
+                rowGroupMembers[rhi.index],
+              ),
+            ],
+        ),
+        part: "header",
+        bounds,
+        hitBounds: bounds,
         zIndex: Z_INDEX.TABLE_TEXT,
         meta: {
           i_row: rhi.index,
           label: rhi.label ?? "",
           isGroupHeader,
+          member,
         },
         backgroundColor: rhi.headerStyle.backgroundColor,
         mText: rhi.mText,
         // Content box: from the padded-indented left edge to the padded edge
-        // before the header/body divider, spanning the row's content band.
-        textPosition: new RectCoordsDims({
+        // before the header/body divider, spanning the row's content height.
+        alignRcd: new RectCoordsDims({
           x: m.rowHeadersInnerX + s.rowHeaderPadding.pl() + indent,
           y: currentY + m.rowCellPaddingT + extraTop,
           w: m.firstCellX - s.headerBorderWidth - s.rowHeaderPadding.pr() -
             (m.rowHeadersInnerX + s.rowHeaderPadding.pl() + indent),
           h: mr.rowContentHeight,
         }),
-        textAlignH: rhi.headerStyle.alignH,
-        textAlignV: rhi.headerStyle.alignV,
+        alignH: rhi.headerStyle.alignH,
+        alignV: rhi.headerStyle.alignV,
       });
     }
 
@@ -210,39 +254,49 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
     if (rhi.index !== "group-header") {
       let currentX = m.firstCellX;
       mr.cells.forEach((cell) => {
-        const colWidth = m.colInnerWidths[cell.cellInfo.i_col];
+        const ci = cell.cellInfo;
+        const colWidth = m.colInnerWidths[ci.i_col];
         const cellContentWidth = colWidth - s.cellPadding.pl() -
           s.cellPadding.pr();
 
+        const bounds = new RectCoordsDims({
+          x: currentX,
+          y: currentY,
+          w: colWidth,
+          h: rowHeight,
+        });
         primitives.push({
           type: "table-cell",
-          key: `table-cell-${cell.cellInfo.i_row}-${cell.cellInfo.i_col}`,
-          bounds: new RectCoordsDims({
-            x: currentX,
-            y: currentY,
-            w: colWidth,
-            h: rowHeight,
-          }),
+          key: `table-cell-${ci.i_row}-${ci.i_col}`,
+          item: buildItem([
+            itemCoordinate(d.rows?.dimension, ci.rowMember),
+            itemCoordinate(d.rows?.groupDimension, ci.rowGroupMember),
+            itemCoordinate(d.cols?.dimension, ci.colMember),
+            itemCoordinate(d.cols?.groupDimension, ci.colGroupMember),
+          ]),
+          part: "body",
+          bounds,
+          hitBounds: bounds,
           zIndex: Z_INDEX.TABLE_CELL_BG,
           meta: {
-            i_row: cell.cellInfo.i_row,
-            i_col: cell.cellInfo.i_col,
-            rowHeader: cell.cellInfo.rowHeader,
-            colHeader: cell.cellInfo.colHeader,
-            rowGroupHeader: cell.cellInfo.rowGroupHeader,
-            colGroupHeader: cell.cellInfo.colGroupHeader,
+            i_row: ci.i_row,
+            i_col: ci.i_col,
+            rowMember: ci.rowMember,
+            colMember: ci.colMember,
+            rowGroupMember: ci.rowGroupMember,
+            colGroupMember: ci.colGroupMember,
           },
           annotationGroup: cell.cellStyle.annotationGroup,
           backgroundColor: cell.cellStyle.backgroundColor,
           mText: cell.mText,
-          textPosition: new RectCoordsDims({
+          alignRcd: new RectCoordsDims({
             x: currentX + s.cellPadding.pl(),
             y: currentY + m.rowCellPaddingT + extraTop,
             w: cellContentWidth,
             h: mr.rowContentHeight,
           }),
-          textAlignH: cell.cellStyle.alignH,
-          textAlignV: cell.cellStyle.alignV,
+          alignH: cell.cellStyle.alignH,
+          alignV: cell.cellStyle.alignV,
         });
 
         currentX += colWidth + s.gridLineWidth;
@@ -262,13 +316,13 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
   const borderVLines: { x: number; y1: number; y2: number }[] = [];
   const gridHLines: { y: number; x1: number; x2: number }[] = [];
   const gridVLines: { x: number; y1: number; y2: number }[] = [];
-  const headerAxisHLines: { y: number; x1: number; x2: number }[] = [];
-  const headerAxisVLines: { x: number; y1: number; y2: number }[] = [];
+  const headerBorderHLines: { y: number; x1: number; x2: number }[] = [];
+  const headerBorderVLines: { x: number; y1: number; y2: number }[] = [];
 
-  const cX1 = m.contentRcd.x();
-  const cX2 = m.contentRcd.rightX();
-  const cY1 = m.contentRcd.y();
-  const cY2 = m.contentRcd.bottomY();
+  const cX1 = m.bodyRcd.x();
+  const cX2 = m.bodyRcd.rightX();
+  const cY1 = m.bodyRcd.y();
+  const cY2 = m.bodyRcd.bottomY();
 
   // Border: top, bottom, left, right
   borderHLines.push({
@@ -285,16 +339,18 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
   // Vertical grid lines (inner) and right border
   {
     let vX = m.firstCellX;
-    const totalCols = sum(d.colGroups.map((cg) => cg.cols.length));
-    let colIndex = 0;
-    d.colGroups.forEach((colGroup) => {
+    const totalCols = sum(colGroups.map((cg) => cg.cols.length));
+    let nColsDrawn = 0;
+    colGroups.forEach((colGroup) => {
       const nColsThisGroup = colGroup.cols.length;
       colGroup.cols.forEach((col, i_col) => {
         vX += m.colInnerWidths[col.index];
-        colIndex++;
-        const isRightBorder = colIndex === totalCols;
+        nColsDrawn++;
+        const isRightBorder = nColsDrawn === totalCols;
         const lineWidth = isRightBorder ? s.borderWidth : s.gridLineWidth;
-        const topY = i_col === nColsThisGroup - 1 ? cY1 : m.colGroupHeaderAxisY;
+        const topY = i_col === nColsThisGroup - 1
+          ? cY1
+          : m.colGroupHeaderGridLineY;
 
         if (isRightBorder) {
           borderVLines.push({
@@ -317,7 +373,7 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
   // Col group header axis line (horizontal grid line)
   if (m.hasColGroupHeaders) {
     gridHLines.push({
-      y: m.colGroupHeaderAxisY + s.gridLineWidth / 2,
+      y: m.colGroupHeaderGridLineY + s.gridLineWidth / 2,
       x1: cX1,
       x2: cX2,
     });
@@ -354,14 +410,14 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
 
   // Header axis lines
   if (m.hasRowHeaders) {
-    headerAxisVLines.push({
+    headerBorderVLines.push({
       x: m.firstCellX - s.headerBorderWidth / 2,
       y1: cY1,
       y2: cY2,
     });
   }
   if (m.hasColHeaders) {
-    headerAxisHLines.push({
+    headerBorderHLines.push({
       y: m.firstCellY - s.headerBorderWidth / 2,
       x1: cX1,
       x2: cX2,
@@ -372,7 +428,7 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
   primitives.push({
     type: "table-border",
     key: "table-border",
-    bounds: m.contentRcd,
+    bounds: m.bodyRcd,
     zIndex: Z_INDEX.TABLE_BORDER,
     meta: {} as Record<PropertyKey, never>,
     horizontalLines: borderHLines,
@@ -386,7 +442,7 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
   primitives.push({
     type: "table-grid",
     key: "table-grid",
-    bounds: m.contentRcd,
+    bounds: m.bodyRcd,
     zIndex: Z_INDEX.TABLE_GRID_LINE,
     meta: {} as Record<PropertyKey, never>,
     horizontalLines: gridHLines,
@@ -397,15 +453,15 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
     },
   });
 
-  if (headerAxisHLines.length > 0 || headerAxisVLines.length > 0) {
+  if (headerBorderHLines.length > 0 || headerBorderVLines.length > 0) {
     primitives.push({
-      type: "table-header-axis",
-      key: "table-header-axis",
-      bounds: m.contentRcd,
+      type: "table-header-border",
+      key: "table-header-border",
+      bounds: m.bodyRcd,
       zIndex: Z_INDEX.TABLE_HEADER_AXIS,
       meta: {} as Record<PropertyKey, never>,
-      horizontalLines: headerAxisHLines,
-      verticalLines: headerAxisVLines,
+      horizontalLines: headerBorderHLines,
+      verticalLines: headerBorderVLines,
       style: {
         strokeColor: s.headerBorderColor,
         strokeWidth: s.headerBorderWidth,

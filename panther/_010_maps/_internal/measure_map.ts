@@ -1,12 +1,13 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  calculateMinLabelPlotExtent,
+  calculateMinLabelSubChartExtent,
   type ContentScaleResult,
   CustomFigureStyle,
+  getSubChartMembers,
   isAutoScaleLegendConfig,
   measureChart,
   type MergedMapStyle,
@@ -20,14 +21,15 @@ import {
   resolveLabelPlacement,
   type SimplifiedChartConfig,
   solveContentScale,
+  type SubChartMembers,
 } from "../deps.ts";
 import { getMapDataTransformed } from "../get_map_data.ts";
 import type { MapDataTransformed, MapInputs, MeasuredMap } from "../types.ts";
 import {
-  generateMapRegionPrimitives,
-  resolveShownRegions,
-  type ShownMapRegion,
-} from "./generate_map_region_primitives.ts";
+  generateMapAreaPrimitives,
+  resolveShownMapAreas,
+  type ShownMapArea,
+} from "./generate_map_area_primitives.ts";
 import {
   buildMapLabelEntries,
   buildMapUnitGeometry,
@@ -43,11 +45,7 @@ import {
   fitProjectionAtScale,
 } from "./fit_projection.ts";
 import { getProjectionFn, type ProjectionFn } from "./projections.ts";
-import {
-  getFeatureMatchKey,
-  getMapCellHeaders,
-  toLabelMode,
-} from "./label_shared.ts";
+import { getFeatureMatchKey, toLabelMode } from "./label_shared.ts";
 import type { GeoJSONFeature } from "./geojson_types.ts";
 
 export function measureMap(
@@ -71,11 +69,10 @@ export function measureMap(
   > = {
     mergedStyle,
     transformedData,
-    dataProps: {
-      paneHeaders: transformedData.paneHeaders,
-      tierHeaders: transformedData.tierHeaders,
-      laneHeaders: transformedData.laneHeaders,
-      seriesHeaders: [],
+    dataDimensions: {
+      pane: transformedData.pane,
+      tier: transformedData.tier,
+      lane: transformedData.lane,
     },
     xAxisConfig: { type: "none" },
     yAxisConfig: { type: "none" },
@@ -100,16 +97,16 @@ export function measureMap(
 
   const projectionFn = getProjectionFn(mergedStyle.map.projection);
 
-  // Two-phase over the grid: solve every cell's content scale
-  // first, then emit every cell at the minimum, so small multiples stay
+  // Two-phase over the figure: solve every sub-chart's content scale
+  // first, then emit every sub-chart at the minimum, so small multiples stay
   // comparable.
-  const solved: SolvedMapCell[] = [];
+  const solved: SolvedMapSubChart[] = [];
   for (const prim of chartMeasured.primitives) {
     if (prim.type !== "chart-grid") continue;
     solved.push(
-      solveMapCell(
+      solveMapSubChart(
         rc,
-        prim.plotAreaRcd,
+        prim.bounds,
         prim.meta,
         transformedData,
         mergedStyle,
@@ -126,7 +123,7 @@ export function measureMap(
   const mapPrimitives: Primitive[] = [];
   for (const c of solved) {
     mapPrimitives.push(
-      ...emitMapCell(c, mergedStyle, projectionFn, commonS),
+      ...emitMapSubChart(c, mergedStyle, projectionFn, commonS),
     );
   }
 
@@ -139,29 +136,30 @@ export function measureMap(
   };
 }
 
-type CellIndices = {
-  paneIndex: number;
-  tierIndex: number;
-  laneIndex: number;
+type SubChartIndices = {
+  i_pane: number;
+  i_tier: number;
+  i_lane: number;
 };
 
-type SolvedMapCell = {
-  indices: CellIndices;
+type SolvedMapSubChart = {
+  indices: SubChartIndices;
+  members: SubChartMembers;
   subChartRcd: RectCoordsDims;
   featuresForFitting: GeoJSONFeature[];
-  shown: ShownMapRegion[];
+  shown: ShownMapArea[];
   unitGeom: MapUnitGeometry | undefined;
   entries: MapLabelEntry[];
   // The frozen s0 placement split, carried by id.
   outsideIds: Set<string>;
   outside: MapLabelEntry[];
-  // Which placer this cell solved under. The final choice is re-made at the
-  // harmonised scale in emitMapCell; this is the solve's own answer.
+  // Which placer this sub-chart solved under. The final choice is re-made at the
+  // harmonised scale in emitMapSubChart; this is the solve's own answer.
   placement: OutsideLabelPlacement;
-  // The field's reference scale and validity margin, fixed per cell so one
+  // The field's reference scale and validity margin, fixed per sub-chart so one
   // distance field serves every trial content scale.
   trackCtx: MapTrackContext;
-  // This cell's own solved content scale; emission uses the grid minimum.
+  // This sub-chart's own solved content scale; emission uses the figure minimum.
   s: number;
   // The budget was infeasible even at the legibility floor.
   starved: boolean;
@@ -172,51 +170,52 @@ type SolvedMapCell = {
 export function featuresForFit(
   geoFeatures: GeoJSONFeature[],
   valueMap: Record<string, number | undefined>,
-  areaMatchProp: string,
-  fit: "all-regions" | "only-regions-in-data",
+  mapAreaMatchProp: string,
+  fit: "all-map-areas" | "only-map-areas-in-data",
 ): GeoJSONFeature[] {
-  return fit === "only-regions-in-data"
+  return fit === "only-map-areas-in-data"
     ? geoFeatures.filter(
-      (f) => getFeatureMatchKey(f, areaMatchProp) in valueMap,
+      (f) => getFeatureMatchKey(f, mapAreaMatchProp) in valueMap,
     )
     : geoFeatures;
 }
 
-function solveMapCell(
+function solveMapSubChart(
   rc: RenderContext,
   subChartRcd: RectCoordsDims,
-  indices: CellIndices,
+  indices: SubChartIndices,
   data: MapDataTransformed,
   mergedStyle: MergedMapStyle,
   projectionFn: ProjectionFn,
-): SolvedMapCell {
-  const { paneIndex, tierIndex, laneIndex } = indices;
+): SolvedMapSubChart {
+  const { i_pane, i_tier, i_lane } = indices;
   const mode = toLabelMode(mergedStyle.map.dataLabelMode);
-  const valueMap = data.valueMaps[paneIndex][tierIndex][laneIndex];
-  const headers = getMapCellHeaders(data, indices);
+  const valueMap = data.valueMaps[i_pane][i_tier][i_lane];
+  const members = getSubChartMembers(data, indices);
 
   const featuresForFitting = featuresForFit(
     data.geoFeatures,
     valueMap,
-    data.areaMatchProp,
+    data.mapArea.matchProp,
     mergedStyle.map.fit,
   );
-  const shown = resolveShownRegions(
+  const shown = resolveShownMapAreas(
     data.geoFeatures,
     valueMap,
     data.valueRange,
-    data.areaMatchProp,
-    mergedStyle.content.mapRegions.getStyle,
-    paneIndex,
-    tierIndex,
-    laneIndex,
-    headers,
+    data,
+    mergedStyle.content.mapAreas.getStyle,
+    i_pane,
+    i_tier,
+    i_lane,
+    members,
   );
 
   const projBounds = computeProjectedBounds(featuresForFitting, projectionFn);
   if (!projBounds || projBounds.w === 0 || projBounds.h === 0) {
     return {
       indices,
+      members,
       subChartRcd,
       featuresForFitting,
       shown,
@@ -265,7 +264,7 @@ function solveMapCell(
       unitFitted,
       mode,
       indices,
-      headers,
+      members,
       s0,
     );
     entries = entries.map((e) => {
@@ -288,7 +287,7 @@ function solveMapCell(
       }
       // A rung may have re-wrapped the text to earn its verdict, and the
       // emitter must draw what was tested: a label rescued onto two lines and
-      // then drawn as one long line overflows the region it was kept inside.
+      // then drawn as one long line overflows the map area it was kept inside.
       return mText === e.mText ? e : { ...e, mText };
     });
     outside = entries.filter((e) => outsideIds.has(e.id));
@@ -296,11 +295,12 @@ function solveMapCell(
 
   // Solve for the content scale the frozen label set affords. The
   // floor puts the LARGER drawn dimension at the legibility extent, matching
-  // the old 42×42 minimum cell.
+  // the old 42×42 minimum sub-chart.
   let placement = mergedStyle.map.outsideLabelPlacement;
-  const sFloor = calculateMinLabelPlotExtent(rc, mergedStyle.text.dataLabels) /
+  const sFloor =
+    calculateMinLabelSubChartExtent(rc, mergedStyle.text.dataLabels) /
     Math.max(projBounds.w, projBounds.h);
-  // The field is built once per cell at s0 and reused at every trial scale, so
+  // The field is built once per sub-chart at s0 and reused at every trial scale, so
   // its validity margin has to cover the smallest scale the solve will reach.
   const trackCtx: MapTrackContext = {
     refScale: s0,
@@ -318,7 +318,7 @@ function solveMapCell(
         trackCtx,
       );
       // Undefined = the track cannot hold these labels at this scale, which is
-      // a genuine "does not fit"; only when NO scale works does the cell fall
+      // a genuine "does not fit"; only when NO scale works does the sub-chart fall
       // back.
       return e !== undefined &&
         e.left + e.right <= subChartRcd.w() &&
@@ -337,7 +337,7 @@ function solveMapCell(
     }
     result = solveContentScale(fitsUnder(placement), sFloor, s0);
     if (result.kind === "infeasible" && placement === "nearest") {
-      // N10: this cell cannot be nearest-point at any scale, so it re-solves on
+      // N10: this sub-chart cannot be nearest-point at any scale, so it re-solves on
       // the flank placer — all shipped machinery — and is NOT cramped for that
       // reason. Flank fitting is a success.
       placement = "flank";
@@ -357,6 +357,7 @@ function solveMapCell(
 
   return {
     indices,
+    members,
     subChartRcd,
     featuresForFitting,
     shown,
@@ -372,14 +373,15 @@ function solveMapCell(
   };
 }
 
-function emitMapCell(
-  solvedCell: SolvedMapCell,
+function emitMapSubChart(
+  solvedSubChart: SolvedMapSubChart,
   mergedStyle: MergedMapStyle,
   projectionFn: ProjectionFn,
   s: number,
 ): Primitive[] {
   const {
     indices,
+    members,
     subChartRcd,
     featuresForFitting,
     shown,
@@ -389,8 +391,7 @@ function emitMapCell(
     outside,
     trackCtx,
     degenerate,
-  } = solvedCell;
-  const { paneIndex, tierIndex, laneIndex } = indices;
+  } = solvedSubChart;
 
   if (degenerate || !unitGeom || s <= 0) {
     const fitted = fitProjectionAtScale(
@@ -400,23 +401,16 @@ function emitMapCell(
       subChartRcd.centerX(),
       subChartRcd.centerY(),
     );
-    return generateMapRegionPrimitives(
-      subChartRcd,
-      shown,
-      fitted,
-      paneIndex,
-      tierIndex,
-      laneIndex,
-    );
+    return generateMapAreaPrimitives(shown, fitted, indices, members);
   }
 
-  // Centre the union bbox in the cell — in BOTH dimensions: at s at most one
+  // Centre the union bbox in the sub-chart — in BOTH dimensions: at s at most one
   // dimension is tight, and centring when underfilling is the standing rule.
   // N10: the final nearest-vs-flank choice is made ONCE, here, at the harmonised
-  // grid-minimum scale — a track feasible at this cell's own solved s can be
+  // figure-minimum scale — a track feasible at this sub-chart's own solved s can be
   // infeasible at a smaller one, and the centring extents and the emitted
   // primitives must not disagree about which placer ran.
-  let placement = solvedCell.placement;
+  let placement = solvedSubChart.placement;
   let extents = outside.length > 0
     ? mapExtentsAt(outside, unitGeom, s, mergedStyle, placement, trackCtx)
     : undefined;
@@ -451,13 +445,11 @@ function emitMapCell(
     cy,
   );
 
-  const primitives: Primitive[] = generateMapRegionPrimitives(
-    subChartRcd,
+  const primitives: Primitive[] = generateMapAreaPrimitives(
     shown,
     fitted,
-    paneIndex,
-    tierIndex,
-    laneIndex,
+    indices,
+    members,
   );
 
   primitives.push(
@@ -471,6 +463,7 @@ function emitMapCell(
       cy,
       mergedStyle,
       indices,
+      members,
       placement,
       trackCtx,
     ),

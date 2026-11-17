@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -13,7 +13,9 @@ import type {
   ChartValueInfo,
   ColorKeyOrString,
   DataLabel,
+  LabelHalo,
   MeasuredText,
+  PrimitiveItem,
 } from "../deps.ts";
 import { Coordinates, RectCoordsDims } from "../deps.ts";
 
@@ -21,25 +23,25 @@ export type Orientation = "vertical" | "horizontal";
 
 // Extract the value-axis coordinate from a mapped Coordinates object.
 // Vertical: value lives on Y. Horizontal: value lives on X.
-export function valCoord(c: Coordinates, orientation: Orientation): number {
+export function valueCoord(c: Coordinates, orientation: Orientation): number {
   return orientation === "horizontal" ? c.x() : c.y();
 }
 
 // Extract the category-axis coordinate from a mapped Coordinates object.
-// (Inverse of valCoord.)
+// (Inverse of valueCoord.)
 export function catCoord(c: Coordinates, orientation: Orientation): number {
   return orientation === "horizontal" ? c.y() : c.x();
 }
 
 // Screen coordinate of the value-axis baseline (the valueMin grid line).
-// Vertical: bottom edge of plot area minus the start-side overhang clearance
+// Vertical: bottom edge of sub-chart minus the start-side overhang clearance
 // (positive values grow upward). Horizontal: left edge plus the clearance
 // (positive values grow rightward). Must stay consistent with
-// calculateMappedCoordinates and getScaleAxisTickPositions.
+// calculateMappedCoordinates and getValueAxisTickPositions.
 // Pure — callers apply the half-grid-stroke fudge themselves where they need
 // a bar edge to extend past the baseline to mask the baseline grid line:
-//   valStart = valBaseline - valExtendDir * gridStrokeWidth / 2
-export function valBaselineCoord(
+//   valueStart = valueBaseline - valueExtendDir * gridLineStrokeWidth / 2
+export function valueBaselineCoord(
   subChartRcd: RectCoordsDims,
   orientation: Orientation,
   valueClearanceStart: number,
@@ -52,7 +54,7 @@ export function valBaselineCoord(
 // Direction a positive value extends from the baseline.
 // Vertical: Y decreases as value increases (bar grows upward) → -1.
 // Horizontal: X increases as value increases (bar grows rightward) → +1.
-export function valExtendDir(orientation: Orientation): 1 | -1 {
+export function valueExtendDir(orientation: Orientation): 1 | -1 {
   return orientation === "horizontal" ? 1 : -1;
 }
 
@@ -76,56 +78,74 @@ export function catCenterOfRect(
 
 // Build a bar rectangle from logical extents.
 // - catStart / catExtent: position/extent along the category axis (series slot).
-// - valStart / valEnd: two points on the value axis; the bar spans between
+// - valueStart / valueEnd: two points on the value axis; the bar spans between
 //   them regardless of which is closer to the baseline (handles stacking /
 //   diff modes where either end may be "first").
 export function makeBarRect(
   p: {
     catStart: number;
     catExtent: number;
-    valStart: number;
-    valEnd: number;
+    valueStart: number;
+    valueEnd: number;
   },
   orientation: Orientation,
 ): RectCoordsDims {
-  const valMin = Math.min(p.valStart, p.valEnd);
-  const valSpan = Math.abs(p.valEnd - p.valStart);
+  const valueMin = Math.min(p.valueStart, p.valueEnd);
+  const valueSpan = Math.abs(p.valueEnd - p.valueStart);
   if (orientation === "horizontal") {
     return new RectCoordsDims({
-      x: valMin,
+      x: valueMin,
       y: p.catStart,
-      w: valSpan,
+      w: valueSpan,
       h: p.catExtent,
     });
   }
   return new RectCoordsDims({
     x: p.catStart,
-    y: valMin,
+    y: valueMin,
     w: p.catExtent,
-    h: valSpan,
+    h: valueSpan,
   });
 }
 
-// Emit a chart-error-bar primitive. Given logical (categoryCenter, valUb,
-// valLb, capExtent) the helper routes to the correct orientation variant of
+// Emit a chart-error-bar primitive. Given logical (categoryCenter, valueUb,
+// valueLb, capExtent) the helper routes to the correct orientation variant of
 // the discriminated union.
 export function makeErrorBarPrimitive(params: {
   key: string;
+  item: PrimitiveItem | undefined;
   meta: { value: ChartValueInfo };
   categoryCenter: number;
-  valUb: number;
-  valLb: number;
+  valueUb: number;
+  valueLb: number;
   capExtent: number;
   strokeColor: ColorKeyOrString;
   strokeWidth: number;
   zIndex: number;
   orientation: Orientation;
 }): ChartErrorBarPrimitive {
-  const valMin = Math.min(params.valUb, params.valLb);
-  const valSpan = Math.abs(params.valUb - params.valLb);
+  const valueMin = Math.min(params.valueUb, params.valueLb);
+  const valueSpan = Math.abs(params.valueUb - params.valueLb);
+  const bounds = params.orientation === "horizontal"
+    ? new RectCoordsDims({
+      x: valueMin,
+      y: params.categoryCenter - params.capExtent / 2,
+      w: valueSpan,
+      h: params.capExtent,
+    })
+    : new RectCoordsDims({
+      x: params.categoryCenter - params.capExtent / 2,
+      y: valueMin,
+      w: params.capExtent,
+      h: valueSpan,
+    });
   const common = {
     type: "chart-error-bar" as const,
     key: params.key,
+    item: params.item,
+    part: "marker" as const,
+    bounds,
+    hitBounds: bounds,
     zIndex: params.zIndex,
     meta: params.meta,
     strokeColor: params.strokeColor,
@@ -135,30 +155,18 @@ export function makeErrorBarPrimitive(params: {
   if (params.orientation === "horizontal") {
     return {
       ...common,
-      bounds: new RectCoordsDims({
-        x: valMin,
-        y: params.categoryCenter - params.capExtent / 2,
-        w: valSpan,
-        h: params.capExtent,
-      }),
       orientation: "horizontal",
       centerY: params.categoryCenter,
-      ubX: params.valUb,
-      lbX: params.valLb,
+      ubX: params.valueUb,
+      lbX: params.valueLb,
     };
   }
   return {
     ...common,
-    bounds: new RectCoordsDims({
-      x: params.categoryCenter - params.capExtent / 2,
-      y: valMin,
-      w: params.capExtent,
-      h: valSpan,
-    }),
     orientation: "vertical",
     centerX: params.categoryCenter,
-    ubY: params.valUb,
-    lbY: params.valLb,
+    ubY: params.valueUb,
+    lbY: params.valueLb,
   };
 }
 
@@ -171,7 +179,7 @@ export function makeBarDataLabel(params: {
   barRcd: RectCoordsDims;
   mText: MeasuredText;
   offset: number;
-  style: DataLabel["style"];
+  halo: LabelHalo | undefined;
   orientation: Orientation;
 }): DataLabel {
   if (params.orientation === "horizontal") {
@@ -183,7 +191,7 @@ export function makeBarDataLabel(params: {
       ]),
       alignH: "left",
       alignV: "middle",
-      style: params.style,
+      halo: params.halo,
     };
   }
   return {
@@ -194,6 +202,6 @@ export function makeBarDataLabel(params: {
     ]),
     alignH: "center",
     alignV: "bottom",
-    style: params.style,
+    halo: params.halo,
   };
 }

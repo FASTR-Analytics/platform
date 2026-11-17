@@ -18,13 +18,13 @@ import {
 } from "~/state/instance/t2_datasets";
 import { can } from "~/state/instance/permissions";
 
-// The HFA state the copilot's HFA tools and a verification run read. The
+// The HFA state the copilot's HFA tools and Draft a fix read. The
 // indicators, the taxonomy and the code are read fresh on every call, so a
 // tool acts on current state, its own earlier writes included; the survey
 // dictionary and the dataset display read through the T2 caches the manager
 // uses, keyed on the instance's HFA cache hash. A failed read throws
 // `AIToolFailure`, whose message is the whole record: the chat hands it to
-// the model as the tool's error, and a run shows it as why it stopped.
+// the model as the tool's error, and a fix shows it as why none was drafted.
 
 export async function loadIndicators(): Promise<HfaIndicator[]> {
   const res = await serverActions.getHfaIndicators({});

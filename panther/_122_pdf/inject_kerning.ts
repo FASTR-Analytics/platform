@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -35,13 +35,16 @@ export function injectKerningIntoJsPdf(
     return;
   }
 
-  // Access the internal font that jsPDF just registered
   // deno-lint-ignore no-explicit-any -- jsPDF private internals (no public types)
-  const internalFont = (pdf as any).internal.getFont(
-    fontFamily,
+  const pdfAny = pdf as any;
+  // addFont folds the weight into the style key ("normal" + "700" is stored
+  // as "bold") and getFont takes (name, style, options), so the font is looked
+  // up by that same key; a weight passed to getFont is read as options.
+  const style = pdfAny.__private__.combineFontStyleAndFontWeight(
     fontStyle,
     fontWeight,
   );
+  const internalFont = pdfAny.internal.getFont(fontFamily, style);
 
   if (!internalFont?.metadata?.Unicode) {
     return;

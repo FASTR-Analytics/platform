@@ -1,16 +1,22 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { FigureLabelPrimitive, LabelCollisionConfig } from "../deps.ts";
-import { Coordinates, getColor, Z_INDEX } from "../deps.ts";
+import {
+  computeBoundsForPath,
+  Coordinates,
+  labelBoxRcd,
+  unionRectCoordsDims,
+  Z_INDEX,
+} from "../deps.ts";
 import {
   type CollisionLabel,
   resolveInsideCollisions,
   resolveOutsideCollisions,
 } from "./collision.ts";
-import { buildLabelHalo } from "./label_style.ts";
+import { buildLabelHalo } from "../label_halo.ts";
 import { placeNearestBoxes } from "./place_outside_nearest.ts";
 import type {
   FigureLabelMeta,
@@ -78,6 +84,34 @@ export function generateResolvedFigureLabelPrimitives(
   return primitives;
 }
 
+// A figure label's bounds are its label box, with its halo's padding, united
+// with its leader line; it is hit on its label box alone.
+export function withFigureLabelBounds(
+  label: Omit<FigureLabelPrimitive, "bounds" | "hitBounds">,
+): FigureLabelPrimitive {
+  const box = labelBoxRcd(
+    label.mText,
+    label.position,
+    label.alignH,
+    label.alignV,
+    label.halo?.padding,
+  );
+  const leader = label.leaderLine;
+  return {
+    ...label,
+    hitBounds: box,
+    bounds: leader
+      ? unionRectCoordsDims([
+        box,
+        computeBoundsForPath(
+          [leader.from, ...(leader.via ? [leader.via] : []), leader.to],
+          leader.strokeWidth,
+        ),
+      ])
+      : box,
+  };
+}
+
 // The geometric inputs of one outside label, stripped of primitive concerns so
 // a figure's budget solver can place boxes at a trial content scale through
 // the SAME implementation the driver draws with.
@@ -129,12 +163,12 @@ function flankLeadersCross(
 }
 
 // Pure outside placement for both flanks: split on centerX, greedy-stack each
-// side within the band (gap apart), then push each label against the
+// side within the strip (gap apart), then push each label against the
 // silhouette edge at its final y, outsideClearance away. Returns boxes in
 // input order.
 //
 // `untangleLeaders` is MAP ONLY (DOC_FIGURE_ARCHITECTURE, "Outside placement")
-// and defaults off, so a pie — which reaches this placer whenever a cell falls
+// and defaults off, so a pie — which reaches this placer whenever it falls
 // back to it, or the style asks for "flank" — is bit-for-bit unchanged. A pie
 // has nothing to gain here anyway: its anchors sit on one arc, so stacking by y
 // is already the visual order.
@@ -142,7 +176,7 @@ export function placeOutsideBoxes(
   inputs: OutsideLabelInput[],
   geometry: Pick<
     LabelGeometry,
-    "centerX" | "outsideBand" | "outsideEdgeAtY" | "outsideClearance"
+    "centerX" | "outsideStrip" | "outsideEdgeAtY" | "outsideClearance"
   >,
   gap: number,
   untangleLeaders = false,
@@ -184,7 +218,7 @@ export function placeOutsideBoxes(
           };
         },
       );
-      resolveOutsideCollisions(labels, geometry.outsideBand, gap);
+      resolveOutsideCollisions(labels, geometry.outsideStrip, gap);
 
       // One clean column per flank: every label sits against the side's EXTREME
       // silhouette edge rather than its own scanline's, so the near edges align
@@ -209,22 +243,22 @@ export function placeOutsideBoxes(
       const endXOf = (columnEdgeX: number) =>
         side === "left" ? columnEdgeX - clearance : columnEdgeX + clearance;
 
-      // Which label owns which of the stack's y slots. Same forecast the
-      // nearest placer uses: hold the slots still, exchange owners until no
+      // Which label owns which of the stack's y positions. Same forecast the
+      // nearest placer uses: hold the positions still, exchange owners until no
       // pair crosses, then re-stack and measure for real.
       const uncross = (layout: ReturnType<typeof stack>) => {
         const endX = endXOf(layout.columnEdgeX);
         // Centres for the crossing test, tops for the hand-back: the stacker
         // works in top edges.
-        const slotY = layout.labels.map((l) => l.y + l.height / 2);
-        const slotTop = layout.labels.map((l) => l.y);
+        const positionY = layout.labels.map((l) => l.y + l.height / 2);
+        const positionTop = layout.labels.map((l) => l.y);
         const owner = layout.labels.map((l) => l.inputIndex);
         const crosses = (a: number, b: number, i: number, j: number) =>
           flankLeadersCross(
             { x: inputs[a].anchorX, y: inputs[a].anchorY },
-            { x: endX, y: slotY[i] },
+            { x: endX, y: positionY[i] },
             { x: inputs[b].anchorX, y: inputs[b].anchorY },
-            { x: endX, y: slotY[j] },
+            { x: endX, y: positionY[j] },
           );
         const count = () => {
           let n = 0;
@@ -251,7 +285,7 @@ export function placeOutsideBoxes(
           }
           if (!any) break;
         }
-        return { before, owner, slotTop, exchanged };
+        return { before, owner, positionTop, exchanged };
       };
 
       let best = placed;
@@ -266,13 +300,13 @@ export function placeOutsideBoxes(
       ) {
         const step = uncross(placed);
         if (!step.exchanged) break;
-        // Hand each label the slot the forecast gave it. Seeding the desired y
+        // Hand each label the position the forecast gave it. Seeding the desired y
         // from the PREVIOUS stack's own tops is what makes the re-stack land
         // back on positions that already fit — the column neither grows nor
         // drifts, only its owners change.
         const nextKeys = new Map<number, number>();
         for (let k = 0; k < step.owner.length; k++) {
-          nextKeys.set(step.owner[k], step.slotTop[k]);
+          nextKeys.set(step.owner[k], step.positionTop[k]);
         }
         const next = stack(nextKeys);
         const crossings = uncross(next).before;
@@ -335,19 +369,22 @@ function placeInside(
     collision.maxCentroidDisplacement,
   );
 
-  return labels.map((l) => ({
-    ...baseLabelPrimitive(l.candidate, geometry, meta, "inside"),
-    mText: l.candidate.mText,
-    position: new Coordinates([l.x, l.y]),
-    alignment: { h: "center" as const, v: "middle" as const },
-    halo: buildLabelHalo(l.candidate.dataLabel),
-  }));
+  return labels.map((l) =>
+    withFigureLabelBounds({
+      ...baseLabelPrimitive(l.candidate, geometry, meta, "inside"),
+      mText: l.candidate.mText,
+      position: new Coordinates([l.x, l.y]),
+      alignH: "center" as const,
+      alignV: "middle" as const,
+      halo: buildLabelHalo(l.candidate.dataLabel),
+    })
+  );
 }
 
 // Nearest-point placement: each label at its own nearest point on
 // the track, anchored where the ray exits its box, slid along the track only as
 // far as the shape or a neighbour forces. Undefined when the track cannot hold
-// them — the figure decides the policy per cell at the harmonised scale, so in
+// them — the figure decides the policy per pie or map at the harmonised scale, so in
 // practice that has already been ruled out and this is the belt to that braces.
 function placeOutsideNearest(
   candidates: LabelCandidate[],
@@ -395,27 +432,28 @@ function placeOutsideNearest(
     // straight run from the anchor actually reaches the label. `touch` is the
     // point nearest the SILHOUETTE, which is the same thing only when the
     // anchor lies inward of the label — true for a pie slice, false for a map
-    // region whose anchor is deep inside a coastline. Measured on Kenya before
+    // map area whose anchor is deep inside a coastline. Measured on Kenya before
     // this change: 13 of 16 leaders ended on a CORNER of their label, and the
     // trim never fired because a line ending AT a corner enters nowhere.
     const leaderLine = leaderLength > geometry.outsideClearance
       ? {
         from,
         to: new Coordinates([box.center.x, box.center.y]),
-        strokeColor: getColor(dl.leaderLine.strokeColor),
+        strokeColor: dl.leaderLine.strokeColor,
         strokeWidth: dl.leaderLine.strokeWidth,
         gap: dl.leaderLine.gap,
       }
       : undefined;
 
-    return {
+    return withFigureLabelBounds({
       ...baseLabelPrimitive(candidate, geometry, meta, "outside"),
       mText: candidate.mText,
       position: new Coordinates([box.position.x, box.position.y]),
-      alignment: { h: box.align.h, v: box.align.v },
+      alignH: box.align.h,
+      alignV: box.align.v,
       halo: buildLabelHalo(dl),
       leaderLine,
-    };
+    });
   });
 }
 
@@ -458,21 +496,22 @@ function placeOutside(
     const elbowRun = geometry.outsideClearance / 2;
     const elbowX = box.side === "left" ? nearX + elbowRun : nearX - elbowRun;
 
-    return {
+    return withFigureLabelBounds({
       ...baseLabelPrimitive(candidate, geometry, meta, "outside"),
       mText: candidate.mText,
       position: labelCoords,
-      alignment: { h: "left" as const, v: "middle" as const },
+      alignH: "left" as const,
+      alignV: "middle" as const,
       halo: buildLabelHalo(dl),
       leaderLine: {
         from: candidate.leaderOrigin ?? candidate.anchor,
         via: new Coordinates([elbowX, finalY]),
         to: new Coordinates([nearX, finalY]),
-        strokeColor: getColor(dl.leaderLine.strokeColor),
+        strokeColor: dl.leaderLine.strokeColor,
         strokeWidth: dl.leaderLine.strokeWidth,
         gap: dl.leaderLine.gap,
       },
-    };
+    });
   });
 }
 
@@ -483,25 +522,38 @@ function baseLabelPrimitive(
   placement: "inside" | "outside",
 ): Omit<
   FigureLabelPrimitive,
-  "mText" | "position" | "alignment" | "halo" | "leaderLine"
+  | "bounds"
+  | "hitBounds"
+  | "mText"
+  | "position"
+  | "alignH"
+  | "alignV"
+  | "halo"
+  | "leaderLine"
 > {
-  const indicatorPart = meta.indicatorIndex === undefined
+  const indicatorPart = meta.i_indicator === undefined
     ? ""
-    : `-${meta.indicatorIndex}`;
+    : `-${meta.i_indicator}`;
   return {
     type: "figure-label",
     key:
-      `${meta.keyPrefix}-${meta.paneIndex}-${meta.tierIndex}-${meta.laneIndex}${indicatorPart}-${candidate.id}`,
-    bounds: geometry.hostRcd,
+      `${meta.keyPrefix}-${meta.i_pane}-${meta.i_tier}-${meta.i_lane}${indicatorPart}-${candidate.id}`,
+    item: candidate.item,
+    part: "label",
+    hostRcd: geometry.hostRcd,
     zIndex: Z_INDEX.FIGURE_LABEL,
     meta: {
       id: candidate.id,
-      paneIndex: meta.paneIndex,
-      tierIndex: meta.tierIndex,
-      laneIndex: meta.laneIndex,
-      ...(meta.indicatorIndex === undefined
+      i_pane: meta.i_pane,
+      i_tier: meta.i_tier,
+      i_lane: meta.i_lane,
+      ...(meta.i_indicator === undefined
         ? {}
-        : { indicatorIndex: meta.indicatorIndex }),
+        : { i_indicator: meta.i_indicator }),
+      paneMember: meta.paneMember,
+      tierMember: meta.tierMember,
+      laneMember: meta.laneMember,
+      indicatorMember: meta.indicatorMember,
       placement,
     },
   };

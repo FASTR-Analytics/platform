@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -17,6 +17,7 @@
 // semantics are the reference behavior the HTTP adapter mirrors.
 
 import {
+  buildMCPContent,
   type MCPCallOutcome,
   type MCPConnection,
   type MCPElicitDecision,
@@ -218,7 +219,7 @@ export function createMCPConnection(
       return;
     }
     sendResult(id, {
-      content: [{ type: "text", text: outcome.text }],
+      content: buildMCPContent(outcome),
       isError: outcome.isError,
       ...(outcome.structuredContent !== undefined
         ? { structuredContent: outcome.structuredContent }

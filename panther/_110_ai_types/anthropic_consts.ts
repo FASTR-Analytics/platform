@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -88,7 +88,7 @@ export const MODEL_OPTIONS: { value: AnthropicModel; label: string }[] = [
 // and the capability lists — on every model bump.
 
 export const DEFAULT_MODEL_CONFIG: AnthropicModelConfig = {
-  model: "claude-sonnet-5",
+  model: "claude-sonnet-5-5",
   max_tokens: 32_000,
   output_config: { effort: "high" },
 };
@@ -142,6 +142,25 @@ export function clampMaxOutputTokens(
     getMaxOutputTokens(model),
   );
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// IMAGE LIMITS
+////////////////////////////////////////////////////////////////////////////////
+
+// What the API takes of images. An image past a limit fails the request that
+// carries it, and every later request of its turn.
+export const IMAGE_LIMITS = {
+  // The base64 of one image.
+  MAX_BASE64_CHARS: 10_000_000,
+  // Either side of an image: the API holds every image of a request to this
+  // once the request carries more than 20.
+  MAX_SIDE_PX: 3000,
+  // The images one turn holds. Past 20 in a request the API holds every image
+  // to a stricter size, and the API counts a request's images and the pages
+  // of its documents against one limit of 100, so 20 leaves 80 for pages. 20
+  // images of at most MAX_BASE64_CHARS cannot reach the API's request size.
+  MAX_PER_TURN: 20,
+} as const;
 
 ////////////////////////////////////////////////////////////////////////////////
 // MODEL CAPABILITY CHECKS
@@ -277,5 +296,6 @@ export function getSupportedEffortLevels(model: AnthropicModel): EffortLevel[] {
 export const SERVER_TOOL_LABELS: Record<string, string> = {
   web_search: "Searching the web...",
   web_fetch: "Fetching web page...",
+  code_execution: "Browsing the web...",
   str_replace_based_edit_tool: "Editing document...",
 };

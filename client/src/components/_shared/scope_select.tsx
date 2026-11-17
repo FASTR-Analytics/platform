@@ -15,9 +15,8 @@ type Props = {
 // Scopes are picked by label, "All data" first (the order the scopes list
 // arrives in), from the scopes the connection holds: every scope for an
 // unrestricted user, the granted ones for a restricted user, which is all
-// instanceState.scopes holds for it. The author never sets a scope's
-// dimensions: those are edited by a `can_configure_data` holder on the Scopes
-// page, opened from Results.
+// instanceState.scopes holds for it. A scope's dimensions are never set
+// here: an unrestricted user edits them on the Scopes page.
 export function ScopeSelect(p: Props) {
   return (
     <Select

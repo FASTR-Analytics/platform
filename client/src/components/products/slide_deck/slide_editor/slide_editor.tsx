@@ -1403,11 +1403,11 @@ export function SlideEditor(p: Props) {
                         target.type === "dateText" ||
                         target.type === "footerText" ||
                         target.type === "coverTitle" ||
-                        target.type === "coverSubTitle" ||
+                        target.type === "coverSubtitle" ||
                         target.type === "coverAuthor" ||
                         target.type === "coverDate" ||
                         target.type === "sectionTitle" ||
-                        target.type === "sectionSubTitle"
+                        target.type === "sectionSubtitle"
                       ) {
                         // Clicking a title target on the canvas both switches to
                         // the slide tab and highlights it for collaborators.

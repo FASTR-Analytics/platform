@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -29,9 +29,11 @@ export {
   getUserFacingAIErrorMessage,
   hashRequestPrefix,
   legacyStripEphemeralMarkers,
+  limitToolResultImages,
   MAX_OUTPUT_TOKENS,
   MODEL_OPTIONS,
   reconcileRequestPrefix,
+  releaseImages,
   releaseUnansweredCarriers,
   renderOutgoingMessages,
   repairStrandedToolUse,
@@ -45,7 +47,8 @@ export {
   selectTurnSections,
   SERVER_TOOL_LABELS,
   shapeCachedPayload,
-  trimDanglingServerToolUse,
+  STOPPED_REPLY_PLACEHOLDER,
+  trimUnansweredServerToolUse,
 } from "../_110_ai_types/mod.ts";
 export type {
   AIInteractionDefLike,
@@ -62,15 +65,20 @@ export type {
   MessageParam,
   SystemNoticeType,
   SystemParam,
+  ToolResultContent,
   Usage,
   UserMessageParam,
 } from "../_110_ai_types/mod.ts";
 export {
   AIToolFailure,
+  AIToolOutput,
   buildAITool,
+  buildToolResultContent,
   createAITool,
   getHeadlessCapability,
+  resolveAIToolReturn,
   resolveViewLabel,
+  runAIToolWithView,
   toolThrowToResultParts,
 } from "../_112_ai_tool_core/mod.ts";
 export type {

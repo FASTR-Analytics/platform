@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -764,12 +764,12 @@ function renderHover(
 function isTextHitTarget(target: PageHitTarget): boolean {
   return [
     "coverTitle",
-    "coverSubTitle",
+    "coverSubtitle",
     "coverAuthor",
     "coverDate",
     "coverWatermark",
     "sectionTitle",
-    "sectionSubTitle",
+    "sectionSubtitle",
     "sectionWatermark",
     "headerText",
     "subHeaderText",

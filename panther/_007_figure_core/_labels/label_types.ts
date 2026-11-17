@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -6,7 +6,9 @@
 import type {
   Coordinates,
   DataLabelStyle,
+  DimensionMember,
   MeasuredText,
+  PrimitiveItem,
   RectCoordsDims,
 } from "../deps.ts";
 import type { LabelTrack } from "./track.ts";
@@ -21,13 +23,15 @@ export type LabelMode = "none" | LabelPlacement | "auto";
 export type LabelCandidate = {
   // Completes the primitive key and lands on meta.id.
   id: string;
+  // The item of the element the label names, which the label stands for too.
+  item: PrimitiveItem | undefined;
   mText: MeasuredText;
   // Where the label sits when it goes inside, and the side it is assigned when
   // it goes outside.
   anchor: Coordinates;
   // Where an outside label's leader line starts. Defaults to `anchor`, which
-  // is right when the anchor is inside the element (map: the region centroid,
-  // so the line visibly crosses the region). A figure whose anchor is not on
+  // is right when the anchor is inside the element (map: the map area's centroid,
+  // so the line visibly crosses the map area). A figure whose anchor is not on
   // its own silhouette sets this to the point that IS — a pie slice's anchor
   // is at mid-radius, but its leader must start on the arc.
   leaderOrigin?: Coordinates;
@@ -59,7 +63,7 @@ export type LabelGeometry = {
   // Left/right split for outside labels.
   centerX: number;
   // Vertical extent outside labels stack within.
-  outsideBand: { minY: number; maxY: number };
+  outsideStrip: { minY: number; maxY: number };
   // The figure's silhouette edge at a given y, so outside labels sit against
   // the shape rather than a bounding box. Always returns a number — the
   // adapter owns its own fallback.
@@ -69,8 +73,8 @@ export type LabelGeometry = {
   // label-to-label spacing inside a stack.
   outsideClearance: number;
   // Present only when this figure has opted into nearest-point placement.
-  // Absent → the flank placer runs. The figure decides this once, per cell,
-  // at the harmonised content scale.
+  // Absent → the flank placer runs. The figure decides this once per pie or
+  // map, at the harmonised content scale.
   outsideTrack?: {
     track: LabelTrack;
     clearanceFloor: number;
@@ -90,9 +94,13 @@ export type LabelGeometry = {
 
 export type FigureLabelMeta = {
   keyPrefix: string;
-  paneIndex: number;
-  tierIndex: number;
-  laneIndex: number;
+  i_pane: number;
+  i_tier: number;
+  i_lane: number;
   // Pie only: which pie in the sub-chart's indicator grid. Absent for map.
-  indicatorIndex?: number;
+  i_indicator?: number;
+  paneMember?: DimensionMember;
+  tierMember?: DimensionMember;
+  laneMember?: DimensionMember;
+  indicatorMember?: DimensionMember;
 };

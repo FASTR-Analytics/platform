@@ -37,6 +37,11 @@ export function canCallRoute(
   return guardHolds(routeRegistry[name].guard, productId);
 }
 
+function isApprovedUnrestricted(): boolean {
+  return instanceState.currentUserApproved &&
+    instanceState.currentUserScopeAccess.all;
+}
+
 function guardHolds(guard: RouteGuard, productId: string | undefined): boolean {
   switch (guard.kind) {
     case "public":
@@ -44,6 +49,8 @@ function guardHolds(guard: RouteGuard, productId: string | undefined): boolean {
       return true;
     case "approved":
       return instanceState.currentUserApproved;
+    case "unrestricted":
+      return isApprovedUnrestricted();
     case "admin":
       return isGlobalAdmin();
     case "permission":
@@ -56,9 +63,8 @@ function guardHolds(guard: RouteGuard, productId: string | undefined): boolean {
       return productId !== undefined &&
         productLevelAtLeast(productLevel(productId), guard.level);
     case "folder":
-      return instanceState.currentUserApproved &&
-        (guard.level === "own"
-          ? isGlobalAdmin()
-          : instanceState.currentUserScopeAccess.all);
+      return guard.level === "own"
+        ? instanceState.currentUserApproved && isGlobalAdmin()
+        : isApprovedUnrestricted();
   }
 }

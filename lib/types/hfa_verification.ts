@@ -45,3 +45,33 @@ export type HfaVerificationRows = {
   findings: HfaVerificationFinding[];
   rulesOff: HfaVerificationModelRuleId[];
 };
+
+// "running" and "stopping" are live; a stopping run claims nothing more and
+// ends once the calls in flight have answered.
+export type HfaVerificationRunStatus =
+  | "running"
+  | "stopping"
+  | "completed"
+  | "stopped"
+  | "error";
+
+// An indicator the model gave no usable answer for: `stopReason` is the
+// response's, `refusal` or `max_tokens`, or another when the answer failed
+// the schema.
+export type HfaVerificationNotChecked = {
+  indicatorId: string;
+  stopReason: string | null;
+};
+
+// The instance's latest verification run as clients receive it. `pending` is
+// every indicator still on the queue, its call in flight or not, oldest first.
+export type HfaVerificationRunState = {
+  status: HfaVerificationRunStatus;
+  startedBy: string;
+  startedAt: string;
+  endedAt: string | null;
+  done: number;
+  pending: string[];
+  notChecked: HfaVerificationNotChecked[];
+  error: string | null;
+};

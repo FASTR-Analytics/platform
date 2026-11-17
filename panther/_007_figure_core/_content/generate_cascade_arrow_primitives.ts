@@ -1,19 +1,20 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
   CascadeArrowInfo,
-  CascadeArrowPrimitive,
   CascadeArrowStyle,
   ChartBarPrimitive,
+  ChartCascadeArrowPrimitive,
   DataLabel,
   MergedCascadeArrowStyle,
   PathSegment,
   RenderContext,
 } from "../deps.ts";
-import { Coordinates, getColor, RectCoordsDims, Z_INDEX } from "../deps.ts";
+import { Coordinates, RectCoordsDims, Z_INDEX } from "../deps.ts";
+import { buildLabelHalo } from "../label_halo.ts";
 import { buildDataLabelTextStyle } from "./content_generation_types.ts";
 import { catCenterOfRect } from "./orientation_helpers.ts";
 
@@ -22,12 +23,12 @@ export function generateCascadeArrowPrimitives(
   arrowStyle: MergedCascadeArrowStyle,
   rc: RenderContext,
   orientation: "vertical" | "horizontal",
-): CascadeArrowPrimitive[] {
+): ChartCascadeArrowPrimitive[] {
   if (orientation !== "vertical") {
     return [];
   }
 
-  const result: CascadeArrowPrimitive[] = [];
+  const result: ChartCascadeArrowPrimitive[] = [];
 
   const groups = new Map<string, ChartBarPrimitive[]>();
   for (const bar of barPrimitives) {
@@ -52,8 +53,8 @@ export function generateCascadeArrowPrimitives(
     let biggestDropoffIdx = -1;
     let biggestDropoff = 0;
     for (let i = 0; i < nArrows; i++) {
-      const fv = bars[i].meta.value.val;
-      const tv = bars[i + 1].meta.value.val;
+      const fv = bars[i].meta.value.value;
+      const tv = bars[i + 1].meta.value.value;
       if (fv === undefined || fv === 0 || tv === undefined) continue;
       const drop = fv - tv;
       if (drop > biggestDropoff) {
@@ -65,16 +66,16 @@ export function generateCascadeArrowPrimitives(
     for (let i = 0; i < nArrows; i++) {
       const fromBar = bars[i];
       const toBar = bars[i + 1];
-      const fromVal = fromBar.meta.value.val;
-      const toVal = toBar.meta.value.val;
+      const fromValue = fromBar.meta.value.value;
+      const toValue = toBar.meta.value.value;
 
-      if (fromVal === undefined || fromVal === 0 || toVal === undefined) {
+      if (fromValue === undefined || fromValue === 0 || toValue === undefined) {
         continue;
       }
 
-      const absDropoff = fromVal - toVal;
-      const relDropoff = absDropoff / fromVal;
-      const relRetention = toVal / fromVal;
+      const absDropoff = fromValue - toValue;
+      const relDropoff = absDropoff / fromValue;
+      const relRetention = toValue / fromValue;
 
       const cascadeArrowInfo: CascadeArrowInfo = {
         ...fromBar.meta.value,
@@ -82,8 +83,8 @@ export function generateCascadeArrowPrimitives(
         nArrows,
         isFirstArrow: i === 0,
         isLastArrow: i === nArrows - 1,
-        fromVal,
-        toVal,
+        fromValue,
+        toValue,
         absDropoff,
         relDropoff,
         relRetention,
@@ -117,7 +118,7 @@ function computeCascadeArrow(
   s: CascadeArrowStyle,
   arrowStyle: MergedCascadeArrowStyle,
   rc: RenderContext,
-): CascadeArrowPrimitive {
+): ChartCascadeArrowPrimitive {
   const { relRetention } = cascadeArrowInfo;
   const sw = s.strokeWidth;
 
@@ -130,7 +131,7 @@ function computeCascadeArrow(
   const diffY = toY - fromY;
   const lengthOfArrowWithGracefulTrunk = s.arrowHeadLength * 1.5;
 
-  const arrowGap = ((toX - fromX) * (1 - s.arrowLengthPctOfSpace)) / 2;
+  const arrowGap = ((toX - fromX) * (1 - s.arrowLengthFractionOfSpace)) / 2;
 
   let pathSegments: PathSegment[];
   let arrowEndX: number;
@@ -287,26 +288,12 @@ function computeCascadeArrow(
 
   let dataLabel: DataLabel | undefined;
   if (mText) {
-    const hasDecoration = dl.backgroundColor !== "none" ||
-      dl.borderWidth > 0;
     dataLabel = {
       mText,
       position: new Coordinates({ x: midX, y: labelY }),
       alignH: "center",
       alignV: "top",
-      style: hasDecoration
-        ? {
-          backgroundColor: dl.backgroundColor !== "none"
-            ? getColor(dl.backgroundColor)
-            : undefined,
-          padding: dl.padding,
-          borderColor: dl.borderColor !== "none"
-            ? getColor(dl.borderColor)
-            : undefined,
-          borderWidth: dl.borderWidth > 0 ? dl.borderWidth : undefined,
-          rectRadius: dl.rectRadius,
-        }
-        : undefined,
+      halo: buildLabelHalo(dl),
     };
   }
 
@@ -323,15 +310,17 @@ function computeCascadeArrow(
   });
 
   return {
-    type: "cascade-arrow",
+    type: "chart-cascade-arrow",
     key:
-      `cascade-arrow-${fromBar.meta.value.i_pane}-${fromBar.meta.value.i_tier}-${fromBar.meta.value.i_lane}-${fromBar.meta.value.i_series}-${fromBar.meta.value.i_val}`,
+      `chart-cascade-arrow-${fromBar.meta.value.i_pane}-${fromBar.meta.value.i_tier}-${fromBar.meta.value.i_lane}-${fromBar.meta.value.i_series}-${fromBar.meta.value.i_value}`,
+    item: fromBar.item,
+    part: "link",
     bounds,
+    hitBounds: bounds,
     zIndex: Z_INDEX.CASCADE_ARROW,
     meta: {
-      i_fromStage: fromBar.meta.value.i_val,
-      i_toStage: toBar.meta.value.i_val,
-      i_series: fromBar.meta.value.i_series,
+      from: fromBar.meta.value,
+      to: toBar.meta.value,
       relRetention,
     },
     pathSegments,

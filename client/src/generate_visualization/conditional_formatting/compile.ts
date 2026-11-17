@@ -1,8 +1,8 @@
 import {
   buildAutoFormatter,
   type FigureValuesColorFunc,
+  type LegendEntry,
   type LegendInput,
-  type LegendItem,
   resolveAutoScaleLegend,
   thresholdColorFunc,
   type ValueColorElement,
@@ -25,13 +25,13 @@ import {
   formatRateAuto,
   getIndicatorIdsForCell,
   getIndicatorIdsForChartValue,
-  getIndicatorIdsForMapRegion,
+  getIndicatorIdsForMapArea,
 } from "../get_style_from_po/_0_common";
 
 // Auto-decimal formatter over a known set of values, 3-way. percent/number
 // size their decimals from the list (the fewest that keep it distinct);
 // rate_per_10k does NOT: it follows formatRateAuto, the same per-value exact
-// rule the scale axis uses, so a cutoff of 0.25 per 10k reads "0.25" in the
+// rule the value axis uses, so a cutoff of 0.25 per 10k reads "0.25" in the
 // legend and "0.25" on the axis instead of being rounded to "0.3" by a
 // list-wide count.
 export function buildAutoValueFormatter(
@@ -47,7 +47,7 @@ export function buildAutoValueFormatter(
 // Scale legends take EITHER panther's two-way `format` (which builds an
 // auto-decimal formatter) or an explicit `labelFormatter` function, which wins.
 // rate_per_10k has no `format` value, so it goes through the function escape:
-// the same escape the scale axis's tick labels use, which is why the legend and
+// the same escape the value axis's tick labels use, which is why the legend and
 // the axis cannot drift apart by a factor of 10,000 OR by a decimal.
 //
 // It takes no boundary list because formatRateAuto needs none: a boundary list
@@ -67,12 +67,12 @@ export function scaleLegendFormat(
 }
 
 // The figure-wide value-colour slot. Every CF source compiles to ONE function
-// here; the content sites (table cells, bars, map regions) only ever emit
+// here; the content sites (table cells, bars, map areas) only ever emit
 // panther's value-colour sentinel. `scale` and `thresholds` ignore the
-// element. `indicator` reads it: the element's headers walk the app's id
+// element. `indicator` reads it: the element's members walk the app's id
 // chain to the value's own indicator rule, and a value whose indicator has no
 // rule returns undefined: panther's decline, which a table cell or map
-// region renders as "none" and a bar as its series colour. Legend sampling
+// area renders as "none" and a bar as its series colour. Legend sampling
 // calls with no element and gets undefined too (the `indicator` legend is
 // derived by compileCfToLegend, never sampled).
 export function compileCfToValuesColorFunc(
@@ -111,14 +111,14 @@ export function compileCfToValuesColorFunc(
   }
 }
 
-// The three Info shapes are structurally distinct: only a map region has a
+// The three Info shapes are structurally distinct: only a map area has a
 // featureId, only a chart value has a series index.
 function indicatorIdsForElement(
   effectiveValueProps: string[],
   element: ValueColorElement,
 ): (string | undefined)[] {
   if ("featureId" in element) {
-    return getIndicatorIdsForMapRegion(effectiveValueProps, element);
+    return getIndicatorIdsForMapArea(effectiveValueProps, element);
   }
   if ("i_series" in element) {
     return getIndicatorIdsForChartValue(effectiveValueProps, element);
@@ -159,7 +159,10 @@ export function compileCfToLegend(
           ...format,
         };
 
-      return resolveAutoScaleLegend(autoConfig, colorFunc, domain);
+      return resolveAutoScaleLegend(autoConfig, colorFunc, {
+        valueMin: domain.min,
+        valueMax: domain.max,
+      });
     }
     case "thresholds":
       return ruleLegend(cf, formatAs, language);
@@ -174,7 +177,7 @@ function ruleLegend(
   rule: ThresholdsRule,
   formatAs: IndicatorFormat,
   language: Language,
-): LegendItem[] {
+): LegendEntry[] {
   const labels = bucketLabels(
     rule,
     buildAutoValueFormatter(rule.cutoffs, formatAs),
@@ -187,7 +190,7 @@ function ruleLegend(
 }
 
 // The `indicator` legend is DERIVED from the displayed indicators' rules,
-// never authored on the figure, and it is always ONE list: one item per
+// never authored on the figure, and it is always ONE list: one entry per
 // distinct colour, best bucket first in the first rule's order, labelled with
 // every distinct meaning that colour carries across the rules (joined with
 // " / "). Rules that share colours and labels merge whatever their cutoffs:
@@ -200,11 +203,11 @@ function ruleLegend(
 function indicatorLegend(
   displayedRules: DisplayedRule[],
   language: Language,
-): LegendItem[] | undefined {
+): LegendEntry[] | undefined {
   if (displayedRules.length === 0) return undefined;
   const labelsByRule = deriveLabelsWithRanges(displayedRules, language);
   const order: string[] = [];
-  const colorOf = new Map<string, LegendItem["color"]>();
+  const colorOf = new Map<string, LegendEntry["color"]>();
   const meanings = new Map<string, string[]>();
   displayedRules.forEach(({ rule }, r) => {
     for (const i of legendBucketOrder(rule)) {

@@ -61,6 +61,7 @@ import {
 import { pendingSubPageOpen, setPendingSubPageOpen } from "~/state/t4_ui";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 import {
   copilotViewController,
   holdCopilotView,
@@ -70,10 +71,9 @@ import {
   type HfaDraftFix,
   HfaFieldFindings,
   type HfaIndicatorVerificationState,
-  hfaVerificationRun,
   type HfaVerificationState,
+  liveHfaVerificationRun,
   noAnswerReason,
-  startRun,
 } from "./verification/mod.ts";
 
 const OPERATOR_MEANING: Record<
@@ -234,6 +234,12 @@ export function HfaIndicatorCodeEditor(
     p.close(undefined);
   });
 
+  const verify = createButtonAction(() =>
+    serverActions.startHfaVerificationRun({
+      indicatorIds: [p.indicator.indicatorId],
+    })
+  );
+
   const findings = createMemo((): IndicatorFindings => {
     const id = p.indicator.indicatorId;
     const state = p.verificationState()?.byIndicator.get(id);
@@ -295,8 +301,10 @@ export function HfaIndicatorCodeEditor(
                 iconName="check"
                 outline
                 onBackground="base-300"
-                onClick={() => startRun([p.indicator.indicatorId])}
-                disabled={hfaVerificationRun().progress !== undefined}
+                onClick={() => verify.click()}
+                state={verify.state()}
+                disabled={instanceState.hfaVerificationRun?.status ===
+                  "stopping"}
               >
                 {t3({ en: "Verify", fr: "Vérifier", pt: "Verificar" })}
               </Button>
@@ -616,6 +624,7 @@ function EditorInner(p: {
 
   function markDirty() {
     p.setNeedsSaving(true);
+    p.fix.clear();
   }
 
   function insertSymbol(symbol: string) {
@@ -760,10 +769,10 @@ function EditorInner(p: {
   });
 
   const verifying = () =>
-    hfaVerificationRun().progress?.pending.has(p.indicator.indicatorId) ??
+    liveHfaVerificationRun()?.pending.includes(p.indicator.indicatorId) ??
       false;
   const notChecked = () =>
-    hfaVerificationRun().notChecked.find((n) =>
+    instanceState.hfaVerificationRun?.notChecked.find((n) =>
       n.indicatorId === p.indicator.indicatorId
     );
   const fixApplied = () => {
@@ -866,13 +875,13 @@ function EditorInner(p: {
               </div>
             )}
           </Show>
-          <Show when={hfaVerificationRun().stopError}>
-            {(stopError) => (
+          <Show when={instanceState.hfaVerificationRun?.error}>
+            {(error) => (
               <div class="text-danger text-sm">
                 {t3({
-                  en: `The verification stopped: ${stopError()}`,
-                  fr: `La vérification s'est arrêtée : ${stopError()}`,
-                  pt: `A verificação parou: ${stopError()}`,
+                  en: `The verification stopped: ${error()}`,
+                  fr: `La vérification s'est arrêtée : ${error()}`,
+                  pt: `A verificação parou: ${error()}`,
                 })}
               </div>
             )}

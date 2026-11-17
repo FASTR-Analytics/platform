@@ -1,9 +1,9 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type JsonArray, transformOneWayChartJson } from "./deps.ts";
+import { type JsonArray, transformChartOVOrOHJson } from "./deps.ts";
 import {
   type ChartOHData,
   type ChartOHDataTransformed,
@@ -39,20 +39,20 @@ export function getChartOHDataJsonTransformed(
 ): ChartOHDataTransformed {
   const {
     visibleIndicatorsByPane,
-    visibleBandAxisByPane,
-    visibleIndicatorsByPaneBand,
+    visibleTiersOrLanesByPane,
+    visibleIndicatorsByPaneTierOrLane,
     proportionalPanes,
     ...core
-  } = transformOneWayChartJson(jsonArray, jsonDataConfig, stacked, {
+  } = transformChartOVOrOHJson(jsonArray, jsonDataConfig, stacked, {
     figureName: "ChartOH",
-    bandAxis: "tier",
+    tierOrLaneDimension: "tier",
   });
   return {
     ...core,
-    xScaleAxisLabel: jsonDataConfig.xScaleAxisLabel?.trim(),
+    xValueAxisLabel: jsonDataConfig.xValueAxisLabel?.trim(),
     visibleIndicatorsByPane,
-    visibleTiersByPane: visibleBandAxisByPane,
-    visibleIndicatorsByPaneBand,
+    visibleTiersByPane: visibleTiersOrLanesByPane,
+    visibleIndicatorsByPaneTier: visibleIndicatorsByPaneTierOrLane,
     proportionalPanes,
   };
 }

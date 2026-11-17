@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -9,16 +9,18 @@ import type {
   ColGroupCol,
   RowGroup,
   RowGroupRow,
+  TableColDataDimensions,
   TableData,
   TableDataJson,
   TableDataTransformed,
   TableJsonDataConfig,
+  TableRowDataDimensions,
 } from "./deps.ts";
 import {
   type Conforms,
-  zHeaderSortConfig,
   zJsonArray,
   zMaybeString,
+  zMemberSortConfig,
   zValueCell,
 } from "./shared.ts";
 
@@ -31,10 +33,10 @@ export const zTableJsonDataConfig = z.object({
   labelReplacements: z.record(z.string(), z.string()).optional(),
   sort: z
     .object({
-      colGroup: zHeaderSortConfig.optional(),
-      col: zHeaderSortConfig.optional(),
-      rowGroup: zHeaderSortConfig.optional(),
-      row: zHeaderSortConfig.optional(),
+      colGroup: zMemberSortConfig.optional(),
+      col: zMemberSortConfig.optional(),
+      rowGroup: zMemberSortConfig.optional(),
+      row: zMemberSortConfig.optional(),
     })
     .optional(),
   liveDomainExcludeIds: z.array(z.string()).optional(),
@@ -54,11 +56,11 @@ const _zTableDataJsonConforms: Conforms<
   TableDataJson
 > = true;
 
-// ColGroup/RowGroup ids and labels are `string | undefined` on required keys;
+// Group ids and member labels are `string | undefined` on required keys;
 // zMaybeString keeps the keys required at the type level while accepting
 // absent/null at runtime (JSON round-trip drops `key: undefined`).
 const zColGroupCol = z.object({
-  id: zMaybeString,
+  id: z.string(),
   label: zMaybeString,
   index: z.number(),
 });
@@ -75,7 +77,7 @@ const zColGroup = z.object({
 const _zColGroupConforms: Conforms<z.infer<typeof zColGroup>, ColGroup> = true;
 
 const zRowGroupRow = z.object({
-  id: zMaybeString,
+  id: z.string(),
   label: zMaybeString,
   index: z.number(),
 });
@@ -91,10 +93,30 @@ const zRowGroup = z.object({
 });
 const _zRowGroupConforms: Conforms<z.infer<typeof zRowGroup>, RowGroup> = true;
 
+const zTableColDataDimensions = z.object({
+  dimension: z.string(),
+  groupDimension: z.string().optional(),
+  groups: z.array(zColGroup),
+});
+const _zTableColDataDimensionsConforms: Conforms<
+  z.infer<typeof zTableColDataDimensions>,
+  TableColDataDimensions
+> = true;
+
+const zTableRowDataDimensions = z.object({
+  dimension: z.string(),
+  groupDimension: z.string().optional(),
+  groups: z.array(zRowGroup),
+});
+const _zTableRowDataDimensionsConforms: Conforms<
+  z.infer<typeof zTableRowDataDimensions>,
+  TableRowDataDimensions
+> = true;
+
 export const zTableDataTransformed = z.object({
   isTransformed: z.literal(true),
-  colGroups: z.array(zColGroup),
-  rowGroups: z.array(zRowGroup),
+  cols: zTableColDataDimensions.optional(),
+  rows: zTableRowDataDimensions.optional(),
   aoa: z.array(z.array(z.union([z.string(), z.number()]))),
   liveDomainExcludeIds: z.array(z.string()).optional(),
   // zValueCell accepts null: JSON round-trips turn in-array undefined into

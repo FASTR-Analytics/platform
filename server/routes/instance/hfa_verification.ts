@@ -2,9 +2,10 @@ import { Hono } from "hono";
 import {
   getHfaVerification,
   getInstanceIndicatorsSummary,
-  saveHfaIndicatorVerifications,
   setHfaVerificationFindingsDismissed,
   setHfaVerificationRulesOff,
+  startHfaVerificationRun,
+  stopHfaVerificationRun,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { notifyInstanceIndicatorsUpdated } from "../../task_management/notify_instance_updated.ts";
@@ -24,14 +25,31 @@ defineRoute(
 
 defineRoute(
   routesHfaVerification,
-  "saveHfaIndicatorVerifications",
-  log("saveHfaIndicatorVerifications"),
+  "startHfaVerificationRun",
+  log("startHfaVerificationRun"),
   async (c, { body }) => {
-    const res = await saveHfaIndicatorVerifications(
-      c.var.mainDb,
-      body.results,
+    const mainDb = c.var.mainDb;
+    const notify = async () =>
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(mainDb),
+      );
+    const res = await startHfaVerificationRun(
+      mainDb,
+      body.indicatorIds,
       c.var.globalUser.email,
+      notify,
     );
+    if (res.success) await notify();
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaVerification,
+  "stopHfaVerificationRun",
+  log("stopHfaVerificationRun"),
+  async (c) => {
+    const res = await stopHfaVerificationRun(c.var.mainDb);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),

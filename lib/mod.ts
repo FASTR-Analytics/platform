@@ -28,6 +28,7 @@ export * from "./indicator_value_scale.ts";
 export * from "./traffic_light_rule.ts";
 export * from "./resolve_figure_calendar.ts";
 export * from "./run_progress.ts";
+export * from "./run_contents_label.ts";
 // The report engine (Report Forge) is its own package; lib re-exports it so
 // the app keeps one import for shared code.
 export * from "../report-forge/engine/mod.ts";

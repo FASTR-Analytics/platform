@@ -1,40 +1,180 @@
-[TBD] [user] [added] - Saved visualizations are now a standalone product type you can create, edit, and manage
-[TBD] [user] [added] - Insert a copy of a saved visualization into slides and reports
-[TBD] [user] [added] - "Change metric" button in the figure editor's Data tab
-[TBD] [user] [added] - Version history for saved visualizations with restore and restore-as-copy
-[TBD] [user] [added] - Detailed settings diff view in visualization version history showing what changed between sessions
-[TBD] [user] [added] - Out-of-date badge on visualizations when their data source changed, with one-click update
-[TBD] [user] [added] - AI assistant now works inside saved visualizations
-[TBD] [user] [added] - AI can add new figures when rewriting a report in one step
-[TBD] [user] [added] - AI checks report page layout before proposing a rewrite and flags problems automatically
-[TBD] [user] [added] - AI tool to look up page template details on demand
-[TBD] [user] [changed] - AI button label shortened from "Ask AI" to "AI"
-[TBD] [user] [changed] - AI button on the right edge can now be dragged up and down to reposition it
-[TBD] [user] [changed] - Profile icon now opens an account menu with profile and sign-out options
-[TBD] [user] [changed] - Sign out moved from the profile dialog to the top bar account menu
-[TBD] [user] [changed] - Creating a deck or report now asks for a name and folder upfront
-[TBD] [user] [changed] - Insert and replace visualization buttons now offer a choice between new or existing visualization
-[TBD] [user] [fixed] - Maps on metrics without uploaded boundaries no longer insert as broken visualizations
-[TBD] [admin] [added] - Visualizations are now a standalone product type alongside slide decks and reports
-[TBD] [admin] [added] - Create saved visualizations from the Products page via New > New visualization
-[TBD] [admin] [added] - Insert copies of saved visualizations into slide decks and reports
-[TBD] [admin] [added] - Version history with restore and restore-as-copy for saved visualizations
-[TBD] [admin] [added] - Real-time collaborative editing for saved visualizations
-[TBD] [admin] [added] - AI copilot support for editing and viewing saved visualizations
-[TBD] [admin] [added] - "Change metric" button in the figure editor's Data tab for saved visualizations
-[TBD] [admin] [added] - Out-of-date badge on visualizations when their package or scope changes
-[TBD] [admin] [added] - AI can now insert new figures when rewriting reports in a single proposal
-[TBD] [admin] [added] - AI page layout tool now checks for page template issues and back-to-back figures
-[TBD] [admin] [changed] - Profile button replaced with an account menu containing profile and sign out
-[TBD] [admin] [changed] - Sign out moved from the profile dialog to the top bar account menu
-[TBD] [admin] [changed] - AI opener button on the right edge can now be dragged up and down
-[TBD] [admin] [changed] - AI opener button label shortened to "AI"
-[TBD] [admin] [changed] - Product creation dialog now includes name and folder fields
-[TBD] [admin] [changed] - Slide deck and report insert/replace figure buttons now offer new or existing visualization
-[TBD] [admin] [fixed] - AI map preset no longer produces a blank figure when boundary files are missing
-[TBD] [admin] [fixed] - Viewers no longer push config changes to the collaboration room on reconnect
-[TBD] [admin] [internal] - Improved reliability of AI tool context passing
-[TBD] [admin] [internal] - Copilot tool infrastructure updated for improved context handling
+[2.13.3] [user] [added] - Saved visualizations now appear on the Products page
+[2.13.3] [user] [fixed] - Opening a chart no longer marks its slide or report as changed
+[2.13.3] [user] [fixed] - Time ranges shown by the assistant now reflect actual data, not the requested window
+[2.13.3] [admin] [added] - Saved visualizations now appear in the Products list for the AI copilot
+[2.13.3] [admin] [fixed] - Opening and closing a figure editor no longer marks slides, reports, or visualizations as changed
+[2.13.3] [admin] [fixed] - AI copilot now reports the actual time range present in data, not the requested window
+[2.13.2] [user] [added] - Categories now show how many indicators each one contains
+[2.13.2] [admin] [changed] - AI indicator listings now show how many indicators each category holds
+[2.13.1] [user] [fixed] - Uploaded files with special characters in names now preserved correctly
+[2.13.1] [user] [fixed] - Replicate-by panel no longer flickers when editing filters
+[2.13.1] [user] [changed] - "Too many items" message now suggests removing disaggregations or narrowing the period
+[2.13.1] [admin] [fixed] - Uploaded files with non-ASCII characters in their names are now handled correctly
+[2.13.1] [admin] [changed] - AI assistant now suggests removing disaggregations instead of adding them when queries return too many items
+[2.13.1] [admin] [fixed] - Replicate-by panel in the visualization editor no longer unnecessarily reloads when editing filters
+[2.13.0] [user] [added] - Results packages now show which data families they contain
+[2.13.0] [user] [added] - Results packages now show their module count
+[2.13.0] [user] [changed] - Package picker displays data contents alongside name and date
+[2.13.0] [admin] [added] - Results packages now show data families and module count columns
+[2.13.0] [admin] [changed] - Package picker displays data contents alongside package name and date
+[2.13.0] [admin] [internal] - Existing packages are automatically stamped with their data family information on upgrade
+[2.12.1] [user] [changed] - Slide copy confirmation now uses correct plural grammar
+[2.12.1] [user] [changed] - Deck settings screen now says "Save" or "Cancel" to leave instead of "back button"
+[2.12.1] [user] [fixed] - Figure editor now shows the actual date range of displayed data
+[2.12.1] [user] [fixed] - Module metric counts now only include ready metrics
+[2.12.1] [user] [fixed] - Data page values with commas or quotes no longer break CSV column alignment
+[2.12.1] [user] [fixed] - Replacing a report figure now keeps the original chart title when not specified
+[2.12.1] [user] [fixed] - Unchanged slides no longer show as recently edited after collaborative editing
+[2.12.1] [admin] [fixed] - Slide saves that don't change content no longer trigger unnecessary update notifications
+[2.12.1] [admin] [fixed] - Deck restore now always broadcasts the correct timestamp even when a live editing room holds an unchanged slide
+[2.12.1] [admin] [changed] - Copilot now shows the correct action buttons (Apply/Cancel vs. back arrow) based on whether live co-editing is active or the view is read-only
+[2.12.1] [admin] [fixed] - Module metric counts shown to the copilot now reflect only ready metrics
+[2.12.1] [admin] [fixed] - Copied-slide confirmation message now uses correct plural form across languages
+[2.12.1] [admin] [changed] - Copilot data context is now carried into data sub-pages so the assistant stays informed when navigating quickly
+[2.12.1] [admin] [changed] - Figure editor now reports the actual date range of displayed data to the copilot for more accurate captions
+[2.12.1] [admin] [fixed] - Replacing a report figure now preserves the original chart title and caption when not explicitly changed
+[2.12.1] [admin] [changed] - Deck settings instructions now correctly reference Save and Cancel buttons instead of a back button
+[2.12.1] [admin] [internal] - Improved reliability of slide checkpoint handling during live co-editing sessions
+[2.12.0] [user] [fixed] - AI assistant no longer fails on all slides when one slide can't be measured
+[2.12.0] [admin] [fixed] - AI slide assistant no longer fails entirely when one slide can't be measured
+[2.12.0] [user] [added] - Draft slide previews now indicate if content overflows the page
+[2.12.0] [user] [added] - Deck overview now shows which slides overflow the page
+[2.12.0] [user] [changed] - Copilot gives clearer warnings when slide content is cut off at the bottom
+[2.12.0] [admin] [changed] - Copilot now reports when slide content overflows the page across all tools
+[2.12.0] [admin] [improved] - Consistent overflow warnings help Copilot fix broken slides more reliably
+[2.12.0] [admin] [added] - Draft slide previews now indicate if content overflows the page
+[2.12.0] [admin] [added] - Deck summary now shows overflow status for each content slide
+[2.12.0] [user] [fixed] - Status messages now use correct plural forms (e.g., "1 slide" vs "2 slides")
+[2.12.0] [user] [changed] - Reference document progress messages now show document titles instead of IDs
+[2.12.0] [admin] [fixed] - AI status messages now show proper plural forms instead of parenthesized suffixes
+[2.12.0] [admin] [changed] - Reference document names shown instead of IDs in AI progress messages
+[2.12.0] [user] [added] - AI assistant can now look at slides, figures, and charts as images to judge readability
+[2.12.0] [user] [added] - AI assistant can now add image assets to slides and reports
+[2.12.0] [user] [added] - AI assistant can now view and change deck settings like logos, footer text, and watermarks
+[2.12.0] [user] [added] - AI assistant can now set text background colors on slide text blocks
+[2.12.0] [user] [added] - AI assistant can now adjust text size, bold, and italic on cover and section slides
+[2.12.0] [user] [added] - AI assistant can now add and configure side panels on content slides
+[2.12.0] [user] [changed] - Replacing a slide now preserves its existing settings like logos, sub-header, and side panel
+[2.12.0] [user] [changed] - Deck overview now includes logo, footer, and watermark settings alongside the slide outline
+[2.12.0] [user] [changed] - AI assistant now shows more detail about image blocks and text styling when reading slides
+[2.12.0] [admin] [added] - Copilot can now look at slides, report figures, and figure editor previews as images to judge readability
+[2.12.0] [admin] [added] - Copilot can manage deck settings: logos, footer text, and watermark
+[2.12.0] [admin] [added] - Copilot can use instance image assets in slides and content blocks
+[2.12.0] [admin] [added] - Image blocks now supported in slide content alongside text and figures
+[2.12.0] [admin] [added] - Copilot can set text background colors and text styling on slide blocks
+[2.12.0] [admin] [changed] - Replacing a slide now preserves existing settings like side panels, logos, and sub-headers when the slide type stays the same
+[2.12.0] [admin] [changed] - Deck outline from copilot now includes deck settings alongside slide summary
+[2.12.0] [admin] [internal] - Refactored figure editor preview logic for improved reliability and copilot integration
+[2.12.0] [user] [changed] - AI assistant can now read multiple slides at once, speeding up deck editing
+[2.12.0] [user] [improved] - AI assistant now reports page overflow status after slide changes
+[2.12.0] [user] [improved] - AI assistant shows updated figure details after editing slides
+[2.12.0] [user] [fixed] - AI assistant no longer re-reads slides unnecessarily after making changes
+[2.12.0] [admin] [changed] - AI copilot can now read multiple slides in a single request
+[2.12.0] [admin] [changed] - AI copilot returns slide overflow status after every write
+[2.12.0] [admin] [changed] - AI copilot includes updated figure configuration in write results
+[2.12.0] [admin] [fixed] - AI-edited figures on open slides now sync correctly to collaborators
+[2.12.0] [admin] [changed] - AI copilot batches independent tool calls in one reply for faster editing
+[2.12.0] [user] [added] - Bug reports and suggestions now get an AI-generated first look added to the support email
+[2.12.0] [admin] [added] - Bug reports and suggestions now get an AI-generated initial assessment emailed to developers
+[2.12.0] [admin] [added] - Support team emails now include a plain-language summary from Claude's review of the report
+[2.12.0] [admin] [changed] - Fleet health and telemetry endpoints now require authentication instead of being publicly accessible
+[2.12.0] [admin] [internal] - Feedback planning has daily caps per reporter and per instance to control costs
+[2.11.0] [user] [changed] - Users table now always shows "Last active" column
+[2.11.0] [user] [changed] - Users table sorts by last active time by default
+[2.11.0] [user] [fixed] - "Last active" column loads instantly instead of showing "..."
+[2.11.0] [admin] [added] - "Last active" column now appears for all user managers
+[2.11.0] [admin] [changed] - Users table sorts by last active time by default
+[2.11.0] [admin] [internal] - Last active time is now tracked more efficiently on each request
+[2.10.0] [user] [changed] - Verify button now available as a bulk action on selected indicators
+[2.10.0] [user] [changed] - Verification progress shows who started the run if started by another user
+[2.10.0] [user] [changed] - "Verify all" menu item replaced by bulk-select and Verify workflow
+[2.10.0] [user] [fixed] - Verification progress updates arrive more promptly after each indicator is checked
+[2.10.0] [user] [changed] - Stop button disables while verification is stopping
+[2.10.0] [admin] [changed] - Verification runs now use the instance's API key directly, bypassing per-user token limits
+[2.10.0] [admin] [changed] - Verification progress now shows who started the run if started by another user
+[2.10.0] [admin] [changed] - "Verify all" moved from menu to a bulk action on selected indicators
+[2.10.0] [admin] [fixed] - Verification run no longer silently stalls if its background worker fails to start
+[2.10.0] [admin] [fixed] - Last verification result now broadcasts promptly instead of waiting for the next check
+[2.10.0] [user] [added] - You can now start and stop indicator verification runs
+[2.10.0] [user] [added] - Verification progress is shown in real time as indicators are checked
+[2.10.0] [user] [fixed] - Editing an indicator formula now clears any previous suggested fix
+[2.10.0] [admin] [added] - HFA verification can now run as a background process with live progress tracking
+[2.10.0] [admin] [added] - HFA verification runs can be stopped while in progress
+[2.10.0] [admin] [fixed] - Editing an indicator formula now correctly clears any pending fix suggestion
+[2.10.0] [admin] [internal] - Server restart automatically marks interrupted verification runs as errors
+[2.10.0] [user] [added] - Footnote now notes how many rows with missing period or area are excluded from the figure
+[2.10.0] [user] [fixed] - Cells containing only special whitespace characters (like non-breaking spaces) are now correctly treated as blank
+[2.10.0] [admin] [added] - Figures now note when rows are hidden due to missing period or area data
+[2.10.0] [admin] [fixed] - Cells containing only special whitespace characters (e.g., non-breaking spaces) are now correctly treated as blank
+[2.10.0] [admin] [changed] - Visualization cache version updated; cached figures will regenerate automatically
+[2.10.0] [admin] [fixed] - Chart and table data errors now surface clearer messages instead of silent failures
+[2.10.0] [user] [fixed] - Fixed chart highlighting errors when data series info is missing
+[2.10.0] [user] [fixed] - Fixed pie chart labels showing "default" instead of proper names
+[2.10.0] [user] [fixed] - Fixed incorrect color assignments on charts without grouped data
+[2.10.0] [admin] [fixed] - Fixed chart rendering errors when data lacks disaggregation
+[2.10.0] [admin] [fixed] - Fixed pie chart labels showing "default" instead of being hidden
+[2.10.0] [admin] [fixed] - Fixed coverage chart coloring for non-disaggregated series
+[2.10.0] [admin] [fixed] - Fixed data windowing selector errors with updated data format
+[2.10.0] [admin] [fixed] - Fixed table export to work with updated data structure
+[2.10.0] [user] [changed] - Scopes page is now visible to all approved users
+[2.10.0] [user] [changed] - Restricted users can view their assigned scopes but cannot edit them
+[2.10.0] [user] [changed] - Any unrestricted user can now create, edit, and delete scopes
+[2.10.0] [user] [changed] - Scopes assigned to restricted users require a user manager to modify or delete
+[2.10.0] [user] [added] - Each scope now shows how many products use it
+[2.10.0] [admin] [changed] - Scopes page is now visible to all approved users
+[2.10.0] [admin] [changed] - Any unrestricted user can create, edit, and delete scopes
+[2.10.0] [admin] [changed] - Restricted users can view their granted scopes but cannot modify them
+[2.10.0] [admin] [changed] - Editing or deleting a scope granted to users requires user management permission
+[2.10.0] [admin] [added] - Each scope now shows its product count across the instance
+[2.10.0] [admin] [changed] - Restricted users can no longer change scopes, even with other permissions
+[2.9.1] [user] [added] - AI assistant fixes report drafts with small edits instead of rewriting entirely
+[2.9.1] [user] [fixed] - Reports no longer proposed with half-empty pages when browser tab is hidden
+[2.9.1] [user] [changed] - AI planning descriptions now use plain language instead of technical format names
+[2.9.1] [user] [changed] - AI reads multiple data indicators at once, making report writing faster
+[2.9.1] [user] [changed] - AI looks up all page templates in one step instead of several
+[2.9.1] [user] [fixed] - AI no longer gets stuck in endless fixing loops when page layout issues can't be resolved
+[2.9.1] [admin] [added] - AI report drafts are now edited incrementally instead of fully rewritten, reducing writing time
+[2.9.1] [admin] [fixed] - Report page layout no longer fails silently when browser tab is hidden
+[2.9.1] [admin] [changed] - AI fetches multiple page templates in a single step, speeding up report generation
+[2.9.1] [admin] [changed] - AI planning messages no longer expose internal format names or tool syntax to users
+[2.9.1] [admin] [fixed] - Drafts with unchecked page layouts are no longer proposed to users without warning
+[2.9.0] [user] [added] - Saved visualizations are now a standalone product type you can create, edit, and manage
+[2.9.0] [user] [added] - Insert a copy of a saved visualization into slides and reports
+[2.9.0] [user] [added] - "Change metric" button in the figure editor's Data tab
+[2.9.0] [user] [added] - Version history for saved visualizations with restore and restore-as-copy
+[2.9.0] [user] [added] - Detailed settings diff view in visualization version history showing what changed between sessions
+[2.9.0] [user] [added] - Out-of-date badge on visualizations when their data source changed, with one-click update
+[2.9.0] [user] [added] - AI assistant now works inside saved visualizations
+[2.9.0] [user] [added] - AI can add new figures when rewriting a report in one step
+[2.9.0] [user] [added] - AI checks report page layout before proposing a rewrite and flags problems automatically
+[2.9.0] [user] [added] - AI tool to look up page template details on demand
+[2.9.0] [user] [changed] - AI button label shortened from "Ask AI" to "AI"
+[2.9.0] [user] [changed] - AI button on the right edge can now be dragged up and down to reposition it
+[2.9.0] [user] [changed] - Profile icon now opens an account menu with profile and sign-out options
+[2.9.0] [user] [changed] - Sign out moved from the profile dialog to the top bar account menu
+[2.9.0] [user] [changed] - Creating a deck or report now asks for a name and folder upfront
+[2.9.0] [user] [changed] - Insert and replace visualization buttons now offer a choice between new or existing visualization
+[2.9.0] [user] [fixed] - Maps on metrics without uploaded boundaries no longer insert as broken visualizations
+[2.9.0] [admin] [added] - Visualizations are now a standalone product type alongside slide decks and reports
+[2.9.0] [admin] [added] - Create saved visualizations from the Products page via New > New visualization
+[2.9.0] [admin] [added] - Insert copies of saved visualizations into slide decks and reports
+[2.9.0] [admin] [added] - Version history with restore and restore-as-copy for saved visualizations
+[2.9.0] [admin] [added] - Real-time collaborative editing for saved visualizations
+[2.9.0] [admin] [added] - AI copilot support for editing and viewing saved visualizations
+[2.9.0] [admin] [added] - "Change metric" button in the figure editor's Data tab for saved visualizations
+[2.9.0] [admin] [added] - Out-of-date badge on visualizations when their package or scope changes
+[2.9.0] [admin] [added] - AI can now insert new figures when rewriting reports in a single proposal
+[2.9.0] [admin] [added] - AI page layout tool now checks for page template issues and back-to-back figures
+[2.9.0] [admin] [changed] - Profile button replaced with an account menu containing profile and sign out
+[2.9.0] [admin] [changed] - Sign out moved from the profile dialog to the top bar account menu
+[2.9.0] [admin] [changed] - AI opener button on the right edge can now be dragged up and down
+[2.9.0] [admin] [changed] - AI opener button label shortened to "AI"
+[2.9.0] [admin] [changed] - Product creation dialog now includes name and folder fields
+[2.9.0] [admin] [changed] - Slide deck and report insert/replace figure buttons now offer new or existing visualization
+[2.9.0] [admin] [fixed] - AI map preset no longer produces a blank figure when boundary files are missing
+[2.9.0] [admin] [fixed] - Viewers no longer push config changes to the collaboration room on reconnect
+[2.9.0] [admin] [internal] - Improved reliability of AI tool context passing
+[2.9.0] [admin] [internal] - Copilot tool infrastructure updated for improved context handling
 [2.8.0] [user] [fixed] - Verification spinner now accurately tracks which indicators are still processing
 [2.8.0] [user] [fixed] - Auto-fix no longer silently clears an indicator's sub-category when moving categories
 [2.8.0] [admin] [fixed] - Verification progress indicator now tracks each indicator accurately

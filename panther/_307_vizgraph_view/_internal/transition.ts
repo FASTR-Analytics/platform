@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -95,7 +95,7 @@ export function buildTransitionFrame(
       },
       nodes,
       edges,
-      lanes: moving ? from.lanes : to.lanes,
+      bands: moving ? from.bands : to.bands,
       groups: moving ? from.groups : to.groups,
       // The settled target's hit areas and order record: mid-tween positions
       // never matched either geometry, so the target is the only coherent

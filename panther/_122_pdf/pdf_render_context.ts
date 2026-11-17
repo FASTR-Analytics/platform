@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -368,8 +368,11 @@ export class PdfRenderContext implements RenderContext {
         this._jsPdf.stroke();
       }
 
-      // Safety measure
+      // Later strokes draw with the PDF defaults: a solid line, mitred joins.
+      // A q/Q pair would not do: jsPDF keeps the join it was last given and
+      // writes it again at the top of every new page.
       this._jsPdf.setLineDashPattern([], 0);
+      this._jsPdf.setLineJoin("miter");
     } catch (e) {
       throw e;
     }

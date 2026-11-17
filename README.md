@@ -1,8 +1,6 @@
 # platform
 
-The FASTR Analytics Platform for processing, visualizing, and analyzing health
-data. Built with Deno, SolidJS, TypeScript, and PostgreSQL with a modular
-architecture for executing R-based data processing pipelines.
+The FASTR Analytics Platform for processing, visualizing, and analyzing health data. Built with Deno, SolidJS, TypeScript, and PostgreSQL with a modular architecture for executing R-based data processing pipelines.
 
 ## Setup
 
@@ -72,14 +70,9 @@ deno task dev
 cd client && npm run dev
 ```
 
-The server runs on `http://localhost:8000` and the client on
-`http://localhost:3000`.
+The server runs on `http://localhost:8000` and the client on `http://localhost:3000`.
 
-Four local auth modes are available: `BYPASS_AUTH` (a synthetic admin, the
-`.env` default), the persona switch (`PERSONA_AUTH` with `VITE_PERSONA_AUTH`),
-which signs the browser in as any `users` row through `?persona=<email>`, a
-personal access token, and OAuth. `PROTOCOL_APP_DEVELOPMENT.md` says when to use
-each.
+Four local auth modes are available: `BYPASS_AUTH` (a synthetic admin, the `.env` default), the persona switch (`PERSONA_AUTH` with `VITE_PERSONA_AUTH`), which signs the browser in as any `users` row through `?persona=<email>`, a personal access token, and OAuth. `PROTOCOL_APP_DEVELOPMENT.md` says when to use each.
 
 ## Type Checking
 
@@ -111,21 +104,17 @@ The script performs the following steps:
    - Output goes to `./client_dist/` which the server serves in production
 
 3. **Typecheck Gate**
-   - Runs `deno task typecheck` (server + client + `lint:systems` +
-     `lint:structure` + `lint:text-sizes` + `lint:sql-json` +
-     `lint:plan-citations`)
+   - Runs `deno task typecheck` (server + client + `lint:systems` + `lint:structure` + `lint:text-sizes` + `lint:sql-json` + `lint:plan-citations`)
 
 4. **Docker Image**
-   - Builds Docker image tagged with version:
-     `timroberton/comb:wb-fastr-server-v{version}`
+   - Builds Docker image tagged with version: `timroberton/comb:wb-fastr-server-v{version}`
    - Pushes image to Docker registry
 
 5. **Git Commit**
    - Commits version bump and builds
    - Pushes to remote repository
 
-**Note**: Building is only done as part of deployment. In development, the
-client uses Vite's dev server and the server runs directly with Deno.
+**Note**: Building is only done as part of deployment. In development, the client uses Vite's dev server and the server runs directly with Deno.
 
 ## Project Structure
 
@@ -155,17 +144,18 @@ platform/
 
 ## License
 
-Copyright (c) 2025 The World Bank, Global Financing Facility for Women, Children
-and Adolescents (GFF), Frequent Assessments and System Tools for Resilience
-(FASTR) Initiative. All rights reserved.
+The FASTR Analytics Platform is open-source software owned by the World Bank and the Global Financing Facility for Women, Children and Adolescents (GFF). "Open source" means that the software's source code (the written instructions that make up the software) is published for anyone to read and use.
 
-This software is proprietary and made publicly available for transparency and
-reference purposes only. Viewing and reviewing the source code is permitted. See
-[LICENSE](LICENSE) for full terms.
+The platform is released under the MIT License, one of the most widely used open-source licenses. Under the MIT License, anyone may use, copy, change, and share the platform's code for any purpose, without paying the owners and without asking their permission, provided every copy includes the copyright notice and the license text. See [LICENSE](LICENSE) for the full terms.
 
-## Third-Party Code
+The MIT License covers software code only. It gives no one any right to the health data that a country holds in the platform, and each country owns its own data.
 
-This project depends on the Panther visualization library
-(`@timroberton/panther`), which is maintained separately and synced into the
-`panther/` directory (git-ignored). The library has its own licensing - see
-`panther/LICENSE.txt` and `panther/THIRD_PARTY_LICENSES.md` after syncing.
+## Code and Fonts by Other Authors
+
+This repository includes code and fonts made by other people. Each item listed below is used under its own open-source license, which also allows use without a fee and without asking permission.
+
+- **Panther** (`panther/`): the library that draws the platform's charts and screens. A library is ready-made code that developers reuse. Panther is owned by Tim Roberton and released under the MIT License. See [panther/LICENSE.txt](panther/LICENSE.txt) and [panther/THIRD_PARTY_LICENSES.md](panther/THIRD_PARTY_LICENSES.md).
+- **postgres.js** (`vendor/postgres/`): the code that connects the platform to its database. Its authors placed it in the public domain under the Unlicense. See [vendor/postgres/UNLICENSE](vendor/postgres/UNLICENSE).
+- **Fonts** (`client/public/fonts/`): Fira Sans, International Inter (a version of Inter), Merriweather and Poppins are released under the SIL Open Font License 1.1. Roboto Condensed and Roboto Mono are released under the Apache License 2.0.
+
+The platform also uses other open-source libraries, listed in `client/package.json`, `deno.json` and `panther/deno.json`. Each library is used under its own open-source license.

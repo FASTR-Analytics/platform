@@ -1,7 +1,9 @@
 // The visualization doc (lib/collab/visualization_crdt.ts): a seeded doc
 // materializes back to its bundle, a config edit reaches the bundle, a data
 // push that differs only in `snapshotAt` writes nothing, and the report figure
-// registry still round-trips through the shared figure-entry helpers. Then the
+// registry still round-trips through the shared figure-entry helpers. A slide
+// or report figure push that differs only in `snapshotAt` writes nothing too,
+// so opening and closing a figure editor does not mark its host changed. Then the
 // room (server/collab/visualization_rooms.ts): an editor's edit relays to a
 // peer and checkpoints, a viewer's is refused, and the checkpoint policy
 // drops mid-edit transients instead of wedging.
@@ -23,8 +25,12 @@ import {
   materializeVisualization,
   presentationObjectConfigSchema,
   seedReportDoc,
+  seedSlideDoc,
   seedVisualizationDoc,
+  type Slide,
   syncFigureConfigField,
+  syncReportToDoc,
+  syncSlideToDoc,
   syncVisualizationFigData,
   syncVisualizationToDoc,
   type VisualizationDocContent,
@@ -153,6 +159,47 @@ Deno.test("report doc: figures still round-trip through the shared entry helpers
     f1: { type: "figure", bundle: BUNDLE },
     f2: { type: "figure" },
   });
+});
+
+// Every resolve stamps a new snapshotAt, so a figure editor's open and close
+// push such a bundle; a write would checkpoint the slide or report and report
+// it changed to the copilot.
+const RESTAMPED = { ...BUNDLE, snapshotAt: "2026-10-24T00:00:00.000Z" };
+const NEW_DATA = {
+  ...RESTAMPED,
+  items: [{ admin_area_2: "Kano", value: 0.8 }],
+};
+
+const figureSlide = (bundle: FigureBundle): Slide => ({
+  type: "content",
+  layout: { type: "item", id: "b1", data: { type: "figure", bundle } },
+});
+
+Deno.test("slide doc: a figure push differing only in snapshotAt writes nothing", () => {
+  const doc = new Y.Doc();
+  seedSlideDoc(doc, figureSlide(BUNDLE));
+  let updates = 0;
+  doc.on("update", () => updates++);
+  syncSlideToDoc(doc, figureSlide(RESTAMPED));
+  assertEquals(updates, 0);
+  syncSlideToDoc(doc, figureSlide(NEW_DATA));
+  assertEquals(updates, 1);
+});
+
+Deno.test("report doc: a figure push differing only in snapshotAt writes nothing", () => {
+  const doc = new Y.Doc();
+  const content = (bundle: FigureBundle) => ({
+    body: "x",
+    figures: { f1: { type: "figure" as const, bundle } },
+    images: {},
+  });
+  seedReportDoc(doc, content(BUNDLE));
+  let updates = 0;
+  doc.on("update", () => updates++);
+  syncReportToDoc(doc, content(RESTAMPED));
+  assertEquals(updates, 0);
+  syncReportToDoc(doc, content(NEW_DATA));
+  assertEquals(updates, 1);
 });
 
 Deno.test("checkpoint policy: valid is trusted, a mid-edit empty filter is dropped and untrusted, a corrupt bundle is permanent", () => {

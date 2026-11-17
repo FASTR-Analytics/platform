@@ -15,20 +15,11 @@ export type ProductsListForAI = {
   user: { email: string; isGlobalAdmin: boolean };
 };
 
-// Saved visualizations are never shown to the model here: the copilot reads
-// a visualization only from inside its own editor, so a deck or report
-// conversation cannot reach one.
-type ListedProductType = Exclude<ProductType, "visualization">;
-type ListedProduct = Extract<ProductSummary, { type: ListedProductType }>;
-
-const TYPE_LABELS: Record<ListedProductType, string> = {
+const TYPE_LABELS: Record<ProductType, string> = {
   slide_deck: "slide deck",
   report: "report",
+  visualization: "saved visualization",
 };
-
-function isListed(product: ProductSummary): product is ListedProduct {
-  return product.type !== "visualization";
-}
 
 const PATH_SEPARATOR = " / ";
 
@@ -58,14 +49,14 @@ function folderPaths(folders: Folder[]): Map<string, string> {
 }
 
 export function formatProductsListForAI(input: ProductsListForAI): string {
-  const products = input.products.filter(isListed);
+  const products = input.products;
   if (products.length === 0) {
-    return "No products. A product is a slide deck or a report, created on the Products page.";
+    return "No products. A product is a slide deck, a report or a saved visualization, created on the Products page.";
   }
   const paths = folderPaths(input.folders);
   const packages = new Map(input.readyPackages.map((p) => [p.id, p.label]));
   const scopes = new Map(input.scopes.map((s) => [s.id, s.label]));
-  const pathOf = (product: ListedProduct) =>
+  const pathOf = (product: ProductSummary) =>
     product.folderId === null ? "" : paths.get(product.folderId) ?? "";
   const rows = products.toSorted((a, b) =>
     pathOf(a).localeCompare(pathOf(b)) || a.label.localeCompare(b.label)

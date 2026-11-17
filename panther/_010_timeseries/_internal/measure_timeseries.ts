@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -48,24 +48,25 @@ export function measureTimeseries(
   > = {
     mergedStyle,
     transformedData,
-    dataProps: {
-      paneHeaders: transformedData.paneHeaders,
-      tierHeaders: transformedData.tierHeaders,
-      laneHeaders: transformedData.laneHeaders,
-      seriesHeaders: transformedData.seriesHeaders,
+    dataDimensions: {
+      pane: transformedData.pane,
+      tier: transformedData.tier,
+      lane: transformedData.lane,
+      series: transformedData.series,
     },
     xAxisConfig: {
       type: "period",
-      periodType: transformedData.periodType,
-      nTimePoints: transformedData.nTimePoints,
-      timeMin: transformedData.timeMin,
+      dimension: transformedData.period.name,
+      periodType: transformedData.period.periodType,
+      nTimePoints: transformedData.period.nTimePoints,
+      timeMin: transformedData.period.timeMin,
       axisStyle: mergedStyle.xPeriodAxis,
     },
     yAxisConfig: {
-      type: "scale",
-      axisStyle: mergedStyle.yScaleAxis,
-      axisData: transformedData.scaleAxisLimits,
-      axisLabel: transformedData.yScaleAxisLabel,
+      type: "value",
+      axisStyle: mergedStyle.yValueAxis,
+      axisData: transformedData.valueAxisLimits,
+      axisLabel: transformedData.yValueAxisLabel,
     },
     orientation: "vertical",
     paneGrid,

@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -48,27 +48,28 @@ export function measureChartOV(
   > = {
     mergedStyle,
     transformedData,
-    dataProps: {
-      paneHeaders: transformedData.paneHeaders,
-      tierHeaders: transformedData.tierHeaders,
-      laneHeaders: transformedData.laneHeaders,
-      seriesHeaders: transformedData.seriesHeaders,
-      indicatorHeaders: transformedData.indicatorHeaders,
+    dataDimensions: {
+      pane: transformedData.pane,
+      tier: transformedData.tier,
+      lane: transformedData.lane,
+      series: transformedData.series,
+      indicator: transformedData.indicator,
       visibleIndicatorsByPane: transformedData.visibleIndicatorsByPane,
       visibleLanesByPane: transformedData.visibleLanesByPane,
-      visibleIndicatorsByPaneBand: transformedData.visibleIndicatorsByPaneBand,
+      visibleIndicatorsByPaneTierOrLane:
+        transformedData.visibleIndicatorsByPaneLane,
       proportionalPanes: transformedData.proportionalPanes,
     },
     xAxisConfig: {
       type: "text",
-      indicatorHeaders: transformedData.indicatorHeaders,
+      indicatorMembers: transformedData.indicator.members,
       axisStyle: mergedStyle.xTextAxis,
     },
     yAxisConfig: {
-      type: "scale",
-      axisStyle: mergedStyle.yScaleAxis,
-      axisData: transformedData.scaleAxisLimits,
-      axisLabel: transformedData.yScaleAxisLabel,
+      type: "value",
+      axisStyle: mergedStyle.yValueAxis,
+      axisData: transformedData.valueAxisLimits,
+      axisLabel: transformedData.yValueAxisLabel,
     },
     orientation: "vertical",
     paneGrid,

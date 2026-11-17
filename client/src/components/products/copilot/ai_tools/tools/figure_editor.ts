@@ -21,11 +21,13 @@ import {
   copilotViewController,
   copilotViews,
   type CopilotViewState,
+  figureEditorKeepLineFor,
 } from "~/components/instance/copilot/mod.ts";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 import { formatFigureConfigForAI } from "../../_shared/mod.ts";
+import { createGetFigureEditorImageTool } from "./get_figure_editor_image.ts";
 
-type FigureEditorViewState = Extract<
+export type FigureEditorViewState = Extract<
   CopilotViewState,
   {
     id:
@@ -47,11 +49,25 @@ function assertFigureEditorStillOpen(view: FigureEditorViewState): void {
   }
 }
 
-// The Figure editor group: the open figure editor's draft, read
-// and written live through the view's context, in the three figure views.
-// The write is update_figure's validate-before-commit pipeline over the
-// draft instead of a stored bundle, with the editor's own patch schema, which
-// adds the chart type and the timeseries grouping the editor can change.
+// Under live co-editing the draft streams into the host doc, whose room
+// checkpoint notifies the host's echo keys as a stored write does. A saved
+// visualization's notices are no interaction, and a package figure is never
+// live.
+function markLiveHostEdit(view: FigureEditorViewState): void {
+  switch (view.id) {
+    case "editing_slide_figure":
+      copilotViewController.markAIEdit(`slide:${view.params.slideId}`);
+      copilotViewController.markAIEdit(`product:${view.params.deckId}`);
+      return;
+    case "editing_report_figure":
+      copilotViewController.markAIEdit(`product:${view.params.reportId}`);
+      return;
+    case "editing_visualization":
+    case "viewing_package_figure":
+      return;
+  }
+}
+
 export function getClientToolsForFigureEditor(
   env: ClientAIToolEnv,
   metrics: MetricWithStatus[],
@@ -65,22 +81,25 @@ export function getClientToolsForFigureEditor(
       inputSchema: z.object({}),
       availableIn: COPILOT_TOOL_VIEWS.get_figure_editor,
       kind: "read",
-      handler: async (_input, view) =>
-        await formatFigureConfigForAI(
+      handler: async (_input, view) => {
+        const preview = view.context.getPreview();
+        return await formatFigureConfigForAI(
           env,
           metrics.find((m) => m.id === view.context.getMetric().id) ??
             view.context.getMetric(),
           view.context.getDraftConfig(),
-          undefined,
-        ),
+          preview.status === "ready" ? preview.dateRange : undefined,
+        );
+      },
       inProgressLabel: "Reading the figure editor...",
       completionMessage: "Read the figure editor",
     }),
+    createGetFigureEditorImageTool(assertFigureEditorStillOpen),
     createAITool({
       viewRegistry: copilotViews,
       name: "update_figure_editor",
       description:
-        "Change the figure open in the figure editor. Provide only the fields to change (the chart type, timeseriesGrouping, the replicant, filters, disaggregations, period, captions); everything else is kept and the preview re-queries at once. The change lands in the editor's draft like the user's own edit: the user keeps it with Apply or discards it with Cancel, and under live co-editing it streams into the document as it is made. Call get_figure_editor first.",
+        "Change the figure open in the figure editor. Provide only the fields to change (the chart type, timeseriesGrouping, the replicant, filters, disaggregations, period, captions); everything else is kept and the preview re-queries at once. The change lands in the editor's draft like the user's own edit. Call get_figure_editor first.",
       inputSchema: z.object({ patch: AiVizConfigUpdateSchema }),
       availableIn: COPILOT_TOOL_VIEWS.update_figure_editor,
       kind: "write",
@@ -187,10 +206,23 @@ export function getClientToolsForFigureEditor(
           newBundle.items,
         );
 
+        // Formatted before the draft changes, and as get_figure_editor prints
+        // it: the check below and the apply share one tick, and a throw after
+        // the apply would report an applied change as failed.
+        const draft = await formatFigureConfigForAI(
+          env,
+          metric,
+          newConfig,
+          newBundle.dateRange,
+        );
+
         assertFigureEditorStillOpen(view);
         view.context.applyDraftConfig(newConfig);
+        if (view.context.isLive()) markLiveHostEdit(view);
         const reportText = report.map((l) => `- ${l}`).join("\n");
-        return `Updated the figure editor's draft.\n${reportText}\nThe change shows in the editor; the user keeps it with Apply or discards it with Cancel.`;
+        return `Updated the figure editor's draft.\n${reportText}\nThe change shows in the editor. ${
+          figureEditorKeepLineFor(view.id, view.context)
+        }\nThe draft's config:\n${draft}`;
       },
       inProgressLabel: "Updating the figure...",
       completionMessage: "Updated the figure",

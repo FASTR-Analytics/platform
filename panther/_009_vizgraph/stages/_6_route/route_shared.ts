@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -105,7 +105,7 @@ export type RouteState = {
   gutterThickness?: number[];
   trackBaseX?: number[];
   // 6.4: each layer's column left edge and width (span floors included) —
-  // [7] derives lane boxes from them.
+  // [7] derives band boxes from them.
   columnX?: number[];
   columnW?: number[];
   channelY?: Map<REdge, number>;

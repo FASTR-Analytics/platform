@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -9,7 +9,9 @@ import {
   type ChartComponentSizes,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
-  estimateMinYAxisWidth,
+  estimateMinYValueAxisWidth,
+  estimateTierHeaderAndLabelGapWidth,
+  getDimensionMembers,
   PANE_HEADER_SAMPLE_MAX_W,
   type RenderContext,
   resolveDefaultLegend,
@@ -43,8 +45,8 @@ export function getTimeseriesComponentSizes(
   // xPeriod tick labels are short, fixed-format (years/months) and never wrap
   // or rotate, so this unwrapped sample is a faithful estimate of the real axis
   // height — Timeseries intentionally stays on the estimate fit path (it does
-  // not pass a ResolveFloorPlotH). If long/wrapping period labels are ever
-  // introduced, route it through the probe like ChartOV (resolveScaleAxisFloorPlotH).
+  // not pass a ResolveFloorExtent). If long/wrapping period labels are ever
+  // introduced, route it through the probe like ChartOV (resolveValueAxisFloorSubChartHeight).
   const xAxisTickH = rc
     .mText(
       SIZING_SAMPLE.periodTick,
@@ -65,31 +67,37 @@ export function getTimeseriesComponentSizes(
     .dims.h();
 
   const minSubChartWidth = calculateTimeseriesMinSubChartWidth(
-    data.nTimePoints,
+    data.period.nTimePoints,
     xAxisTickH,
   );
 
   const resolvedLegendLabels = resolveDefaultLegend(
     inputs.legend,
-    data.seriesHeaders,
+    data.series,
   );
 
   return {
     customFigureStyle: cs,
     mergedStyle: ms,
-    nLanes: data.laneHeaders.length,
-    nTiers: data.tierHeaders.length,
-    paneHeaders: data.paneHeaders,
+    nLanes: getDimensionMembers(data.lane).length,
+    nTiers: getDimensionMembers(data.tier).length,
+    nPanes: getDimensionMembers(data.pane).length,
     minSubChartWidth,
-    minSubChartHeight: calculateMinSubChartHeight(rc, ms.yScaleAxis),
+    minSubChartHeight: calculateMinSubChartHeight(rc, ms.yValueAxis),
     xAxisHeight,
     paneHeaderHeight,
-    minYAxisWidth: estimateMinYAxisWidth(rc, ms.yScaleAxis, ms.grid),
+    minYAxisWidth: estimateMinYValueAxisWidth(
+      rc,
+      data.yValueAxisLabel,
+      ms.yValueAxis,
+      ms.grid,
+      estimateTierHeaderAndLabelGapWidth(rc, data.tier, data.lane, ms),
+    ),
     surroundsMinWidth: estimateMinSurroundsWidth(
       rc,
       cs,
       resolvedLegendLabels,
-      data.seriesHeaders,
+      data.series,
     ),
     resolvedLegendLabels,
   };

@@ -20,6 +20,8 @@ import type { DBScope } from "./_main_database_types.ts";
 export const SCOPE_NOT_FOUND = "Scope not found";
 export const SCOPE_IN_USE =
   "This scope cannot be deleted while a product uses it";
+export const SCOPE_GRANTED =
+  "This scope limits some users' access, so only a user manager can change it";
 export const SCOPE_LABEL_TAKEN = "Another scope already has this label";
 export const SCOPE_RESERVED =
   'The "All data" scope cannot be edited or deleted';
@@ -39,9 +41,9 @@ export async function listScopes(
   mainDb: Sql,
 ): Promise<APIResponseWithData<Scope[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    const rows = await mainDb<DBScope[]>`
-      SELECT * FROM scopes
-      ORDER BY (id = ${ALL_DATA_SCOPE_ID}) DESC, LOWER(label), id
+    const rows = await mainDb<DBScopeWithCount[]>`
+      ${selectScopesWithCount(mainDb)}
+      ORDER BY (s.id = ${ALL_DATA_SCOPE_ID}) DESC, LOWER(s.label), s.id
     `;
     return { success: true, data: rows.map(rowToScope) };
   });
@@ -53,7 +55,10 @@ export async function getScope(
 ): Promise<APIResponseWithData<Scope>> {
   return await tryCatchDatabaseAsync(async () => {
     const row = (
-      await mainDb<DBScope[]>`SELECT * FROM scopes WHERE id = ${scopeId}`
+      await mainDb<DBScopeWithCount[]>`
+        ${selectScopesWithCount(mainDb)}
+        WHERE s.id = ${scopeId}
+      `
     ).at(0);
     if (row === undefined) {
       throw new Error(SCOPE_NOT_FOUND);
@@ -86,10 +91,14 @@ export async function createScope(
   });
 }
 
+// A granted scope is some restricted user's data boundary, so changing it is
+// user management: `mayChangeGranted` is whether the caller holds
+// can_configure_users.
 export async function updateScope(
   mainDb: Sql,
   scopeId: ScopeId,
   args: { label: string; definition: ScopeDefinition },
+  mayChangeGranted: boolean,
 ): Promise<APIResponseNoData> {
   if (scopeId === ALL_DATA_SCOPE_ID) {
     return { success: false, err: SCOPE_RESERVED };
@@ -101,37 +110,38 @@ export async function updateScope(
     );
     const stamp = new Date().toISOString();
     await mainDb.begin(async (sql) => {
+      const refusal = await lockChangeableScope(sql, scopeId, mayChangeGranted);
+      if (refusal !== undefined) {
+        throw new Error(refusal);
+      }
       await assertLabelFree(sql, label, scopeId);
-      const rows = await sql`
+      await sql`
         UPDATE scopes
         SET label = ${label}, definition = ${definition}, last_updated = ${stamp}
         WHERE id = ${scopeId}
-        RETURNING id
       `;
-      if (rows.length === 0) {
-        throw new Error(SCOPE_NOT_FOUND);
-      }
     });
     return { success: true };
   });
 }
 
-// The guard and the delete are one statement, so a product attached between a
-// check and a delete cannot be orphaned; the foreign key is the backstop.
+// The product guard and the delete are one statement, so a product attached
+// between a check and a delete cannot be orphaned; the foreign key is the
+// backstop. The delete cascades the scope's grants, so a granted scope takes
+// the same standing as an edit of it.
 export async function deleteScope(
   mainDb: Sql,
   scopeId: ScopeId,
+  mayChangeGranted: boolean,
 ): Promise<APIResponseNoData> {
   if (scopeId === ALL_DATA_SCOPE_ID) {
     return { success: false, err: SCOPE_RESERVED };
   }
   return await tryCatchDatabaseAsync(async () => {
-    const outcome = await mainDb.begin(async (sql) => {
-      const existing = await sql`
-        SELECT 1 FROM scopes WHERE id = ${scopeId} FOR UPDATE
-      `;
-      if (existing.length === 0) {
-        return SCOPE_NOT_FOUND;
+    await mainDb.begin(async (sql) => {
+      const refusal = await lockChangeableScope(sql, scopeId, mayChangeGranted);
+      if (refusal !== undefined) {
+        throw new Error(refusal);
       }
       const deleted = await sql`
         DELETE FROM scopes
@@ -139,16 +149,52 @@ export async function deleteScope(
           AND NOT EXISTS (SELECT 1 FROM products WHERE scope_id = ${scopeId})
         RETURNING id
       `;
-      return deleted.length === 0 ? SCOPE_IN_USE : undefined;
+      if (deleted.length === 0) {
+        throw new Error(SCOPE_IN_USE);
+      }
     });
-    if (outcome !== undefined) {
-      throw new Error(outcome);
-    }
     return { success: true };
   });
 }
 
-function rowToScope(row: DBScope): Scope {
+// The row lock comes first: a grant's foreign-key check waits on it, so no
+// grant lands between the test and the caller's write.
+async function lockChangeableScope(
+  sql: Sql,
+  scopeId: ScopeId,
+  mayChangeGranted: boolean,
+): Promise<string | undefined> {
+  const existing = await sql`
+    SELECT 1 FROM scopes WHERE id = ${scopeId} FOR UPDATE
+  `;
+  if (existing.length === 0) {
+    return SCOPE_NOT_FOUND;
+  }
+  if (mayChangeGranted) {
+    return undefined;
+  }
+  const [{ granted }] = await sql<[{ granted: boolean }]>`
+    SELECT EXISTS (
+      SELECT 1 FROM user_scopes WHERE scope_id = ${scopeId}
+    ) AS granted
+  `;
+  return granted ? SCOPE_GRANTED : undefined;
+}
+
+type DBScopeWithCount = DBScope & { product_count: number };
+
+// Callers append their own clauses over the alias `s`.
+function selectScopesWithCount(sql: Sql) {
+  return sql`
+    SELECT
+      s.*,
+      (SELECT COUNT(*) FROM products p WHERE p.scope_id = s.id)::int
+        AS product_count
+    FROM scopes s
+  `;
+}
+
+function rowToScope(row: DBScopeWithCount): Scope {
   const definition = parseScopeDefinition(row.definition);
   return {
     id: row.id,
@@ -157,6 +203,7 @@ function rowToScope(row: DBScope): Scope {
     definitionHash: scopeDefinitionHash(definition),
     lastUpdated: row.last_updated,
     migratedFrom: migratedFromOf(row.migrated_from),
+    productCount: row.product_count,
   };
 }
 

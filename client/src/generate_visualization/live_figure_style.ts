@@ -16,11 +16,11 @@ const LIVE_TEXT_SIZE = 12;
 const CHART_LABEL_KEYS: readonly ChartLabelKey[] = [
   "xTextAxisTickLabels",
   "xPeriodAxisTickLabels",
-  "xScaleAxisTickLabels",
-  "xScaleAxisLabel",
+  "xValueAxisTickLabels",
+  "xValueAxisLabel",
   "yTextAxisTickLabels",
-  "yScaleAxisTickLabels",
-  "yScaleAxisLabel",
+  "yValueAxisTickLabels",
+  "yValueAxisLabel",
   "dataLabels",
   "legend",
   "laneHeaders",
@@ -41,8 +41,8 @@ export function liveFigureStyle(
     grid: {
       ...style.grid,
       axisStrokeWidth: 1,
-      gridStrokeWidth: 1,
-      gridColor: { key: "base300" },
+      gridLineStrokeWidth: 1,
+      gridLineColor: { key: "base300" },
     },
     content: {
       ...style.content,

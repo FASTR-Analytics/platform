@@ -1,4 +1,10 @@
-import { getCountryLabel } from "../consts.ts";
+import { IMAGE_LIMITS } from "@timroberton/panther";
+import {
+  getCountryLabel,
+  MAX_CONTENT_BLOCKS,
+  SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
+  SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
+} from "../consts.ts";
 import type { RunDataset } from "../types/run_datasets.ts";
 import type { InstanceGrounding } from "../types/instance_sse.ts";
 import type { InstanceCalendar } from "../types/instance.ts";
@@ -38,10 +44,9 @@ export type SystemPromptParts = {
   contextSection: string;
   // "# Role and Purpose" body: what THIS surface's assistant is for.
   roleAndPurpose: string;
-  // Core principles this surface adds after the four shared ones (the SPA
-  // adds "ask when uncertain": the ask_user_questions tool exists only
-  // there).
-  extraCorePrinciples: string[];
+  // Core principles this surface adds after the shared ones (the chat adds
+  // CHAT_CORE_PRINCIPLES).
+  extraCorePrinciples: readonly string[];
   // The date header and the `# Available Tools` section, for a surface with
   // no per-turn blocks and no tools array of its own (get_overview). The
   // chat passes neither: its date rides the date block and its tools ride
@@ -475,9 +480,18 @@ export function buildAiContextSections(aiContext: string): string[] {
 
 // ── Base instructions ──
 
+// The core principles the chat adds to the shared ones. Each names something
+// only the chat has: the ask_user_questions tool, and a turn loop that runs
+// every call of one reply before it asks the model again. /mcp passes none,
+// since its clients run their own loop.
+export const CHAT_CORE_PRINCIPLES: readonly string[] = [
+  "**Ask when uncertain** - Use the ask_user_questions tool to clarify preferences, choose between approaches, or confirm decisions before proceeding. Don't guess what the user wants when you can ask.",
+  "**Put calls that do not depend on each other in one reply** - A reply can hold several tool calls: they run in order and each returns its own result. Send every read you need together, and every write that needs no other call's result together, rather than one call per reply: a turn has a limited number of replies. A call that needs another's result (a new slide's ID, a block ID) waits for that result.",
+];
+
 function getBaseInstructions(
   roleAndPurpose: string,
-  extraCorePrinciples: string[],
+  extraCorePrinciples: readonly string[],
 ): string {
   const principles = [
     "**CRITICAL: Always read data before commenting** - Use get_metric_data to see actual data before making any claims",
@@ -523,10 +537,76 @@ Before writing any interpretation, settle which way is good for the indicator.
 `;
 }
 
-// ── Report authoring brief ──
+// ── The deck's and the report's editing briefs ──
 // The per-view instructions live with the SPA (client/src/components/
-// instance/copilot/build_system_prompt.ts); the report EDITING brief stays here
-// because the server test suite covers it.
+// instance/copilot/build_system_prompt.ts); these two briefs are here because
+// the server test suite pins them.
+
+export function getEditingSlideDeckInstructions(deckLabel: string): string {
+  return `# Current View: Editing slide deck
+
+You're editing the slide deck "${deckLabel}".
+
+Every figure in this deck resolves under the deck's own results package and
+scope; you do not choose the package, and no tool takes one.
+
+## Slide Types
+
+1. **Cover Slide:** title, subtitle, presenter, date
+2. **Section Slide:** sectionTitle, sectionSubtitle
+3. **Content Slide:** heading + blocks array (max ${MAX_CONTENT_BLOCKS} blocks)
+
+Each slide also has its own settings: a cover's and a section's text sizes, bold and italic, a cover's logos, and a content slide's sub-header, date, footer, header and footer logos and side panel (split). get_slides shows them as stored, and update_slide sets them.
+
+The deck's own settings are its cover, header and footer logos, the footer text every content slide shows in place of its own, and the watermark. get_deck shows them under the outline, and update_deck_settings sets them. The theme is the user's to choose in the Deck menu; no tool sets it.
+
+## Content Blocks
+
+**Text (markdown):** { "type": "text", "markdown": "..." }
+**From metric:** { "type": "from_metric", "metricId": "...", "vizPresetId": "...", "chartTitle": "..." }
+**Image:** { "type": "image", "imgFile": "...", "style": { "imgFit": "contain", "imgAlign": "center" } }, where imgFile is one of the instance's image assets, listed by get_image_assets
+
+A figure is always a metric plus one of that metric's presets. There is no
+figure library to clone from: to reuse a figure, duplicate the slide that holds
+it.
+
+**IMPORTANT:** Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type preset.
+
+## Text Length Guidelines
+
+**Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide** (adjust down if slide has multiple figures)
+**Absolute maximum: ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words per slide**
+
+Keep text concise and focused. Slides with figures should have less text. Use bullet points, not paragraphs.
+
+## Communication Style
+
+When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a3k', 't2n') — these are meaningless to the user. Instead, refer to slides by their position (e.g. "slide 3"), title (e.g. "the ANC Coverage slide"), or type (e.g. "the cover slide"). Refer to blocks by their content (e.g. "the bar chart showing immunization rates", "the text block on the left"). Use IDs only in tool calls, never in your messages to the user.
+
+## The Open Slide
+
+The deck editor shows the deck's slides in a rail with one slide open beside it. The view state names the open slide, or says there is none. An edit to the open slide shows on the canvas at once and saves automatically; an edit to any other slide is saved immediately. Every slide tool that names a slide takes its ID and works on any slide of the deck, open or not, so never ask the user to open, close or switch a slide or a view.
+
+## Workflow
+
+1. Call get_deck FIRST to understand the deck's structure
+2. Read a slide with get_slides before your first change to it after a user message, and ask for every slide you need in one call. It shows each slide's content and block IDs (the open slide as the canvas shows it, unsaved changes included), each figure's full config and whether the slide overflows the page
+3. Until the user's next message, the result of your own write to a slide (creating it included) is its state. A write's result carries what the write left: the slide's block IDs, its layout, whether it overflows the page and the config of each figure the write built or changed. Never read a slide to confirm a write or to learn its block IDs. The exception is a copy made by duplicate_slides, whose result gives only the new slide IDs: read the copy with get_slides before your first change to it
+4. Choose the right tool for the job:
+   - **Change text, settings, blocks or layout** (a cover's or section's fields, a content slide's header, a slide's settings, a block's content, adding, removing, rearranging or resizing blocks) → update_slide
+   - **Tweak an existing figure** (replicant, filters, disaggregation, period, captions; not the chart type) → update_figure (slideId + blockId)
+   - **Rebuild a slide from scratch or change its type** → replace_slide (last resort)
+   - **Change the deck's structure** → create_slide, delete_slides, duplicate_slides, move_slides
+   - **Change the deck's logos, footer text or watermark** → update_deck_settings
+5. Call get_metric_data before creating any from_metric block, to check the data it needs is available
+6. Filter a content slide's from_metric block to the indicators the slide's text names: an unfiltered multi-indicator metric draws one panel per indicator, and the slide overflows the page
+7. Look at a slide with get_slide_images after building or restructuring one that holds a dense table or several blocks: every slide tool says whether the slide overflows the page, and only the image shows whether the table can be read and the blocks sit well together. You see an image for the rest of the turn and not after: say in your reply what it showed, look again with one call to see the slide as it is then, and take at most ${IMAGE_LIMITS.MAX_PER_TURN} images in a turn`;
+}
+
+// The figure editor's four views say when to look at the preview. Their
+// brief is built in the client; this line is here so the prompt test pins it.
+export const FIGURE_EDITOR_LOOK_LINE =
+  `Look at the figure with get_figure_editor_image after changing its chart type, its display slots or its disaggregations: the draft says what the figure shows, and only the image shows whether it can be read. You see an image for the rest of the turn and not after: say in your reply what it showed, look again with one call to see the figure as it is then, and take at most ${IMAGE_LIMITS.MAX_PER_TURN} images in a turn.`;
 
 // Appended to the editing brief while the report is still untouched. Its
 // text never changes, so it rides the conversation once; the moment the body
@@ -537,7 +617,7 @@ const STARTING_A_REPORT =
 This report is still EMPTY (a title at most). When the user asks you to write it (or to draft, start or fill it), do not draft straight away. Work through these steps:
 
 1. **Brief.** Ask what the user's request leaves open, at most four questions, each with ask_user_questions (one call per question, one question at a time), skipping any the request already answers: who the report is for, how long it should be (a short brief of two to four pages, or a full report), which indicators, areas or period it should focus on, and, last, what the report should be called: the title on its cover, or on its first heading when it has no cover. Give each question your suggested answers as options, the one you recommend first; the user can always type their own instead. For the title, suggest two or three titles that fit the answers so far, and offer the report's current name first when it is not the default untitled name ("Untitled report" or its translation).
-2. **Look at the data.** With the answers, call get_available_metrics, then get_metric_data for every candidate indicator and breakdown you need, ALL in one reply (several get_metric_data calls in the same message, not one per reply), so the sections and the plan rest on real numbers. A turn has a limited number of replies (24, counting the user's answers to your questions), and a full report needs most of them, so never spend one reply per read; the same goes for page templates (every layout in one get_page_template call). Do not write to the report yet.
+2. **Look at the data.** With the answers, call get_available_metrics, then get_metric_data for every candidate indicator and breakdown you need, ALL in one reply (several get_metric_data calls in the same message, not one per reply), so the sections and the plan rest on real numbers. A turn has a limited number of replies (counting the user's answers to your questions), and a full report needs most of them, so never spend one reply per read; the same goes for page templates (every layout in one get_page_template call). Do not write to the report yet.
 3. **Sections.** Before any detailed plan, list in chat the sections you intend to write, each as its heading and one line on what it covers, in plain words (no metric ids, template names or other internal names). Then, in the same message, call ask_user_questions asking whether these are the right sections, with exactly these two options, labelled in the user's language: "These sections look good", "Add or remove sections". Then WAIT:
    - **These sections look good**: go to step 4.
    - **Add or remove sections**: ask which sections to add or remove, show the revised list and ask again the same way. Repeat until the user is happy.
@@ -602,7 +682,8 @@ export function getEditingReportInstructions(
 - Prefer **rewrite_section** for targeted changes; use **replace_text** for small/sentence-level edits; use **rewrite_report** only for whole-document restructures.
 - ALWAYS call get_report_editor first: it returns the current body, the format, and a headings index (each heading's 1-based line, level, and the exact line range of its section).
 - You may only reference figure/image ids that already exist; do not invent embed ids. To add figures, either declare them in rewrite_report's \`newFigures\` (a whole draft and its figures in one change: the way to write a report) or use **insert_figure** to add one figure to a report that already exists.
-- Every figure in this report resolves under the report's own results package and scope; you do not choose the package, and no tool takes one.`;
+- Every figure in this report resolves under the report's own results package and scope; you do not choose the package, and no tool takes one.
+- Look at a figure with get_report_figure_images after inserting or changing one whose legibility its configuration cannot tell (a dense table, many series, long labels): the configuration says what the figure shows, and only the image shows whether it can be read. You see an image for the rest of the turn and not after: say in your reply what it showed, look again with one call to see the figure as it is then, and take at most ${IMAGE_LIMITS.MAX_PER_TURN} images in a turn.`;
   // The design already exists as a real stylesheet the user picked, so the
   // model's job is to reach for the right BLOCK. Every instinct to write CSS
   // has to be shut down explicitly: the report has no <style> for it to land

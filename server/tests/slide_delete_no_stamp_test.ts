@@ -24,7 +24,7 @@ import {
 } from "../db/products/mod.ts";
 import { routesProductSlideDecks } from "../routes/products/slide_decks.ts";
 import { routesProductSlides } from "../routes/products/slides.ts";
-import { appFor, ok } from "./_harness/route_app.ts";
+import { appFor, captured, ok } from "./_harness/route_app.ts";
 
 const OWNER = `slide-stamp-${crypto.randomUUID().slice(0, 8)}@example.com`;
 
@@ -38,25 +38,6 @@ const textSlide = (markdown: string): ContentSlide => ({
   header: "Slide",
   layout: { type: "item", id: "a1a", data: { type: "text", markdown } },
 });
-
-// Every message the hub posted while `body` ran. A BroadcastChannel never
-// delivers to the object that posted, so this separate channel sees the hub's
-// traffic; the hub's products_upserted is async, so drain after a turn.
-async function captured(
-  body: () => Promise<void>,
-): Promise<InstanceSseMessage[]> {
-  const seen: InstanceSseMessage[] = [];
-  const channel = new BroadcastChannel("instance_updates");
-  channel.onmessage = (e: MessageEvent) =>
-    void seen.push(e.data as InstanceSseMessage);
-  try {
-    await body();
-    await new Promise((r) => setTimeout(r, 200));
-  } finally {
-    channel.close();
-  }
-  return seen;
-}
 
 function stampedSlideIds(messages: InstanceSseMessage[]): string[] {
   return messages.flatMap((m) =>

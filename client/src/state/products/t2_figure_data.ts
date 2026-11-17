@@ -12,6 +12,7 @@ import {
   ResultsValue,
   ResultsValueInfoForPresentationObject,
   t3,
+  type TranslatableString,
 } from "lib";
 import { getApiResponseFromGenerator, StateHolder } from "panther";
 import { createReactiveCache } from "../_infra/reactive_cache";
@@ -166,16 +167,22 @@ export async function resolveDefaultReplicant(
   };
 }
 
+export type FigureItems = {
+  ih: ItemsHolderPresentationObject;
+  config: PresentationObjectConfig;
+};
+
+// An error this module words itself stays in every language, so the figure
+// editor's preview shows the user theirs and the copilot reads English.
+export type FigureItemsState =
+  | Exclude<StateHolder<FigureItems>, { status: "error" }>
+  | { status: "error"; err: TranslatableString | string };
+
 export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
   scope: PackageScope,
   metric: ResultsValue,
   config: PresentationObjectConfig,
-): AsyncGenerator<
-  StateHolder<{
-    ih: ItemsHolderPresentationObject;
-    config: PresentationObjectConfig;
-  }>
-> {
+): AsyncGenerator<FigureItemsState> {
   const resResultsValueInfo =
     await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
       scope,
@@ -212,11 +219,11 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   if (!resolvedReplicant.ok) {
     yield {
       status: "error",
-      err: t3({
+      err: {
         en: `No values available for "${resolvedReplicant.noValuesFor}"`,
         fr: `Aucune valeur disponible pour "${resolvedReplicant.noValuesFor}"`,
         pt: `Nenhum valor disponível para "${resolvedReplicant.noValuesFor}"`,
-      }),
+      },
     };
     return;
   }
@@ -258,17 +265,27 @@ export async function getPresentationObjectItemsFromCacheOrFetch(
   scope: PackageScope,
   metric: ResultsValue,
   config: PresentationObjectConfig,
-): Promise<
-  APIResponseWithData<{
-    ih: ItemsHolderPresentationObject;
-    config: PresentationObjectConfig;
-  }>
-> {
+): Promise<APIResponseWithData<FigureItems>> {
   return getApiResponseFromGenerator(
-    getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
-      scope,
-      metric,
-      config,
+    inUserLanguage(
+      getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
+        scope,
+        metric,
+        config,
+      ),
     ),
   );
+}
+
+async function* inUserLanguage(
+  states: AsyncGenerator<FigureItemsState>,
+): AsyncGenerator<StateHolder<FigureItems>> {
+  for await (const state of states) {
+    yield state.status === "error"
+      ? {
+        status: "error",
+        err: typeof state.err === "string" ? state.err : t3(state.err),
+      }
+      : state;
+  }
 }

@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -9,12 +9,12 @@ export const PAGE_TEXT_STYLE_KEYS = [
   "base",
   // Cover styles
   "coverTitle",
-  "coverSubTitle",
+  "coverSubtitle",
   "coverAuthor",
   "coverDate",
   // Section styles
   "sectionTitle",
-  "sectionSubTitle",
+  "sectionSubtitle",
   // Regular page styles
   "header",
   "subHeader",

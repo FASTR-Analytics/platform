@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -18,7 +18,7 @@ import {
   type DiagramTextInfoFunc,
   type FontInfoOptions,
   getColor,
-  type MapRegionInfoFunc,
+  type MapAreaInfoFunc,
   normalizeTo01,
   type PaddingOptions,
   type PieSliceInfoFunc,
@@ -35,12 +35,12 @@ import type {
   GenericAreaStyle,
   GenericBarStyle,
   GenericCascadeArrowStyle,
-  GenericConfidenceBandStyle,
   GenericConnectorStyle,
   GenericDataLabelBaseStyle,
+  GenericErrorBandStyle,
   GenericErrorBarStyle,
   GenericLineStyle,
-  GenericMapRegionStyle,
+  GenericMapAreaStyle,
   GenericPieSliceStyle,
   GenericPointStyle,
   GenericTableCellStyle,
@@ -64,8 +64,8 @@ function defaultLabelCollision(): LabelCollisionConfig {
   };
 }
 
-// Shared defaults for every zero-way figure's label-placement policy (map,
-// pie). Same reasoning as defaultLabelCollision: the blocks stay per-figure
+// Shared defaults for the label-placement policy of every chart with no axes
+// (map, pie). Same reasoning as defaultLabelCollision: the blocks stay per-figure
 // because placement policy is figure-wide structural style, but the numbers are
 // one calibration.
 function defaultLabelPlacement() {
@@ -81,15 +81,15 @@ function defaultLabelPlacement() {
     //   east africa callout, 10     125.5 -> 78.2
     //   east africa auto, 19        117.5 -> 76.1   inside 4 -> 6
     //   kenya auto, 26 outside      140.1 -> 123.7
-    //   kenya callout, 47           identical: that cell is genuinely
+    //   kenya callout, 47           identical: that map is genuinely
     //                               saturated and falls back to flank, which
     //                               is the design
     //
     // Zero overlaps, zero escapes and zero crossing leaders throughout, except
-    // two near-saturated cells that keep 2 and 1 (budgeted in
+    // two near-saturated maps that keep 2 and 1 (budgeted in
     // map_figure_check.ts). The bar is "beats flank on leader length AND
     // inside retention"; the closest case, Kenya adm1 `auto`, is 14% better.
-    // The flank placer remains: it is the per-cell fallback when a track
+    // The flank placer remains: it is each pie's or map's fallback when a track
     // cannot hold its labels, and the opt-out via this key.
     outsideLabelPlacement: typed<"nearest" | "flank">("nearest"),
     // How close a padded label box may come to the silhouette at directions
@@ -107,7 +107,8 @@ function defaultLabelPlacement() {
     // The share of the room at its anchor a label's text must fit within to
     // stay inside. Below 1 so "fits" means comfortably, not exactly.
     insideFitFraction: 0.9,
-    // The width an OUTSIDE label's text wraps at, as a fraction of the cell.
+    // The width an OUTSIDE label's text wraps at, as a fraction of a pie's slot
+    // or a map's sub-chart.
     labelWrapFraction: 0.4,
   };
 }
@@ -133,19 +134,19 @@ const _DS = {
     backgroundColor: typed<ColorKeyOrString | "none">("none"),
     legendGap: 15,
     legendPosition: typed<LegendPosition>("bottom-left"),
-    captionGap: 15,
-    subCaptionTopPadding: 7,
+    titleGap: 15,
+    subtitleTopPadding: 7,
     footnoteGap: 15,
-    captionAlignH: typed<"left" | "center" | "right">("left"),
-    subCaptionAlignH: typed<"left" | "center" | "right">("left"),
+    titleAlignH: typed<"left" | "center" | "right">("left"),
+    subtitleAlignH: typed<"left" | "center" | "right">("left"),
     footnoteAlignH: typed<"left" | "center" | "right">("left"),
   },
   // Legend
   legend: {
     legendNoRender: false,
-    maxLegendItemsInOneColumn: typed<number | number[]>(3),
+    maxLegendEntriesInOneColumn: typed<number | number[]>(3),
     legendColorBoxWidth: 40,
-    legendItemVerticalGap: 5,
+    legendEntryVerticalGap: 5,
     legendLabelGap: 10,
     legendPointRadius: 8,
     legendPointStrokeWidth: 3,
@@ -193,17 +194,17 @@ const _DS = {
   xTextAxis: {
     verticalTickLabels: false,
     tickPosition: typed<"sides" | "center">("sides"),
-    tickHeight: 10,
+    tickLength: 10,
     tickLabelGap: 10,
-    maxTickLabelHeightAsPctOfChart: 0.5,
+    maxTickLabelHeightFractionOfPane: 0.5,
   },
-  xScaleAxis: {
+  xValueAxis: {
     max: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(
       "auto",
     ),
     min: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(0),
-    labelGap: 10,
-    tickHeight: 10,
+    axisLabelGap: 10,
+    tickLength: 10,
     tickLabelGap: 5,
     tickLabelFormatter: typed<"auto-number" | "auto-percent">("auto-percent"),
     tickLabelAlignment: typed<"center" | "inset">("center"),
@@ -222,17 +223,17 @@ const _DS = {
     tickPosition: typed<"sides" | "center">("sides"),
     paddingTop: 0,
     paddingBottom: 0,
-    tickWidth: 5,
+    tickLength: 5,
     tickLabelGap: 3,
-    maxTickLabelWidthAsPctOfChart: 0.5,
+    maxTickLabelWidthFractionOfPane: 0.5,
   },
-  yScaleAxis: {
+  yValueAxis: {
     max: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(
       "auto",
     ),
     min: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(0),
-    labelGap: 10,
-    tickWidth: 5,
+    axisLabelGap: 10,
+    tickLength: 5,
     tickLabelGap: 3,
     tickLabelFormatter: typed<"auto-number" | "auto-percent">("auto-percent"),
     tickLabelAlignment: typed<"center" | "inset">("center"),
@@ -240,11 +241,11 @@ const _DS = {
     allowIndividualTierLimits: false,
   },
   // Natural ideal-height policy, same decay family T × (a + (1−a) × k^(n−1)):
-  // - idealPlotHeight (ChartOV/Timeseries plot height): anchor 450 DU at one
-  //   subchart row, asymptote 180 (0.4×), steep k=0.5 — row counts are small.
+  // - idealSubChartHeight (ChartOV/Timeseries sub-chart height): anchor 450 DU at one
+  //   sub-chart row, asymptote 180 (0.4×), steep k=0.5 — row counts are small.
   // - idealRowThickness (ChartOH bar thickness): anchor 40 DU at one bar row,
   //   asymptote 6 (0.15×), gentle k=0.97 — bar counts run into the hundreds, so
-  //   the decay must span a much wider range than the plot-height curve.
+  //   the decay must span a much wider range than the sub-chart-height curve.
   // - idealPieDiameter (pie DISC diameter, 2s): anchor 320 DU at one
   //   indicator per sub-chart, asymptote 112 (0.35×), k=0.75 — between its
   //   siblings' decays (pie counts are single digits). Does double duty: a
@@ -255,7 +256,7 @@ const _DS = {
   //   massive disc beside small type.
   // All are tunable starting points; the anchor is the single tuning knob.
   idealHeight: {
-    idealPlotHeight: (n: number) => 300 * (0.4 + 0.6 * 0.5 ** (n - 1)),
+    idealSubChartHeight: (n: number) => 300 * (0.4 + 0.6 * 0.5 ** (n - 1)),
     idealRowThickness: (n: number) => 40 * (0.15 + 0.85 * 0.97 ** (n - 1)),
     idealPieDiameter: (n: number) => 320 * (0.35 + 0.65 * 0.75 ** (n - 1)),
   },
@@ -356,8 +357,8 @@ const _DS = {
         capWidthProportion: 0.4,
       }),
     },
-    confidenceBands: {
-      func: typed<GenericConfidenceBandStyle>({
+    errorBands: {
+      func: typed<GenericErrorBandStyle>({
         show: true,
         fillColor: SERIES_COLOR_SENTINEL,
         fillColorAdjustmentStrategy: { opacity: 0.15 },
@@ -370,7 +371,7 @@ const _DS = {
         strokeWidth: 1.5,
         arrowHeadLength: 6,
         showArrowhead: true,
-        arrowLengthPctOfSpace: 0.7,
+        arrowLengthFractionOfSpace: 0.7,
         arrowLabelGap: 4,
         dataLabel: {
           show: true,
@@ -397,8 +398,8 @@ const _DS = {
       joinAcrossGaps: true,
       arrowheadFitFallback: typed<ArrowheadFitFallback>("line-only"),
     },
-    mapRegions: {
-      func: typed<GenericMapRegionStyle>({
+    mapAreas: {
+      func: typed<GenericMapAreaStyle>({
         show: true,
         fillColor: VALUES_COLOR_SENTINEL,
         strokeColor: { key: "baseContent" },
@@ -414,7 +415,7 @@ const _DS = {
           rectRadius: 0,
         },
       }),
-      textFormatter: typed<MapRegionInfoFunc<string> | "none">("none"),
+      textFormatter: typed<MapAreaInfoFunc<string> | "none">("none"),
     },
     slices: {
       func: typed<GenericPieSliceStyle>({
@@ -463,11 +464,11 @@ const _DS = {
   },
   // Grid
   grid: {
-    showGrid: true,
+    showGridLines: true,
     axisStrokeWidth: 3,
-    gridStrokeWidth: 1,
+    gridLineStrokeWidth: 1,
     axisColor: typed<ColorKeyOrString>({ key: "baseContent" }),
-    gridColor: typed<ColorKeyOrString>({ key: "base300" }),
+    gridLineColor: typed<ColorKeyOrString>({ key: "base300" }),
     backgroundColor: typed<ColorKeyOrString | "none">("none"),
   },
   // Tiers
@@ -476,10 +477,10 @@ const _DS = {
     paddingTop: 10,
     paddingBottom: 10,
     gapY: 50,
-    maxHeaderWidthAsPctOfChart: 0.3,
+    maxHeaderWidthFractionOfPane: 0.3,
     headerAlignH: typed<"left" | "center" | "right">("left"),
     headerAlignV: typed<"top" | "middle">("top"),
-    headerPosition: typed<"left" | "above-axis" | "above-plot-area">("left"),
+    headerPosition: typed<"left" | "above-axis" | "above-sub-chart">("left"),
     headerGap: 5,
   },
   // Panes
@@ -612,8 +613,8 @@ const _DS = {
     projection: typed<"equirectangular" | "mercator" | "naturalEarth1">(
       "equirectangular",
     ),
-    fit: typed<"all-regions" | "only-regions-in-data">("all-regions"),
-    // Where a region's label goes. "centroid" pins every label to its region's
+    fit: typed<"all-map-areas" | "only-map-areas-in-data">("all-map-areas"),
+    // Where a map area's label goes. "centroid" pins every label to its map area's
     // centroid whatever happens; "callout" sends every label outside; "auto"
     // keeps a label inside when it genuinely fits and exiles the rest.
     //
@@ -627,12 +628,12 @@ const _DS = {
     // content-scale solve against labels; "auto" needs all three as soon as one
     // label is exiled. Measured, one measure() of a labelled map:
     //
-    //   kenya, 47 regions     131ms -> 2254ms
+    //   kenya, 47 map areas   131ms -> 2254ms
     //   east africa, 19       95ms  -> 861ms
     //   kenya, 16 labelled    96ms  -> 340ms
     //
     // Nothing changes for a map that draws no labels, which is the default
-    // (content.mapRegions.func.dataLabel.show is false): the whole label solve
+    // (content.mapAreas.func.dataLabel.show is false): the whole label solve
     // is gated on there being labels at all. A consumer who wants the cheaper
     // path sets this key to "centroid".
     dataLabelMode: typed<"none" | "centroid" | "callout" | "auto">("auto"),
@@ -658,8 +659,8 @@ const _DS = {
     direction: typed<"clockwise" | "counterclockwise">("clockwise"),
     // Space between adjacent slices, as a WIDTH (DU, scaled) rather than an
     // angle: each slice's radial edges are inset half of it, parallel to the
-    // boundary ray, so the channel stays the same width from hub to rim and a
-    // slice reads as a band rather than a wedge. 0 = slices touch.
+    // boundary ray, so the channel stays the same width from hub to rim. 0 =
+    // slices touch.
     sliceGap: 0,
     cornerRadius: 0,
     labelMode: typed<"none" | "inside" | "outside" | "auto">("auto"),

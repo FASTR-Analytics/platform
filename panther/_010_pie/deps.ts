@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -6,21 +6,31 @@
 export { buildAutoFormatter, createArray } from "../_000_utils/mod.ts";
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export {
+  buildItem,
+  compareBlankLast,
   computeBoundsForPath,
-  createHeaderItems,
-  sortHeaderItems,
+  getDimensionMembers,
+  isBlankMember,
+  itemCoordinate,
+  pathSegmentPoints,
+  textBoxInAlignRcd,
   Z_INDEX,
 } from "../_001_render_system/mod.ts";
 export type {
+  DataDimension,
+  Decoration,
+  DimensionMember,
   FigureLabelPrimitive,
-  HeaderItem,
-  HeaderSortConfig,
   HeightConstraints,
+  Hittable,
+  ItemCoordinate,
   MeasuredText,
+  MemberSortConfig,
   PathSegment,
   PieSliceInfo,
   PieSlicePrimitive,
   Primitive,
+  PrimitiveItem,
   RenderContext,
   Renderer,
 } from "../_001_render_system/mod.ts";
@@ -32,19 +42,20 @@ export type {
   PieSliceStyle,
 } from "../_003_figure_style/mod.ts";
 export {
+  buildDataDimension,
   buildDataLabelTextStyle,
   calculateChartIdealHeight,
   calculateChartMinWidth,
-  calculateMinLabelPlotExtent,
-  calculatePaneGrid,
+  calculateMinLabelSubChartExtent,
   checkValuePropsAssignment,
   circleTrack,
-  collectHeaders,
   computeFloorScale,
+  computeNRows,
   estimateMinSurroundsWidth,
   fillValuesWithDuplicateCheck,
   generateResolvedFigureLabelPrimitives,
-  getHeaderIndex,
+  getMemberIndex,
+  getSubChartMembers,
   measureChart,
   measureChartWithAutofit,
   PANE_HEADER_SAMPLE_MAX_W,
@@ -59,11 +70,15 @@ export {
   resolvePaneGrid,
   SIZING_SAMPLE,
   solveContentScale,
+  subChartItemCoordinates,
   validateDataInput,
+  validateDimensionProps,
+  withFigureLabelBounds,
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartComponentSizes,
   ContentScaleResult,
+  DataDimensions,
   DirectionalExtents,
   FigureInputsBase,
   JsonArray,
@@ -73,6 +88,6 @@ export type {
   LegendInput,
   MeasuredChartBase,
   PaneGrid,
-  ProcessedHeaders,
   SimplifiedChartConfig,
+  SubChartMembers,
 } from "../_007_figure_core/mod.ts";

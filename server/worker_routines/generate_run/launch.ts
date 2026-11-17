@@ -1,6 +1,7 @@
 import type { Sql } from "postgres";
 import {
   type APIResponseWithData,
+  MODULE_FAMILY_ORDER,
   MODULE_REGISTRY,
   RUN_MANIFEST_SCHEMA_VERSION,
   type RunGenerationStep1Result,
@@ -110,11 +111,9 @@ export async function launchRunGeneration(
   }
 
   // Disk guard for the dataset extracts the prepare stage is about to export.
-  const selectedFamilies: string[] = [
-    ...(step1Result.hmis ? ["hmis"] : []),
-    ...(step1Result.hfa ? ["hfa"] : []),
-    ...(step1Result.iceh ? ["iceh"] : []),
-  ];
+  const selectedFamilies = MODULE_FAMILY_ORDER.filter((family) =>
+    step1Result[family]
+  );
   for (const family of selectedFamilies) {
     const spaceCheck = await checkSpaceForDataset(mainDb, family);
     if (!spaceCheck.ok) {
@@ -143,6 +142,7 @@ export async function launchRunGeneration(
     const summary: RunSummary = {
       manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
       provenance: "wizard",
+      families: selectedFamilies,
       moduleIds,
       metricCount: 0,
       totalRowCount: 0,

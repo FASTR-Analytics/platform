@@ -14,9 +14,9 @@ import {
   PresentationObjectConfig,
 } from "lib";
 import {
-  getScaleTickLabelFormatter,
   getStandardSeriesColorFunc,
   getTextStyle,
+  getValueAxisTickLabelFormatter,
 } from "./_0_common";
 
 export function buildPercentChangeChartStyle(
@@ -38,13 +38,13 @@ export function buildPercentChangeChartStyle(
     text: getTextStyle(config, deckStyle, chartPalette),
     panes: { nCols: config.s.nColsInCellDisplay },
     xPeriodAxis: { forceSideTicksWhenYear: true, calendar },
-    yScaleAxis: {
+    yValueAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
       max: config.s.forceYMax1 && formatAs === "percent" ? 1 : undefined,
       // No "auto-zero" here: the bars plot raw volumes (the percent change only
       // drives their color and label), so this axis never carries a negative.
       min: config.s.forceYMinAuto ? "auto" : undefined,
-      tickLabelFormatter: getScaleTickLabelFormatter(formatAs),
+      tickLabelFormatter: getValueAxisTickLabelFormatter(formatAs),
     },
     content: {
       points: { func: { show: false } },
@@ -100,13 +100,13 @@ export function buildPercentChangeChartStyle(
 }
 
 function getSpecialBarChartDiff(info: ChartValueInfo) {
-  const currentV = info.val;
+  const currentV = info.value;
   if (currentV === undefined) {
     return undefined;
   }
-  const prevV = info.seriesValArrays.at(info.i_series)?.[
+  const prevV = info.seriesValueArrays.at(info.i_series)?.[
     // Must use square brackets here (otherwise negative 1 issue)
-    info.i_val - 1
+    info.i_value - 1
   ];
   if (prevV !== undefined && prevV !== 0) {
     return currentV / prevV - 1;

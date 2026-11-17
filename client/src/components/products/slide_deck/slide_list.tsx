@@ -17,6 +17,7 @@ import {
   LoadingIndicator,
   openAlert,
   openComponent,
+  plural,
 } from "panther";
 import { Sortable, SortableJs } from "panther";
 import {
@@ -99,7 +100,7 @@ type Props = {
   present: () => Promise<void>;
   openVersionHistory: () => Promise<void>;
   deckConfig: SlideDeckConfig;
-  patchDeckConfig: (patch: Partial<SlideDeckConfig>) => Promise<boolean>;
+  patchDeckConfig: EditingSlideDeckContext["patchDeckConfig"];
   deckPlan: string;
   // The list's add-slide, handed up so the open slide's Insert menu (in the
   // editor) adds a slide exactly as the header's Add slide does.
@@ -553,8 +554,12 @@ export function SlideList(p: Props) {
   // applies each change at once (rail, open slide and this header alike) and
   // saves it behind (slide_deck.tsx, patchDeckConfig).
   const deckConfig = () => p.deckConfig;
-  const patchDeckConfig = (patch: Partial<SlideDeckConfig>) =>
-    p.patchDeckConfig(patch);
+  const patchDeckConfig = async (patch: Partial<SlideDeckConfig>) => {
+    const res = await p.patchDeckConfig(patch);
+    if (res.success === false) {
+      await openAlert({ text: res.err, intent: "danger" });
+    }
+  };
 
   // A deck nobody has chosen a look for yet: ask now, once per open, as a new
   // report does. Only a deck minted since the modal existed carries
@@ -612,11 +617,22 @@ export function SlideList(p: Props) {
     });
     if (!res) return;
     clearSelection();
+    const n = res.newSlideIds.length;
     await openAlert({
       text: t3({
-        en: `Copied ${res.newSlideIds.length} slide(s).`,
-        fr: `${res.newSlideIds.length} diapositive(s) copiée(s).`,
-        pt: `${res.newSlideIds.length} diapositivo(s) copiado(s).`,
+        en: `Copied ${n} ${plural(n, { one: "slide", other: "slides" })}.`,
+        fr: `${n} ${
+          plural(n, {
+            one: "diapositive copiée",
+            other: "diapositives copiées",
+          })
+        }.`,
+        pt: `${n} ${
+          plural(n, {
+            one: "diapositivo copiado",
+            other: "diapositivos copiados",
+          })
+        }.`,
       }),
       intent: "success",
     });

@@ -1,15 +1,12 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export {
   ALL_LONG_TABLE_AGGREGATES,
-  BLANK_CHARACTERS,
-  BLANK_SENTINEL,
   DEFAULT_ROLLUP_SENTINEL,
   DEFAULT_SET_DELIMITER,
-  isBlankText,
   LongTableValidationError,
   SAMPLE_N_PREFIX,
 } from "./types.ts";

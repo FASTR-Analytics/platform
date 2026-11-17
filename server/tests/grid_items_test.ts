@@ -4,8 +4,8 @@
 //   deno test -A server/tests/grid_items_test.ts
 
 import { assertEquals } from "@std/assert";
+import { BLANK_SENTINEL } from "@timroberton/panther";
 import {
-  BLANK_SENTINEL,
   decodeGridItems,
   encodeGridItems,
   type JsonArrayItem,

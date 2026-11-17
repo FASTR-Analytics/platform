@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -8,9 +8,11 @@ import {
   createSignal,
   For,
   type JSX,
+  Match,
   onCleanup,
   onMount,
   Show,
+  Switch,
 } from "solid-js";
 import { Button } from "../form_inputs/button.tsx";
 import type { IconName } from "../icons/mod.ts";
@@ -41,19 +43,19 @@ export type MenuItemDivider = {
   type: "divider";
 };
 
-// A non-interactive heading row: who or what the menu is about (an account
-// menu's name and email). Never focused or clicked.
-export type MenuItemHeader = {
-  type: "header";
+// A non-interactive row that titles the items after it. Never focused,
+// hovered or clicked.
+export type MenuItemHeading = {
+  type: "heading";
   label: string;
-  sublabel?: string;
+  detail?: string;
 };
 
 export type MenuItem =
   | MenuItemClickable
   | MenuItemWithSubmenu
   | MenuItemDivider
-  | MenuItemHeader;
+  | MenuItemHeading;
 
 export type PopoverPosition =
   | "bottom"
@@ -150,10 +152,7 @@ export function PopoverMenuProvider() {
     }
 
     // Check if item has submenu
-    if (
-      item.type !== "divider" && item.type !== "header" &&
-      "subMenu" in item && item.subMenu
-    ) {
+    if (item.type !== "divider" && "subMenu" in item && item.subMenu) {
       // Set anchor on this element
       element.style.setProperty("anchor-name", `--submenu-anchor-${index}`);
 
@@ -241,69 +240,60 @@ export function PopoverMenuProvider() {
             <div class="bg-base-100 min-w-[160px] overflow-hidden rounded border shadow-floating">
               <For each={state.items}>
                 {(item, index) => (
-                  <Show
-                    when={item.type === "header" ? item : undefined}
-                    keyed
-                    fallback={
-                      <Show
-                        when={item.type !== "divider"}
-                        fallback={<div class="bg-border my-1 h-px" />}
-                      >
-                        {(() => {
-                          let buttonRef: HTMLButtonElement | undefined;
-                          const hasSubMenu = "subMenu" in item &&
-                            !!item.subMenu;
-                          return (
-                            <button
-                              ref={buttonRef}
-                              type="button"
-                              class="ui-hoverable-base-100 flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-40"
-                              classList={{
-                                "text-danger":
-                                  (item as MenuItemClickable).intent ===
-                                    "danger",
-                                "ui-menu-item-with-submenu": hasSubMenu,
-                              }}
-                              disabled={(item as MenuItemClickable).disabled}
-                              onClick={() => {
-                                if (!hasSubMenu) {
-                                  handleItemClick(item as MenuItemClickable);
-                                }
-                              }}
-                              onMouseEnter={() => {
-                                if (buttonRef) {
-                                  handleItemMouseEnter(
-                                    item,
-                                    index(),
-                                    buttonRef,
-                                  );
-                                }
-                              }}
-                              onMouseLeave={handleItemMouseLeave}
-                            >
-                              <Show when={(item as MenuItemClickable).icon}>
-                                {(icon) => (
-                                  <span class="w-4">
-                                    <IconRenderer iconName={icon()} />
-                                  </span>
-                                )}
-                              </Show>
-                              <span class="flex-1">
-                                {(item as MenuItemClickable).label}
+                  <Switch
+                    fallback={(() => {
+                      let buttonRef: HTMLButtonElement | undefined;
+                      const hasSubMenu = "subMenu" in item && !!item.subMenu;
+                      return (
+                        <button
+                          ref={buttonRef}
+                          type="button"
+                          class="ui-hoverable-base-100 flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-40"
+                          classList={{
+                            "text-danger":
+                              (item as MenuItemClickable).intent ===
+                                "danger",
+                            "ui-menu-item-with-submenu": hasSubMenu,
+                          }}
+                          disabled={(item as MenuItemClickable).disabled}
+                          onClick={() => {
+                            if (!hasSubMenu) {
+                              handleItemClick(item as MenuItemClickable);
+                            }
+                          }}
+                          onMouseEnter={() => {
+                            if (buttonRef) {
+                              handleItemMouseEnter(item, index(), buttonRef);
+                            }
+                          }}
+                          onMouseLeave={handleItemMouseLeave}
+                        >
+                          <Show when={(item as MenuItemClickable).icon}>
+                            {(icon) => (
+                              <span class="w-4">
+                                <IconRenderer iconName={icon()} />
                               </span>
-                              <Show when={hasSubMenu}>
-                                <span class="w-4 opacity-60">
-                                  <IconRenderer iconName="chevronRight" />
-                                </span>
-                              </Show>
-                            </button>
-                          );
-                        })()}
-                      </Show>
-                    }
+                            )}
+                          </Show>
+                          <span class="flex-1">
+                            {(item as MenuItemClickable).label}
+                          </span>
+                          <Show when={hasSubMenu}>
+                            <span class="w-4 opacity-60">
+                              <IconRenderer iconName="chevronRight" />
+                            </span>
+                          </Show>
+                        </button>
+                      );
+                    })()}
                   >
-                    {(header) => <MenuHeaderRow item={header} />}
-                  </Show>
+                    <Match when={item.type === "divider"}>
+                      <MenuDivider />
+                    </Match>
+                    <Match when={item.type === "heading" ? item : undefined}>
+                      {(heading) => <MenuHeading item={heading()} />}
+                    </Match>
+                  </Switch>
                 )}
               </For>
             </div>
@@ -333,40 +323,37 @@ export function PopoverMenuProvider() {
             <div class="bg-base-100 min-w-[160px] overflow-hidden rounded border shadow-floating">
               <For each={state.items}>
                 {(item) => (
-                  <Show
-                    when={item.type === "header" ? item : undefined}
-                    keyed
+                  <Switch
                     fallback={
-                      <Show
-                        when={item.type !== "divider"}
-                        fallback={<div class="bg-border my-1 h-px" />}
+                      <button
+                        type="button"
+                        class="ui-hoverable-base-100 flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-40"
+                        classList={{
+                          "text-danger": (item as MenuItemClickable).intent ===
+                            "danger",
+                        }}
+                        disabled={(item as MenuItemClickable).disabled}
+                        onClick={() =>
+                          handleItemClick(item as MenuItemClickable)}
                       >
-                        <button
-                          type="button"
-                          class="ui-hoverable-base-100 flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-40"
-                          classList={{
-                            "text-danger":
-                              (item as MenuItemClickable).intent ===
-                                "danger",
-                          }}
-                          disabled={(item as MenuItemClickable).disabled}
-                          onClick={() =>
-                            handleItemClick(item as MenuItemClickable)}
-                        >
-                          <Show when={(item as MenuItemClickable).icon}>
-                            {(icon) => (
-                              <span class="w-4">
-                                <IconRenderer iconName={icon()} />
-                              </span>
-                            )}
-                          </Show>
-                          <span>{(item as MenuItemClickable).label}</span>
-                        </button>
-                      </Show>
+                        <Show when={(item as MenuItemClickable).icon}>
+                          {(icon) => (
+                            <span class="w-4">
+                              <IconRenderer iconName={icon()} />
+                            </span>
+                          )}
+                        </Show>
+                        <span>{(item as MenuItemClickable).label}</span>
+                      </button>
                     }
                   >
-                    {(header) => <MenuHeaderRow item={header} />}
-                  </Show>
+                    <Match when={item.type === "divider"}>
+                      <MenuDivider />
+                    </Match>
+                    <Match when={item.type === "heading" ? item : undefined}>
+                      {(heading) => <MenuHeading item={heading()} />}
+                    </Match>
+                  </Switch>
                 )}
               </For>
             </div>
@@ -377,15 +364,17 @@ export function PopoverMenuProvider() {
   );
 }
 
-function MenuHeaderRow(p: { item: MenuItemHeader }) {
+function MenuDivider(): JSX.Element {
+  return <div class="bg-border my-1 h-px" />;
+}
+
+function MenuHeading(p: { item: MenuItemHeading }): JSX.Element {
   return (
     <div class="max-w-72 px-3 py-2">
-      <div class="font-700 text-base-content truncate text-sm">
-        {p.item.label}
-      </div>
-      <Show when={p.item.sublabel}>
-        {(sub) => (
-          <div class="text-base-content-muted truncate text-xs">{sub()}</div>
+      <div class="font-700 truncate text-sm">{p.item.label}</div>
+      <Show when={p.item.detail}>
+        {(detail) => (
+          <div class="text-base-content-muted truncate text-xs">{detail()}</div>
         )}
       </Show>
     </div>

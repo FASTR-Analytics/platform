@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -80,12 +80,12 @@ function renderSlideFromMeasured(
       break;
   }
 
-  if (measured.item.pageNumber) {
+  if (measured.inputs.pageNumber) {
     const pageNumberStyle = measured.style.pageNumber;
     const textStyle = measured.style.text.pageNumber;
     const pad = pageNumberStyle.padding;
     const mText = rc.mText(
-      measured.item.pageNumber,
+      measured.inputs.pageNumber,
       textStyle,
       measured.bounds.w() * 0.3,
     );
@@ -109,7 +109,7 @@ function renderSlideFromMeasured(
       );
     }
 
-    slide.addText(measured.item.pageNumber, {
+    slide.addText(measured.inputs.pageNumber, {
       x: pixelsToInches(x),
       y: pixelsToInches(
         measured.bounds.bottomY() - pad.pb() - mText.dims.h(),

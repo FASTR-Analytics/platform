@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -23,7 +23,7 @@ export function degreesToRadians(deg: number): number {
   return (deg * Math.PI) / 180;
 }
 
-// The denominator a cell's geometry is laid out against, and the one its
+// The denominator a pie's geometry is laid out against, and the one its
 // reported shares are computed against. They differ only when the values
 // overflow a declared total:
 //
@@ -55,7 +55,7 @@ export function resolvePieTotal(
     };
   }
   // An explicitly empty (or negative) envelope is degenerate, not an overflow:
-  // there is no denominator to divide by, so the cell renders nothing. The
+  // there is no denominator to divide by, so the pie renders nothing. The
   // max() below is only for values that overrun a POSITIVE envelope.
   if (total <= 0) {
     return { geometryTotal: 0, declaredTotal: total, remainderFraction: 0 };
@@ -85,7 +85,7 @@ const FULL_SWEEP_ANGLE_DEG = 360;
 // happen here since the two extent sums are never both zero:
 //
 //   worst ideal-height aspect  ~ 1/sin(MIN_SWEEP_ANGLE_DEG)
-//   worst fit scale s0         ~ 1/sin(MIN_SWEEP_ANGLE_DEG) cell extents
+//   worst fit scale s0         ~ 1/sin(MIN_SWEEP_ANGLE_DEG) times the slot's width or height
 //
 // The worst case is a thin PIE sector rather than a thin ring segment: the sector
 // contains the hub, so one extent sum stays at ~1 while the other shrinks with
@@ -93,7 +93,7 @@ const FULL_SWEEP_ANGLE_DEG = 360;
 // 5.7e7 at a 1e-6 degree floor and 57.3 at this one — so a 1 degree sector still
 // legitimately asks to be ~57x as tall as it is wide, but the quantity is now
 // bounded by a derived factor instead of running away. That residual is accepted:
-// the ink stays inside its cell either way, and capping it further would mean an
+// the ink stays inside its slot either way, and capping it further would mean an
 // arbitrary constant, or a style-side decay function like `idealHeight`'s, for
 // input no chart author writes.
 const MIN_SWEEP_ANGLE_DEG = 1;
@@ -155,7 +155,7 @@ export function polarPoint(
 // The bounding box of an annular sector, in units of the OUTER radius, measured
 // outward from the pie centre. This is pie's counterpart to map's projection
 // bounds (MapUnitGeometry.contentHalfW/contentHalfH), and it drives the same
-// four things: the cell fit, the recentring, the outside-label budget and the
+// four things: the slot fit, the recentring, the outside-label budget and the
 // ideal aspect. A whole turn is the { 1, 1, 1, 1 } special case, which is
 // precisely why a plain pie is untouched by any of it.
 //
@@ -164,7 +164,7 @@ export function polarPoint(
 //
 // A ring segment that stays on one side of an axis yields a NEGATIVE extent on
 // the far side — the shape genuinely does not reach the centre line. That is
-// intended: clamping it to 0 would make every such gauge smaller than the cell
+// intended: clamping it to 0 would make every such gauge smaller than the slot
 // can hold. (A pie sector contains the hub, so its extents are >= 0 anyway.)
 export type SilhouetteExtents = {
   left: number;
@@ -188,7 +188,7 @@ const FULL_DISC_SILHOUETTE: SilhouetteExtents = {
 // It reads true for some PARTIAL sweeps, and that is correct rather than a false
 // positive: any sweep past three quarters that starts on an axis contains all
 // four axis directions, so its bounding box genuinely is the full disc's, and
-// centring that box on the cell centre is genuinely right. What the flag means is
+// centring that box on the slot centre is genuinely right. What the flag means is
 // "the disc bbox", never "a whole turn".
 export function isFullDiscSilhouette(extents: SilhouetteExtents): boolean {
   return extents.left === 1 && extents.right === 1 && extents.top === 1 &&
@@ -253,7 +253,7 @@ export function silhouetteExtents(spec: {
 // reserve, whatever fraction of it the data goes on to fill.
 //
 // Declared, not drawn, and that is the whole point: a gauge's frame must not
-// move as its value changes. Sizing a `remainder.mode: "gap"` cell on the ink
+// move as its value changes. Sizing a `remainder.mode: "gap"` pie on the ink
 // alone would make the same gauge a different size at 30% and at 90%, and would
 // give grid siblings with different values different centres. It also means a
 // full-turn pie is the { 1, 1, 1, 1 } disc no matter what its data does.
@@ -428,7 +428,7 @@ export type SlicePathParams = {
   // Half of it is taken off each of this slice's own radial edges, as a
   // constant PERPENDICULAR distance from the boundary ray — so a gap is a
   // parallel-sided channel of exactly this width the whole way out, and the
-  // slice reads as a band rather than a wedge whose gap fans open at the rim.
+  // gap stays even rather than fanning open at the rim.
   sliceGap: number;
 };
 
@@ -480,7 +480,7 @@ function resolveSliceInset(p: SlicePathParams): SliceInset | undefined {
 //
 // The closing segment is explicit on purpose: PathSegment has no closePath, and
 // while canvas fill() auto-closes, stroke() does not — a stroked slice would
-// otherwise be missing its closing edge. (Map regions get away with it only
+// otherwise be missing its closing edge. (Map areas get away with it only
 // because GeoJSON polygon rings repeat their first coordinate by spec.)
 export function buildSlicePath(p: SlicePathParams): PathSegment[] {
   const { cx, cy, innerR, outerR, startAngle, endAngle } = p;
@@ -736,20 +736,4 @@ function appendFillet(
   while (dir > 0 && sweep < 0) sweep += TWO_PI;
   while (dir < 0 && sweep > 0) sweep -= TWO_PI;
   appendArc(segments, centre.x, centre.y, r, fromAngle, fromAngle + sweep);
-}
-
-// Every point the path touches, control points included. The convex hull of a
-// bezier's control points contains the curve, so feeding these to
-// computeBoundsForPath gives a correct (slightly conservative) bound.
-export function pathSegmentPoints(
-  segments: PathSegment[],
-): { x: number; y: number }[] {
-  const points: { x: number; y: number }[] = [];
-  for (const s of segments) {
-    if (s.type === "bezierCurveTo") {
-      points.push({ x: s.cp1x, y: s.cp1y }, { x: s.cp2x, y: s.cp2y });
-    }
-    points.push({ x: s.x, y: s.y });
-  }
-  return points;
 }

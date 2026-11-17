@@ -102,11 +102,11 @@ export function BulkEditScopesForm(p: AlertComponentProps<Props, undefined>) {
           <div class="text-base-content-muted text-sm">
             {t3({
               en:
-                "These users will see only products that carry one of these scopes, and read data only through them. They have no Explore, and cannot view or configure data or view logs, whatever their permissions say.",
+                "These users will see only products that carry one of these scopes, and read data only through them, in Explore too. They cannot view or configure data, view logs or change scopes, whatever their permissions say.",
               fr:
-                "Ces utilisateurs ne verront que les produits portant l'une de ces portées et ne liront les données qu'à travers elles. Ils n'ont pas accès à Explorer et ne peuvent ni consulter ni configurer les données, ni consulter les journaux, quels que soient leurs droits.",
+                "Ces utilisateurs ne verront que les produits portant l'une de ces portées et ne liront les données qu'à travers elles, y compris dans Explorer. Ils ne peuvent ni consulter ni configurer les données, ni consulter les journaux, ni modifier les portées, quels que soient leurs droits.",
               pt:
-                "Estes utilizadores verão apenas os produtos com um destes âmbitos e lerão dados apenas através deles. Não têm acesso a Explorar e não podem ver nem configurar dados nem ver registos, sejam quais forem as suas permissões.",
+                "Estes utilizadores verão apenas os produtos com um destes âmbitos e lerão dados apenas através deles, também em Explorar. Não podem ver nem configurar dados, ver registos nem alterar âmbitos, sejam quais forem as suas permissões.",
             })}
           </div>
         </Show>

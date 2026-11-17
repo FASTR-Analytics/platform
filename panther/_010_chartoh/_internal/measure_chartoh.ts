@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -48,26 +48,27 @@ export function measureChartOH(
   > = {
     mergedStyle,
     transformedData,
-    dataProps: {
-      paneHeaders: transformedData.paneHeaders,
-      tierHeaders: transformedData.tierHeaders,
-      laneHeaders: transformedData.laneHeaders,
-      seriesHeaders: transformedData.seriesHeaders,
-      indicatorHeaders: transformedData.indicatorHeaders,
+    dataDimensions: {
+      pane: transformedData.pane,
+      tier: transformedData.tier,
+      lane: transformedData.lane,
+      series: transformedData.series,
+      indicator: transformedData.indicator,
       visibleIndicatorsByPane: transformedData.visibleIndicatorsByPane,
       visibleTiersByPane: transformedData.visibleTiersByPane,
-      visibleIndicatorsByPaneBand: transformedData.visibleIndicatorsByPaneBand,
+      visibleIndicatorsByPaneTierOrLane:
+        transformedData.visibleIndicatorsByPaneTier,
       proportionalPanes: transformedData.proportionalPanes,
     },
     xAxisConfig: {
-      type: "scale",
-      axisStyle: mergedStyle.xScaleAxis,
-      axisData: transformedData.scaleAxisLimits,
-      axisLabel: transformedData.xScaleAxisLabel,
+      type: "value",
+      axisStyle: mergedStyle.xValueAxis,
+      axisData: transformedData.valueAxisLimits,
+      axisLabel: transformedData.xValueAxisLabel,
     },
     yAxisConfig: {
       type: "text",
-      indicatorHeaders: transformedData.indicatorHeaders,
+      indicatorMembers: transformedData.indicator.members,
       axisStyle: mergedStyle.yTextAxis,
     },
     orientation: "horizontal",

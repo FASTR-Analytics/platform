@@ -29,6 +29,7 @@ import {
   notifyInstanceProductsDeleted,
   notifyInstanceProductsUpserted,
   notifyInstanceRunsCatalogUpdated,
+  notifyInstanceScopesChanged,
 } from "../../task_management/notify_instance_updated.ts";
 import { COLLAB_CLOSE_ACCESS_CHANGED } from "../instance/collab.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -84,6 +85,7 @@ defineRoute(
       return respond(c, res);
     }
     await notifyInstanceProductsUpserted(c.var.mainDb, [res.data.productId]);
+    await notifyInstanceScopesChanged(c.var.mainDb);
     return respond(c, res);
   },
 );
@@ -161,6 +163,7 @@ defineRoute(
       deletedIds.push(id);
     }
     notifyInstanceProductsDeleted(deletedIds);
+    await notifyInstanceScopesChanged(c.var.mainDb);
     // A delete frees the packages it pointed at: the catalogue's "in use by"
     // and delete guard change.
     notifyInstanceRunsCatalogUpdated();
@@ -206,6 +209,7 @@ defineRoute(
       return respond(c, res);
     }
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
+    await notifyInstanceScopesChanged(c.var.mainDb);
     closeConnectionsLosingProduct(
       params.product_id,
       body.scopeId,
@@ -231,6 +235,7 @@ defineRoute(
       return respond(c, res);
     }
     await notifyInstanceProductsUpserted(c.var.mainDb, [res.data.productId]);
+    await notifyInstanceScopesChanged(c.var.mainDb);
     notifyInstanceRunsCatalogUpdated();
     return respond(c, res);
   },

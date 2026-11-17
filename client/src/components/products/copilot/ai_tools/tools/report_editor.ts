@@ -22,6 +22,7 @@ import {
   type FastrReportTheme,
   fastrThemeIds,
   type FigureBlock,
+  type FigureBundle,
   findReportEmbeds,
   getDataFromConfig,
   getFastrReportTheme,
@@ -51,6 +52,7 @@ import {
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
 import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_detail";
 import { describeReportPages } from "./report_page_map";
+import { createGetReportFigureImagesTool } from "./get_report_figure_images.ts";
 import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
 import {
   copilotViewController,
@@ -109,6 +111,20 @@ function liveFigureOrRefuse(
     );
   }
   return fig;
+}
+
+export function liveBundleOrRefuse(
+  ctx: EditingReportContext,
+  figureId: string,
+  verb: "read" | "edited",
+): FigureBundle {
+  const bundle = liveFigureOrRefuse(ctx, figureId).bundle;
+  if (!bundle) {
+    throw new AIToolFailure(
+      `Figure "${figureId}" has no resolved data yet and can't be ${verb}.`,
+    );
+  }
+  return bundle;
 }
 
 // A text edit the package refused. A body that broke a rule is a tool
@@ -263,8 +279,8 @@ type HeldReportDraft = {
 
 // A draft refused this many times for its pages is proposed with what is
 // left, for the user to judge, rather than refused again: a model that could
-// not fix a page kept trying until the turn hit its 24-call cap and ended
-// with nothing proposed (2026-11-05).
+// not fix a page kept trying until the turn hit its round cap and ended
+// with nothing proposed.
 const DRAFT_PAGE_REFUSALS = 3;
 
 const heldReportDrafts = new Map<string, HeldReportDraft>();
@@ -492,13 +508,7 @@ export function getClientToolsForReportEditor(
       kind: "read",
       handler: async (input, view) => {
         const ctx = view.context;
-        const fig = liveFigureOrRefuse(ctx, input.figureId);
-        if (!fig.bundle) {
-          throw new AIToolFailure(
-            `Figure "${input.figureId}" has no resolved data yet and can't be read.`,
-          );
-        }
-        const bundle = fig.bundle;
+        const bundle = liveBundleOrRefuse(ctx, input.figureId, "read");
         const { lines, metric, config } = readFigureMetricForAI(
           metrics,
           bundle,
@@ -514,6 +524,8 @@ export function getClientToolsForReportEditor(
       inProgressLabel: "Reading figure...",
       completionMessage: "Read figure",
     }),
+
+    createGetReportFigureImagesTool(),
 
     createAITool({
       viewRegistry: copilotViews,
@@ -542,12 +554,7 @@ export function getClientToolsForReportEditor(
       kind: "write",
       handler: async (input, view) => {
         const ctx = view.context;
-        const fig = liveFigureOrRefuse(ctx, input.figureId);
-        if (!fig.bundle) {
-          throw new AIToolFailure(
-            `Figure "${input.figureId}" has no resolved data yet and can't be edited.`,
-          );
-        }
+        const bundle = liveBundleOrRefuse(ctx, input.figureId, "edited");
         // metricId/type are not in the patch schema (silently stripped), so an
         // all-unsupported patch arrives empty: reject it instead of re-resolving
         // the figure unchanged and falsely reporting success.
@@ -559,7 +566,6 @@ export function getClientToolsForReportEditor(
               "show a different indicator or chart, use replace_figure.",
           );
         }
-        const bundle = fig.bundle;
         const { lines: moved, metric, config: storedConfig } =
           editFigureMetricForAI(metrics, bundle);
 
@@ -657,6 +663,15 @@ export function getClientToolsForReportEditor(
           newBundle.items,
         );
 
+        // Formatted before the write, and as get_report_figure prints it: a
+        // throw once the figure is saved would report a saved change as failed.
+        const resulting = await formatFigureConfigForAI(
+          env,
+          metric,
+          newConfig,
+          newBundle.dateRange,
+        );
+
         const saved = await ctx.applyFigureUpdate(input.figureId, {
           type: "figure",
           bundle: newBundle,
@@ -671,7 +686,7 @@ export function getClientToolsForReportEditor(
         copilotViewController.markAIEdit(`product:${view.params.reportId}`);
         return `Updated figure ${input.figureId}.\n${
           report.map((l) => `- ${l}`).join("\n")
-        }\nThe preview is updated and saved.`;
+        }\nThe preview is updated and saved.\nFigure ${input.figureId}:\n${resulting}`;
       },
       inProgressLabel: "Updating figure...",
       completionMessage: "Updated figure",
@@ -787,8 +802,8 @@ export function getClientToolsForReportEditor(
       viewRegistry: copilotViews,
       name: "get_page_template",
       description: FASTR_PAGE_TEMPLATE_TOOL_DESCRIPTION,
-      // Every layout in one call: one call per layout spent eight to ten of
-      // the turn's 24 model round trips on lookups (2026-11-05).
+      // Every layout in one call: a call per layout spends a round per layout,
+      // and a turn's rounds are capped.
       inputSchema: z.object({
         layouts: z.array(z.string()).optional().describe(
           'Every layout the report will use, e.g. ["exec", "summary", "findings"].',
@@ -1060,7 +1075,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
                 reportSkippedNote(skipped) +
                 (skipped.length
                   ? " If the figure token was in a skipped change, the figure is unreferenced and will be pruned."
-                  : "")
+                  : "") +
+                `\n\n${await describeNewFigureData(
+                  env,
+                  metrics,
+                  new Map([[id, figureBlock]]),
+                )}`
               );
             },
           };
@@ -1074,10 +1094,15 @@ ${FASTR_MD_SYNTAX_DOC}`,
       viewRegistry: copilotViews,
       name: "replace_figure",
       description:
-        "Propose replacing the chart behind an existing report figure. figureId is one of the figure:<id> tokens (from get_report_editor). The replacement `figure` is the same `from_metric` block as insert_figure (a metric plus one of its presets). The caption is kept unless you pass a new `caption` — note that if this figure is embedded more than once, a new `caption` is applied to EVERY embed of it, so omit `caption` when you only mean to change the chart. The token is swapped in place, so the user reviews a diff and accepts or rejects. To merely TWEAK an existing figure (its replicant, filters, disaggregation, period, or captions) WITHOUT changing the underlying chart, use update_report_figure instead — replacing here rebuilds the figure and resets settings like the replicant.",
+        "Propose replacing the chart behind an existing report figure. figureId is one of the figure:<id> tokens (from get_report_editor). The replacement `figure` is the same `from_metric` block as insert_figure (a metric plus one of its presets), except that its `chartTitle` may be omitted. The chart title and the embed caption are each kept unless given: omit `figure.chartTitle` to keep the replaced chart's title, and omit `caption` to keep the embed's caption. Note that if this figure is embedded more than once, a new `caption` is applied to EVERY embed of it, so omit `caption` when you only mean to change the chart. The token is swapped in place, so the user reviews a diff and accepts or rejects. To merely TWEAK an existing figure (its replicant, filters, disaggregation, period, or captions) WITHOUT changing the underlying chart, use update_report_figure instead — replacing here rebuilds the figure and resets settings like the replicant.",
       inputSchema: z.object({
         figureId: z.string(),
-        figure: AiFigureFromMetricSchema,
+        figure: AiFigureFromMetricSchema.extend({
+          chartTitle: AiFigureFromMetricSchema.shape.chartTitle.optional()
+            .describe(
+              "Title displayed above the figure. Omit to keep the replaced chart's title.",
+            ),
+        }),
         caption: z.string().optional(),
       }),
       availableIn: COPILOT_TOOL_VIEWS.replace_figure,
@@ -1085,7 +1110,14 @@ ${FASTR_MD_SYNTAX_DOC}`,
       approval: {
         propose: async (input, view) => {
           const ctx = view.context;
-          liveFigureOrRefuse(ctx, input.figureId);
+          const replaced = liveFigureOrRefuse(ctx, input.figureId);
+          const chartTitle = input.figure.chartTitle ??
+            replaced.bundle?.config.t.caption;
+          if (chartTitle === undefined) {
+            throw new AIToolFailure(
+              `Figure "${input.figureId}" has no chart to take a title from: give figure.chartTitle.`,
+            );
+          }
           // Liveness is what the DOCUMENT resolves (reportLiveFigures), while
           // this rewrite is the canonical token's, so a figure embedded as a
           // titled, reference or angle-bracket destination is live and not
@@ -1109,7 +1141,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
           if (!rewritable(ctx.getBody())) refuseUnrewritable();
           const figureBlock = await resolveFigureFromMetric(
             view.context.getScope(),
-            input.figure,
+            { ...input.figure, chartTitle },
             metrics,
           );
           const newId = crypto.randomUUID();
@@ -1172,7 +1204,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
                 reportSkippedNote(skipped) +
                 (skipped.length
                   ? " If the token swap was in a skipped change, the old figure may still be referenced and the new one unreferenced (it will be pruned)."
-                  : "")
+                  : "") +
+                `\n\n${await describeNewFigureData(
+                  env,
+                  metrics,
+                  new Map([[newId, figureBlock]]),
+                )}`
               );
             },
           };

@@ -1,5 +1,6 @@
 import { AIToolFailure } from "panther";
 import {
+  type ContentSlideSplit,
   type DisaggregationOption,
   MAX_CONTENT_BLOCKS,
   type MetricWithStatus,
@@ -8,6 +9,7 @@ import {
   validateDateRange,
   validateFilters,
 } from "lib";
+import { instanceState } from "~/state/instance/t1_store";
 
 // Slide/report content validators: SPA-only (the copilot's authoring tools).
 // The metric-query validators both surfaces run stay in lib/ai_tools
@@ -34,6 +36,25 @@ export function validateNoMarkdownTables(markdown: string): void {
       "Markdown tables are not allowed. To display tabular data, use a 'from_metric' block with a table preset.",
     );
   }
+}
+
+// The files the slide toolbar's image picker offers.
+export function imageAssetFileNames(): string[] {
+  return instanceState.assets.filter((a) => a.isImage).map((a) => a.fileName);
+}
+
+export function assertImageAsset(imgFile: string): void {
+  if (!imageAssetFileNames().includes(imgFile)) {
+    throw new AIToolFailure(
+      `"${imgFile}" is not one of the instance's image assets. Call get_image_assets for the file names.`,
+    );
+  }
+}
+
+export function assertSplitImageAsset(
+  split: ContentSlideSplit | undefined,
+): void {
+  if (split?.fill.type === "image") assertImageAsset(split.fill.imgFile);
 }
 
 export function validateMaxContentBlocks(blocksCount: number): void {

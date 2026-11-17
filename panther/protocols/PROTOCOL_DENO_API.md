@@ -5,8 +5,7 @@
 ## Rules
 
 1. **Validate at boundaries**: Validate external input, trust internal code
-2. **Consistent response shapes**: `{ success: true, data }` or
-   `{ success: false, err }`
+2. **Consistent response shapes**: `{ success: true, data }` or `{ success: false, err }`
 3. **Early return on error**: Check permissions/validation first
 4. **Descriptive error messages**: Include context for debugging
 5. **Let errors propagate**: Don't catch and return error strings

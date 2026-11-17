@@ -14,14 +14,17 @@ const scopeBodySchema = z.object({
   definition: scopeDefinitionSchema,
 });
 
-// Scopes are managed by global admins only. Every write broadcasts the whole
-// list as `scopes_updated`, which is how clients read scopes: there is no
-// list route.
+// A scope is an authoring object, like a folder: no owner and no flag. Every
+// unrestricted user writes scopes; a restricted user writes none, since
+// editing one they hold would widen their own data reads. A granted scope
+// (one that limits some user's access) is changed or deleted only by a
+// can_configure_users holder. Every write broadcasts the whole list as
+// `scopes_updated`, which is how clients read scopes: there is no list route.
 export const scopeRouteRegistry = {
   createScope: route({
     path: "/scopes",
     method: "POST",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.unrestricted,
     body: scopeBodySchema,
     response: {} as { scopeId: ScopeUuid },
   }),
@@ -31,7 +34,7 @@ export const scopeRouteRegistry = {
   updateScope: route({
     path: "/scopes/:scope_id",
     method: "PUT",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.unrestricted,
     params: scopeIdParamsSchema,
     body: scopeBodySchema,
   }),
@@ -39,7 +42,7 @@ export const scopeRouteRegistry = {
   deleteScope: route({
     path: "/scopes/:scope_id",
     method: "DELETE",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.unrestricted,
     params: scopeIdParamsSchema,
   }),
 } as const satisfies Record<string, { guard: RouteGuard }>;

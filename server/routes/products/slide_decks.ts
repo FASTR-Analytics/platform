@@ -50,6 +50,7 @@ import { log } from "../../middleware/logging.ts";
 import {
   notifyInstanceLastUpdated,
   notifyInstanceProductsUpserted,
+  notifyInstanceScopesChanged,
 } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { respond } from "./_respond.ts";
@@ -269,7 +270,13 @@ defineRoute(
       reinjectDrained();
       return respond(c, structRes);
     }
+    // The newest stamp the restore wrote: a live room whose doc already held
+    // a surviving slide's config reports that slide's older stamp, which
+    // must not become the restore's broadcast.
     let lastUpdated = structRes.data.lastUpdated;
+    const keepNewest = (stamp: string) => {
+      if (stamp > lastUpdated) lastUpdated = stamp;
+    };
 
     // Configs of surviving slides go through the live-room chokepoint (no
     // editor param: the restore versions itself below). Failures are
@@ -279,7 +286,7 @@ defineRoute(
     for (const s of plan.toUpdate) {
       const roomRes = await applySlideToLiveRoom(productId, s.id, s.config);
       if (roomRes.status === "saved") {
-        lastUpdated = roomRes.lastUpdated;
+        keepNewest(roomRes.lastUpdated);
       } else if (roomRes.status === "save_failed") {
         // The room absorbed the restore but could not persist it: partial
         // apply; no direct-write fallback (the room owns persistence).
@@ -294,7 +301,7 @@ defineRoute(
           undefined,
         );
         if (res.success) {
-          lastUpdated = res.data.lastUpdated;
+          keepNewest(res.data.lastUpdated);
         } else {
           failedSlideIds.push(s.id);
         }
@@ -384,6 +391,7 @@ defineRoute(
       return respond(c, res);
     }
     await notifyInstanceProductsUpserted(c.var.mainDb, [res.data.productId]);
+    await notifyInstanceScopesChanged(c.var.mainDb);
     return respond(c, res);
   },
 );

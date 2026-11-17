@@ -3,7 +3,7 @@ export { addSlideToDeck } from "./add_slide_to_deck.ts";
 export { getClientToolsForDeckBlueprints } from "./blueprint.tsx";
 export { getClientToolsForDrafts } from "./drafts.tsx";
 export { getClientToolsForFigureEditor } from "./figure_editor.ts";
-export { createGetSlideTool } from "./get_slide.ts";
+export { getClientToolsForImageAssets } from "./get_image_assets.ts";
 export { getClientToolsForProducts } from "./products.ts";
 export { getClientToolsForReportEditor } from "./report_editor.ts";
 export { getClientToolsForSlides } from "./slides.tsx";

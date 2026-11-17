@@ -6,28 +6,20 @@
 
 1. **Function declarations for exports**: Use `function`, not arrow functions
 2. **Arrow functions for callbacks**: Inline functions, map/filter/etc.
-3. **Type aliases over interfaces and enums**: Use `type`, not `interface`.
-   **Never `const enum`**, and never plain `enum` either: use a union of string
-   literals, plus an `ALL_*` array when the values need iterating or validating
+3. **Type aliases over interfaces and enums**: Use `type`, not `interface`. **Never `const enum`**, and never plain `enum` either: use a union of string literals, plus an `ALL_*` array when the values need iterating or validating
 4. **No JSDoc**: TypeScript types are sufficient
 5. **No `any`**: Explicit types always
-6. **Const by default**: Use `let` only where mutation cannot be avoided (a loop
-   counter, a counter that outlives its closure). If a value can be computed as
-   an expression, a `const` and a pure function replace the `let`.
+6. **Const by default**: Use `let` only where mutation cannot be avoided (a loop counter, a counter that outlives its closure). If a value can be computed as an expression, a `const` and a pure function replace the `let`.
 7. **Undefined over null**: For optional/missing values
 8. **Early throw**: Validate and throw early with descriptive messages
 9. **Braces required**: Always use braces with `if` statements
 10. **No magic values**: Use constants or config objects
-11. **Static imports only**: Never use dynamic imports. The one exception is
-    code that exists only at runtime (generated or fetched as text): it has no
-    static form and is loaded with `import()`
+11. **Static imports only**: Never use dynamic imports. The one exception is code that exists only at runtime (generated or fetched as text): it has no static form and is loaded with `import()`
 12. **Exports first**: Main/exported functions at top, helpers below
 13. **Async/await**: Never use Promise chains
-14. **No vestigial versioning**: Don't suffix the only/current version (`fooV2`
-    with no `foo`). When superseding, migrate callers and delete the old
+14. **No vestigial versioning**: Don't suffix the only/current version (`fooV2` with no `foo`). When superseding, migrate callers and delete the old
 15. **No dead code**: Delete unused and commented-out code; git is the history
-16. **No silent failures**: Never swallow with `.catch(() => {})`. Await it, or
-    log if genuinely fire-and-forget
+16. **No silent failures**: Never swallow with `.catch(() => {})`. Await it, or log if genuinely fire-and-forget
 
 ## Do / Don't
 
@@ -74,9 +66,7 @@ export const ALL_FISCAL_YEARS = ["none", "july"] as const;
 export type FiscalYear = (typeof ALL_FISCAL_YEARS)[number];
 ```
 
-The `ALL_*` array is what an enum's runtime object was for: it feeds `zod`
-enums, env-var validation, and select options, while the type stays a plain
-union that narrows and serializes as its own string value.
+The `ALL_*` array is what an enum's runtime object was for: it feeds `zod` enums, env-var validation, and select options, while the type stays a plain union that narrows and serializes as its own string value.
 
 ### Comments
 
@@ -135,9 +125,7 @@ const url = URL.createObjectURL(
 const generated = await import(url);
 ```
 
-**Why:** A static import is typechecked and bundled with the code that uses it.
-Code generated at runtime has no file to import, so `import()` on its URL is the
-only way to load it as a module.
+**Why:** A static import is typechecked and bundled with the code that uses it. Code generated at runtime has no file to import, so `import()` on its URL is the only way to load it as a module.
 
 ### Versioning
 
@@ -201,8 +189,7 @@ logUsage(data).catch((e) => console.error(`logUsage failed: ${e.message}`));
 - [ ] Function declarations for exports
 - [ ] Braces on all `if` statements
 - [ ] No magic numbers/strings
-- [ ] Static imports only: `import()` appears only where the code it loads
-      exists only at runtime
+- [ ] Static imports only: `import()` appears only where the code it loads exists only at runtime
 - [ ] Exports before helpers in file order
 - [ ] No version-suffixed names without a surviving prior version
 - [ ] No commented-out or dead code

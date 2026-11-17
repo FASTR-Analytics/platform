@@ -5,21 +5,13 @@ import {
   createRowsNode,
   type LayoutNode,
 } from "panther";
-
-const TOTAL_COLUMNS = 12;
+import { TOTAL_COLUMNS } from "./layout_structure.ts";
 
 type ResolvedCell = {
   id: string;
   block: ContentBlock;
   span?: number;
 };
-
-export type LayoutStructureCell = {
-  blockId: string;
-  span: number;
-};
-
-export type LayoutStructure = LayoutStructureCell[][];
 
 export function buildLayoutFromSpec(
   rows: ResolvedCell[][],
@@ -112,99 +104,4 @@ export function normalizeSpans(
     }
     return result;
   });
-}
-
-export function layoutNodeToStructure(
-  layout: LayoutNode<ContentBlock>,
-): { description: string; structure: LayoutStructure | null } {
-  const result = tryConvert(layout);
-  if (!result) {
-    return {
-      description: "Complex layout — use replace_slide to restructure",
-      structure: null,
-    };
-  }
-
-  const desc = result
-    .map(
-      (row, i) =>
-        `Row ${i + 1}: ${
-          row.map((c) => `${c.blockId} (span=${c.span})`).join(" | ")
-        }`,
-    )
-    .join("; ");
-
-  return { description: desc, structure: result };
-}
-
-function tryConvert(
-  node: LayoutNode<ContentBlock>,
-): LayoutStructure | null {
-  if (node.type === "item") {
-    return [[{ blockId: node.id, span: TOTAL_COLUMNS }]];
-  }
-
-  if (node.type === "cols") {
-    const row = unwrapColsChildren(node.children);
-    if (!row) return null;
-    return [row];
-  }
-
-  const rows: LayoutStructureCell[][] = [];
-  for (const child of node.children) {
-    if (child.type === "item") {
-      rows.push([{ blockId: child.id, span: TOTAL_COLUMNS }]);
-    } else if (child.type === "rows") {
-      if (
-        child.children.length === 1 &&
-        child.children[0].type === "item"
-      ) {
-        rows.push([
-          {
-            blockId: child.children[0].id,
-            span: child.span ?? TOTAL_COLUMNS,
-          },
-        ]);
-      } else {
-        return null;
-      }
-    } else if (child.type === "cols") {
-      const row = unwrapColsChildren(child.children);
-      if (!row) return null;
-      rows.push(row);
-    }
-  }
-
-  return rows;
-}
-
-function unwrapColsChildren(
-  children: LayoutNode<ContentBlock>[],
-): LayoutStructureCell[] | null {
-  const cells: LayoutStructureCell[] = [];
-
-  for (const child of children) {
-    if (child.type === "item") {
-      cells.push({
-        blockId: child.id,
-        span: child.span ?? TOTAL_COLUMNS,
-      });
-    } else if (child.type === "rows") {
-      if (
-        child.children.length === 1 &&
-        child.children[0].type === "item"
-      ) {
-        cells.push({
-          blockId: child.children[0].id,
-          span: child.span ?? TOTAL_COLUMNS,
-        });
-      } else {
-        return null;
-      }
-    } else {
-      return null;
-    }
-  }
-
-  return cells;
 }

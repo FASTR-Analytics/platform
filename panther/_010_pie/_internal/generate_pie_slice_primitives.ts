@@ -1,23 +1,36 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  HeaderItem,
+  Decoration,
+  DimensionMember,
+  Hittable,
+  ItemCoordinate,
   MergedPieStyle,
   PieSliceInfo,
   PieSlicePrimitive,
   PieSliceStyle,
+  PrimitiveItem,
+  SubChartMembers,
 } from "../deps.ts";
-import { computeBoundsForPath, Coordinates, Z_INDEX } from "../deps.ts";
+import {
+  buildItem,
+  computeBoundsForPath,
+  getDimensionMembers,
+  getSubChartMembers,
+  itemCoordinate,
+  pathSegmentPoints,
+  subChartItemCoordinates,
+  Z_INDEX,
+} from "../deps.ts";
 import type { PieDataTransformed } from "../types.ts";
 import {
   buildSlicePath,
   clampSweepAngleDeg,
   degreesToRadians,
   layOutSliceAngles,
-  pathSegmentPoints,
   resolvePieTotal,
   type SliceAngles,
 } from "./pie_geometry.ts";
@@ -26,7 +39,9 @@ import {
 // pass can place candidates without redoing the angle math.
 export type LaidOutSlice = {
   i_series: number;
-  seriesHeader: HeaderItem;
+  seriesMember: DimensionMember | undefined;
+  // Undefined for the remainder, which stands for no series.
+  item: PrimitiveItem | undefined;
   angles: SliceAngles;
   value: number;
   share: number;
@@ -34,6 +49,11 @@ export type LaidOutSlice = {
   style: PieSliceStyle;
   info: PieSliceInfo;
 };
+
+// An unsplit series has no member, so its one slice is named by its index.
+export function sliceId(slice: LaidOutSlice): string {
+  return slice.seriesMember?.id ?? String(slice.i_series);
+}
 
 export type PieGeometry = {
   cx: number;
@@ -44,6 +64,8 @@ export type PieGeometry = {
 
 export type LaidOutPie = {
   geometry: PieGeometry;
+  // The pie's own item, which its centre label stands for.
+  item: PrimitiveItem | undefined;
   slices: LaidOutSlice[];
   // The pie's resolved denominator, for the doughnut-hole centre label.
   declaredTotal: number;
@@ -51,11 +73,35 @@ export type LaidOutPie = {
 };
 
 export type PieIndices = {
-  paneIndex: number;
-  tierIndex: number;
-  laneIndex: number;
-  indicatorIndex: number;
+  i_pane: number;
+  i_tier: number;
+  i_lane: number;
+  i_indicator: number;
 };
+
+export type PieMembers = SubChartMembers & {
+  indicatorMember: DimensionMember | undefined;
+};
+
+export function getPieMembers(
+  data: PieDataTransformed,
+  indices: PieIndices,
+): PieMembers {
+  return {
+    ...getSubChartMembers(data, indices),
+    indicatorMember: data.indicator?.members[indices.i_indicator],
+  };
+}
+
+export function pieItemCoordinates(
+  data: PieDataTransformed,
+  members: PieMembers,
+): ItemCoordinate[] {
+  return [
+    ...subChartItemCoordinates(data, members),
+    itemCoordinate(data.indicator?.name, members.indicatorMember),
+  ];
+}
 
 // Lays out one pie's slices: resolves the denominator, turns values into
 // angles, and builds each slice's resolved style + info. Emits no primitives —
@@ -66,15 +112,17 @@ export function layOutPie(
   indices: PieIndices,
   geometry: PieGeometry,
 ): LaidOutPie {
-  const { paneIndex, tierIndex, laneIndex } = indices;
-  const seriesValArrays = data.values[paneIndex][tierIndex][laneIndex];
-  const nSerieses = data.seriesHeaders.length;
+  const { i_pane, i_tier, i_lane } = indices;
+  const seriesValueArrays = data.values[i_pane][i_tier][i_lane];
+  const nSerieses = getDimensionMembers(data.series).length;
+  const pieCoordinates = pieItemCoordinates(data, getPieMembers(data, indices));
+  const pieItem = buildItem(pieCoordinates);
 
   // undefined values are OMITTED (not drawn as zero-angle slices), matching
   // tensor-fill semantics elsewhere.
   const defined: { i_series: number; value: number }[] = [];
   for (let i_series = 0; i_series < nSerieses; i_series++) {
-    const v = seriesValArrays[i_series]?.[indices.indicatorIndex];
+    const v = seriesValueArrays[i_series]?.[indices.i_indicator];
     if (v !== undefined) {
       defined.push({ i_series, value: v });
     }
@@ -88,6 +136,7 @@ export function layOutPie(
   if (resolved.geometryTotal <= 0 || defined.length === 0) {
     return {
       geometry,
+      item: pieItem,
       slices: [],
       declaredTotal: resolved.declaredTotal,
       sumOfValues,
@@ -118,9 +167,14 @@ export function layOutPie(
       d.value / resolved.declaredTotal,
       resolved.declaredTotal,
     );
+    const seriesMember = data.series?.members[d.i_series];
     return {
       i_series: d.i_series,
-      seriesHeader: data.seriesHeaders[d.i_series],
+      seriesMember,
+      item: buildItem([
+        itemCoordinate(data.series?.name, seriesMember),
+        ...pieCoordinates,
+      ]),
       angles: laidOut[i],
       value: d.value,
       share: info.share,
@@ -145,7 +199,8 @@ export function layOutPie(
     const remainderStyle = mergedStyle.content.slices.getStyle(info);
     slices.push({
       i_series: -1,
-      seriesHeader: REMAINDER_HEADER,
+      seriesMember: REMAINDER_HEADER,
+      item: undefined,
       angles: laidOut[laidOut.length - 1],
       value: remainderValue,
       share: info.share,
@@ -162,13 +217,14 @@ export function layOutPie(
 
   return {
     geometry,
+    item: pieItem,
     slices,
     declaredTotal: resolved.declaredTotal,
     sumOfValues,
   };
 }
 
-const REMAINDER_HEADER: HeaderItem = {
+const REMAINDER_HEADER: DimensionMember = {
   id: "--remainder",
   label: "",
 };
@@ -181,29 +237,31 @@ function buildPieSliceInfo(
   share: number,
   total: number,
 ): PieSliceInfo {
-  const { paneIndex, tierIndex, laneIndex, indicatorIndex } = indices;
+  const { i_pane, i_tier, i_lane, i_indicator } = indices;
+  const nSerieses = getDimensionMembers(data.series).length;
+  const nIndicators = getDimensionMembers(data.indicator).length;
   return {
     i_series,
     isFirstSeries: i_series === 0,
-    isLastSeries: i_series === data.seriesHeaders.length - 1,
-    seriesHeader: data.seriesHeaders[i_series],
-    nSerieses: data.seriesHeaders.length,
-    // values[pane][tier][lane] IS the seriesValArrays shape ChartSeriesInfo
+    isLastSeries: i_series === nSerieses - 1,
+    seriesMember: data.series?.members[i_series],
+    nSerieses,
+    // values[pane][tier][lane] IS the seriesValueArrays shape ChartSeriesInfo
     // wants — the payoff of keeping the 5-D tensor.
-    seriesValArrays: data.values[paneIndex][tierIndex][laneIndex],
-    nVals: data.indicatorHeaders.length,
-    i_indicator: indicatorIndex,
-    nIndicators: data.indicatorHeaders.length,
-    indicatorHeader: data.indicatorHeaders[indicatorIndex],
-    i_pane: paneIndex,
-    nPanes: data.paneHeaders.length,
-    paneHeader: data.paneHeaders[paneIndex],
-    i_tier: tierIndex,
-    nTiers: data.tierHeaders.length,
-    tierHeader: data.tierHeaders[tierIndex],
-    i_lane: laneIndex,
-    nLanes: data.laneHeaders.length,
-    laneHeader: data.laneHeaders[laneIndex],
+    seriesValueArrays: data.values[i_pane][i_tier][i_lane],
+    nValues: nIndicators,
+    i_indicator,
+    nIndicators,
+    indicatorMember: data.indicator?.members[i_indicator],
+    i_pane,
+    nPanes: getDimensionMembers(data.pane).length,
+    paneMember: data.pane?.members[i_pane],
+    i_tier,
+    nTiers: getDimensionMembers(data.tier).length,
+    tierMember: data.tier?.members[i_tier],
+    i_lane,
+    nLanes: getDimensionMembers(data.lane).length,
+    laneMember: data.lane?.members[i_lane],
     value,
     share,
     total,
@@ -214,6 +272,7 @@ export function generatePieSlicePrimitives(
   pie: LaidOutPie,
   mergedStyle: MergedPieStyle,
   indices: PieIndices,
+  members: PieMembers,
 ): PieSlicePrimitive[] {
   const { cx, cy, innerR, outerR } = pie.geometry;
   const primitives: PieSlicePrimitive[] = [];
@@ -234,23 +293,30 @@ export function generatePieSlicePrimitives(
     if (pathSegments.length === 0) continue;
 
     const strokeWidth = slice.style.strokeWidth;
+    const bounds = computeBoundsForPath(
+      pathSegmentPoints(pathSegments),
+      strokeWidth,
+    );
+    const identity: Hittable<"body"> | Decoration = slice.isRemainder
+      ? {}
+      : { part: "body", hitBounds: bounds };
     primitives.push({
       type: "pie-slice",
       key:
-        `pie-slice-${indices.paneIndex}-${indices.tierIndex}-${indices.laneIndex}-${indices.indicatorIndex}-${
-          slice.isRemainder ? "remainder" : slice.seriesHeader.id
+        `pie-slice-${indices.i_pane}-${indices.i_tier}-${indices.i_lane}-${indices.i_indicator}-${
+          slice.isRemainder ? "remainder" : sliceId(slice)
         }`,
-      bounds: computeBoundsForPath(
-        pathSegmentPoints(pathSegments).map((p) => new Coordinates([p.x, p.y])),
-        strokeWidth,
-      ),
+      item: slice.item,
+      ...identity,
+      bounds,
       zIndex: Z_INDEX.PIE_SLICE,
       meta: {
-        seriesHeader: slice.seriesHeader,
-        paneIndex: indices.paneIndex,
-        tierIndex: indices.tierIndex,
-        laneIndex: indices.laneIndex,
-        indicatorIndex: indices.indicatorIndex,
+        seriesMember: slice.seriesMember,
+        i_pane: indices.i_pane,
+        i_tier: indices.i_tier,
+        i_lane: indices.i_lane,
+        i_indicator: indices.i_indicator,
+        ...members,
         value: slice.value,
         share: slice.share,
         isRemainder: slice.isRemainder,

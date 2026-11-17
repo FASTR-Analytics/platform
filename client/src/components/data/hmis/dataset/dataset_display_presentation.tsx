@@ -62,10 +62,10 @@ export function DatasetDisplayPresentation(p: Props) {
         legendPosition: showLegend ? undefined : "none",
       },
       legend: {
-        maxLegendItemsInOneColumn: 1,
+        maxLegendEntriesInOneColumn: 1,
       },
       seriesColorFunc: (info: any) => getAbcQualScale(info.i_series),
-      yScaleAxis: {
+      yValueAxis: {
         tickLabelFormatter: "auto-number",
       },
       xPeriodAxis: {
@@ -92,7 +92,7 @@ export function DatasetDisplayPresentation(p: Props) {
           periodType: "year-month",
           seriesProp: "indicator_common_id",
           labelReplacements: p.displayItems.indicatorLabelReplacements,
-          yScaleAxisLabel: value === "count"
+          yValueAxisLabel: value === "count"
             ? t3({
               en: "Number of records",
               fr: "Nombre d'enregistrements",

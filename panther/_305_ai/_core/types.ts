@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -240,4 +240,10 @@ export type AIChatConfig = {
   // requireKind additionally makes an undeclared kind a boot-time throw.
   // Enforced on dynamic register() too. Strictly opt-in.
   approvalPolicy?: ApprovalPolicy;
+
+  // The most continuations one turn may run before it ends with a turn_limit
+  // notice: client tool rounds and pause_turn resumes share the one count. A
+  // positive integer; omit it for MAX_TURN_CONTINUATIONS. Construction throws
+  // on anything else.
+  maxTurnContinuations?: number;
 };

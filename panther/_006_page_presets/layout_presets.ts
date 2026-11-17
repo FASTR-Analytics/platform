@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -48,7 +48,7 @@ const LAYOUT_PRESETS = {
         gapX: 20,
       },
       titleBottomPadding: 20,
-      subTitleBottomPadding: 20,
+      subtitleBottomPadding: 20,
       authorBottomPadding: 20,
     },
     section: {
@@ -100,7 +100,7 @@ const LAYOUT_PRESETS = {
         gapX: 20,
       },
       titleBottomPadding: 20,
-      subTitleBottomPadding: 20,
+      subtitleBottomPadding: 20,
       authorBottomPadding: 20,
     },
     section: {
@@ -152,7 +152,7 @@ const LAYOUT_PRESETS = {
         gapX: 20,
       },
       titleBottomPadding: 20,
-      subTitleBottomPadding: 20,
+      subtitleBottomPadding: 20,
       authorBottomPadding: 20,
     },
     section: {
@@ -205,7 +205,7 @@ const LAYOUT_PRESETS = {
         gapX: 20,
       },
       titleBottomPadding: 20,
-      subTitleBottomPadding: 20,
+      subtitleBottomPadding: 20,
       authorBottomPadding: 20,
     },
     section: {

@@ -8,6 +8,7 @@ export type RouteGuard =
   | { kind: "public" }
   | { kind: "signed_in" }
   | { kind: "approved" }
+  | { kind: "unrestricted" }
   | { kind: "admin" }
   | { kind: "permission"; flag: UserPermission }
   | { kind: "h_user" }
@@ -20,6 +21,7 @@ export type RouteGuardKind = RouteGuard["kind"];
 const publicGuard: RouteGuard = { kind: "public" };
 const signedIn: RouteGuard = { kind: "signed_in" };
 const approved: RouteGuard = { kind: "approved" };
+const unrestricted: RouteGuard = { kind: "unrestricted" };
 const admin: RouteGuard = { kind: "admin" };
 const hUser: RouteGuard = { kind: "h_user" };
 const statusKey: RouteGuard = { kind: "status_key" };
@@ -28,6 +30,7 @@ export const GUARD = {
   public: publicGuard,
   signedIn,
   approved,
+  unrestricted,
   admin,
   hUser,
   statusKey,

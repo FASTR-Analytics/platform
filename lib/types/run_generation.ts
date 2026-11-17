@@ -143,13 +143,16 @@ export type RunCatalogItem = RunListingItem & {
 
 // A ready results package as the product package picker lists it. The label
 // is approved-user data (every product card shows the label of the package
-// it serves from), so SYSTEM_03's rule that run data reaches only
+// it serves from), and so are the families and module count, facts about
+// what the package contains, so SYSTEM_03's rule that run data reaches only
 // can_configure_data narrows to generation telemetry: `RunListingItem`'s
 // progress, summary and provenance stay at can_configure_data.
 export type ReadyPackage = {
   id: string;
   label: string;
   createdAt: string;
+  families: DatasetType[] | null;
+  moduleCount: number | null;
 };
 
 // What one READY package contains, wherever it is explored: settings

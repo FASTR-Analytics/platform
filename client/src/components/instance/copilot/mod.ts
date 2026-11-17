@@ -1,6 +1,7 @@
 export {
   copilotViewController,
   copilotViews,
+  figureEditorKeepLineFor,
   holdCopilotView,
   productViewContext,
   restoreCopilotView,
@@ -14,12 +15,15 @@ export type {
   EditingSlideDeckContext,
   ExploreContext,
   FigureEditorContext,
+  FigureEditorPreview,
+  FigureEditorPreviewText,
   FigureEditorView,
   HfaIndicatorEditorContext,
   HfaIndicatorsContext,
   OpenSlide,
   PackagePageContext,
   PackageViewContext,
+  ReportFigureDraw,
 } from "./ai_views.ts";
 export type {
   DataRowStatus,

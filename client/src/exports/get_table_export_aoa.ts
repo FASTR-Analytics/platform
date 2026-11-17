@@ -2,8 +2,10 @@ import {
   CustomFigureStyle,
   resolveTableHeaders,
   type TableCellInfo,
+  tableColGroups,
   type TableInputs,
-  toHeaderItem,
+  tableRowGroups,
+  toDimensionMember,
 } from "panther";
 
 // Reconstruct the rendered table as a rectangular grid of strings, faithful to
@@ -24,14 +26,14 @@ export function getTableExportAoa(inputs: TableInputs): string[][] {
   // resolveTableHeaders, not getTableDataTransformed: header labels go through
   // the style's header textFormatters (sample sizes, today), and reading the
   // raw labels here would silently diverge from what the render shows.
-  const { colGroups, rowGroups, aoa } = resolveTableHeaders(
-    inputs.data,
-    inputs.style,
-  ).data;
+  const data = resolveTableHeaders(inputs.data, inputs.style).data;
+  const colGroups = tableColGroups(data);
+  const rowGroups = tableRowGroups(data);
+  const aoa = data.aoa;
 
   // Columns flattened in render order (by col.index). The enclosing group
   // travels with each column: a cell's formatter may identify its indicator by
-  // the group header, so dropping it here would export a different number than
+  // the group member, so dropping it here would export a different number than
   // the screen shows.
   const cols = colGroups.flatMap((g) =>
     g.cols.map((c) => ({ col: c, group: g }))
@@ -44,7 +46,7 @@ export function getTableExportAoa(inputs: TableInputs): string[][] {
 
   const out: string[][] = [];
 
-  if (inputs.caption) out.push([inputs.caption]);
+  if (inputs.title) out.push([inputs.title]);
 
   // Header band. One leading column is reserved for row labels (row-group
   // labels are emitted as their own rows below, not as a second column).
@@ -89,10 +91,10 @@ export function getTableExportAoa(inputs: TableInputs): string[][] {
             i_col: c.index,
             nRows,
             nCols,
-            rowHeader: toHeaderItem(r.id, r.label),
-            colHeader: toHeaderItem(c.id, c.label),
-            rowGroupHeader: toHeaderItem(g.id, g.label),
-            colGroupHeader: toHeaderItem(cg.id, cg.label),
+            rowMember: toDimensionMember(r.id, r.label),
+            colMember: toDimensionMember(c.id, c.label),
+            rowGroupMember: toDimensionMember(g.id, g.label),
+            colGroupMember: toDimensionMember(cg.id, cg.label),
           };
           row.push(fmt(info) ?? "");
         }

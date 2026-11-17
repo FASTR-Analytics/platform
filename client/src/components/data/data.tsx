@@ -42,6 +42,7 @@ import {
 } from "~/state/t4_ui";
 import {
   copilotViewController,
+  type DataContext,
   type DataPageId,
   type DataRowStatus,
   type DataSectionForAI,
@@ -77,7 +78,8 @@ const SETTINGS_HEADING = () =>
 
 // The switchboard sets the chat's `data` view (S13), whose state is each
 // row's label and status, never its summary, and `data_page` for every page
-// it opens, restoring the view it covered when the page closes.
+// it opens, with the same state, restoring the view it covered when the page
+// closes.
 export function InstanceData(p: Props) {
   holdCopilotView();
   let mounted = true;
@@ -113,7 +115,10 @@ export function InstanceData(p: Props) {
   // one sync site for the switchboard's pages: `data_page` names the page
   // and, on a family's page, the family, and the covered view returns when
   // the page closes, unless the switchboard itself has unmounted meanwhile,
-  // since its own cleanup restored the view it holds.
+  // since its own cleanup restored the view it holds. The page carries the
+  // switchboard's readiness as its state: the digest folds a move to the
+  // switchboard and on into a page into one line, so the `data` view's state
+  // may never reach the model.
   function openSubPage<const TProps>(
     page: DataPageId,
     family: DatasetType | undefined,
@@ -121,7 +126,7 @@ export function InstanceData(p: Props) {
     props: TProps,
   ) {
     const covered = copilotViewController.current();
-    copilotViewController.setView("data_page", { page, family });
+    copilotViewController.setView("data_page", { page, family }, dataContext);
     void openShellEditor({ element, props }).then(() => {
       if (mounted) restoreCopilotView(covered);
     });
@@ -504,9 +509,8 @@ export function InstanceData(p: Props) {
         : []),
     ];
   };
-  copilotViewController.setView("data", undefined, {
-    getSections: sectionsForAI,
-  });
+  const dataContext: DataContext = { getSections: sectionsForAI };
+  copilotViewController.setView("data", undefined, dataContext);
 
   return (
     <div class="ui-pad h-full w-full overflow-auto">

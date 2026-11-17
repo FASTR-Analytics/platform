@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -8,18 +8,16 @@ export {
   createArray,
   getTimeFromPeriodId,
   getValidNumberOrUndefined,
+  isBlankValue,
 } from "../_000_utils/mod.ts";
 export type { PeriodType } from "../_000_utils/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
-export {
-  createHeaderItems,
-  sortHeaderItems,
-} from "../_001_render_system/mod.ts";
+export { getDimensionMembers } from "../_001_render_system/mod.ts";
 export type {
-  HeaderItem,
-  HeaderSortConfig,
+  DataDimension,
   HeightConstraints,
   Measured,
+  MemberSortConfig,
   Primitive,
   RenderContext,
   Renderer,
@@ -27,15 +25,16 @@ export type {
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedTimeseriesStyle } from "../_003_figure_style/mod.ts";
 export {
-  calculateChartScaleLimits,
+  buildDataDimension,
+  calculateChartValueAxisLimits,
   calculateMinSubChartHeight,
   calculateTimeseriesMinSubChartWidth,
   checkValuePropsAssignment,
-  collectHeaders,
   estimateMinSurroundsWidth,
-  estimateMinYAxisWidth,
+  estimateMinYValueAxisWidth,
+  estimateTierHeaderAndLabelGapWidth,
   getChartHeightConstraintsByMeasure,
-  getHeaderIndex,
+  getMemberIndex,
   isRowBasedUncertainty,
   measureChart,
   measureChartWithAutofit,
@@ -43,16 +42,19 @@ export {
   renderFigureBackground,
   renderFigurePrimitives,
   resolveDefaultLegend,
-  resolveScaleAxisPlotHeight,
+  resolveValueAxisSubChartHeight,
   SIZING_SAMPLE,
   validateDataInput,
+  validateDimensionProps,
   validateUncertaintyConfig,
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartComponentSizes,
-  ChartScaleAxisLimits,
+  ChartValueAxisLimits,
+  DataDimensions,
   FigureInputsBase,
   JsonArray,
+  JsonArrayItem,
   LegendInput,
   MeasuredSurrounds,
   PaneGrid,

@@ -74,6 +74,7 @@ import { routesWhatsNew } from "../routes/instance/whats_new.ts";
 import { routesFolders } from "../routes/products/folders.ts";
 import { routesProducts } from "../routes/products/products.ts";
 import { routesProductReports } from "../routes/products/reports.ts";
+import { routesProductVisualizations } from "../routes/products/visualizations.ts";
 import { routesProductSlideDecks } from "../routes/products/slide_decks.ts";
 import { routesProductSlides } from "../routes/products/slides.ts";
 import { routesOAuthMetadata } from "../routes/public/oauth_metadata.ts";
@@ -164,11 +165,13 @@ const STRANGER = persona("stranger");
 // ---------------------------------------------------------------------------
 
 // Who may call a route. A permission names one flag. A product or folder
-// class names the level the route declares.
+// class names the level the route declares. Unrestricted is approved and not
+// restricted, an admin included.
 type GuardClass =
   | "public"
   | "signed_in"
   | "approved"
+  | "unrestricted"
   | "admin"
   | "h_user"
   | "status_key"
@@ -232,7 +235,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   createPersonalAccessToken: closed("approved"),
   createProduct: closed("product:edit"),
   createReportStyle: closed("product:edit"),
-  createScope: closed("can_configure_data"),
+  createScope: closed("unrestricted"),
   createSlide: closed("product:edit"),
   createVisualization: closed("product:edit"),
   deleteAllDatasetHmisData: closed("can_configure_data"),
@@ -265,7 +268,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   deleteProducts: closed("product:own"),
   deleteReportStyle: closed("product:edit"),
   deleteRun: closed("can_configure_data"),
-  deleteScope: closed("can_configure_data"),
+  deleteScope: closed("unrestricted"),
   deleteSlides: closed("product:edit"),
   deleteStructureUploadAttempt: closed("can_configure_data", "refusals_only"),
   deleteUser: closed("can_configure_users"),
@@ -336,7 +339,6 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   getStructureStagedRecodeRows: closed("can_configure_data"),
   getStructureUploadAttempt: closed("can_configure_data"),
   getStructureUploadStatus: closed("can_configure_data"),
-  getUsersLastActive: closed("can_view_users"),
   getVisualizationDetail: closed("product:view"),
   getVisualizationVersion: closed("product:view"),
   getWhatsNewPosts: closed("approved"),
@@ -398,7 +400,6 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   revokePersonalAccessToken: closed("approved"),
   saveGeoJsonMap: closed("can_configure_data"),
   saveHfaIndicatorFull: closed("can_configure_data"),
-  saveHfaIndicatorVerifications: closed("can_configure_data"),
   saveHfaIndicatorsBatch: closed("can_configure_data"),
   saveInstanceDhis2Credentials: closed("can_configure_data"),
   saveRunGenerationDefaults: closed("can_configure_data"),
@@ -430,6 +431,8 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   setUserUnlimitedAi: closed("h_user", {
     body: { email: UNAPPROVED.email, unlimited: true },
   }),
+  startHfaVerificationRun: closed("can_configure_data"),
+  stopHfaVerificationRun: closed("can_configure_data"),
   structureStep0_SetSourceType: closed("can_configure_data"),
   structureStep1Csv_UploadFile: closed("can_configure_data"),
   structureStep1Dhis2_ConfirmConnection: closed(
@@ -476,7 +479,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   updateReportFigures: closed("product:edit"),
   updateReportImages: closed("product:edit"),
   updateReportStyle: closed("product:edit"),
-  updateScope: closed("can_configure_data"),
+  updateScope: closed("unrestricted"),
   updateSlide: closed("product:edit"),
   updateSlideDeckConfig: closed("product:edit"),
   updateSlideDeckPlan: closed("product:edit"),
@@ -728,6 +731,9 @@ function expected(
   const p = caller.persona;
   if (guard === "signed_in") return "admitted";
   if (guard === "approved") return p.approved ? "admitted" : 403;
+  if (guard === "unrestricted") {
+    return p.approved && (p.isAdmin || !p.restricted) ? "admitted" : 403;
+  }
   if (guard === "admin") return p.isAdmin ? "admitted" : 403;
   if (guard === "h_user") return p.isHUser ? "admitted" : 403;
   if (typeof guard === "string" && guard.startsWith("product:")) {
@@ -829,6 +835,7 @@ function mainApp(session: Session): Hono {
     routesProductSlideDecks,
     routesProductSlides,
     routesProductReports,
+    routesProductVisualizations,
     routesCustomPrompts,
     routesWhatsNew,
     routesOnboarding,

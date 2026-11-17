@@ -1,10 +1,10 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { ColorKeyOrString } from "../deps.ts";
-import type { LegendItem } from "./types.ts";
+import type { LegendEntry } from "./types.ts";
 
 export type ScaleLegendGradientConfig = {
   type: "gradient";
@@ -45,7 +45,7 @@ export type ScaleLegendConfig =
   | ScaleLegendGradientAutoConfig
   | ScaleLegendSteppedAutoConfig;
 
-export type LegendInput = LegendItem[] | string[] | ScaleLegendConfig;
+export type LegendInput = LegendEntry[] | string[] | ScaleLegendConfig;
 
 export type ConcreteScaleLegendConfig =
   | ScaleLegendGradientConfig

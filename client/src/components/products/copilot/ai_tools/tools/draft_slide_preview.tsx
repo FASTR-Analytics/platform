@@ -166,7 +166,7 @@ export function DraftSlidePreview(p: Props) {
         return;
       }
       const deckConfig = getDeckConfig(draft.pair);
-      const { slide: convertedSlide } = await convertAiInputToSlide(
+      const convertedSlide = await convertAiInputToSlide(
         draft.pair,
         p.slideInput,
         await metricsFor(draft.pair),

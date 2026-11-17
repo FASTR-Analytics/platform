@@ -1,15 +1,16 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  DataDimension,
   FigureInputsBase,
-  HeaderItem,
-  HeaderSortConfig,
   JsonArray,
   MeasuredChartBase,
+  MemberSortConfig,
   MergedMapStyle,
+  ValueRange,
 } from "./deps.ts";
 import type {
   GeoJSONFeature,
@@ -36,28 +37,30 @@ export type MapGeoInput =
 
 export type MapJsonDataConfig = {
   valueProp: string;
-  areaProp: string;
-  areaMatchProp: string;
+  mapAreaProp: string;
+  mapAreaMatchProp: string;
   paneProp?: string;
   tierProp?: string;
   laneProp?: string;
   labelReplacements?: Record<string, string>;
   sort?: {
-    pane?: HeaderSortConfig;
-    tier?: HeaderSortConfig;
-    lane?: HeaderSortConfig;
+    pane?: MemberSortConfig;
+    tier?: MemberSortConfig;
+    lane?: MemberSortConfig;
   };
 };
 
 export type MapDataTransformed = {
   isTransformed: true;
   geoFeatures: GeoJSONFeature[];
-  areaMatchProp: string;
-  paneHeaders: HeaderItem[];
-  tierHeaders: HeaderItem[];
-  laneHeaders: HeaderItem[];
+  // The map area dimension's name, the feature property its members match, and the rows
+  // left off the map because their map area is the blank member.
+  mapArea: { name: string; matchProp: string; nBlankRows: number };
+  pane?: DataDimension;
+  tier?: DataDimension;
+  lane?: DataDimension;
   valueMaps: Record<string, number | undefined>[][][];
-  valueRange: { min: number; max: number };
+  valueRange: ValueRange;
 };
 
 export type MeasuredMap = MeasuredChartBase<

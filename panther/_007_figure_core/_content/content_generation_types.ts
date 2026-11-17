@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -7,14 +7,15 @@ import type {
   ChartSeriesInfo,
   ChartValueInfo,
   DataLabelStyle,
-  HeaderItem,
+  DimensionMember,
   MergedContentStyle,
   RectCoordsDims,
   RenderContext,
   TextInfoUnkeyed,
 } from "../deps.ts";
 import { getAdjustedFont, getColor } from "../deps.ts";
-import type { OverhangClearance } from "../types.ts";
+import type { ChartItemDataDimensions } from "../chart_items.ts";
+import type { OverhangClearance, ValueRange } from "../types.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 
 // One home for deriving a data label's text style from its host's base text
@@ -45,34 +46,35 @@ export type ContentGenerationContext = {
   subChartRcd: RectCoordsDims;
   subChartInfo: {
     nSerieses: number;
-    seriesValArrays: (number | undefined)[][];
+    seriesValueArrays: (number | undefined)[][];
     i_pane: number;
     nPanes: number;
-    paneHeader: HeaderItem;
+    paneMember: DimensionMember | undefined;
     i_tier: number;
     nTiers: number;
-    tierHeader: HeaderItem;
+    tierMember: DimensionMember | undefined;
     i_lane: number;
     nLanes: number;
-    laneHeader: HeaderItem;
+    laneMember: DimensionMember | undefined;
   };
-  nVals: number;
+  nValues: number;
   // This unit's slot order: the global indicator index at each slot. The
   // identity when the chart is balanced and unsorted; a subset under
   // unbalanced membership; a permutation under a value sort.
   slotOrder: number[];
-  nSeries: number;
+  nSerieses: number;
   orientation: "vertical" | "horizontal";
-  categoryIncrement: number;
-  gridStrokeWidth: number;
-  seriesHeaders: HeaderItem[];
-  indicatorHeaders?: HeaderItem[];
+  slotExtent: number;
+  gridLineStrokeWidth: number;
+  // The chart's data dimensions, which name both the members the style funcs see
+  // and the items the primitives stand for.
+  itemDataDimensions: ChartItemDataDimensions;
   contentStyle: MergedContentStyle;
   dataLabelsTextStyle: TextInfoUnkeyed;
-  valueRange: { minVal: number; maxVal: number };
+  valueRange: ValueRange;
   valueClearance: OverhangClearance;
-  mappedBoundsUb?: MappedValueCoordinate[][];
-  mappedBoundsLb?: MappedValueCoordinate[][];
+  mappedUncertaintyUb?: MappedValueCoordinate[][];
+  mappedUncertaintyLb?: MappedValueCoordinate[][];
 };
 
 export type DataLabelOwner = "points" | "bars" | "lines" | "none";
@@ -88,25 +90,25 @@ export function buildSeriesInfo(
     i_series,
     isFirstSeries: i_series === 0,
     isLastSeries: i_series === ctx.subChartInfo.nSerieses - 1,
-    seriesHeader: ctx.seriesHeaders[i_series],
-    nVals: seriesArrays[i_series].length,
+    seriesMember: ctx.itemDataDimensions.series?.members[i_series],
+    nValues: seriesArrays[i_series].length,
   };
 }
 
 export function buildValueInfo(
   ctx: ContentGenerationContext,
   seriesInfo: ChartSeriesInfo,
-  val: number,
-  i_val: number,
+  value: number,
+  i_value: number,
 ): ChartValueInfo {
   return {
     ...seriesInfo,
-    val,
-    i_val,
-    isFirstVal: i_val === ctx.slotOrder[0],
-    isLastVal: i_val === ctx.slotOrder[ctx.slotOrder.length - 1],
-    valueMin: ctx.valueRange.minVal,
-    valueMax: ctx.valueRange.maxVal,
-    indicatorHeader: ctx.indicatorHeaders?.[i_val],
+    value,
+    i_value,
+    isFirstValue: i_value === ctx.slotOrder[0],
+    isLastValue: i_value === ctx.slotOrder[ctx.slotOrder.length - 1],
+    valueMin: ctx.valueRange.valueMin,
+    valueMax: ctx.valueRange.valueMax,
+    indicatorMember: ctx.itemDataDimensions.indicator?.members[i_value],
   };
 }

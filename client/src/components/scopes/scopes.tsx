@@ -29,6 +29,7 @@ import {
   usageColumnHeader,
 } from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
+import { canCallRoute } from "~/state/instance/permissions";
 import { instanceState } from "~/state/instance/t1_store";
 import {
   copilotViewController,
@@ -46,33 +47,28 @@ type ScopeRow = {
   migratedFrom: string[] | null;
 };
 
-// The Scopes tab: scopes are created, edited and deleted here, by global
-// admins only (the tab and the scope routes are guarded the same way). A
-// product picks one by label. The reserved "All data" scope is a fixed
-// statement above the table, which lists the others.
+// The Scopes tab, for every approved user: an unrestricted user creates,
+// edits and deletes scopes here; a restricted user reads the scopes they
+// hold, which is all their list carries. A product picks one by label. The
+// reserved "All data" scope is a fixed statement above the table, which lists
+// the others.
 export function InstanceScopes() {
   holdCopilotView();
   copilotViewController.setView("scopes");
 
+  const canWriteScopes = () => canCallRoute("createScope");
   const scopesTable = createTableConfig({
     sort: { key: "label", direction: "asc" },
   });
 
-  const counts = createMemo(() => productCountsByScope());
   const rows = createMemo(() =>
     instanceState.scopes
       .filter((scope) => scope.id !== ALL_DATA_SCOPE_ID)
-      .map((scope) => toRow(scope, counts()))
+      .map(toRow)
   );
 
   function openEditor(scope: Scope | undefined) {
-    void openComponent({
-      element: ScopeEditor,
-      props: {
-        scope,
-        productCount: scope === undefined ? 0 : counts().get(scope.id) ?? 0,
-      },
-    });
+    void openComponent({ element: ScopeEditor, props: { scope } });
   }
 
   async function handleBulkDelete(selected: ScopeRow[]): Promise<void> {
@@ -141,7 +137,9 @@ export function InstanceScopes() {
     <FrameTop pad="md">
       <div class="ui-gap flex h-full w-full flex-col">
         <AllDataScopePanel
-          productCount={counts().get(ALL_DATA_SCOPE_ID) ?? 0}
+          productCount={instanceState.scopes.find((s) =>
+            s.id === ALL_DATA_SCOPE_ID
+          )?.productCount ?? 0}
         />
         <div class="min-h-0 flex-1" data-tour="scopes-table">
           <Table
@@ -154,9 +152,11 @@ export function InstanceScopes() {
               fr: "Aucune portée",
               pt: "Sem âmbitos",
             })}
-            onRowClick={(row) =>
-              openEditor(instanceState.scopes.find((s) => s.id === row.id))}
-            bulkActions={bulkActions}
+            onRowClick={canWriteScopes()
+              ? (row) =>
+                openEditor(instanceState.scopes.find((s) => s.id === row.id))
+              : undefined}
+            bulkActions={canWriteScopes() ? bulkActions : undefined}
             itemLabel={{
               one: t3({ en: "scope", fr: "portée", pt: "âmbito" }),
               other: t3({ en: "scopes", fr: "portées", pt: "âmbitos" }),
@@ -164,17 +164,19 @@ export function InstanceScopes() {
             toolbar={{
               search: true,
               children: (
-                <Button
-                  onClick={() => openEditor(undefined)}
-                  iconName="plus"
-                  data-tour="scopes-new"
-                >
-                  {t3({
-                    en: "New scope",
-                    fr: "Nouvelle portée",
-                    pt: "Novo âmbito",
-                  })}
-                </Button>
+                <Show when={canWriteScopes()}>
+                  <Button
+                    onClick={() => openEditor(undefined)}
+                    iconName="plus"
+                    data-tour="scopes-new"
+                  >
+                    {t3({
+                      en: "New scope",
+                      fr: "Nouvelle portée",
+                      pt: "Novo âmbito",
+                    })}
+                  </Button>
+                </Show>
               ),
             }}
           />
@@ -297,22 +299,14 @@ function describeSection(section: ScopeDefinition[DatasetType]): string {
     : parts.join("; ");
 }
 
-function productCountsByScope(): Map<ScopeId, number> {
-  const counts = new Map<ScopeId, number>();
-  for (const product of instanceState.products) {
-    counts.set(product.scopeId, (counts.get(product.scopeId) ?? 0) + 1);
-  }
-  return counts;
-}
-
-function toRow(scope: Scope, counts: Map<ScopeId, number>): ScopeRow {
+function toRow(scope: Scope): ScopeRow {
   return {
     id: scope.id,
     label: scopeDisplayLabel(scope),
     hmis: describeSection(scope.definition.hmis),
     hfa: describeSection(scope.definition.hfa),
     iceh: describeSection(scope.definition.iceh),
-    productCount: counts.get(scope.id) ?? 0,
+    productCount: scope.productCount,
     migratedFrom: scope.migratedFrom,
   };
 }

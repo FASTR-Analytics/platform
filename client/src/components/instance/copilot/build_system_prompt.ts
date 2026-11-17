@@ -4,12 +4,13 @@ import {
   buildInstanceContextSections,
   buildPackageBlock,
   buildSystemPrompt,
+  CHAT_CORE_PRINCIPLES,
   type DatasetType,
   type ExploreViewBinding,
   type ExploreViewTypeId,
+  FIGURE_EDITOR_LOOK_LINE,
   type InstalledModuleSummary,
   type InstanceState,
-  MAX_CONTENT_BLOCKS,
   type PackageScope,
   periodChoiceId,
   type ResolvedView,
@@ -19,8 +20,6 @@ import {
   type RunProgress,
   runProgressSteps,
   runStageLabel,
-  SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
-  SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
   t3,
 } from "lib";
 import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
@@ -52,9 +51,7 @@ export function buildSystemPromptForContext(instance: InstanceState): string {
     contextSection: sections.join("\n"),
     roleAndPurpose:
       "You are an AI assistant helping users explore, analyze and present the health data in this FASTR instance. The user moves through the app while you talk: each message tells you the current view, its state and, where one is in view, the results package and scope every read resolves under. You can query data, draft slides and figures, and help build the slide deck or report the user has open; a tool outside the current view refuses when called, so work with what the view offers.",
-    extraCorePrinciples: [
-      "**Ask when uncertain** - Use the ask_user_questions tool to clarify preferences, choose between approaches, or confirm decisions before proceeding. Don't guess what the user wants when you can ask.",
-    ],
+    extraCorePrinciples: CHAT_CORE_PRINCIPLES,
   });
 }
 
@@ -107,7 +104,7 @@ The product is still loading, or it failed to load and the page shows the error.
 export function getDeckSettingsInstructions(label: string): string {
   return `# Current View: Settings of the slide deck "${label}"
 
-The user is on the deck's settings screen (theme, logos, footer), which covers the deck. The deck's name is not on it: renaming is File > "Name and folder" or the deck's own title in its header, both behind this screen. The deck's slide tools refuse here. To change slides, tell the user to close Settings with its back button to return to the deck; do not describe any other view. The package tools work as usual.`;
+The user is on the deck's settings screen (theme, logos, footer), which covers the deck. The deck's name is not on it: renaming is File > "Name and folder" or the deck's own title in its header, both behind this screen. The deck's slide tools refuse here. To change slides, tell the user to leave Settings with Save (keeps the settings changes) or Cancel (discards them) to return to the deck; do not describe any other view. The package tools work as usual.`;
 }
 
 const HISTORY_NOUNS = {
@@ -134,7 +131,7 @@ const NO_PACKAGE_LINE =
 export function getProductsInstructions(): string {
   return `# Current View: Products
 
-The user is on the Products page: the slide decks and reports of this instance, in folders. Call list_products to see them with their folder, package, scope and the user's access level. ${NO_PACKAGE_LINE} The user opens a product from this page; its tools become available once it is open.`;
+The user is on the Products page: the slide decks, reports and saved visualizations of this instance, in folders. Call list_products to see them with their folder, package, scope and the user's access level. ${NO_PACKAGE_LINE} The user opens a product from this page; its tools become available once it is open.`;
 }
 
 const DATA_PAGE_LABELS: Record<DataPageId, string> = {
@@ -187,30 +184,51 @@ The user is on the Users page, which lists the instance's users and their permis
 // draft.
 export type FigureEditorHost = "slide" | "report" | "visualization" | "package";
 
+export type FigureEditorMode = { viewOnly: boolean; live: boolean };
+
+// How the user keeps or discards the draft. The editor's buttons follow its
+// mode, not its host: a view-only editor has only a back arrow, live
+// co-editing has only a back arrow that commits, and otherwise Apply and
+// Cancel. A saved visualization is live only while its room is.
+export function figureEditorKeepLine(
+  host: FigureEditorHost,
+  mode: FigureEditorMode,
+): string {
+  if (mode.viewOnly) {
+    return "Nothing here is saved: the draft is for looking at, and the back arrow closes it, keeping nothing.";
+  }
+  if (mode.live) {
+    return `Live co-editing is on: every change is already in the ${host}, saved and shared with anyone else editing it, as it is made. The editor's back arrow closes it; there is no Cancel, and the user takes a change back with undo.`;
+  }
+  return "The user keeps the result with the editor's Apply button or discards it with Cancel.";
+}
+
 const FIGURE_EDITOR_TOOLS_LINES =
-  `get_figure_editor reads the draft as it stands in the editor (metric, type, disaggregations and their display slots, filters, the replicant, the period and the captions). update_figure_editor changes the draft in place: pass only the fields to change; the change shows in the editor at once. The chart type can be changed here, which is the one place it can.`;
+  `get_figure_editor reads the draft as it stands in the editor (metric, type, disaggregations and their display slots, filters, the replicant, the period and the captions). update_figure_editor changes the draft in place: pass only the fields to change; the change shows in the editor at once. The chart type can be changed here, which is the one place it can. ${FIGURE_EDITOR_LOOK_LINE}`;
 
 export function getFigureEditorInstructions(
   label: string,
   host: FigureEditorHost,
+  mode: FigureEditorMode,
 ): string {
+  const keepLine = figureEditorKeepLine(host, mode);
   switch (host) {
     case "slide":
       return `# Current View: Figure editor (slide)
 
-The user is editing the figure "${label}" of the open slide in the figure editor. ${FIGURE_EDITOR_TOOLS_LINES} The user keeps the result with the editor's Apply button or discards it with Cancel; under live co-editing every change streams into the deck as it is made. The figure resolves under the deck's results package and scope.`;
+The user is editing the figure "${label}" of the open slide in the figure editor. ${FIGURE_EDITOR_TOOLS_LINES} ${keepLine} The figure resolves under the deck's results package and scope.`;
     case "report":
       return `# Current View: Figure editor (report)
 
-The user is editing the figure "${label}" of the open report in the figure editor. ${FIGURE_EDITOR_TOOLS_LINES} The user keeps the result with the editor's Apply button or discards it with Cancel; under live co-editing every change streams into the report as it is made. The figure resolves under the report's results package and scope.`;
+The user is editing the figure "${label}" of the open report in the figure editor. ${FIGURE_EDITOR_TOOLS_LINES} ${keepLine} The figure resolves under the report's results package and scope.`;
     case "visualization":
       return `# Current View: Saved visualization
 
-The user is editing the saved visualization "${label}", a product of its own that holds this one figure. ${FIGURE_EDITOR_TOOLS_LINES} There is no Apply: every change is saved and shared with anyone else editing it as it is made. The figure resolves under the visualization's own results package and scope. Only this visualization is in view: no other product, slide deck or report can be read or changed from here.`;
+The user is editing the saved visualization "${label}", a product of its own that holds this one figure. ${FIGURE_EDITOR_TOOLS_LINES} ${keepLine} The figure resolves under the visualization's own results package and scope. Only this visualization is in view: no other product, slide deck or report can be read or changed from here.`;
     case "package":
       return `# Current View: Figure viewer (package)
 
-The user is looking at the package's preset "${label}" in the figure viewer, which belongs to no product: the draft is for looking at, and closing the viewer keeps nothing. ${FIGURE_EDITOR_TOOLS_LINES} The figure resolves under the package page's package and scope.`;
+The user is looking at the package's preset "${label}" in the figure viewer, which belongs to no product. ${FIGURE_EDITOR_TOOLS_LINES} ${keepLine} The figure resolves under the package page's package and scope.`;
   }
 }
 
@@ -252,61 +270,6 @@ The user has one HFA indicator open in its code editor. You work on the editor's
 ${guidance}
 
 ${NO_PACKAGE_LINE}`;
-}
-
-// ── Editing mode instructions ──
-
-export function getEditingSlideDeckInstructions(deckLabel: string): string {
-  return `# Current View: Editing slide deck
-
-You're editing the slide deck "${deckLabel}".
-
-Every figure in this deck resolves under the deck's own results package and
-scope; you do not choose the package, and no tool takes one.
-
-## Slide Types
-
-1. **Cover Slide:** title, subtitle, presenter, date
-2. **Section Slide:** sectionTitle, sectionSubtitle
-3. **Content Slide:** heading + blocks array (max ${MAX_CONTENT_BLOCKS} blocks)
-
-## Content Blocks
-
-**Text (markdown):** { "type": "text", "markdown": "..." }
-**From metric:** { "type": "from_metric", "metricId": "...", "vizPresetId": "...", "chartTitle": "..." }
-
-A figure is always a metric plus one of that metric's presets. There is no
-figure library to clone from: to reuse a figure, duplicate the slide that holds
-it.
-
-**IMPORTANT:** Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type preset.
-
-## Text Length Guidelines
-
-**Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide** (adjust down if slide has multiple figures)
-**Absolute maximum: ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words per slide**
-
-Keep text concise and focused. Slides with figures should have less text. Use bullet points, not paragraphs.
-
-## Communication Style
-
-When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a3k', 't2n') — these are meaningless to the user. Instead, refer to slides by their position (e.g. "slide 3"), title (e.g. "the ANC Coverage slide"), or type (e.g. "the cover slide"). Refer to blocks by their content (e.g. "the bar chart showing immunization rates", "the text block on the left"). Use IDs only in tool calls, never in your messages to the user.
-
-## The Open Slide
-
-The deck editor shows the deck's slides in a rail with one slide open beside it. The view state names the open slide, or says there is none. An edit to the open slide shows on the canvas at once and saves automatically; an edit to any other slide is saved immediately. Every slide tool takes a slideId and works on any slide of the deck, open or not, so never ask the user to open, close or switch a slide or a view.
-
-## Workflow
-
-1. Call get_deck FIRST to understand the deck's structure
-2. Call get_slide before changing any slide: it shows the slide's content and block IDs (the open slide as the canvas shows it, unsaved changes included) and each figure's full config
-3. Choose the right tool for the job:
-   - **Change text, blocks or layout** (a cover's or section's fields, a content slide's header, a block's content, adding, removing, rearranging or resizing blocks) → update_slide
-   - **Tweak an existing figure** (replicant, filters, disaggregation, period, captions; not the chart type) → update_figure (slideId + blockId)
-   - **Rebuild a slide from scratch or change its type** → replace_slide (last resort)
-   - **Change the deck's structure** → create_slide, delete_slides, duplicate_slides, move_slides
-4. Call get_metric_data before creating any from_metric block, to check the data it needs is available
-5. Filter a content slide's from_metric block to the indicators the slide's text names: an unfiltered multi-indicator metric draws one panel per indicator, and the slide's layout overflows the page`;
 }
 
 // The view states of the Results, Explore and Data pages: what the user is
@@ -430,7 +393,7 @@ export function formatExploreState(
     `Family: ${selection.family ?? "none"}`,
     selection.module === undefined
       ? undefined
-      : `Module: ${selection.module.label} (${selection.module.id})`,
+      : `Module: ${labelWithId(selection.module.label, selection.module.id)}`,
     selection.view === undefined
       ? undefined
       : `View: ${t3(selection.view.label)} (${selection.view.id})`,
@@ -455,9 +418,9 @@ function stageLabel(progress: RunProgress | null): string | undefined {
 export function formatPackageState(args: {
   status: RunCatalogStatus;
   progress: RunProgress | null;
-  openModuleId: string | undefined;
+  openModule: InstalledModuleSummary | undefined;
 }): string {
-  const { status, progress, openModuleId } = args;
+  const { status, progress, openModule } = args;
   const stage = stageLabel(progress);
   switch (status) {
     case "generating": {
@@ -482,7 +445,9 @@ export function formatPackageState(args: {
     case "ready":
       return joinParts([
         "Status: ready",
-        openModuleId === undefined ? undefined : `open module: ${openModuleId}`,
+        openModule === undefined
+          ? undefined
+          : `open module: ${labelWithId(openModule.label, openModule.id)}`,
       ]);
     case "retired":
       return "Status: retired";

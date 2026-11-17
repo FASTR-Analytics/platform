@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -13,11 +13,11 @@ import {
   t3,
   TextArea,
 } from "../../deps.ts";
-import {
-  type AskUserQuestionsAnswer,
-  type AskUserQuestionsInput,
-  OWN_ANSWER_PREFIX,
+import type {
+  AskUserQuestionsAnswer,
+  AskUserQuestionsInput,
 } from "../../_core/ask_user_questions_types.ts";
+import { submitsOnKey } from "../message_input.tsx";
 
 type Props = {
   input: AskUserQuestionsInput;
@@ -27,12 +27,10 @@ type Props = {
 
 export function AskUserQuestionsRenderer(p: Props) {
   const [selected, setSelected] = createSignal<string[]>([]);
+  const [ownOpen, setOwnOpen] = createSignal(false);
+  const [ownText, setOwnText] = createSignal("");
   const [submitted, setSubmitted] = createSignal(false);
-  // The user's own answer: always offered after the model's options, so a
-  // question never forces a choice the user does not mean. Single-select
-  // makes it exclusive with the options; multi-select adds it to them.
-  const [otherOn, setOtherOn] = createSignal(false);
-  const [otherText, setOtherText] = createSignal("");
+  let containerRef: HTMLDivElement | undefined;
 
   // Deliberately NO onCleanup cancel (decision log #6): unmount is inert —
   // a pane hidden in a tab/<Show> leaves the question pending and
@@ -41,8 +39,7 @@ export function AskUserQuestionsRenderer(p: Props) {
 
   const options = () => Array.isArray(p.input?.options) ? p.input.options : [];
 
-  const allAnswered = () =>
-    otherOn() ? otherText().trim().length > 0 : selected().length > 0;
+  const answer = () => answerOf(selected(), ownOpen() ? ownText() : undefined);
 
   function handleSelect(label: string) {
     if (submitted()) return;
@@ -55,17 +52,21 @@ export function AskUserQuestionsRenderer(p: Props) {
       }
     } else {
       setSelected([label]);
-      setOtherOn(false);
+      setOwnOpen(false);
     }
   }
 
-  function handleSelectOther() {
+  function handleToggleOwn() {
     if (submitted()) return;
-    if (p.input.allowMultiple) {
-      setOtherOn(!otherOn());
-    } else {
+    if (!p.input.allowMultiple) {
       setSelected([]);
-      setOtherOn(true);
+    }
+    const open = p.input.allowMultiple ? !ownOpen() : true;
+    setOwnOpen(open);
+    // The transcript never follows a card's own growth, and the text box
+    // opens under the card's last row.
+    if (open) {
+      containerRef?.scrollIntoView({ block: "end" });
     }
   }
 
@@ -74,13 +75,10 @@ export function AskUserQuestionsRenderer(p: Props) {
   }
 
   function handleSubmit() {
-    if (!allAnswered() || submitted()) return;
+    const current = answer();
+    if (current === undefined || submitted()) return;
     setSubmitted(true);
-    const own = otherOn() ? [`${OWN_ANSWER_PREFIX}${otherText().trim()}`] : [];
-    const answer = p.input.allowMultiple
-      ? [...selected(), ...own]
-      : own[0] ?? selected()[0];
-    p.onSubmit(answer);
+    p.onSubmit(current);
   }
 
   function handleCancel() {
@@ -89,7 +87,17 @@ export function AskUserQuestionsRenderer(p: Props) {
     p.onCancel();
   }
 
-  let containerRef: HTMLDivElement | undefined;
+  const rowClasses = (on: boolean) => ({
+    "w-full rounded border px-3 py-2 text-left": true,
+    "border-primary bg-primary-subtle": on,
+    "ui-hoverable-base-100": !on && !submitted(),
+    "opacity-60": !on && submitted(),
+    "cursor-pointer": !submitted(),
+    "cursor-default": submitted(),
+  });
+
+  const rowTextClass = (on: boolean) => on ? "text-sm font-700" : "text-sm";
+
   onMount(() => {
     containerRef?.scrollIntoView({ block: "end" });
   });
@@ -114,23 +122,11 @@ export function AskUserQuestionsRenderer(p: Props) {
               type="button"
               disabled={submitted()}
               onClick={() => handleSelect(option.label)}
-              classList={{
-                "w-full rounded border px-3 py-2 text-left": true,
-                "border-primary bg-primary-subtle": isSelected(
-                  option.label,
-                ),
-                " ui-hoverable-base-100": !isSelected(option.label) &&
-                  !submitted(),
-                " opacity-60": !isSelected(option.label) &&
-                  submitted(),
-                "cursor-pointer": !submitted(),
-                "cursor-default": submitted(),
-              }}
+              aria-pressed={isSelected(option.label)}
+              classList={rowClasses(isSelected(option.label))}
             >
               <StableWeightText
-                class={isSelected(option.label)
-                  ? "text-sm font-700"
-                  : "text-sm"}
+                class={rowTextClass(isSelected(option.label))}
                 text={option.label}
               />
               <Show when={option.description}>
@@ -144,18 +140,12 @@ export function AskUserQuestionsRenderer(p: Props) {
         <button
           type="button"
           disabled={submitted()}
-          onClick={handleSelectOther}
-          classList={{
-            "w-full rounded border px-3 py-2 text-left": true,
-            "border-primary bg-primary-subtle": otherOn(),
-            " ui-hoverable-base-100": !otherOn() && !submitted(),
-            " opacity-60": !otherOn() && submitted(),
-            "cursor-pointer": !submitted(),
-            "cursor-default": submitted(),
-          }}
+          onClick={handleToggleOwn}
+          aria-expanded={ownOpen()}
+          classList={rowClasses(ownOpen())}
         >
           <StableWeightText
-            class={otherOn() ? "text-sm font-700" : "text-sm"}
+            class={rowTextClass(ownOpen())}
             text={t3({
               en: "Other (write your own answer)",
               fr: "Autre (écrivez votre propre réponse)",
@@ -164,10 +154,16 @@ export function AskUserQuestionsRenderer(p: Props) {
             })}
           />
         </button>
-        <Show when={otherOn()}>
+        <Show when={ownOpen()}>
           <TextArea
-            value={otherText()}
-            onChange={setOtherText}
+            value={ownText()}
+            onChange={setOwnText}
+            onKeyDown={(e) => {
+              if (submitsOnKey(e)) {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
             placeholder={t3({
               en: "Type your answer...",
               fr: "Saisissez votre réponse...",
@@ -179,13 +175,6 @@ export function AskUserQuestionsRenderer(p: Props) {
             fullWidth
             autoFocus
             disabled={submitted()}
-            // Enter sends, as in the chat box; Shift+Enter is a new line.
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit();
-              }
-            }}
           />
         </Show>
       </div>
@@ -193,7 +182,7 @@ export function AskUserQuestionsRenderer(p: Props) {
         <div class="mt-3 flex items-center gap-3">
           <Button
             intent="primary"
-            disabled={!allAnswered()}
+            disabled={answer() === undefined}
             onClick={handleSubmit}
           >
             {t3({ en: "Submit", fr: "Envoyer", pt: "Enviar", th: "ส่ง" })}
@@ -209,4 +198,15 @@ export function AskUserQuestionsRenderer(p: Props) {
       </Show>
     </div>
   );
+}
+
+function answerOf(
+  selected: string[],
+  ownText: string | undefined,
+): AskUserQuestionsAnswer | undefined {
+  if (ownText === undefined) {
+    return selected.length > 0 ? { selected } : undefined;
+  }
+  const ownAnswer = ownText.trim();
+  return ownAnswer === "" ? undefined : { selected, ownAnswer };
 }

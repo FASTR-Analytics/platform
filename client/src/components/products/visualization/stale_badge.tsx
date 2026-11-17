@@ -4,8 +4,8 @@ import {
   type ProductSummary,
   t3,
 } from "lib";
-import { Icon, openAlert } from "panther";
-import { createSignal, Show } from "solid-js";
+import { type APIResponseNoData, createButtonAction, Icon } from "panther";
+import { Show } from "solid-js";
 import { packageLabel, scopeLabel } from "~/components/_shared/mod.ts";
 import { updateFigureToScope } from "~/components/_shared/figure_editor/mod.ts";
 import { serverActions } from "~/server_actions";
@@ -37,7 +37,6 @@ export function VisualizationStaleBadge(p: { product: ProductSummary }) {
 }
 
 function Badge(p: { product: VisualizationSummary }) {
-  const [busy, setBusy] = createSignal(false);
   const canEdit = () => canEditProduct(p.product.id);
   const target = () =>
     `${packageLabel(p.product.runId)} · ${scopeLabel(p.product.scopeId)}`;
@@ -62,19 +61,14 @@ function Badge(p: { product: VisualizationSummary }) {
           `Criada a partir de outro pacote ou âmbito que ${target()}. Quem a pode editar pode atualizá-la.`,
       });
 
-  async function update(e: MouseEvent) {
+  const action = createButtonAction(() => updateToCurrentPair(p.product));
+  const busy = () => action.state().status === "loading";
+
+  function update(e: MouseEvent) {
     // The row opens the visualization on click; the badge is its own action.
     e.stopPropagation();
     if (!canEdit() || busy()) return;
-    setBusy(true);
-    try {
-      const reason = await updateToCurrentPair(p.product);
-      if (reason !== undefined) {
-        await openAlert({ text: reason, intent: "danger" });
-      }
-    } finally {
-      setBusy(false);
-    }
+    void action.click();
   }
 
   return (
@@ -89,7 +83,7 @@ function Badge(p: { product: VisualizationSummary }) {
       title={title()}
       aria-label={title()}
       disabled={busy()}
-      onClick={(e) => void update(e)}
+      onClick={update}
       onKeyDown={(e) => e.stopPropagation()}
     >
       <Icon iconName={busy() ? "loader" : "refresh"} />
@@ -99,26 +93,24 @@ function Badge(p: { product: VisualizationSummary }) {
 }
 
 // Re-resolve the stored figure under the product's current pair and save it.
-// Undefined when it was saved; else why it could not be.
 async function updateToCurrentPair(
   product: VisualizationSummary,
-): Promise<string | undefined> {
+): Promise<APIResponseNoData> {
   const pair = productScope(product);
   const detail = await getVisualizationDetailFromCacheOrFetch(product.id);
-  if (!detail.success) return detail.err;
+  if (!detail.success) return detail;
   const context = await getRunAuthoringContextFromCacheOrFetch(
     resolveScope(pair),
   );
-  if (!context.success) return context.err;
+  if (!context.success) return context;
   const resolved = await updateFigureToScope(
     pair,
     context.data,
     detail.data.bundle,
   );
-  if (!resolved.ok) return resolved.reason;
-  const saved = await serverActions.updateVisualization({
+  if (!resolved.ok) return { success: false, err: resolved.reason };
+  return serverActions.updateVisualization({
     product_id: product.id,
     bundle: resolved.bundle,
   });
-  return saved.success ? undefined : saved.err;
 }

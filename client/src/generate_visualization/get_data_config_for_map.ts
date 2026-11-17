@@ -1,10 +1,14 @@
 import type { MapJsonDataConfig } from "panther";
 import {
+  type FigureLocalization,
   getDisaggregatorDisplayProp,
   type PresentationObjectConfig,
   type ResultsValueForVisualization,
 } from "lib";
-import { getAxisSort } from "./get_data_config_from_po";
+import {
+  getAxisSort,
+  getBlankLabelReplacements,
+} from "./get_data_config_from_po";
 
 export function getMapJsonDataConfigFromPresentationObjectConfig(
   resultsValue: ResultsValueForVisualization,
@@ -12,6 +16,7 @@ export function getMapJsonDataConfigFromPresentationObjectConfig(
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
   catalogIdOrder: string[],
+  localization: Pick<FigureLocalization, "language">,
 ): MapJsonDataConfig {
   if (config.d.type !== "map") {
     throw new Error("Bad config type");
@@ -19,7 +24,7 @@ export function getMapJsonDataConfigFromPresentationObjectConfig(
 
   const valueProp = effectiveValueProps[0] ?? "value";
 
-  const areaProp = getDisaggregatorDisplayProp(
+  const mapAreaProp = getDisaggregatorDisplayProp(
     resultsValue,
     config,
     ["mapArea"],
@@ -47,15 +52,18 @@ export function getMapJsonDataConfigFromPresentationObjectConfig(
 
   const dataConfig: MapJsonDataConfig = {
     valueProp,
-    areaProp,
-    areaMatchProp: "area_id",
+    mapAreaProp,
+    mapAreaMatchProp: "area_id",
     paneProp,
     tierProp,
     laneProp,
-    labelReplacements: indicatorLabelReplacements,
-    // Map labelReplacements carry only indicator labels, so by-label on other
-    // dims sorts on raw values, which is what the map displays, keeping sort
-    // key and display consistent.
+    labelReplacements: {
+      ...getBlankLabelReplacements(localization.language),
+      ...indicatorLabelReplacements,
+    },
+    // Map labelReplacements carry only the blank label and indicator labels,
+    // so by-label on other dims sorts on raw values, which is what the map
+    // displays, keeping sort key and display consistent.
     sort: {
       pane: getAxisSort(config, paneProp, catalogIdOrder),
       tier: getAxisSort(config, tierProp, catalogIdOrder),

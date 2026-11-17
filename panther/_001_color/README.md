@@ -1,7 +1,6 @@
 # _001_color
 
-Comprehensive color system with RGB, HSL, and LCH support, color manipulation,
-and palette management.
+Comprehensive color system with RGB, HSL, and LCH support, color manipulation, and palette management.
 
 ## Purpose
 

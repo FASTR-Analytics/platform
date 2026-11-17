@@ -141,7 +141,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                 periodProp: "period_id",
                 periodType: "year-month",
                 seriesProp: "indicator_id",
-                yScaleAxisLabel: t3({
+                yValueAxisLabel: t3({
                   en: "Number of facility records",
                   fr: "Nombre d'enregistrements d'établissements de santé",
                   pt: "Número de registos de estabelecimentos de saúde",
@@ -162,7 +162,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
             }
 
             // Use actual data range for index calculations
-            const dataMinTime = timeseriesData.timeMin;
+            const dataMinTime = timeseriesData.period.timeMin;
 
             // Calculate indices relative to the chart data, but offset by global bounds
             const startTime = getTimeFromPeriodId(
@@ -177,7 +177,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
             // Calculate indices based on the actual data range
             const startTimeIndex = Math.max(0, startTime - dataMinTime);
             const endTimeIndex = Math.min(
-              timeseriesData.nTimePoints - 1,
+              timeseriesData.period.nTimePoints - 1,
               endTime - dataMinTime,
             );
 
@@ -189,7 +189,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
               data: timeseriesData,
               style: {
                 text: {
-                  yScaleAxisLabel: {
+                  yValueAxisLabel: {
                     relFontSize: 0.75,
                   },
                 },
@@ -197,7 +197,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                   padding: { top: 20 },
                   legendPosition: "none",
                 },
-                yScaleAxis: {
+                yValueAxis: {
                   tickLabelFormatter: toNum0,
                 },
                 xPeriodAxis: {
@@ -208,11 +208,12 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                     func: !isDelete
                       ? (pointInfo) => {
                         const inPeriodRange =
-                          pointInfo.i_val >= startTimeIndex &&
-                          pointInfo.i_val <= endTimeIndex;
+                          pointInfo.i_value >= startTimeIndex &&
+                          pointInfo.i_value <= endTimeIndex;
 
                         const inSelectedIndicators = takeAll ||
-                          indicators.includes(pointInfo.seriesHeader.label);
+                          (pointInfo.seriesMember !== undefined &&
+                            indicators.includes(pointInfo.seriesMember.label));
 
                         const isGreen = inPeriodRange && inSelectedIndicators;
                         return isGreen
@@ -231,11 +232,12 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                       }
                       : (pointInfo) => {
                         const inPeriodRange =
-                          pointInfo.i_val >= startTimeIndex &&
-                          pointInfo.i_val <= endTimeIndex;
+                          pointInfo.i_value >= startTimeIndex &&
+                          pointInfo.i_value <= endTimeIndex;
 
                         const inSelectedIndicators = takeAll ||
-                          indicators.includes(pointInfo.seriesHeader.label);
+                          (pointInfo.seriesMember !== undefined &&
+                            indicators.includes(pointInfo.seriesMember.label));
 
                         const isRed = inPeriodRange && inSelectedIndicators;
                         return isRed

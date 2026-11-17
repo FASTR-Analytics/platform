@@ -11,7 +11,12 @@
 //   - reads a blueprint file and the record a deck keeps of one.
 
 import type { LayoutNode } from "@timroberton/panther";
-import type { ContentBlock, Slide, SlideDeckConfig } from "./types/slides.ts";
+import {
+  type ContentBlock,
+  type Slide,
+  type SlideDeckConfig,
+  SPLIT_SIZES_PCT,
+} from "./types/slides.ts";
 import {
   DECK_BLUEPRINT_FORMAT_VERSION,
   DECK_BLUEPRINT_KIND,
@@ -261,6 +266,14 @@ function skeletonBlock(
   };
 }
 
+// The panel's width as a size create_slide accepts (the toolbar's steps):
+// a slide saved before the steps existed may hold another.
+function nearestSplitSize(pct: number): number {
+  return SPLIT_SIZES_PCT.reduce((best, s) =>
+    Math.abs(s - pct) < Math.abs(best - pct) ? s : best
+  );
+}
+
 function splitPattern(
   split: Extract<Slide, { type: "content" }>["split"],
 ): DeckBlueprintSplit | undefined {
@@ -268,14 +281,14 @@ function splitPattern(
   if (split.fill.type === "image") {
     return {
       placement: split.placement,
-      sizeAsPct: split.sizeAsPct,
+      sizeAsPct: nearestSplitSize(split.sizeAsPct),
       fill: { type: "plain" },
       imageNote: "The source showed a picture in this panel.",
     };
   }
   return {
     placement: split.placement,
-    sizeAsPct: split.sizeAsPct,
+    sizeAsPct: nearestSplitSize(split.sizeAsPct),
     fill: split.fill,
   };
 }

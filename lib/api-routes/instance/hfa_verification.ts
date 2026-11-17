@@ -1,8 +1,5 @@
 import { z } from "zod";
-import {
-  hfaVerificationNewFindingSchema,
-  hfaVerificationRulesOffSchema,
-} from "../../hfa_verification.ts";
+import { hfaVerificationRulesOffSchema } from "../../hfa_verification.ts";
 import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import type { HfaVerificationRows } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
@@ -14,18 +11,16 @@ export const hfaVerificationRouteRegistry = {
     guard: GUARD.permission("can_view_data"),
     response: {} as HfaVerificationRows,
   }),
-  saveHfaIndicatorVerifications: route({
-    path: "/hfa-verification/save",
+  startHfaVerificationRun: route({
+    path: "/hfa-verification/run",
     method: "POST",
     guard: GUARD.permission("can_configure_data"),
-    body: z.object({
-      results: z.array(z.object({
-        indicatorId: z.string(),
-        inputHash: z.string(),
-        model: z.string(),
-        findings: z.array(hfaVerificationNewFindingSchema),
-      })).min(1),
-    }),
+    body: z.object({ indicatorIds: z.array(z.string()).min(1) }),
+  }),
+  stopHfaVerificationRun: route({
+    path: "/hfa-verification/run/stop",
+    method: "POST",
+    guard: GUARD.permission("can_configure_data"),
   }),
   setHfaVerificationFindingsDismissed: route({
     path: "/hfa-verification/dismissed",

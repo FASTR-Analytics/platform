@@ -1,17 +1,18 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export {
-  zChartScaleAxisLimits,
-  zChartScaleAxisLimitsEntry,
-  zChartScaleAxisPaneLimits,
-  zHeaderItem,
-  zHeaderItems,
-  zHeaderSortConfig,
+  zChartValueAxisLimits,
+  zChartValueAxisLimitsEntry,
+  zChartValueAxisPaneLimits,
+  zDataDimension,
+  zDimensionMember,
+  zDimensionMembers,
   zJsonArray,
   zJsonArrayItem,
+  zMemberSortConfig,
   zPeriodType,
   zUncertaintyConfig,
 } from "./shared.ts";

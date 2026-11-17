@@ -1,0 +1,208 @@
+// Pins the CSV `get_metric_data` writes: long format, one row per item, each
+// row naming every dimension as the data holds it, no row for a value the data
+// does not hold, and a label with a comma or a quote kept in one cell; the
+// time range it states, which is the rows' own and not the window asked for;
+// and the status it gives when a query returns too many items.
+//
+//   deno test -A --no-check server/tests/format_metric_data_for_ai_test.ts
+
+import { assert, assertEquals } from "@std/assert";
+import { getMetricDataForAI } from "../../lib/ai_tools/format_metric_data_for_ai.ts";
+import type { AIToolEnv } from "../../lib/ai_tools/env.ts";
+import type {
+  AiMetricQuery,
+  JsonArrayItem,
+  MetricWithStatus,
+} from "../../lib/types/mod.ts";
+
+const METRIC = {
+  id: "m_test",
+  resultsObjectId: "ro_test",
+  valueProps: ["value"],
+  valueFunc: "SUM",
+  label: "Test metric",
+  formatAs: "number",
+  disaggregationOptions: [
+    { value: "indicator_common_id", isRequired: true },
+    { value: "admin_area_2", isRequired: false },
+    { value: "period_id", isRequired: false },
+    { value: "year", isRequired: false },
+  ],
+  mostGranularTimePeriodColumnInResultsFile: "period_id",
+  status: "ready",
+  moduleId: "m001",
+} as unknown as MetricWithStatus;
+
+const AREA_BY_INDICATOR: Record<string, string> = {
+  anc1: "Western Area, Urban",
+  penta3: 'Bo "Town"',
+};
+
+// Two indicators by three periods, anc1 missing 202303.
+const ITEMS: JsonArrayItem[] = [
+  ["anc1", 202301, 10],
+  ["anc1", 202302, 11],
+  ["penta3", 202301, 20],
+  ["penta3", 202302, 21],
+  ["penta3", 202303, 22],
+].map(([indicator, period, value]) => ({
+  indicator_common_id: indicator,
+  admin_area_2: AREA_BY_INDICATOR[indicator],
+  period_id: period,
+  year: 2023,
+  value,
+}));
+
+const ENV: AIToolEnv = {
+  getItems: (params) =>
+    Promise.resolve({
+      success: true,
+      data: {
+        resultsObjectId: params.resultsObjectId,
+        fetchConfig: params.fetchConfig,
+        runId: "run_test",
+        scopeToken: "all-data",
+        dateRange: { min: 202301, max: 202303 },
+        status: "ok",
+        items: ITEMS,
+        indicatorMetadata: [],
+      },
+    }),
+  getResultsValueInfo: () =>
+    Promise.resolve({ success: false, err: "not needed" }),
+};
+
+async function csvLines(): Promise<string[]> {
+  const text = await getMetricDataForAI(
+    ENV,
+    {
+      metricId: METRIC.id,
+      disaggregations: ["admin_area_2", "period_id", "year"],
+    },
+    [METRIC],
+  );
+  return text.split("## Data (CSV)\n\n")[1].split("\n");
+}
+
+Deno.test("one row per item, each naming its indicator and period", async () => {
+  const [header, ...rows] = await csvLines();
+  assertEquals(
+    header,
+    "indicator_common_id,admin_area_2,period_id,year,value",
+  );
+  assertEquals(rows.length, ITEMS.length);
+  for (const [i, item] of ITEMS.entries()) {
+    assert(rows[i].startsWith(`${item.indicator_common_id},`), rows[i]);
+    assert(rows[i].includes(`,${item.period_id},`), rows[i]);
+  }
+});
+
+Deno.test("a value the data does not hold writes no row", async () => {
+  const [, ...rows] = await csvLines();
+  for (const row of rows) {
+    assert(!row.endsWith(","), row);
+    assert(!row.includes(",,"), row);
+  }
+});
+
+Deno.test("period_id and year are written as they are", async () => {
+  const [, first] = await csvLines();
+  assertEquals(
+    first,
+    `anc1,"Western Area, Urban",202301,2023,10.00`,
+  );
+});
+
+Deno.test("a label with a comma is quoted, one with a quote escaped", async () => {
+  const [, ...rows] = await csvLines();
+  for (const row of rows) {
+    assert(
+      row.startsWith("anc1,")
+        ? row.includes(`,"Western Area, Urban",`)
+        : row.includes(`,"Bo ""Town""",`),
+      row,
+    );
+  }
+});
+
+// Each disaggregation splits rows, so adding one never brings a query under
+// the item limit.
+Deno.test("too many items tells the model to remove disaggregations, never to add them", async () => {
+  const text = await getMetricDataForAI(
+    {
+      ...ENV,
+      getItems: (params) =>
+        Promise.resolve({
+          success: true,
+          data: {
+            resultsObjectId: params.resultsObjectId,
+            fetchConfig: params.fetchConfig,
+            runId: "run_test",
+            scopeToken: "all-data",
+            dateRange: undefined,
+            status: "too_many_items",
+          },
+        }),
+    },
+    { metricId: METRIC.id, disaggregations: ["admin_area_2", "period_id"] },
+    [METRIC],
+  );
+  const status = text.split("\n").find((line) => line.includes("STATUS"));
+  assert(status?.includes("remove disaggregations"), status);
+  assert(!/add[^,]*disaggregations/.test(status!), status);
+});
+
+// A custom filter's window is the requested bounds, whatever the data holds.
+const WINDOW_ASKED = { min: 202301, max: 202312 };
+
+async function textFor(
+  items: JsonArrayItem[],
+  disaggregations: AiMetricQuery["disaggregations"],
+): Promise<string> {
+  return await getMetricDataForAI(
+    {
+      ...ENV,
+      getItems: (params) =>
+        Promise.resolve({
+          success: true,
+          data: {
+            resultsObjectId: params.resultsObjectId,
+            fetchConfig: params.fetchConfig,
+            runId: "run_test",
+            scopeToken: "all-data",
+            dateRange: WINDOW_ASKED,
+            status: "ok",
+            items,
+            indicatorMetadata: [],
+          },
+        }),
+    },
+    { metricId: METRIC.id, disaggregations },
+    [METRIC],
+  );
+}
+
+Deno.test("the time range in data is the rows' own, not the window asked for", async () => {
+  const text = await textFor(ITEMS, ["admin_area_2", "period_id", "year"]);
+  assert(
+    text.includes("**Time range in data:** period_id (202301 to 202303)"),
+    text,
+  );
+  assert(!text.includes("202312"), text);
+});
+
+Deno.test("rows with no period column state the window they aggregate", async () => {
+  const text = await textFor(
+    ITEMS.map(({ indicator_common_id, admin_area_2, value }) => ({
+      indicator_common_id,
+      admin_area_2,
+      value,
+    })),
+    ["admin_area_2"],
+  );
+  assert(!text.includes("Time range in data"), text);
+  assert(
+    text.includes("**Period window:** period_id (202301 to 202312)"),
+    text,
+  );
+});

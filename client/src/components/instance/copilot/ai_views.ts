@@ -8,7 +8,9 @@ import type {
   AIViewController,
   AIViewState,
   AnyAIView,
+  APIResponseNoData,
   APIResponseWithData,
+  FigureInputs,
 } from "panther";
 import {
   COPILOT_PACKAGE_VIEWS,
@@ -17,6 +19,7 @@ import {
   type CopilotViewId,
   copilotViewIdentity,
   getEditingReportInstructions,
+  getEditingSlideDeckInstructions,
   getSlideTitle,
   isUntouchedReport,
   productLevelAtLeast,
@@ -26,6 +29,7 @@ import type {
   DatasetType,
   FigureBlock,
   FigureLocalization,
+  FigureUnavailable,
   HfaDictionaryForValidation,
   HfaIndicator,
   HfaIndicatorCode,
@@ -34,7 +38,9 @@ import type {
   HfaIndicatorVariantCode,
   HfaTaxonomyInput,
   ImageBlock,
+  InstalledModuleSummary,
   MetricWithStatus,
+  PeriodBounds,
   PresentationObjectConfig,
   ReportBackbone,
   ResolvedPackageScope,
@@ -42,6 +48,7 @@ import type {
   RunProgress,
   Slide,
   SlideDeckConfig,
+  TranslatableString,
 } from "lib";
 import { onCleanup } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
@@ -57,6 +64,9 @@ import {
 import {
   type DataSectionForAI,
   type ExploreSelection,
+  type FigureEditorHost,
+  figureEditorKeepLine,
+  type FigureEditorMode,
   formatDataState,
   formatExploreState,
   formatPackageState,
@@ -64,7 +74,6 @@ import {
   getAssetsInstructions,
   getDataPageInstructions,
   getDeckSettingsInstructions,
-  getEditingSlideDeckInstructions,
   getFigureEditorInstructions,
   getHfaIndicatorEditorInstructions,
   getHfaIndicatorsInstructions,
@@ -228,10 +237,10 @@ export type EditingSlideDeckContext = PackageViewContext & {
   deleteSlides: (
     slideIds: string[],
   ) => Promise<APIResponseWithData<{ deletedIds: string[] }>>;
-  // The deck's own settings save, as the Deck menu runs it: applied
-  // optimistically, rolled back with an alert on failure. Resolves whether
-  // it saved.
-  patchDeckConfig: (patch: Partial<SlideDeckConfig>) => Promise<boolean>;
+  // The Deck menu's save (slide_deck.tsx, patchDeckConfig).
+  patchDeckConfig: (
+    patch: Partial<SlideDeckConfig>,
+  ) => Promise<APIResponseNoData>;
 };
 
 export type EditingReportParams = {
@@ -252,11 +261,41 @@ export type EditingReportContext = PackageViewContext & {
   getBackbone: () => { label: string; backbone: ReportBackbone } | undefined;
   proposeEdit: (proposal: ReportEditProposal) => ReportEditProposalResult;
   applyFigureUpdate: (figureId: string, block: FigureBlock) => Promise<boolean>;
+  // A figure as the report draws it: the embed's own inputs, palette and ink
+  // applied, and the colour of the ground it sits on. Undefined for an id
+  // the report does not hold.
+  getFigureLook: (
+    figureId: string,
+  ) => { draw: ReportFigureDraw; ground: string } | undefined;
 };
+
+// A report figure's inputs as the report draws it, or the reason it cannot:
+// a reason the build gave as data, so each surface words it in its own
+// language, or an error's text.
+export type ReportFigureDraw =
+  | { ok: true; inputs: FigureInputs }
+  | { ok: false; err: string }
+  | { ok: false; unavailable: FigureUnavailable };
 
 export type ReportParams = {
   reportId: string;
 };
+
+// What a figure editor's preview shows: the figure's inputs and the period
+// range of its items, or what stands in for them. The preview's own words are
+// kept in every language where it has them, so the user reads theirs and the
+// copilot reads English.
+export type FigureEditorPreviewText = TranslatableString | string;
+export type FigureEditorPreview =
+  | {
+    status: "ready";
+    inputs: FigureInputs;
+    dateRange: PeriodBounds | undefined;
+  }
+  | { status: "loading"; msg?: FigureEditorPreviewText }
+  | { status: "notice"; msg: TranslatableString }
+  | { status: "error"; err: FigureEditorPreviewText }
+  | { status: "unavailable"; reason: FigureUnavailable };
 
 // A figure editor's view: the figure it edits or shows, by its metric, and
 // its draft config live, read and applied. `figureId` names the slide block,
@@ -269,7 +308,43 @@ export type FigureEditorContext = PackageViewContext & {
    *  preview a patch labels it exactly as the figure does. */
   getLocalization: () => FigureLocalization;
   applyDraftConfig: (config: PresentationObjectConfig) => void;
+  getPreview: () => FigureEditorPreview;
+  isViewOnly: () => boolean;
+  isLive: () => boolean;
 };
+
+function figureEditorMode(context: FigureEditorContext): FigureEditorMode {
+  return { viewOnly: context.isViewOnly(), live: context.isLive() };
+}
+
+const FIGURE_EDITOR_HOSTS: Record<FigureEditorView["id"], FigureEditorHost> = {
+  editing_slide_figure: "slide",
+  editing_report_figure: "report",
+  editing_visualization: "visualization",
+  viewing_package_figure: "package",
+};
+
+export function figureEditorKeepLineFor(
+  viewId: FigureEditorView["id"],
+  context: FigureEditorContext,
+): string {
+  return figureEditorKeepLine(
+    FIGURE_EDITOR_HOSTS[viewId],
+    figureEditorMode(context),
+  );
+}
+
+function figureEditorInstructionsFor(
+  viewId: FigureEditorView["id"],
+  context: FigureEditorContext,
+): string {
+  return getFigureEditorInstructions(
+    context.getLabel(),
+    FIGURE_EDITOR_HOSTS[viewId],
+    figureEditorMode(context),
+  );
+}
+
 export type EditingSlideFigureParams = {
   deckId: string;
   slideId: string;
@@ -354,11 +429,12 @@ export type PackagePageContext = PackageViewContext & {
   getLabel: () => string;
   getStatus: () => RunCatalogStatus;
   getProgress: () => RunProgress | null;
-  getOpenModuleId: () => string | undefined;
+  getOpenModule: () => InstalledModuleSummary | undefined;
 };
 
-// The Data switchboard's view: its rows' labels and status marks, read live
-// from the page.
+// The Data switchboard's view and its pages' views: the switchboard's rows'
+// labels and status marks, read live from the switchboard, which stays
+// mounted under its pages.
 export type DataContext = {
   getSections: () => DataSectionForAI[];
 };
@@ -493,7 +569,7 @@ export const copilotViews = defineAIViews(
           pair: pairOf(context),
         }),
       instructions: (_params, context) =>
-        getFigureEditorInstructions(context.getLabel(), "slide"),
+        figureEditorInstructionsFor("editing_slide_figure", context),
     }),
     deck_settings: view<EditingSlideDeckParams, ProductViewContext>({
       label: (_params, context) => context.getLabel(),
@@ -581,7 +657,7 @@ export const copilotViews = defineAIViews(
           pair: pairOf(context),
         }),
       instructions: (_params, context) =>
-        getFigureEditorInstructions(context.getLabel(), "report"),
+        figureEditorInstructionsFor("editing_report_figure", context),
     }),
     editing_visualization: view<
       EditingVisualizationParams,
@@ -594,7 +670,7 @@ export const copilotViews = defineAIViews(
           pair: pairOf(context),
         }),
       instructions: (params, context) =>
-        `${getFigureEditorInstructions(context.getLabel(), "visualization")}${
+        `${figureEditorInstructionsFor("editing_visualization", context)}${
           productViewOnlyLine(params.productId)
         }`,
     }),
@@ -633,7 +709,7 @@ export const copilotViews = defineAIViews(
         formatPackageState({
           status: context.getStatus(),
           progress: context.getProgress(),
-          openModuleId: context.getOpenModuleId(),
+          openModule: context.getOpenModule(),
         }),
     }),
     viewing_package_figure: view<
@@ -647,7 +723,7 @@ export const copilotViews = defineAIViews(
           pair: pairOf(context),
         }),
       instructions: (_params, context) =>
-        getFigureEditorInstructions(context.getLabel(), "package"),
+        figureEditorInstructionsFor("viewing_package_figure", context),
     }),
     module_defaults: view({ label: "Module defaults" }),
     scopes: view({ label: "Scopes" }),
@@ -655,7 +731,7 @@ export const copilotViews = defineAIViews(
       label: "Data",
       state: (_params, context) => formatDataState(context.getSections()),
     }),
-    data_page: view<DataPageParams, void>({
+    data_page: view<DataPageParams, DataContext>({
       label: (params) =>
         params.family === undefined
           ? params.page
@@ -667,6 +743,7 @@ export const copilotViews = defineAIViews(
         }),
       instructions: (params) =>
         getDataPageInstructions(params.page, params.family),
+      state: (_params, context) => formatDataState(context.getSections()),
     }),
     hfa_indicators: view<void, HfaIndicatorsContext>({
       label: "HFA indicators",
@@ -839,7 +916,7 @@ export function restoreCopilotView(state: CopilotViewState): void {
       );
       return;
     case "data_page":
-      copilotViewController.setView("data_page", state.params);
+      copilotViewController.setView("data_page", state.params, state.context);
       return;
     case "hfa_indicator_editor":
       copilotViewController.setView(

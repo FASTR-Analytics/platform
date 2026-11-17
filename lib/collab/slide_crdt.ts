@@ -55,6 +55,7 @@ import {
   seedFigureConfigMap,
   syncFigureConfigToMap,
 } from "./figure_config_crdt.ts";
+import { setFigData } from "./figure_entry_crdt.ts";
 
 // ── Figure node representation (decomposed) ──────────────────────────────────
 //
@@ -801,7 +802,7 @@ function syncFigureNode(
     }
     syncFigureConfigToMap(cfgMap as Y.Map<unknown>, config);
   }
-  setOpaque(m, FIG_DATA_KEY, figData);
+  setFigData(m, figData);
   if (m.has(FIG_BUNDLE_LEGACY_KEY)) {
     m.delete(FIG_BUNDLE_LEGACY_KEY); // convert legacy
   }

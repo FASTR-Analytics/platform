@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -15,6 +15,7 @@ import type {
   ResolvedTableHeaders,
   RowHeaderInfo,
 } from "../types.ts";
+import { tableColGroups, tableRowGroups } from "../types.ts";
 
 // Style for headers with no label: mText is undefined, so no text is ever
 // rendered and the alignment values here are inert — present only to satisfy
@@ -34,15 +35,15 @@ export function getRowHeaderInfos(
 ): RowHeaderInfo[] {
   const d = resolved.data;
   const rowHeaderInfos: RowHeaderInfo[] = [];
-  const nRows = d.rowGroups.reduce((sum, rg) => sum + rg.rows.length, 0);
+  const nRows = tableRowGroups(d).reduce((sum, rg) => sum + rg.rows.length, 0);
 
-  d.rowGroups.forEach((rowGroup, groupIndex) => {
+  tableRowGroups(d).forEach((rowGroup, groupIndex) => {
     if (rowGroup.label) {
       const info: TableHeaderInfo = {
         id: rowGroup.id,
         label: rowGroup.label,
         index: undefined,
-        itemCount: nRows,
+        nRowsOrCols: nRows,
         isGroupHeader: true,
         ...(resolved.rowGroupSampleN[groupIndex] !== undefined
           ? { sampleN: resolved.rowGroupSampleN[groupIndex] }
@@ -78,7 +79,7 @@ export function getRowHeaderInfos(
         id: row.id,
         label: row.label,
         index: row.index,
-        itemCount: nRows,
+        nRowsOrCols: nRows,
         isGroupHeader: false,
         ...(resolved.rowSampleN[row.index] !== undefined
           ? { sampleN: resolved.rowSampleN[row.index] }
@@ -111,8 +112,11 @@ export function getColGroupHeaderInfos(
   colInnerWidths: number[],
 ): ColGroupHeaderInfo[] {
   const d = resolved.data;
-  const nCols = d.colGroups.reduce((total, cg) => total + cg.cols.length, 0);
-  return d.colGroups.map<ColGroupHeaderInfo>((colGroup, groupIndex) => {
+  const nCols = tableColGroups(d).reduce(
+    (total, cg) => total + cg.cols.length,
+    0,
+  );
+  return tableColGroups(d).map<ColGroupHeaderInfo>((colGroup, groupIndex) => {
     const nColsInGroup = colGroup.cols.length;
     // colInnerWidths is indexed by col.index (how every cell consumes it),
     // not by display position — a positional slice mis-attributes widths
@@ -137,7 +141,7 @@ export function getColGroupHeaderInfos(
       id: colGroup.id,
       label: colGroup.label,
       index: undefined,
-      itemCount: nCols,
+      nRowsOrCols: nCols,
       isGroupHeader: true,
       ...(resolved.colGroupSampleN[groupIndex] !== undefined
         ? { sampleN: resolved.colGroupSampleN[groupIndex] }
@@ -161,7 +165,7 @@ export function getColHeaderInfos(
   colInnerWidths: number[],
 ): ColHeaderInfo[] {
   const d = resolved.data;
-  const nCols = d.colGroups.reduce((sum, cg) => sum + cg.cols.length, 0);
+  const nCols = tableColGroups(d).reduce((sum, cg) => sum + cg.cols.length, 0);
 
   function buildColHeaderInfo(
     id: string | undefined,
@@ -171,13 +175,19 @@ export function getColHeaderInfos(
     rotationOpts?: { rotation: "anticlockwise" },
   ): ColHeaderInfo {
     if (label === undefined) {
-      return { mText: undefined, index, headerStyle: DEFAULT_NONE_STYLE };
+      return {
+        mText: undefined,
+        id,
+        label,
+        index,
+        headerStyle: DEFAULT_NONE_STYLE,
+      };
     }
     const info: TableHeaderInfo = {
       id,
       label,
       index,
-      itemCount: nCols,
+      nRowsOrCols: nCols,
       isGroupHeader: false,
       ...(resolved.colSampleN[index] !== undefined
         ? { sampleN: resolved.colSampleN[index] }
@@ -190,12 +200,12 @@ export function getColHeaderInfos(
       headerStyle.textColorStrategy,
     );
     const mText = rc.mText(label, textStyle, maxWidth, rotationOpts);
-    return { mText, index, headerStyle };
+    return { mText, id, label, index, headerStyle };
   }
 
   if (s.verticalColHeaders === "never") {
     const colHeaderInfos: ColHeaderInfo[] = [];
-    for (const colGroup of d.colGroups) {
+    for (const colGroup of tableColGroups(d)) {
       for (const col of colGroup.cols) {
         const colHeaderContentWidth = colInnerWidths[col.index] -
           s.colHeaderPadding.pl() - s.colHeaderPadding.pr();
@@ -215,7 +225,7 @@ export function getColHeaderInfos(
   if (s.verticalColHeaders === "auto") {
     let hasOverflow = false;
     const colHeaderInfos: ColHeaderInfo[] = [];
-    for (const colGroup of d.colGroups) {
+    for (const colGroup of tableColGroups(d)) {
       for (const col of colGroup.cols) {
         const colHeaderContentWidth = colInnerWidths[col.index] -
           s.colHeaderPadding.pl() - s.colHeaderPadding.pr();
@@ -252,7 +262,7 @@ export function getColHeaderInfos(
   for (const maxHeight of maxHeightOptions) {
     let hasOverflow = false;
     const colHeaderInfos: ColHeaderInfo[] = [];
-    for (const colGroup of d.colGroups) {
+    for (const colGroup of tableColGroups(d)) {
       for (const col of colGroup.cols) {
         const chi = buildColHeaderInfo(
           col.id,
@@ -279,7 +289,7 @@ export function getColHeaderInfos(
   }
 
   const colHeaderInfos: ColHeaderInfo[] = [];
-  for (const colGroup of d.colGroups) {
+  for (const colGroup of tableColGroups(d)) {
     for (const col of colGroup.cols) {
       colHeaderInfos.push(
         buildColHeaderInfo(

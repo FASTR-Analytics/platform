@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -82,7 +82,6 @@ export type { ConversationMetadata } from "./_core/conversations_persistence.ts"
 export type { ConversationsContextValue } from "./_components/use_conversations.ts";
 
 export type {
-  AskUserQuestionsAnswer,
   AskUserQuestionsInput,
   AskUserQuestionsOption,
 } from "./_core/ask_user_questions_types.ts";

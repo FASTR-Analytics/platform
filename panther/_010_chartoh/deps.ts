@@ -1,15 +1,16 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
+export { getDimensionMembers } from "../_001_render_system/mod.ts";
 export type {
-  AxisMembership,
-  HeaderItem,
-  HeaderSortConfig,
+  DataDimension,
+  DimensionMembership,
   HeightConstraints,
   Measured,
+  MemberSortConfig,
   Primitive,
   RenderContext,
   Renderer,
@@ -18,33 +19,34 @@ export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedChartOHStyle } from "../_003_figure_style/mod.ts";
 export {
   calculateMinSubChartWidth,
+  countProportionalSlots,
   estimateMinSurroundsWidth,
-  estimateMinXAxisHeightForScale,
   estimateMinYTextAxisWidth,
+  estimateTierHeaderAndLabelGapWidth,
   getChartHeightConstraintsByMeasure,
-  maxProportionalPanePlotExtent,
-  maxVisibleCount,
+  maxNVisible,
+  maxProportionalPaneCategoryAxisExtent,
   measureChart,
   measureChartWithAutofit,
+  measureXValueAxisHeight,
   PANE_HEADER_SAMPLE_MAX_W,
-  proportionalTotalSlots,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveDefaultLegend,
   SIZING_SAMPLE,
-  transformOneWayChartJson,
+  transformChartOVOrOHJson,
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartComponentSizes,
-  ChartScaleAxisLimits,
+  ChartValueAxisLimits,
   FigureInputsBase,
   JsonArray,
   LegendInput,
   MeasuredSurrounds,
   PaneGrid,
   PaneLayout,
-  ResolveFloorPlotH,
-  ResolveTargetPlotH,
+  ResolveFloorExtent,
+  ResolveTargetExtent,
   SimplifiedChartConfig,
   UncertaintyConfig,
 } from "../_007_figure_core/mod.ts";

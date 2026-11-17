@@ -1,20 +1,19 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  HeaderItem,
   LabelMode,
+  MapAreaInfo,
+  MapAreaInfoFunc,
   MapDataLabelMode,
-  MapRegionInfo,
-  MapRegionInfoFunc,
   RectCoordsDims,
   RenderContext,
+  SubChartMembers,
   TextInfoUnkeyed,
 } from "../deps.ts";
 import { buildDataLabelTextStyle } from "../deps.ts";
-import type { MapDataTransformed } from "../types.ts";
 import type { GeoJSONFeature } from "./geojson_types.ts";
 
 // map.dataLabelMode names an ANCHOR RULE ("centroid"); the shared label system
@@ -33,54 +32,37 @@ export function toLabelMode(mode: MapDataLabelMode): LabelMode {
   }
 }
 
-export type MapCellHeaders = {
-  paneHeader: HeaderItem;
-  tierHeader: HeaderItem;
-  laneHeader: HeaderItem;
-};
-
-export function getMapCellHeaders(
-  data: MapDataTransformed,
-  indices: { paneIndex: number; tierIndex: number; laneIndex: number },
-): MapCellHeaders {
-  return {
-    paneHeader: data.paneHeaders[indices.paneIndex],
-    tierHeader: data.tierHeaders[indices.tierIndex],
-    laneHeader: data.laneHeaders[indices.laneIndex],
-  };
-}
-
-export function buildMapRegionInfo(
+export function buildMapAreaInfo(
   featureId: string,
   feature: GeoJSONFeature,
   value: number | undefined,
-  paneIndex: number,
-  tierIndex: number,
-  laneIndex: number,
-  headers: MapCellHeaders,
-): MapRegionInfo {
+  i_pane: number,
+  i_tier: number,
+  i_lane: number,
+  members: SubChartMembers,
+): MapAreaInfo {
   return {
     featureId,
     value,
     valueMin: 0,
     valueMax: 0,
     featureProperties: feature.properties,
-    paneIndex,
-    tierIndex,
-    laneIndex,
-    ...headers,
+    i_pane,
+    i_tier,
+    i_lane,
+    ...members,
   };
 }
 
 export function resolveMapLabelText(
-  textFormatter: MapRegionInfoFunc<string | undefined> | "none",
-  info: MapRegionInfo,
+  textFormatter: MapAreaInfoFunc<string | undefined> | "none",
+  info: MapAreaInfo,
 ): string | undefined {
   if (textFormatter !== "none") return textFormatter(info);
   return info.value !== undefined ? String(info.value) : info.featureId;
 }
 
-// The wrap width is a fraction of the CELL, and it is the same fraction for the
+// The wrap width is a fraction of the SUB-CHART, and it is the same fraction for the
 // gutter-reservation pass and the label pass, so what is reserved is what is
 // drawn (map.labelWrapFraction).
 export function measureMapLabel(
@@ -100,10 +82,10 @@ export function measureMapLabel(
 
 export function getFeatureMatchKey(
   feature: GeoJSONFeature,
-  areaMatchProp: string,
+  mapAreaMatchProp: string,
 ): string {
-  const val = feature.properties[areaMatchProp];
-  if (val !== undefined && val !== null) return String(val);
+  const value = feature.properties[mapAreaMatchProp];
+  if (value !== undefined && value !== null) return String(value);
   if (feature.id !== undefined) return String(feature.id);
   return "";
 }

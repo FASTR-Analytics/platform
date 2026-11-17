@@ -1,14 +1,14 @@
 import {
+  BLANK_LABEL,
+  BLANK_SENTINEL,
   ChartOHJsonDataConfig,
   ChartOVJsonDataConfig,
-  HeaderSortConfig,
+  MemberSortConfig,
   PieJsonDataConfig,
   TableJsonDataConfig,
   TimeseriesJsonDataConfig,
 } from "panther";
 import {
-  BLANK_SENTINEL,
-  BLANK_SENTINEL_LABEL,
   CATALOG_ORDERED_DISAGGREGATION_OPTIONS,
   CountryCodes,
   type DisaggregationOption,
@@ -49,20 +49,13 @@ function getNigeriaLabelReplacements(
   return {};
 }
 
-// Display text for a group whose column had no value. `""` is mapped alongside
-// the sentinel because figures stored before the blank fold kept the raw empty
-// string as their group key, and panther keys label replacements by raw id:
-// same reason LEGACY_ROLLUP_SENTINEL is still carried below. Placed first in
-// the merge so a metric's own valueLabelReplacements can still override it.
-//
-// The string "null" is deliberately NOT mapped: unlike "" it is a value a real
-// group can legitimately carry (an indicator id, a facility_custom_* cell), so
-// claiming it would mislabel real data to rescue a stored-figure case that the
-// table renderer cannot reach anyway (panther's resolveId drops null ids before
-// any replacement is consulted).
-function getBlankLabelReplacements(language: Language): Record<string, string> {
-  const label = pickLang(language, BLANK_SENTINEL_LABEL);
-  return { [BLANK_SENTINEL]: label, "": label };
+// The blank member's label in the figure's own language: panther's default
+// reads the ambient language, which a figure never does. Placed first in the
+// merge so a metric's own valueLabelReplacements can still override it.
+export function getBlankLabelReplacements(
+  language: Language,
+): Record<string, string> {
+  return { [BLANK_SENTINEL]: pickLang(language, BLANK_LABEL) };
 }
 
 // Merges the previously-split `labelReplacementsBeforeSorting` +
@@ -173,7 +166,7 @@ function resolveAdminAreaLabel(
 // Pinning by raw id is a no-op on axes without these ids.
 function getRollupAwareSort(
   config: PresentationObjectConfig,
-): HeaderSortConfig {
+): MemberSortConfig {
   if (!isRollupActive(config)) {
     return "by-label";
   }
@@ -209,7 +202,7 @@ function getCustomOrderSort(
   config: PresentationObjectConfig,
   customOrder: string[],
   axisProp: DisaggregationOption | "--v" | undefined,
-): HeaderSortConfig {
+): MemberSortConfig {
   if (isRollupActive(config) && getRollupDimension(config) === axisProp) {
     return getRollupPosition(config) === "top"
       ? { byIdOrder: [...ROLLUP_PIN_IDS, ...customOrder] }
@@ -223,7 +216,7 @@ function getCustomOrderSort(
 // period axis wrong:
 //   - "by-label" compares the text getDateLabelReplacements produced, so a
 //     month axis reads Apr, Feb, Jan, Jun.
-//   - { byIdOrder: indicatorIds } matches no period id, so every header ties
+//   - { byIdOrder: indicatorIds } matches no period id, so every member ties
 //     at POSITIVE_INFINITY and falls through to sortByIdOrder's
 //     localeCompare(label) tie-break: identically alphabetical.
 //
@@ -254,7 +247,7 @@ function getCustomOrderSort(
 // it is harmless only because that path uses parseInt.
 function getPeriodAxisSort(
   prop: string | undefined,
-): HeaderSortConfig | undefined {
+): MemberSortConfig | undefined {
   return prop !== undefined && PERIOD_DISAGGREGATION_OPTIONS.has(prop)
     ? "by-id"
     : undefined;
@@ -265,8 +258,8 @@ function getPeriodAxisSort(
 // every figure axis routes through here. Precedence:
 //
 //   1. An absent axis gets NO sort. Load-bearing for tables: panther's group
-//      promotion carries `itemSort ?? groupSort`, so a sort supplied for an
-//      absent item axis would discard the group's own sort.
+//      promotion carries `memberSort ?? groupSort`, so a sort supplied for an
+//      absent member axis would discard the group's own sort.
 //   2. "--v" gets NO sort: panther emits value props in declared order, and
 //      the module author's declared order IS the natural order of the
 //      value-props dimension.
@@ -292,7 +285,7 @@ export function getAxisSort(
   config: PresentationObjectConfig,
   axisProp: DisaggregationOption | "--v" | undefined,
   catalogIdOrder: string[],
-): HeaderSortConfig | undefined {
+): MemberSortConfig | undefined {
   if (axisProp === undefined || axisProp === "--v") {
     return undefined;
   }
@@ -553,7 +546,7 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
       jsonArray,
     ),
     membership: { indicator: "unbalanced", lane: "unbalanced" },
-    proportional: { bands: true, panes: true },
+    proportional: { lanes: true, panes: true },
   };
 }
 
@@ -673,6 +666,6 @@ export function getChartOHJsonDataConfigFromPresentationObjectConfig(
       jsonArray,
     ),
     membership: { indicator: "unbalanced", tier: "unbalanced" },
-    proportional: { bands: true, panes: true },
+    proportional: { tiers: true, panes: true },
   };
 }

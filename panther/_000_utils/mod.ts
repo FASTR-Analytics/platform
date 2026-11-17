@@ -1,9 +1,10 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export * from "./assert.ts";
+export * from "./blank.ts";
 export * from "./translate.ts";
 export { debugLog, PANTHER_DEBUG } from "./debug.ts";
 export * from "./boolean_reducers.ts";

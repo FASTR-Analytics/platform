@@ -121,7 +121,9 @@ export const COPILOT_TOOL_VIEWS = {
   get_module_log: COPILOT_PACKAGE_VIEWS,
   get_module_settings: COPILOT_PACKAGE_VIEWS,
   get_deck: DECK_VIEWS,
-  get_slide: DECK_VIEWS,
+  get_slides: DECK_VIEWS,
+  get_slide_images: DECK_VIEWS,
+  get_image_assets: DECK_VIEWS,
   create_slide: DECK_VIEWS,
   update_slide: DECK_VIEWS,
   update_figure: DECK_VIEWS,
@@ -131,9 +133,11 @@ export const COPILOT_TOOL_VIEWS = {
   move_slides: DECK_VIEWS,
   get_blueprint_run: DECK_VIEWS,
   propose_blueprint_outline: DECK_VIEWS,
+  update_deck_settings: DECK_VIEWS,
   show_draft_slide_to_user: DRAFT_VIEWS,
   get_report_editor: REPORT_VIEWS,
   get_report_figure: REPORT_VIEWS,
+  get_report_figure_images: REPORT_VIEWS,
   get_report_pages: REPORT_VIEWS,
   get_page_template: REPORT_VIEWS,
   rewrite_report: REPORT_VIEWS,
@@ -144,6 +148,7 @@ export const COPILOT_TOOL_VIEWS = {
   replace_figure: REPORT_VIEWS,
   update_report_figure: REPORT_VIEWS,
   get_figure_editor: FIGURE_EDITOR_VIEWS,
+  get_figure_editor_image: FIGURE_EDITOR_VIEWS,
   update_figure_editor: FIGURE_EDITOR_VIEWS,
   get_hfa_indicators: HFA_VIEWS,
   get_hfa_indicator_details: HFA_VIEWS,
@@ -180,7 +185,9 @@ export const COPILOT_TOOL_REQUIREMENTS = {
   get_module_log: "can_view_data",
   get_module_settings: "can_view_data",
   get_deck: "none",
-  get_slide: "none",
+  get_slides: "none",
+  get_slide_images: "none",
+  get_image_assets: "none",
   create_slide: "product_edit",
   update_slide: "product_edit",
   update_figure: "product_edit",
@@ -190,9 +197,11 @@ export const COPILOT_TOOL_REQUIREMENTS = {
   move_slides: "product_edit",
   get_blueprint_run: "none",
   propose_blueprint_outline: "product_edit",
+  update_deck_settings: "product_edit",
   show_draft_slide_to_user: "none",
   get_report_editor: "none",
   get_report_figure: "none",
+  get_report_figure_images: "none",
   get_report_pages: "none",
   get_page_template: "none",
   rewrite_report: "product_edit",
@@ -203,6 +212,7 @@ export const COPILOT_TOOL_REQUIREMENTS = {
   replace_figure: "product_edit",
   update_report_figure: "product_edit",
   get_figure_editor: "none",
+  get_figure_editor_image: "none",
   update_figure_editor: "product_edit",
   get_hfa_indicators: "can_view_data",
   get_hfa_indicator_details: "can_view_data",
@@ -217,7 +227,8 @@ export const COPILOT_TOOL_REQUIREMENTS = {
 } as const satisfies Record<CopilotToolName, CopilotToolRequirement>;
 
 // The writes that apply directly to what the user is looking at: a deck's
-// slides, stored or open in the editor (deleting them asks first), a
+// slides, stored or open in the editor (deleting them asks first), its
+// settings, which the user changes back from the Deck menu, a
 // report's figure by stable id, the open figure editor's draft and the HFA
 // code editor's unsaved state. Every other write asks before it applies.
 // propose_blueprint_outline is its own confirmation: its card writes
@@ -230,6 +241,7 @@ export const COPILOT_APPROVAL_EXEMPT: CopilotGatedToolName[] = [
   "duplicate_slides",
   "move_slides",
   "propose_blueprint_outline",
+  "update_deck_settings",
   "update_report_figure",
   "update_figure_editor",
   "update_hfa_indicator_editor",

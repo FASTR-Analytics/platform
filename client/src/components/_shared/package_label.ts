@@ -1,6 +1,7 @@
 import {
   ALL_DATA_SCOPE_ID,
   type FigureScope,
+  packageDisplayLabel,
   type ReadyPackage,
   type Scope,
   type ScopeId,
@@ -26,15 +27,15 @@ export function packageLabel(runId: string): string {
   });
 }
 
-// A ready package as a picker lists it: its label, the day it was made and
-// whether it is the pin, so a user choosing between packages of the same
-// name can tell the newest and the one the instance points at.
+// A ready package as a picker lists it: its label and contents, the day it
+// was made and whether it is the pin, so a user choosing between packages can
+// tell what each holds, the newest and the one the instance points at.
 export function readyPackageOptionLabel(pkg: ReadyPackage): string {
   const date = new Date(pkg.createdAt).toLocaleDateString();
   const pinned = pkg.id === instanceState.pinnedRunId
     ? ` (${t3({ en: "pinned", fr: "épinglé", pt: "fixado" })})`
     : "";
-  return `${pkg.label} · ${date}${pinned}`;
+  return `${packageDisplayLabel(pkg)} · ${date}${pinned}`;
 }
 
 // The label a scope is shown under. The reserved scope's stored label is

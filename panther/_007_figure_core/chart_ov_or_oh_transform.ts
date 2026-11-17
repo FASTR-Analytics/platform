@@ -1,61 +1,62 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// Shared JSON transform for the one-way charts (ChartOV / ChartOH). The two
-// figures are mirror images: the band axis (the ragged categorical-direction
-// axis) is "lane" on ChartOV and "tier" on ChartOH, and the forbidden
-// membership axis is whichever one carries the scale limits. Everything else
+// Shared JSON transform for ChartOV and ChartOH. The two
+// figures are mirror images: the tier-or-lane dimension (the ragged categorical-direction
+// dimension) is "lane" on ChartOV and "tier" on ChartOH, and the forbidden
+// membership dimension is whichever one carries the value axis limits. Everything else
 // is identical, so the whole transform lives here, parameterized by a spec.
-// The result uses the neutral key `visibleBandAxisByPane`; each module's thin
+// The result uses the neutral key `visibleTiersOrLanesByPane`; each module's thin
 // wrapper destructures it out into its own key name (visibleLanesByPane /
 // visibleTiersByPane) so the neutral key never leaks into stored shapes.
 import {
-  type AxisMembership,
   createArray,
-  createHeaderItems,
-  type HeaderItem,
-  type HeaderSortConfig,
-  sortHeaderItems,
+  type DataDimension,
+  type DimensionMembership,
+  getDimensionMembers,
+  type MemberSortConfig,
 } from "./deps.ts";
 import {
-  calculateChartScaleLimits,
+  buildDataDimension,
+  calculateChartValueAxisLimits,
+  type ChartOVOrOHProportional,
   checkValuePropsAssignment,
-  collectHeaders,
+  type DataDimensions,
   deriveVisibleIndicatorsByPane,
-  deriveVisibleIndicatorsByPaneBand,
+  deriveVisibleIndicatorsByPaneTierOrLane,
   deriveVisibleLanesByPane,
   deriveVisibleTiersByPane,
   fillValuesWithDuplicateCheck,
-  getHeaderIndex,
+  getMemberIndex,
   orderVisibleByPane,
-  orderVisibleByPaneBand,
-  type ProcessedHeaders,
+  orderVisibleByPaneTierOrLane,
   resolveChartProportional,
   validateChartMembership,
   validateChartProportional,
   validateDataInput,
+  validateDimensionProps,
 } from "./common_data_transform.ts";
 import {
-  type ChartScaleAxisLimits,
+  type ChartValueAxisLimits,
   isRowBasedUncertainty,
   type JsonArray,
   type UncertaintyConfig,
   validateUncertaintyConfig,
 } from "./types.ts";
 
-export type OneWayBandAxis = "lane" | "tier";
+export type TierOrLaneDimension = "lane" | "tier";
 
-export type OneWayTransformSpec = {
+export type ChartOVOrOHTransformSpec = {
   figureName: string; // "ChartOV" | "ChartOH" — validation messages only
-  bandAxis: OneWayBandAxis; // the ragged categorical-direction axis
+  tierOrLaneDimension: TierOrLaneDimension; // the ragged categorical-direction dimension
 };
 
 // The config core shared by ChartOVJsonDataConfig and ChartOHJsonDataConfig.
 // membership is the union of both shapes; validateChartMembership rejects the
-// scale-direction key at runtime with the figure-specific message.
-export type OneWayJsonConfigCore = {
+// value-direction key at runtime with the figure-specific message.
+export type ChartOVOrOHJsonConfigCore = {
   valueProps: string[];
   indicatorProp: string | "--v";
   seriesProp?: string | "--v";
@@ -64,71 +65,67 @@ export type OneWayJsonConfigCore = {
   paneProp?: string | "--v";
   uncertainty?: UncertaintyConfig;
   membership?: {
-    indicator?: AxisMembership;
-    lane?: AxisMembership;
-    tier?: AxisMembership;
+    indicator?: DimensionMembership;
+    lane?: DimensionMembership;
+    tier?: DimensionMembership;
   };
-  proportional?: {
-    bands?: boolean;
-    panes?: boolean;
-  };
+  proportional?: ChartOVOrOHProportional;
   labelReplacements?: Record<string, string>;
   sort?: {
-    indicator?: HeaderSortConfig;
-    series?: HeaderSortConfig;
-    lane?: HeaderSortConfig;
-    tier?: HeaderSortConfig;
-    pane?: HeaderSortConfig;
+    indicator?: MemberSortConfig;
+    series?: MemberSortConfig;
+    lane?: MemberSortConfig;
+    tier?: MemberSortConfig;
+    pane?: MemberSortConfig;
   };
   sortIndicatorValues?: "ascending" | "descending" | "none";
 };
 
-export type OneWayTransformResult = {
+export type ChartOVOrOHTransformResult = {
   isTransformed: true;
-  indicatorHeaders: HeaderItem[];
-  seriesHeaders: HeaderItem[];
-  laneHeaders: HeaderItem[];
-  tierHeaders: HeaderItem[];
-  paneHeaders: HeaderItem[];
+  indicator: DataDimension;
+  series?: DataDimension;
+  lane?: DataDimension;
+  tier?: DataDimension;
+  pane?: DataDimension;
   values: (number | undefined)[][][][][];
-  bounds?: {
+  uncertaintyValues?: {
     ub: (number | undefined)[][][][][];
     lb: (number | undefined)[][][][][];
   };
-  scaleAxisLimits: ChartScaleAxisLimits;
+  valueAxisLimits: ChartValueAxisLimits;
   visibleIndicatorsByPane?: number[][];
-  visibleBandAxisByPane?: number[][]; // → visibleLanesByPane / visibleTiersByPane
-  visibleIndicatorsByPaneBand?: number[][][];
+  visibleTiersOrLanesByPane?: number[][]; // → visibleLanesByPane / visibleTiersByPane
+  visibleIndicatorsByPaneTierOrLane?: number[][][];
   proportionalPanes?: boolean;
 };
 
 function createEmptyValuesArray(
-  paneCount: number,
-  tierCount: number,
-  laneCount: number,
-  seriesCount: number,
-  lastDimCount: number,
+  nPanes: number,
+  nTiers: number,
+  nLanes: number,
+  nSerieses: number,
+  nValues: number,
 ): (number | undefined)[][][][][] {
   return createArray(
-    paneCount,
+    nPanes,
     () =>
       createArray(
-        tierCount,
+        nTiers,
         () =>
-          createArray(laneCount, () =>
-            createArray(seriesCount, () =>
-              createArray(lastDimCount, () =>
-                undefined))),
+          createArray(nLanes, () =>
+            createArray(nSerieses, () =>
+              createArray(nValues, () => undefined))),
       ),
   );
 }
 
-export function transformOneWayChartJson(
+export function transformChartOVOrOHJson(
   jsonArray: JsonArray,
-  cfg: OneWayJsonConfigCore,
+  cfg: ChartOVOrOHJsonConfigCore,
   stacked: boolean,
-  spec: OneWayTransformSpec,
-): OneWayTransformResult {
+  spec: ChartOVOrOHTransformSpec,
+): ChartOVOrOHTransformResult {
   const {
     valueProps,
     indicatorProp,
@@ -144,15 +141,21 @@ export function transformOneWayChartJson(
     sortIndicatorValues,
   } = cfg;
 
-  const forbiddenAxis = spec.bandAxis === "lane" ? "tier" : "lane";
+  const forbiddenDimension = spec.tierOrLaneDimension === "lane"
+    ? "tier"
+    : "lane";
   validateChartMembership(
     membership,
-    ["indicator", spec.bandAxis],
-    forbiddenAxis,
+    ["indicator", spec.tierOrLaneDimension],
+    forbiddenDimension,
     spec.figureName,
   );
-  validateChartProportional(proportional, spec.figureName);
-  const proportionalFlags = resolveChartProportional(proportional);
+  const tierOrLaneKey = spec.tierOrLaneDimension === "lane" ? "lanes" : "tiers";
+  validateChartProportional(proportional, tierOrLaneKey, spec.figureName);
+  const proportionalFlags = resolveChartProportional(
+    proportional,
+    tierOrLaneKey,
+  );
 
   if (uncertainty) {
     validateUncertaintyConfig(uncertainty, valueProps, [
@@ -166,51 +169,46 @@ export function transformOneWayChartJson(
 
   const sourceRows = uncertainty && isRowBasedUncertainty(uncertainty)
     ? jsonArray.filter((obj) =>
-      String(obj[uncertainty.uncertaintyProp]) === uncertainty.peValue
+      String(obj[uncertainty.uncertaintyProp]) === uncertainty.peMemberId
     )
     : jsonArray;
 
   validateDataInput(sourceRows, valueProps);
 
-  const headersSource = uncertainty && isRowBasedUncertainty(uncertainty)
+  const membersSource = uncertainty && isRowBasedUncertainty(uncertainty)
     ? jsonArray
     : sourceRows;
 
-  const indicatorHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(headersSource, indicatorProp, valueProps),
+  const dimensionProps = {
+    indicator: indicatorProp,
+    series: seriesProp,
+    lane: laneProp,
+    tier: tierProp,
+    pane: paneProp,
+  };
+  validateDimensionProps(jsonArray, dimensionProps);
+  const buildDimension = (
+    prop: string | undefined,
+    sortConfig?: MemberSortConfig,
+  ) =>
+    buildDataDimension(
+      membersSource,
+      prop,
+      valueProps,
       labelReplacements,
-    ),
+      sortConfig,
+    );
+  const indicator = buildDataDimension(
+    membersSource,
+    indicatorProp,
+    valueProps,
+    labelReplacements,
     sort?.indicator,
   );
-  const seriesHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(headersSource, seriesProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.series,
-  );
-  const laneHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(headersSource, laneProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.lane,
-  );
-  const tierHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(headersSource, tierProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.tier,
-  );
-  const paneHeaders = sortHeaderItems(
-    createHeaderItems(
-      collectHeaders(headersSource, paneProp, valueProps),
-      labelReplacements,
-    ),
-    sort?.pane,
-  );
+  const series = buildDimension(seriesProp, sort?.series);
+  const lane = buildDimension(laneProp, sort?.lane);
+  const tier = buildDimension(tierProp, sort?.tier);
+  const pane = buildDimension(paneProp, sort?.pane);
 
   checkValuePropsAssignment(valueProps, {
     indicatorProp,
@@ -220,43 +218,36 @@ export function transformOneWayChartJson(
     paneProp,
   });
 
-  const nPanes = paneHeaders.length;
-  const nTiers = tierHeaders.length;
-  const nLanes = laneHeaders.length;
-  const nSeries = seriesHeaders.length;
-  const nIndicators = indicatorHeaders.length;
+  const nPanes = getDimensionMembers(pane).length;
+  const nTiers = getDimensionMembers(tier).length;
+  const nLanes = getDimensionMembers(lane).length;
+  const nSerieses = getDimensionMembers(series).length;
+  const nIndicators = indicator.members.length;
 
   const values = createEmptyValuesArray(
     nPanes,
     nTiers,
     nLanes,
-    nSeries,
+    nSerieses,
     nIndicators,
   );
 
-  const headers: ProcessedHeaders = {
-    series: seriesHeaders,
-    lane: laneHeaders,
-    tier: tierHeaders,
-    pane: paneHeaders,
-  };
+  const dimensions: DataDimensions = { series, lane, tier, pane };
 
-  const dimensionProps = { seriesProp, laneProp, tierProp, paneProp };
   const getIndicatorIndex = (
     obj: { [key: string]: string | number | undefined | null },
     valueProp: string,
-  ) => getHeaderIndex(indicatorProp, valueProp, obj, indicatorHeaders);
+  ) => getMemberIndex(indicator, valueProp, obj);
 
   fillValuesWithDuplicateCheck(
     values,
     sourceRows,
     valueProps,
-    headers,
-    dimensionProps,
+    dimensions,
     getIndicatorIndex,
   );
 
-  let bounds: {
+  let uncertaintyValues: {
     ub: (number | undefined)[][][][][];
     lb: (number | undefined)[][][][][];
   } | undefined;
@@ -266,39 +257,37 @@ export function transformOneWayChartJson(
       nPanes,
       nTiers,
       nLanes,
-      nSeries,
+      nSerieses,
       nIndicators,
     );
     const lbValues = createEmptyValuesArray(
       nPanes,
       nTiers,
       nLanes,
-      nSeries,
+      nSerieses,
       nIndicators,
     );
 
     if (isRowBasedUncertainty(uncertainty)) {
       const ubRows = jsonArray.filter((obj) =>
-        String(obj[uncertainty.uncertaintyProp]) === uncertainty.ubValue
+        String(obj[uncertainty.uncertaintyProp]) === uncertainty.ubMemberId
       );
       const lbRows = jsonArray.filter((obj) =>
-        String(obj[uncertainty.uncertaintyProp]) === uncertainty.lbValue
+        String(obj[uncertainty.uncertaintyProp]) === uncertainty.lbMemberId
       );
 
       fillValuesWithDuplicateCheck(
         ubValues,
         ubRows,
         valueProps,
-        headers,
-        dimensionProps,
+        dimensions,
         getIndicatorIndex,
       );
       fillValuesWithDuplicateCheck(
         lbValues,
         lbRows,
         valueProps,
-        headers,
-        dimensionProps,
+        dimensions,
         getIndicatorIndex,
       );
     } else {
@@ -306,37 +295,47 @@ export function transformOneWayChartJson(
         ubValues,
         jsonArray,
         uncertainty.ubValueProps,
-        headers,
-        dimensionProps,
+        dimensions,
         getIndicatorIndex,
       );
       fillValuesWithDuplicateCheck(
         lbValues,
         jsonArray,
         uncertainty.lbValueProps,
-        headers,
-        dimensionProps,
+        dimensions,
         getIndicatorIndex,
       );
     }
 
-    bounds = { ub: ubValues, lb: lbValues };
+    uncertaintyValues = { ub: ubValues, lb: lbValues };
   }
 
-  const dimensions = {
-    paneCount: nPanes,
-    tierCount: nTiers,
-    laneCount: nLanes,
-    seriesCount: nSeries,
-    lastDimCount: nIndicators,
+  const counts = {
+    nPanes,
+    nTiers,
+    nLanes,
+    nSerieses,
+    nValues: nIndicators,
   };
 
-  const scaleLimits = calculateChartScaleLimits(values, dimensions, stacked);
+  const valueAxisLimits = calculateChartValueAxisLimits(
+    values,
+    counts,
+    stacked,
+  );
 
-  if (bounds) {
-    const ubLimits = calculateChartScaleLimits(bounds.ub, dimensions, false);
-    const lbLimits = calculateChartScaleLimits(bounds.lb, dimensions, false);
-    const main = scaleLimits.paneLimits;
+  if (uncertaintyValues) {
+    const ubLimits = calculateChartValueAxisLimits(
+      uncertaintyValues.ub,
+      counts,
+      false,
+    );
+    const lbLimits = calculateChartValueAxisLimits(
+      uncertaintyValues.lb,
+      counts,
+      false,
+    );
+    const main = valueAxisLimits.paneLimits;
     const ub = ubLimits.paneLimits;
     const lb = lbLimits.paneLimits;
     for (let i = 0; i < nPanes; i++) {
@@ -384,51 +383,58 @@ export function transformOneWayChartJson(
     ? undefined
     : sortIndicatorValues;
   const raggedIndicators = membership?.indicator === "unbalanced" ||
-    proportionalFlags.bands;
+    proportionalFlags.tiersOrLanes;
   const visibleIndicatorsByPane = raggedIndicators || valueSort !== undefined
     ? orderVisibleByPane(
       raggedIndicators
-        ? deriveVisibleIndicatorsByPane(values, bounds, nIndicators)
-        : paneHeaders.map(() => indicatorHeaders.map((_, i) => i)),
+        ? deriveVisibleIndicatorsByPane(values, uncertaintyValues, nIndicators)
+        : createArray(nPanes, () => indicator.members.map((_, i) => i)),
       values,
-      spec.bandAxis,
+      indicator.members,
+      spec.tierOrLaneDimension,
       valueSort,
     )
     : undefined;
-  const nBands = spec.bandAxis === "lane" ? nLanes : nTiers;
-  const deriveVisibleBandsByPane = spec.bandAxis === "lane"
+  const nTiersOrLanes = spec.tierOrLaneDimension === "lane" ? nLanes : nTiers;
+  const deriveVisibleTiersOrLanesByPane = spec.tierOrLaneDimension === "lane"
     ? deriveVisibleLanesByPane
     : deriveVisibleTiersByPane;
-  const visibleBandAxisByPane = membership?.[spec.bandAxis] === "unbalanced"
-    ? deriveVisibleBandsByPane(values, bounds, nBands)
-    : undefined;
-  const visibleIndicatorsByPaneBand = proportionalFlags.bands
-    ? orderVisibleByPaneBand(
-      deriveVisibleIndicatorsByPaneBand(
+  const visibleTiersOrLanesByPane =
+    membership?.[spec.tierOrLaneDimension] === "unbalanced"
+      ? deriveVisibleTiersOrLanesByPane(
         values,
-        bounds,
+        uncertaintyValues,
+        nTiersOrLanes,
+      )
+      : undefined;
+  const visibleIndicatorsByPaneTierOrLane = proportionalFlags.tiersOrLanes
+    ? orderVisibleByPaneTierOrLane(
+      deriveVisibleIndicatorsByPaneTierOrLane(
+        values,
+        uncertaintyValues,
         nIndicators,
-        spec.bandAxis,
+        spec.tierOrLaneDimension,
       ),
       values,
-      spec.bandAxis,
+      indicator.members,
+      spec.tierOrLaneDimension,
       valueSort,
     )
     : undefined;
 
   return {
     isTransformed: true,
-    indicatorHeaders,
-    seriesHeaders,
-    laneHeaders,
-    tierHeaders,
-    paneHeaders,
+    indicator,
+    series,
+    lane,
+    tier,
+    pane,
     values,
-    bounds,
-    scaleAxisLimits: scaleLimits,
+    uncertaintyValues,
+    valueAxisLimits: valueAxisLimits,
     visibleIndicatorsByPane,
-    visibleBandAxisByPane,
-    visibleIndicatorsByPaneBand,
+    visibleTiersOrLanesByPane,
+    visibleIndicatorsByPaneTierOrLane,
     proportionalPanes: proportionalFlags.panes ? true : undefined,
   };
 }

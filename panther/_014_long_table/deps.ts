@@ -1,13 +1,15 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export {
+  BLANK_SENTINEL,
   foldString,
   getLastFullUnitBounds,
   getLastUnitsBounds,
   getPeriodTypeFromValue,
+  isBlankText,
   stableStringify,
 } from "../_000_utils/mod.ts";
 export type {

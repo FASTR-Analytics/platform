@@ -17,7 +17,6 @@ import {
   closeConnectionsWithChangedAccess,
 } from "../../collab/presence_registry.ts";
 import { renameVersionEditorEmail } from "../../collab/version_capture.ts";
-import { getUsersLastActive } from "../../db/instance/user_logs.ts";
 import {
   addUsers,
   batchUploadUsers,
@@ -262,16 +261,6 @@ defineRoute(
     if (res.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
     }
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesUsers,
-  "getUsersLastActive",
-  log("getUsersLastActive"),
-  async (c) => {
-    const res = await getUsersLastActive(c.var.mainDb);
     return c.json(res);
   },
 );

@@ -21,9 +21,11 @@ CREATE TABLE users (
   is_contact_person boolean NOT NULL DEFAULT false,
   -- FALSE = restricted to the scopes in user_scopes. Ignored for a global
   -- admin. After the permission bits because migration 205 adds it to a live
-  -- table; organisation follows it for the same reason (219).
+  -- table; organisation and last_active_at follow it for the same reason
+  -- (219, 230).
   all_scopes boolean NOT NULL DEFAULT TRUE,
   organisation text,
+  last_active_at timestamptz,
   -- A global admin is unrestricted (224).
   CONSTRAINT users_admin_unrestricted CHECK (NOT is_admin OR all_scopes)
 );
@@ -970,6 +972,31 @@ CREATE TABLE hfa_verification_findings (
   created_at TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX idx_hfa_verification_findings_indicator ON hfa_verification_findings(indicator_id);
+
+-- The verification run, which a server worker drains, at most one live: the
+-- latest run, which the next start deletes once it has ended, and the queue
+-- of indicators the live run has still to answer. not_checked is a JSON
+-- array in text.
+CREATE TABLE hfa_verification_runs (
+  id TEXT PRIMARY KEY NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('running', 'stopping', 'completed', 'stopped', 'error')),
+  started_by TEXT NOT NULL,
+  started_at TIMESTAMPTZ NOT NULL,
+  ended_at TIMESTAMPTZ,
+  done INTEGER NOT NULL,
+  not_checked TEXT NOT NULL,
+  error TEXT
+);
+CREATE UNIQUE INDEX idx_hfa_verification_runs_one_live
+  ON hfa_verification_runs ((true)) WHERE status IN ('running', 'stopping');
+
+CREATE TABLE hfa_verification_queue (
+  indicator_id TEXT PRIMARY KEY NOT NULL REFERENCES hfa_indicators(indicator_id) ON DELETE CASCADE,
+  queued_by TEXT NOT NULL,
+  queued_at TIMESTAMPTZ NOT NULL,
+  claimed_at TIMESTAMPTZ,
+  requeue BOOLEAN NOT NULL DEFAULT false
+);
 
 -- ============================================================================
 -- GEOJSON MAPS

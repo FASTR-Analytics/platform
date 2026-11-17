@@ -29,6 +29,10 @@ export function withReplicant(
     .replaceAll("RÉPLICANT", replicantLabel);
 }
 
+export function csvCell(text: string): string {
+  return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
 export function encodeRawCsvHeader(
   i_colHeader: number,
   colHeader: string,
@@ -116,6 +120,15 @@ export function normaliseEmail(email: string): string {
 }
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// GitHub's contents API (in 60-character lines) and tus Upload-Metadata both
+// send base64 of UTF-8 bytes; atob alone yields one char per byte, so every
+// non-ASCII character arrives garbled unless the bytes are decoded as UTF-8.
+export function decodeBase64Utf8(content: string): string {
+  return new TextDecoder().decode(
+    Uint8Array.from(atob(content), (c) => c.charCodeAt(0)),
+  );
+}
 
 export function parseJsonOrUndefined<T>(
   str: string | null | undefined,

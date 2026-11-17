@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -10,6 +10,8 @@ import {
   legacyStripEphemeralMarkers,
   repairStrandedToolUse,
   set,
+  STOPPED_REPLY_PLACEHOLDER,
+  trimUnansweredServerToolUse,
 } from "../deps.ts";
 import type { ContentBlock, MessageParam } from "../deps.ts";
 import type { DisplayItem } from "./types.ts";
@@ -100,12 +102,13 @@ function demotePreReleaseCarriers(
 }
 
 // A record an earlier library version saved stranded on an unanswered
-// tool_use would refuse every later request.
+// tool_use, or on a server_tool_use a cut-off reply never got the result of,
+// would refuse every later request.
 function answerStrandedToolUse(
   record: PersistedConversation,
 ): PersistedConversation {
   const messages = repairStrandedToolUse(
-    record.messages,
+    trimUnansweredServerToolUse(record.messages, STOPPED_REPLY_PLACEHOLDER),
     "Tool execution interrupted: the conversation was reloaded before this tool ran",
   );
   return messages === record.messages ? record : { ...record, messages };

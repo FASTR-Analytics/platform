@@ -1,8 +1,6 @@
 # Third-Party Licenses
 
-This document lists all third-party dependencies used in the timroberton-panther
-library, including their copyright notices and full license texts as required by
-their respective licenses.
+This document lists all third-party dependencies used in the timroberton-panther library, including their copyright notices and full license texts as required by their respective licenses.
 
 ## Dependencies from deno.json
 
@@ -32,10 +30,8 @@ their respective licenses.
 
 ## Vendored Dependencies
 
-13. **FileSaver.js** - Vendored in
-    `modules/_301_util_funcs/file_saver_vendored.ts`
-14. **solid-sortablejs** - v2.1.2, vendored in
-    `modules/_303_components/form_inputs/solid_sortablejs_vendored.tsx`
+13. **FileSaver.js** - Vendored in `modules/_301_util_funcs/file_saver_vendored.ts`
+14. **solid-sortablejs** - v2.1.2, vendored in `modules/_303_components/form_inputs/solid_sortablejs_vendored.tsx`
 
 ---
 
@@ -43,9 +39,7 @@ their respective licenses.
 
 **Verification Date:** October 6, 2025
 
-All dependencies listed below use permissive open-source licenses (MIT or
-Apache-2.0), which allow free use, modification, and distribution in both
-commercial and non-commercial projects.
+All dependencies listed below use permissive open-source licenses (MIT or Apache-2.0), which allow free use, modification, and distribution in both commercial and non-commercial projects.
 
 ### Deno Standard Library (@std)
 
@@ -53,10 +47,7 @@ commercial and non-commercial projects.
 
 **Repository:** <https://github.com/denoland/std>
 
-**Verification:** The Deno Standard Library is open source under the MIT
-License. All components (@std/path, @std/fs, @std/encoding) are part of the
-official Deno standard library maintained by the Deno team. The entire standard
-library is now available on JSR (JavaScript Registry) and remains MIT licensed.
+**Verification:** The Deno Standard Library is open source under the MIT License. All components (@std/path, @std/fs, @std/encoding) are part of the official Deno standard library maintained by the Deno team. The entire standard library is now available on JSR (JavaScript Registry) and remains MIT licensed.
 
 **Source:** <https://github.com/denoland/std> - Verified October 6, 2025
 
@@ -68,16 +59,11 @@ library is now available on JSR (JavaScript Registry) and remains MIT licensed.
 
 **Repository:** <https://github.com/DjDeveloperr/skia_canvas>
 
-**Verification:** @gfx/canvas (also known as skia_canvas) is a fast HTML Canvas
-API implementation for Deno using Google Skia. Created by DjDeveloperr, the
-project is licensed under Apache-2.0. This is the FFI-based version
-(recommended) available on JSR, offering better performance than the WASM
-alternative.
+**Verification:** @gfx/canvas (also known as skia_canvas) is a fast HTML Canvas API implementation for Deno using Google Skia. Created by DjDeveloperr, the project is licensed under Apache-2.0. This is the FFI-based version (recommended) available on JSR, offering better performance than the WASM alternative.
 
 **Copyright:** 2022-present © DjDeveloperr
 
-**Source:** <https://jsr.io/@gfx/canvas> and
-<https://github.com/DjDeveloperr/skia_canvas> - Verified October 6, 2025
+**Source:** <https://jsr.io/@gfx/canvas> and <https://github.com/DjDeveloperr/skia_canvas> - Verified October 6, 2025
 
 ---
 
@@ -87,14 +73,9 @@ alternative.
 
 **Repository:** <https://github.com/parallax/jsPDF>
 
-**Verification:** jsPDF is a client-side JavaScript PDF generation library
-licensed under the MIT License. The library is actively maintained with the
-latest version (3.0.3 as of verification date) and copyright is held by James
-Hall (2010-2025) and yWorks GmbH (2015-2025).
+**Verification:** jsPDF is a client-side JavaScript PDF generation library licensed under the MIT License. The library is actively maintained with the latest version (3.0.3 as of verification date) and copyright is held by James Hall (2010-2025) and yWorks GmbH (2015-2025).
 
-**Source:** <https://www.npmjs.com/package/jspdf> and
-<https://github.com/parallax/jsPDF/blob/master/LICENSE> - Verified October 6,
-2025
+**Source:** <https://www.npmjs.com/package/jspdf> and <https://github.com/parallax/jsPDF/blob/master/LICENSE> - Verified October 6, 2025
 
 ---
 
@@ -104,18 +85,11 @@ Hall (2010-2025) and yWorks GmbH (2015-2025).
 
 **Repository:** <https://git.sheetjs.com/sheetjs/sheetjs> (moved from GitHub)
 
-**Verification:** SheetJS Community Edition (xlsx package) is licensed under
-Apache 2.0. The package version 0.18.5 on npm is the last version published to
-npm (4 years ago). The project has moved to <https://git.sheetjs.com> and newer
-versions are available there, but the npm package we use (0.18.5) remains Apache
-2.0 licensed.
+**Verification:** SheetJS Community Edition (xlsx package) is licensed under Apache 2.0. The package version 0.18.5 on npm is the last version published to npm (4 years ago). The project has moved to <https://git.sheetjs.com> and newer versions are available there, but the npm package we use (0.18.5) remains Apache 2.0 licensed.
 
-**Note:** The project is no longer maintained on GitHub or published to npm. All
-rights not explicitly granted by the Apache 2.0 License are reserved by the
-original author.
+**Note:** The project is no longer maintained on GitHub or published to npm. All rights not explicitly granted by the Apache 2.0 License are reserved by the original author.
 
-**Source:** <https://www.npmjs.com/package/xlsx> and
-<https://git.sheetjs.com/sheetjs/sheetjs> - Verified October 6, 2025
+**Source:** <https://www.npmjs.com/package/xlsx> and <https://git.sheetjs.com/sheetjs/sheetjs> - Verified October 6, 2025
 
 ---
 
@@ -125,14 +99,9 @@ original author.
 
 **Repository:** <https://github.com/mholt/PapaParse>
 
-**Verification:** PapaParse is a fast and powerful CSV parser for JavaScript,
-licensed under the MIT License. Copyright is held by Matthew Holt since 2015.
-The library is well-maintained with version 5.5.3 (latest as of verification)
-and is used by over 2,200 projects in the npm registry.
+**Verification:** PapaParse is a fast and powerful CSV parser for JavaScript, licensed under the MIT License. Copyright is held by Matthew Holt since 2015. The library is well-maintained with version 5.5.3 (latest as of verification) and is used by over 2,200 projects in the npm registry.
 
-**Source:** <https://www.npmjs.com/package/papaparse> and
-<https://github.com/mholt/PapaParse/blob/master/LICENSE> - Verified October 6,
-2025
+**Source:** <https://www.npmjs.com/package/papaparse> and <https://github.com/mholt/PapaParse/blob/master/LICENSE> - Verified October 6, 2025
 
 ---
 
@@ -142,14 +111,9 @@ and is used by over 2,200 projects in the npm registry.
 
 **Repository:** <https://github.com/markdown-it/markdown-it>
 
-**Verification:** markdown-it is a markdown parser done right, providing 100%
-CommonMark support with extensions, syntax plugins, and high speed. Licensed
-under the MIT License. The project is actively maintained with version 14.1.0
-(latest as of verification) and is a popular choice for markdown parsing with
-extensive plugin ecosystem.
+**Verification:** markdown-it is a markdown parser done right, providing 100% CommonMark support with extensions, syntax plugins, and high speed. Licensed under the MIT License. The project is actively maintained with version 14.1.0 (latest as of verification) and is a popular choice for markdown parsing with extensive plugin ecosystem.
 
-**Source:** <https://www.npmjs.com/package/markdown-it> and
-<https://github.com/markdown-it/markdown-it> - Verified October 6, 2025
+**Source:** <https://www.npmjs.com/package/markdown-it> and <https://github.com/markdown-it/markdown-it> - Verified October 6, 2025
 
 ---
 
@@ -159,13 +123,9 @@ extensive plugin ecosystem.
 
 **Repository:** <https://github.com/dolanmiu/docx>
 
-**Verification:** docx is a library to easily generate and modify .docx files
-with JavaScript/TypeScript using a declarative API. Licensed under the MIT
-License with copyright by Dolan Miu. Works for both Node and browser
-environments. Version 9.5.1 (latest as of verification).
+**Verification:** docx is a library to easily generate and modify .docx files with JavaScript/TypeScript using a declarative API. Licensed under the MIT License with copyright by Dolan Miu. Works for both Node and browser environments. Version 9.5.1 (latest as of verification).
 
-**Source:** <https://www.npmjs.com/package/docx> and
-<https://github.com/dolanmiu/docx> - Verified October 6, 2025
+**Source:** <https://www.npmjs.com/package/docx> and <https://github.com/dolanmiu/docx> - Verified October 6, 2025
 
 ---
 
@@ -175,14 +135,9 @@ environments. Version 9.5.1 (latest as of verification).
 
 **Repository:** <https://github.com/solidjs/solid>
 
-**Verification:** Solid.js is a declarative, efficient, and flexible JavaScript
-library for building user interfaces. Licensed under the MIT License with
-copyright "(c) 2016-2025 Ryan Carniato". The project is actively maintained with
-version 1.9.9 (as of verification date) and is used by over 800 projects in the
-npm registry.
+**Verification:** Solid.js is a declarative, efficient, and flexible JavaScript library for building user interfaces. Licensed under the MIT License with copyright "(c) 2016-2025 Ryan Carniato". The project is actively maintained with version 1.9.9 (as of verification date) and is used by over 800 projects in the npm registry.
 
-**Source:** <https://www.npmjs.com/package/solid-js> and
-<https://github.com/solidjs/solid/blob/main/LICENSE> - Verified October 6, 2025
+**Source:** <https://www.npmjs.com/package/solid-js> and <https://github.com/solidjs/solid/blob/main/LICENSE> - Verified October 6, 2025
 
 ---
 
@@ -192,13 +147,9 @@ npm registry.
 
 **Repository:** <https://github.com/solidjs/solid-router>
 
-**Verification:** @solidjs/router is the universal router for SolidJS,
-supporting both client and server-side rendering. Licensed under the MIT License
-and maintained by the SolidJS team. Latest version is 0.15.3 (as of verification
-date).
+**Verification:** @solidjs/router is the universal router for SolidJS, supporting both client and server-side rendering. Licensed under the MIT License and maintained by the SolidJS team. Latest version is 0.15.3 (as of verification date).
 
-**Source:** <https://www.npmjs.com/package/@solidjs/router> and
-<https://github.com/solidjs/solid-router> - Verified October 6, 2025
+**Source:** <https://www.npmjs.com/package/@solidjs/router> and <https://github.com/solidjs/solid-router> - Verified October 6, 2025
 
 ---
 
@@ -208,15 +159,9 @@ date).
 
 **Repository:** <https://github.com/SortableJS/Sortable>
 
-**Verification:** SortableJS provides reorderable drag-and-drop lists for modern
-browsers and touch devices with no jQuery or framework required. Licensed under
-the MIT License with copyright to all contributors (2019-present). The library
-is extremely popular with 30,000+ GitHub stars and 1.7M+ weekly npm downloads.
-Version 1.15.6 is the latest (as of verification).
+**Verification:** SortableJS provides reorderable drag-and-drop lists for modern browsers and touch devices with no jQuery or framework required. Licensed under the MIT License with copyright to all contributors (2019-present). The library is extremely popular with 30,000+ GitHub stars and 1.7M+ weekly npm downloads. Version 1.15.6 is the latest (as of verification).
 
-**Source:** <https://www.npmjs.com/package/sortablejs> and
-<https://github.com/SortableJS/Sortable/blob/master/LICENSE> - Verified October
-6, 2025
+**Source:** <https://www.npmjs.com/package/sortablejs> and <https://github.com/SortableJS/Sortable/blob/master/LICENSE> - Verified October 6, 2025
 
 ---
 
@@ -226,15 +171,11 @@ Version 1.15.6 is the latest (as of verification).
 
 **Original Repository:** <https://github.com/eligrey/FileSaver.js>
 
-**Verification:** FileSaver.js is an HTML5 saveAs() FileSaver implementation by
-Eli Grey, licensed under the MIT License. Copyright © 2016 Eli Grey. The
-vendored copy in this library includes the original license header from the
-source.
+**Verification:** FileSaver.js is an HTML5 saveAs() FileSaver implementation by Eli Grey, licensed under the MIT License. Copyright © 2016 Eli Grey. The vendored copy in this library includes the original license header from the source.
 
 **Vendored Location:** `modules/_301_util_funcs/file_saver_vendored.ts`
 
-**Source:** <https://github.com/eligrey/FileSaver.js/blob/master/LICENSE.md> -
-Verified October 6, 2025
+**Source:** <https://github.com/eligrey/FileSaver.js/blob/master/LICENSE.md> - Verified October 6, 2025
 
 ---
 
@@ -244,17 +185,11 @@ Verified October 6, 2025
 
 **Original Package:** solid-sortablejs v2.1.2 (npm)
 
-**Verification:** solid-sortablejs provides SortableJS bindings for SolidJS and
-is licensed under the MIT License. The vendored version includes patches applied
-via patch-package for MultiDrag plugin support and animation fixes. The original
-repository (thisbeyond/solid-sortablejs) is no longer accessible, but the npm
-package remains MIT licensed.
+**Verification:** solid-sortablejs provides SortableJS bindings for SolidJS and is licensed under the MIT License. The vendored version includes patches applied via patch-package for MultiDrag plugin support and animation fixes. The original repository (thisbeyond/solid-sortablejs) is no longer accessible, but the npm package remains MIT licensed.
 
-**Vendored Location:**
-`modules/_303_components/form_inputs/solid_sortablejs_vendored.tsx`
+**Vendored Location:** `modules/_303_components/form_inputs/solid_sortablejs_vendored.tsx`
 
-**Source:** <https://socket.dev/npm/package/solid-sortablejs> - Verified October
-6, 2025
+**Source:** <https://socket.dev/npm/package/solid-sortablejs> - Verified October 6, 2025
 
 ---
 
@@ -546,18 +481,14 @@ The following dependencies use the Apache License 2.0:
 
 ## Summary
 
-All external dependencies in timroberton-panther use permissive open-source
-licenses that allow free use, modification, and distribution in both commercial
-and non-commercial applications.
+All external dependencies in timroberton-panther use permissive open-source licenses that allow free use, modification, and distribution in both commercial and non-commercial applications.
 
 **License Compliance Requirements:**
 
-1. Include this THIRD_PARTY_LICENSES.md file (or equivalent) with any
-   distribution
+1. Include this THIRD_PARTY_LICENSES.md file (or equivalent) with any distribution
 2. Retain all copyright notices listed above
 3. Do not use contributor names for endorsement without permission
 
 **Vendored Code:**
 
-- FileSaver.js and solid-sortablejs include their license headers directly in
-  the source code files
+- FileSaver.js and solid-sortablejs include their license headers directly in the source code files

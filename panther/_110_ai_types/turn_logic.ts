@@ -1,12 +1,15 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { IMAGE_LIMITS } from "./anthropic_consts.ts";
 import type {
   ContentBlock,
   EphemeralSection,
+  ImageContentBlock,
   MessageParam,
+  ToolResultContent,
   UserMessageParam,
 } from "./types.ts";
 import type { SystemParam } from "./request_shaping.ts";
@@ -165,6 +168,11 @@ export function releaseUnansweredCarriers(
 // this text, which is never displayed.
 export const EMPTY_REPLY_PLACEHOLDER = "[No response]";
 
+// The reply the engine stores when a turn is stopped on a user message, so
+// that the list never ends unanswered. It is the one assistant message no
+// request produced: the request before it may never have been read.
+export const STOPPED_REPLY_PLACEHOLDER = "[Stopped]";
+
 // Input by reference when no assistant message is empty.
 export function fillEmptyReplies(messages: MessageParam[]): MessageParam[] {
   const isEmpty = (m: MessageParam) =>
@@ -189,24 +197,24 @@ export const STRIPPED_THINKING_PLACEHOLDER = "[Thinking omitted]";
 // the check accepts (any contiguous run may go, all of them included).
 // Input by reference when nothing is stripped.
 export function stripThinkingBlocks(messages: MessageParam[]): MessageParam[] {
-  let changed = false;
-  const out = messages.map((msg) => {
-    if (msg.role !== "assistant" || typeof msg.content === "string") {
-      return msg;
-    }
-    const kept = msg.content.filter((block) =>
-      block.type !== "thinking" && block.type !== "redacted_thinking"
-    );
-    if (kept.length === msg.content.length) return msg;
-    changed = true;
-    return {
-      ...msg,
-      content: kept.length > 0
-        ? kept
-        : [{ type: "text" as const, text: STRIPPED_THINKING_PLACEHOLDER }],
-    };
-  });
-  return changed ? out : messages;
+  const out = messages.map(withoutThinking);
+  return out.some((msg, i) => msg !== messages[i]) ? out : messages;
+}
+
+function withoutThinking(msg: MessageParam): MessageParam {
+  if (msg.role !== "assistant" || typeof msg.content === "string") {
+    return msg;
+  }
+  const kept = msg.content.filter((block) =>
+    block.type !== "thinking" && block.type !== "redacted_thinking"
+  );
+  if (kept.length === msg.content.length) return msg;
+  return {
+    ...msg,
+    content: kept.length > 0
+      ? kept
+      : [{ type: "text" as const, text: STRIPPED_THINKING_PLACEHOLDER }],
+  };
 }
 
 // FNV-1a, 32 bits, over the UTF-8 bytes; eight lower-case hex digits.
@@ -337,32 +345,69 @@ export function buildToolResultUserMessage(
   return { role: "user", content };
 }
 
-// Server-side tools (web search, web fetch) put server_tool_use blocks and
-// their paired *_tool_result blocks inside the SAME assistant message. If a
-// turn is cut off at the pause_turn continuation cap, the persisted assistant
-// message can end with a server_tool_use block whose result never arrived —
-// the API's tolerance of that on a later send is unconfirmed, so trim the
-// unpaired blocks before persisting. Blocks are matched by id ↔ tool_use_id;
-// the block shapes come from the wire (outside our ContentBlock union), so
-// this reads them structurally.
-export function trimDanglingServerToolUse(
-  blocks: ContentBlock[],
-): ContentBlock[] {
-  const resultIds = new Set<string>();
-  for (const block of blocks) {
-    const b = block as { type?: string; tool_use_id?: string };
-    if (
-      typeof b.type === "string" && b.type.endsWith("_tool_result") &&
-      typeof b.tool_use_id === "string"
-    ) {
-      resultIds.add(b.tool_use_id);
+// Server-side tools (web search, web fetch, and the code execution the
+// dynamic web tools run) put each server_tool_use and its *_tool_result in
+// one run of consecutive assistant messages, which the API reads as one turn
+// (a paused reply and its resumes). A server_tool_use with no result in its
+// run never gets one once a turn has ended, and the API refuses every later
+// request that carries it: a reply cut off mid-call (max_tokens, a refusal,
+// the pause cap, a Stop or a throw while a paused reply resumes), wherever a
+// record saved before this trim holds it. Each such block is dropped; a reply
+// left with none is stored as emptyText, since the API refuses an empty
+// assistant message. Run where a turn ends and where a record loads, never
+// before a resume. A list with nothing to drop returns by reference. The
+// block shapes come from the wire (outside our ContentBlock union), so this
+// reads them structurally.
+export function trimUnansweredServerToolUse(
+  messages: MessageParam[],
+  emptyText: string,
+): MessageParam[] {
+  let out: MessageParam[] | undefined;
+  let start = 0;
+  while (start < messages.length) {
+    if (messages[start].role !== "assistant") {
+      start++;
+      continue;
+    }
+    let end = start;
+    while (messages[end + 1]?.role === "assistant") end++;
+    const answered = serverToolResultIds(messages.slice(start, end + 1));
+    for (let i = start; i <= end; i++) {
+      const content = messages[i].content;
+      if (typeof content === "string") continue;
+      const kept = content.filter((block) => {
+        const b = block as { type?: string; id?: string };
+        return b.type !== "server_tool_use" ||
+          (typeof b.id === "string" && answered.has(b.id));
+      });
+      if (kept.length < content.length) {
+        out ??= messages.slice();
+        out[i] = {
+          role: "assistant",
+          content: kept.length > 0 ? kept : emptyText,
+        };
+      }
+    }
+    start = end + 1;
+  }
+  return out ?? messages;
+}
+
+function serverToolResultIds(run: MessageParam[]): Set<string> {
+  const ids = new Set<string>();
+  for (const message of run) {
+    if (typeof message.content === "string") continue;
+    for (const block of message.content) {
+      const b = block as { type?: string; tool_use_id?: string };
+      if (
+        typeof b.type === "string" && b.type.endsWith("_tool_result") &&
+        typeof b.tool_use_id === "string"
+      ) {
+        ids.add(b.tool_use_id);
+      }
     }
   }
-  return blocks.filter((block) => {
-    const b = block as { type?: string; id?: string };
-    if (b.type !== "server_tool_use") return true;
-    return typeof b.id === "string" && resultIds.has(b.id);
-  });
+  return ids;
 }
 
 // A stranded list (its last message an assistant turn whose tool_use blocks
@@ -385,6 +430,107 @@ export function repairStrandedToolUse(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// A TURN'S IMAGES
+////////////////////////////////////////////////////////////////////////////////
+//
+// An image a tool returns is held for the turn that took it, and the turn's
+// end releases it. Kept, it would ride every later request: uploaded again
+// each time, showing a state the model has since changed, and counted with a
+// document's pages against one limit the API puts on a request, so that a
+// conversation could become unsendable.
+
+// What the model reads in place of an image an earlier turn held. It does
+// not say the tool can be called again: that is false of an image that
+// cannot be made again, and it invites a look on every turn.
+export const RELEASED_IMAGE_TEXT =
+  "[An image was shown here in an earlier turn. Your reply at the time records what you saw.]";
+
+// Every image in a tool result becomes RELEASED_IMAGE_TEXT, in its place.
+// The edit is to a message every later thinking block is bound to, so the
+// thinking blocks after the first released image go; the ones before it
+// stay. Input by reference when no image is held.
+export function releaseImages(messages: MessageParam[]): MessageParam[] {
+  const first = messages.findIndex(holdsImages);
+  if (first === -1) return messages;
+  return messages.map((msg, i) =>
+    i < first ? msg : withoutThinking(withImagesReleased(msg))
+  );
+}
+
+function holdsImages(msg: MessageParam): boolean {
+  return imageCountOf(msg) > 0;
+}
+
+function imageCountOf(msg: MessageParam): number {
+  return typeof msg.content === "string" ? 0 : msg.content.reduce(
+    (count, block) =>
+      block.type === "tool_result"
+        ? count + imagesOf(block.content).length
+        : count,
+    0,
+  );
+}
+
+function imagesOf(content: ToolResultContent): ImageContentBlock[] {
+  return typeof content === "string" ? [] : content.filter(
+    (block): block is ImageContentBlock => block.type === "image",
+  );
+}
+
+function withImagesReleased(msg: MessageParam): MessageParam {
+  if (!holdsImages(msg) || typeof msg.content === "string") return msg;
+  return {
+    ...msg,
+    content: msg.content.map((block) =>
+      block.type === "tool_result" && typeof block.content !== "string"
+        ? {
+          ...block,
+          content: block.content.map((inner) =>
+            inner.type === "image"
+              ? { type: "text" as const, text: RELEASED_IMAGE_TEXT }
+              : inner
+          ),
+        }
+        : block
+    ),
+  };
+}
+
+// The stored messages hold this turn's images alone, since every earlier
+// turn's are released. A result whose images would take the turn past
+// IMAGE_LIMITS.MAX_PER_TURN keeps its text and loses its images, with a
+// notice the model reads. The call is not answered as an error: a commit has
+// already written by the time its result is read.
+export function limitToolResultImages(
+  messages: MessageParam[],
+  results: ToolResultBlock[],
+): ToolResultBlock[] {
+  let held = messages.reduce((count, msg) => count + imageCountOf(msg), 0);
+  return results.map((result) => {
+    const count = imagesOf(result.content).length;
+    if (count === 0) {
+      return result;
+    }
+    if (held + count > IMAGE_LIMITS.MAX_PER_TURN) {
+      return { ...result, content: withImagesLeftOut(result.content, count) };
+    }
+    held += count;
+    return result;
+  });
+}
+
+function withImagesLeftOut(content: ToolResultContent, count: number): string {
+  const text = typeof content === "string"
+    ? content
+    : content.flatMap((block) => block.type === "text" ? [block.text] : [])
+      .join("\n\n");
+  const notice = `[${count} ${
+    count === 1 ? "image was" : "images were"
+  } left out of this result: one turn holds at most ${IMAGE_LIMITS.MAX_PER_TURN} images. More can be looked at after the user's next message.]`;
+  return text.trim() === "" ? notice : `${text}\n\n${notice}`;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // TURN CONTINUATION
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -392,9 +538,9 @@ export function repairStrandedToolUse(
 // continuation depth) to the next action in the chat turn loop. "halt"
 // surfaces a system notice and stops; "cap-tools" additionally requires
 // resolving the pending tool_use blocks with buildCancelledToolResults before
-// stopping; "cap-pause" additionally requires trimming dangling
+// stopping. "halt" and "cap-pause" both require trimming dangling
 // server_tool_use blocks from the persisted assistant message
-// (trimDanglingServerToolUse) before stopping. noticeType is the stable
+// (trimUnansweredServerToolUse) before stopping. noticeType is the stable
 // machine-readable key consumers can dispatch on; message/details are default
 // English display copy, and a refusal's details end with the API's explanation
 // when it gives one. "turn_error" is raised by the chat when a turn throws (an
@@ -438,6 +584,11 @@ const MODEL_NOT_FOUND_MESSAGE =
   "Model not found or unavailable. Check the model in AI settings.";
 const CONTEXT_EXCEEDED_MESSAGE =
   "Conversation too long — context window exceeded";
+const SESSION_EXPIRED_MESSAGE =
+  "Session expired — reload the page and sign in again";
+// Closes the details of both turn_limit notices: the turn's work is kept, so
+// what the user can do is send again.
+const TURN_LIMIT_NEXT_STEP = "Send a new message to carry on.";
 
 type StopDetailsLike = { explanation?: string | null } | null;
 
@@ -483,7 +634,7 @@ export function classifyTurnContinuation(
         noticeType: "turn_limit",
         message: "Stopped: too many turn continuations",
         details:
-          `The model paused and resumed more than ${maxContinuations} times in one turn.`,
+          `The model paused and resumed more than ${maxContinuations} times in one turn. ${TURN_LIMIT_NEXT_STEP}`,
       };
     }
     return { kind: "resume-pause-turn" };
@@ -495,7 +646,7 @@ export function classifyTurnContinuation(
         noticeType: "turn_limit",
         message: "Stopped: too many tool calls in one turn",
         details:
-          `The model requested tools more than ${maxContinuations} times in one turn.`,
+          `The model requested tools more than ${maxContinuations} times in one turn. ${TURN_LIMIT_NEXT_STEP}`,
       };
     }
     return { kind: "run-tools" };
@@ -531,8 +682,13 @@ export function getUserFacingAIErrorMessage(info: AIErrorInfo): string {
     return "Network error — check your connection";
   }
   if (info.isApiError) {
-    if (info.type === "authentication_error" || info.status === 401) {
+    if (info.type === "authentication_error") {
       return "Authentication failed — check your API key";
+    }
+    // Anthropic always types its errors; a 401 without a type is the proxy's
+    // own session guard, so the user's sign-in lapsed, not a key.
+    if (info.status === 401) {
+      return SESSION_EXPIRED_MESSAGE;
     }
     if (info.type === "permission_error" || info.status === 403) {
       return "Permission denied — check your API key and billing";

@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -8,10 +8,12 @@ import {
   type ChartComponentSizes,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
-  estimateMinXAxisHeightForScale,
   estimateMinYTextAxisWidth,
-  maxProportionalPanePlotExtent,
-  maxVisibleCount,
+  estimateTierHeaderAndLabelGapWidth,
+  getDimensionMembers,
+  maxNVisible,
+  maxProportionalPaneCategoryAxisExtent,
+  measureXValueAxisHeight,
   PANE_HEADER_SAMPLE_MAX_W,
   type RenderContext,
   resolveDefaultLegend,
@@ -42,16 +44,21 @@ export function getChartOHComponentSizes(
   );
   const ms = cs.getMergedChartOHStyle();
 
-  // X-scale axis height (self-contained, sample tick label).
-  const xAxisHeight = estimateMinXAxisHeightForScale(
+  const xAxisHeight = measureXValueAxisHeight(
     rc,
-    ms.xScaleAxis,
+    data.xValueAxisLabel,
+    ms.xValueAxis,
     ms.grid,
   );
 
   // Y-text axis width (sample). Actual width depends on indicator labels;
   // the estimator gives a conservative minimum.
-  const minYAxisWidth = estimateMinYTextAxisWidth(rc, ms.yTextAxis, ms.grid);
+  const minYAxisWidth = estimateMinYTextAxisWidth(
+    rc,
+    ms.yTextAxis,
+    ms.grid,
+    estimateTierHeaderAndLabelGapWidth(rc, data.tier, data.lane, ms),
+  );
 
   const paneHeaderHeight = rc
     .mText(
@@ -61,61 +68,61 @@ export function getChartOHComponentSizes(
     )
     .dims.h();
 
-  // minSubChartWidth — from X-scale tick labels (fixed, mirror of ChartOV's
+  // minSubChartWidth — from X value axis tick labels (fixed, mirror of ChartOV's
   // calculateMinSubChartHeight).
-  const minSubChartWidth = calculateMinSubChartWidth(rc, ms.xScaleAxis);
+  const minSubChartWidth = calculateMinSubChartWidth(rc, ms.xValueAxis);
 
   // minSubChartHeight — nIndicators × tick-label height (+ strokes).
   // Mirror of ChartOV's minSubChartWidth formula.
-  const indicatorHeaders = data.indicatorHeaders;
-  const nIndicators = indicatorHeaders.length;
+  const indicatorMembers = data.indicator.members;
+  const nIndicators = indicatorMembers.length;
   const textStyle = ms.yTextAxis.text.yTextAxisTickLabels;
   const contentMaxWidth = Infinity;
   let maxTickLabelH = 0;
-  for (const header of indicatorHeaders) {
-    const mText = rc.mText(header.label, textStyle, contentMaxWidth);
+  for (const member of indicatorMembers) {
+    const mText = rc.mText(member.label, textStyle, contentMaxWidth);
     if (mText.dims.h() > maxTickLabelH) maxTickLabelH = mText.dims.h();
   }
   // Unbalanced membership: reserve height for the fullest pane, not the
   // global union. maxTickLabelH stays measured from the global label set
   // (a safe upper bound for any pane's subset).
-  const nIndicatorSlots = maxVisibleCount(
+  const nSlots = maxNVisible(
     data.visibleIndicatorsByPane,
     nIndicators,
   );
-  const gridStrokeWidth = ms.grid.gridStrokeWidth;
+  const gridLineStrokeWidth = ms.grid.gridLineStrokeWidth;
   // Unbalanced tier membership: reserve height for the fullest pane.
-  const nTiers = maxVisibleCount(
+  const nTiers = maxNVisible(
     data.visibleTiersByPane,
-    data.tierHeaders.length,
+    getDimensionMembers(data.tier).length,
   );
-  // Proportional band layout: the height floor is the fullest pane's TOTAL
-  // (slotT-model: Σ over its bands of visible counts × label height +
+  // Proportional tier-or-lane layout: the height floor is the fullest pane's TOTAL
+  // (slotExtent-model: Σ over its tiers or lanes of visible counts × label height +
   // strokes), expressed per-tier so the uniform decomposition (× nTiers)
-  // recovers the pane total. Otherwise the shipped per-band × band-count
+  // recovers the pane total. Otherwise the shipped per-tier-or-lane × tier-or-lane count
   // model.
-  const minSubChartHeight = data.visibleIndicatorsByPaneBand
-    ? maxProportionalPanePlotExtent(
-      data.visibleIndicatorsByPaneBand,
+  const minSubChartHeight = data.visibleIndicatorsByPaneTier
+    ? maxProportionalPaneCategoryAxisExtent(
+      data.visibleIndicatorsByPaneTier,
       maxTickLabelH,
       ms.yTextAxis.tickPosition === "center",
-      gridStrokeWidth,
+      gridLineStrokeWidth,
     ) / Math.max(1, nTiers)
     : ms.yTextAxis.tickPosition === "center"
-    ? nIndicatorSlots * maxTickLabelH
-    : nIndicatorSlots * maxTickLabelH + gridStrokeWidth * (nIndicatorSlots + 1);
+    ? nSlots * maxTickLabelH
+    : nSlots * maxTickLabelH + gridLineStrokeWidth * (nSlots + 1);
 
   const resolvedLegendLabels = resolveDefaultLegend(
     inputs.legend,
-    data.seriesHeaders,
+    data.series,
   );
 
   return {
     customFigureStyle: cs,
     mergedStyle: ms,
-    nLanes: data.laneHeaders.length,
+    nLanes: getDimensionMembers(data.lane).length,
     nTiers,
-    paneHeaders: data.paneHeaders,
+    nPanes: getDimensionMembers(data.pane).length,
     minSubChartWidth,
     minSubChartHeight,
     xAxisHeight,
@@ -125,12 +132,12 @@ export function getChartOHComponentSizes(
       rc,
       cs,
       resolvedLegendLabels,
-      data.seriesHeaders,
+      data.series,
     ),
     resolvedLegendLabels,
     // Proportional layout: the tick mode drives the inter-slot stroke term
     // in the ragged decompositions.
-    slotTicksCentered: data.visibleIndicatorsByPaneBand
+    slotTicksCentered: data.visibleIndicatorsByPaneTier
       ? ms.yTextAxis.tickPosition === "center"
       : undefined,
   };

@@ -78,6 +78,7 @@ function rosterRow(
     isHUser: false,
     unlimitedAi: false,
     isContactPerson: false,
+    lastActiveAt: null,
     scopeAccess,
     ...NO_PERMISSIONS,
     can_view_data: true,
@@ -181,6 +182,7 @@ Deno.test("scopes and slide stamps are cut to the grants", () => {
         definitionHash: "h",
         lastUpdated: "t",
         migratedFrom: null,
+        productCount: 0,
       })),
     },
   });

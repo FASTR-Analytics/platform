@@ -255,9 +255,10 @@ async function prepareDeck(
         year: reporting ? String(Math.floor(reporting.end / 100)) : "",
       },
     );
-    if (!(await context.patchDeckConfig(next))) {
+    const saved = await context.patchDeckConfig(next);
+    if (!saved.success) {
       throw new AIToolFailure(
-        "The blueprint's look could not be saved, so nothing else was changed. Ask the person to try Build again.",
+        `The blueprint's look could not be saved (${saved.err}), so nothing else was changed. Ask the person to try Build again.`,
       );
     }
     done.push(`Applied the blueprint's look (theme "${next.theme}").`);

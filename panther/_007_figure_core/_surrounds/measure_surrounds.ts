@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -6,7 +6,7 @@
 import {
   Coordinates,
   type CustomFigureStyle,
-  type HeaderItem,
+  type DataDimension,
   type MeasuredText,
   type MergedLegendStyle,
   type MergedSurroundsStyle,
@@ -21,26 +21,18 @@ import {
   type MeasuredScaleLegend,
   measureScaleLegend,
 } from "../_legend/measure_scale_legend.ts";
-import { isArrayOfLegendItems } from "../_legend/types.ts";
+import { isArrayOfLegendEntries } from "../_legend/types.ts";
 import {
   isConcreteScaleLegendConfig,
   type LegendInput,
 } from "../_legend/scale_legend_types.ts";
-import type { LegendItem } from "../types.ts";
-import { NO_DISAGGREGATION_HEADER_ID } from "../common_data_transform.ts";
-
-// Legend swatches have no pane/tier/lane context; this matches the
-// no-disaggregation sentinel that collectHeaders emits for an absent dimension.
-const DEFAULT_HEADER: HeaderItem = {
-  id: NO_DISAGGREGATION_HEADER_ID,
-  label: NO_DISAGGREGATION_HEADER_ID,
-};
+import type { LegendEntry } from "../types.ts";
 
 export function estimateMinSurroundsWidth(
   rc: RenderContext,
   cs: CustomFigureStyle,
   legendLabels: LegendInput | undefined,
-  seriesHeaders?: HeaderItem[],
+  series?: DataDimension,
 ): number {
   const sSurrounds = cs.getMergedSurroundsStyle();
 
@@ -62,41 +54,47 @@ export function estimateMinSurroundsWidth(
       sSurrounds.legendGap;
   }
 
-  const legendItems = getLegendItems(
+  const legendEntries = getLegendEntries(
     legendLabels,
     sSurrounds.legend,
-    seriesHeaders,
+    series,
   );
-  if (!legendItems) {
+  if (!legendEntries) {
     return sSurrounds.padding.totalPx();
   }
 
   // Laid out as measureSurrounds lays out a right legend: no available
-  // width, so the legend wraps into columns at maxLegendItemsInOneColumn.
-  const mLegend = measureLegend(rc, legendItems, sSurrounds.legend);
+  // width, so the legend wraps into columns at maxLegendEntriesInOneColumn.
+  const mLegend = measureLegend(rc, legendEntries, sSurrounds.legend);
   return sSurrounds.padding.totalPx() + mLegend.dimensions.w() +
     sSurrounds.legendGap;
 }
 
 export type MeasuredSurroundsLegend =
-  | { type: "items"; rcd: RectCoordsDims; mLegend: MeasuredLegend }
+  | {
+    type: "entries";
+    rcd: RectCoordsDims;
+    mLegend: MeasuredLegend;
+    // The dimension of the series its entries' ids name.
+    seriesDimension: string | undefined;
+  }
   | { type: "scale"; rcd: RectCoordsDims; mScaleLegend: MeasuredScaleLegend };
 
 export type MeasuredSurrounds = {
-  caption?: {
+  title?: {
     rcd: RectCoordsDims;
-    mCaption: MeasuredText;
+    mTitle: MeasuredText;
   };
-  subCaption?: {
+  subtitle?: {
     rcd: RectCoordsDims;
-    mSubCaption: MeasuredText;
+    mSubtitle: MeasuredText;
   };
   footnote?: {
     rcd: RectCoordsDims;
     mFootnotes: MeasuredText[];
   };
-  contentRcd: RectCoordsDims;
-  outerRcd: RectCoordsDims;
+  bodyRcd: RectCoordsDims;
+  bounds: RectCoordsDims;
   extraHeightDueToSurrounds: number;
   legend?: MeasuredSurroundsLegend;
   s: MergedSurroundsStyle;
@@ -106,54 +104,54 @@ export function measureSurrounds(
   rc: RenderContext,
   rcd: RectCoordsDims,
   cs: CustomFigureStyle,
-  caption: string | undefined,
-  subCaption: string | undefined,
+  title: string | undefined,
+  subtitle: string | undefined,
   footnote: string | string[] | undefined,
   legendLabels: LegendInput | undefined,
-  seriesHeaders?: HeaderItem[],
+  series?: DataDimension,
 ): MeasuredSurrounds {
   const sSurrounds = cs.getMergedSurroundsStyle();
-  const innerRcd = rcd.getPadded(sSurrounds.padding);
+  const paddedRcd = rcd.getPadded(sSurrounds.padding);
 
-  // Caption
-  let captionAndCaptionGapH = 0;
-  let mCaption = undefined;
-  let captionRcd = undefined;
+  // Title
+  let titleAndGapHeight = 0;
+  let mTitle = undefined;
+  let titleRcd = undefined;
 
-  if (caption?.trim()) {
-    mCaption = rc.mText(caption.trim(), sSurrounds.text.caption, innerRcd.w());
-    captionAndCaptionGapH = mCaption.dims.h();
-    captionRcd = innerRcd.getAdjusted({ h: mCaption.dims.h() });
+  if (title?.trim()) {
+    mTitle = rc.mText(title.trim(), sSurrounds.text.title, paddedRcd.w());
+    titleAndGapHeight = mTitle.dims.h();
+    titleRcd = paddedRcd.getAdjusted({ h: mTitle.dims.h() });
   }
 
-  // Sub-caption
-  let subCaptionAndSubCaptionGapH = 0;
-  let mSubCaption = undefined;
-  let subCaptionRcd = undefined;
+  // Sub-title
+  let subtitleAndTopPaddingHeight = 0;
+  let mSubtitle = undefined;
+  let subtitleRcd = undefined;
 
-  if (subCaption?.trim()) {
-    const subCaptionTopPadding = mCaption ? sSurrounds.subCaptionTopPadding : 0;
-    mSubCaption = rc.mText(
-      subCaption.trim(),
-      sSurrounds.text.subCaption,
-      innerRcd.w(),
+  if (subtitle?.trim()) {
+    const subtitleTopPadding = mTitle ? sSurrounds.subtitleTopPadding : 0;
+    mSubtitle = rc.mText(
+      subtitle.trim(),
+      sSurrounds.text.subtitle,
+      paddedRcd.w(),
     );
-    subCaptionAndSubCaptionGapH = mSubCaption.dims.h() + subCaptionTopPadding;
-    subCaptionRcd = innerRcd.getAdjusted({
-      y: innerRcd.y() +
-        (captionRcd && mCaption ? mCaption.dims.h() : 0) +
-        subCaptionTopPadding,
-      h: mSubCaption.dims.h(),
+    subtitleAndTopPaddingHeight = mSubtitle.dims.h() + subtitleTopPadding;
+    subtitleRcd = paddedRcd.getAdjusted({
+      y: paddedRcd.y() +
+        (titleRcd && mTitle ? mTitle.dims.h() : 0) +
+        subtitleTopPadding,
+      h: mSubtitle.dims.h(),
     });
   }
 
-  if (mCaption || mSubCaption) {
-    captionAndCaptionGapH += sSurrounds.captionGap;
+  if (mTitle || mSubtitle) {
+    titleAndGapHeight += sSurrounds.titleGap;
   }
 
   // Footnote
   let footnoteTotalH = 0;
-  let footnoteTotalHAndFootnoteGapH = 0;
+  let footnoteAndGapHeight = 0;
   const mFootnotes: MeasuredText[] = [];
   let footnoteRcd = undefined;
 
@@ -163,24 +161,24 @@ export function measureSurrounds(
       const mFootnote = rc.mText(
         goodFootnote.trim(),
         sSurrounds.text.footnote,
-        innerRcd.w(),
+        paddedRcd.w(),
       );
       const footnoteH = mFootnote.dims.h();
       mFootnotes.push(mFootnote);
       footnoteTotalH += footnoteH;
     }
-    footnoteTotalHAndFootnoteGapH = footnoteTotalH + sSurrounds.footnoteGap;
-    footnoteRcd = innerRcd.getAdjusted((prev) => {
+    footnoteAndGapHeight = footnoteTotalH + sSurrounds.footnoteGap;
+    footnoteRcd = paddedRcd.getAdjusted((prev) => {
       return { h: footnoteTotalH, y: prev.bottomY() - footnoteTotalH };
     });
   }
 
-  const chartAndLegendRcd = innerRcd.getAdjusted((prev) => ({
-    y: prev.y() + captionAndCaptionGapH + subCaptionAndSubCaptionGapH,
+  const bodyAndLegendRcd = paddedRcd.getAdjusted((prev) => ({
+    y: prev.y() + titleAndGapHeight + subtitleAndTopPaddingHeight,
     h: prev.h() -
-      (captionAndCaptionGapH +
-        subCaptionAndSubCaptionGapH +
-        footnoteTotalHAndFootnoteGapH),
+      (titleAndGapHeight +
+        subtitleAndTopPaddingHeight +
+        footnoteAndGapHeight),
   }));
 
   // Legend
@@ -195,10 +193,10 @@ export function measureSurrounds(
     const isRight = ["right-top", "right-center", "right-bottom"].includes(
       sSurrounds.legendPosition,
     );
-    const legendItems = getLegendItems(
+    const legendEntries = getLegendEntries(
       legendLabels,
       sSurrounds.legend,
-      seriesHeaders,
+      series,
     );
 
     if (isConcreteScaleLegendConfig(legendLabels)) {
@@ -207,7 +205,7 @@ export function measureSurrounds(
         rc,
         legendLabels,
         sScaleLegend,
-        isBottom ? chartAndLegendRcd.w() : undefined,
+        isBottom ? bodyAndLegendRcd.w() : undefined,
       );
 
       legendAndLegendGapH = isBottom
@@ -218,7 +216,7 @@ export function measureSurrounds(
         : 0;
 
       const { x, y } = positionLegend(
-        chartAndLegendRcd,
+        bodyAndLegendRcd,
         mScaleLegend.dimensions,
         sSurrounds.legendPosition,
         isBottom,
@@ -228,12 +226,12 @@ export function measureSurrounds(
         new Coordinates({ x, y }),
       );
       legend = { type: "scale", rcd: legendRcd, mScaleLegend };
-    } else if (legendItems) {
+    } else if (legendEntries) {
       const mLegend = measureLegend(
         rc,
-        legendItems,
+        legendEntries,
         sSurrounds.legend,
-        isBottom ? chartAndLegendRcd.w() : undefined,
+        isBottom ? bodyAndLegendRcd.w() : undefined,
       );
 
       legendAndLegendGapH = isBottom
@@ -244,7 +242,7 @@ export function measureSurrounds(
         : 0;
 
       const { x, y } = positionLegend(
-        chartAndLegendRcd,
+        bodyAndLegendRcd,
         mLegend.dimensions,
         sSurrounds.legendPosition,
         isBottom,
@@ -253,26 +251,31 @@ export function measureSurrounds(
       const legendRcd = mLegend.dimensions.asRectCoordsDims(
         new Coordinates({ x, y }),
       );
-      legend = { type: "items", rcd: legendRcd, mLegend };
+      legend = {
+        type: "entries",
+        rcd: legendRcd,
+        mLegend,
+        seriesDimension: series?.name,
+      };
     }
   }
 
-  const contentRcd = chartAndLegendRcd.getAdjusted((prev) => ({
+  const bodyRcd = bodyAndLegendRcd.getAdjusted((prev) => ({
     h: prev.h() - legendAndLegendGapH,
     w: prev.w() - legendAndLegendGapW,
   }));
 
   return {
-    caption: captionRcd && mCaption
+    title: titleRcd && mTitle
       ? {
-        rcd: captionRcd,
-        mCaption,
+        rcd: titleRcd,
+        mTitle,
       }
       : undefined,
-    subCaption: subCaptionRcd && mSubCaption
+    subtitle: subtitleRcd && mSubtitle
       ? {
-        rcd: subCaptionRcd,
-        mSubCaption,
+        rcd: subtitleRcd,
+        mSubtitle,
       }
       : undefined,
     footnote: footnoteRcd && mFootnotes.length > 0
@@ -281,77 +284,72 @@ export function measureSurrounds(
         mFootnotes,
       }
       : undefined,
-    contentRcd,
-    outerRcd: rcd,
-    extraHeightDueToSurrounds: rcd.h() - contentRcd.h(),
+    bodyRcd,
+    bounds: rcd,
+    extraHeightDueToSurrounds: rcd.h() - bodyRcd.h(),
     legend,
     s: sSurrounds,
   };
 }
 
 function positionLegend(
-  chartAndLegendRcd: RectCoordsDims,
+  bodyAndLegendRcd: RectCoordsDims,
   legendDims: { w: () => number; h: () => number },
   legendPosition: string,
   isBottom: boolean,
   isRight: boolean,
 ): { x: number; y: number } {
-  const x = chartAndLegendRcd.x() +
+  const x = bodyAndLegendRcd.x() +
     (isRight
-      ? chartAndLegendRcd.w() - legendDims.w()
+      ? bodyAndLegendRcd.w() - legendDims.w()
       : legendPosition === "bottom-left"
       ? 0
       : legendPosition === "bottom-center"
-      ? (chartAndLegendRcd.w() - legendDims.w()) / 2
-      : chartAndLegendRcd.w() - legendDims.w());
-  const y = chartAndLegendRcd.y() +
+      ? (bodyAndLegendRcd.w() - legendDims.w()) / 2
+      : bodyAndLegendRcd.w() - legendDims.w());
+  const y = bodyAndLegendRcd.y() +
     (isBottom
-      ? chartAndLegendRcd.h() - legendDims.h()
+      ? bodyAndLegendRcd.h() - legendDims.h()
       : legendPosition === "right-top"
       ? 0
       : legendPosition === "right-center"
-      ? (chartAndLegendRcd.h() - legendDims.h()) / 2
-      : chartAndLegendRcd.h() - legendDims.h());
+      ? (bodyAndLegendRcd.h() - legendDims.h()) / 2
+      : bodyAndLegendRcd.h() - legendDims.h());
   return { x, y };
 }
 
-// undefined when the input draws no item legend: a scale legend, no labels,
-// or the lone no-disaggregation sentinel.
-function getLegendItems(
+// undefined when the input draws no legend of entries: a scale legend or no labels.
+function getLegendEntries(
   legendLabels: LegendInput,
   sLegend: MergedLegendStyle,
-  seriesHeaders: HeaderItem[] | undefined,
-): LegendItem[] | undefined {
-  if (
-    !Array.isArray(legendLabels) ||
-    legendLabels.length === 0 ||
-    (legendLabels.length === 1 &&
-      legendLabels[0] === NO_DISAGGREGATION_HEADER_ID)
-  ) {
+  series: DataDimension | undefined,
+): LegendEntry[] | undefined {
+  if (!Array.isArray(legendLabels) || legendLabels.length === 0) {
     return undefined;
   }
-  if (isArrayOfLegendItems(legendLabels)) {
+  if (isArrayOfLegendEntries(legendLabels)) {
     return legendLabels;
   }
   return legendLabels.map((label, i_label, arr_label) => ({
+    id: series?.members[i_label]?.id,
     label,
     color: sLegend.seriesColorFunc({
       i_series: i_label,
       isFirstSeries: i_label === 0,
       isLastSeries: i_label === arr_label.length - 1,
-      seriesHeader: seriesHeaders?.[i_label] ?? { id: label, label },
+      seriesMember: series?.members[i_label] ?? { id: label, label },
       nSerieses: arr_label.length,
-      seriesValArrays: [],
-      nVals: 0,
+      seriesValueArrays: [],
+      nValues: 0,
       i_lane: 0,
       nLanes: 0,
-      laneHeader: DEFAULT_HEADER,
+      laneMember: undefined,
       i_tier: 0,
       nTiers: 0,
-      tierHeader: DEFAULT_HEADER,
+      tierMember: undefined,
       i_pane: 0,
       nPanes: 0,
-      paneHeader: DEFAULT_HEADER,
+      paneMember: undefined,
     }),
   }));
 }

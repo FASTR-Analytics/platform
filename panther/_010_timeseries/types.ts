@@ -1,18 +1,18 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  ChartScaleAxisLimits,
+  ChartValueAxisLimits,
   CustomFigureStyle,
+  DataDimension,
   FigureInputsBase,
-  HeaderItem,
-  HeaderSortConfig,
   JsonArray,
   LegendInput,
   Measured,
   MeasuredSurrounds,
+  MemberSortConfig,
   MergedTimeseriesStyle,
   PaneLayout,
   PeriodType,
@@ -52,12 +52,12 @@ export type TimeseriesJsonDataConfig = {
   //
   labelReplacements?: Record<string, string>;
   sort?: {
-    series?: HeaderSortConfig;
-    lane?: HeaderSortConfig;
-    tier?: HeaderSortConfig;
-    pane?: HeaderSortConfig;
+    series?: MemberSortConfig;
+    lane?: MemberSortConfig;
+    tier?: MemberSortConfig;
+    pane?: MemberSortConfig;
   };
-  yScaleAxisLabel?: string;
+  yValueAxisLabel?: string;
 };
 
 ///////////////////////
@@ -68,21 +68,27 @@ export type TimeseriesJsonDataConfig = {
 
 export type TimeseriesDataTransformed = {
   isTransformed: true;
-  periodType: PeriodType;
-  timeMin: number;
-  timeMax: number;
-  nTimePoints: number;
-  seriesHeaders: HeaderItem[];
-  laneHeaders: HeaderItem[];
-  tierHeaders: HeaderItem[];
-  paneHeaders: HeaderItem[];
+  // The period dimension: its name and the time points it spans, from timeMin.
+  period: {
+    name: string;
+    periodType: PeriodType;
+    timeMin: number;
+    nTimePoints: number;
+    nBlankRows: number; // rows left off the plot because their period is blank
+  };
+  // One dimension per prop given; with no prop there is none, and values are
+  // one member long there.
+  series?: DataDimension;
+  lane?: DataDimension;
+  tier?: DataDimension;
+  pane?: DataDimension;
   values: (number | undefined)[][][][][];
-  bounds?: {
+  uncertaintyValues?: {
     ub: (number | undefined)[][][][][];
     lb: (number | undefined)[][][][][];
   };
-  scaleAxisLimits: ChartScaleAxisLimits;
-  yScaleAxisLabel?: string;
+  valueAxisLimits: ChartValueAxisLimits;
+  yValueAxisLabel?: string;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -111,8 +117,8 @@ export type MeasuredTimeseries = Measured<TimeseriesInputs> & {
   transformedData: TimeseriesDataTransformed;
   customFigureStyle: CustomFigureStyle;
   mergedStyle: MergedTimeseriesStyle;
-  caption?: string;
-  subCaption?: string;
+  title?: string;
+  subtitle?: string;
   footnote?: string | string[];
   legend?: LegendInput;
   primitives: Primitive[];

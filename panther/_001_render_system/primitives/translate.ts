@@ -1,21 +1,21 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { Coordinates, type RectCoordsDims } from "../deps.ts";
 import type {
-  ChartCaptionPrimitive,
-  ChartLegendPrimitive,
-  ScaleLegendGradientPrimitive,
-  ScaleLegendSteppedPrimitive,
+  FigureLegendPrimitive,
+  FigureScaleLegendGradientPrimitive,
+  FigureScaleLegendSteppedPrimitive,
+  FigureTextPrimitive,
 } from "./types.ts";
 
 export type SurroundsPrimitive =
-  | ChartCaptionPrimitive
-  | ChartLegendPrimitive
-  | ScaleLegendGradientPrimitive
-  | ScaleLegendSteppedPrimitive;
+  | FigureTextPrimitive
+  | FigureLegendPrimitive
+  | FigureScaleLegendGradientPrimitive
+  | FigureScaleLegendSteppedPrimitive;
 
 export function translatePrimitive(
   p: SurroundsPrimitive,
@@ -36,24 +36,34 @@ export function translatePrimitive(
   const bounds = rect(p.bounds);
   const annotationBounds = p.annotationBounds && rect(p.annotationBounds);
   switch (p.type) {
-    case "chart-caption":
-      return { ...p, bounds, annotationBounds, position: pt(p.position) };
-    case "chart-legend":
+    case "figure-text":
       return {
         ...p,
         bounds,
         annotationBounds,
-        items: p.items.map((item) => ({
-          ...item,
-          labelPosition: pt(item.labelPosition),
-          symbol: item.symbol.type === "point"
-            ? { ...item.symbol, position: pt(item.symbol.position) }
-            : item.symbol.type === "line"
-            ? { ...item.symbol, coords: item.symbol.coords.map(pt) }
-            : { ...item.symbol, position: rect(item.symbol.position) },
-        })),
+        alignRcd: rect(p.alignRcd),
+        hitBounds: rect(p.hitBounds),
       };
-    case "scale-legend-gradient":
+    case "figure-legend":
+      return {
+        ...p,
+        bounds,
+        annotationBounds,
+        entries: p.entries.map((entry) => {
+          const placed = {
+            labelPosition: pt(entry.labelPosition),
+            symbol: entry.symbol.type === "point"
+              ? { ...entry.symbol, position: pt(entry.symbol.position) }
+              : entry.symbol.type === "line"
+              ? { ...entry.symbol, coords: entry.symbol.coords.map(pt) }
+              : { ...entry.symbol, position: rect(entry.symbol.position) },
+          };
+          return entry.part === undefined
+            ? { ...entry, ...placed }
+            : { ...entry, ...placed, hitBounds: rect(entry.hitBounds) };
+        }),
+      };
+    case "figure-scale-legend-gradient":
       return {
         ...p,
         bounds,
@@ -65,7 +75,7 @@ export function translatePrimitive(
         })),
         noData: noData(p.noData),
       };
-    case "scale-legend-stepped":
+    case "figure-scale-legend-stepped":
       return {
         ...p,
         bounds,

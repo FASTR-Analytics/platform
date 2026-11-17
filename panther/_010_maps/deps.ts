@@ -1,46 +1,52 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+export { BLANK_SENTINEL } from "../_000_utils/mod.ts";
 export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export {
-  createHeaderItems,
-  sortHeaderItems,
+  buildItem,
+  computeBoundsForPath,
+  getDimensionMembers,
+  pathSegmentPoints,
   Z_INDEX,
 } from "../_001_render_system/mod.ts";
 export type {
-  HeaderItem,
-  HeaderSortConfig,
+  DataDimension,
   HeightConstraints,
-  MapRegionInfo,
-  MapRegionInfoFunc,
-  MapRegionPrimitive,
+  MapAreaInfo,
+  MapAreaInfoFunc,
+  MapAreaPrimitive,
+  MemberSortConfig,
   PathSegment,
   Primitive,
+  PrimitiveItem,
   RenderContext,
   Renderer,
 } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type {
+  MapAreaStyle,
   MapDataLabelMode,
-  MapRegionStyle,
   MergedMapStyle,
   OutsideLabelPlacement,
 } from "../_003_figure_style/mod.ts";
 export {
+  buildDataDimension,
   buildDataLabelTextStyle,
   buildDistanceField,
   calculateChartIdealHeight,
   calculateChartMinWidth,
-  calculateMinLabelPlotExtent,
-  collectHeaders,
+  calculateMinLabelSubChartExtent,
   computeFloorScale,
   estimateMinSurroundsWidth,
   fieldTrack,
   generateResolvedFigureLabelPrimitives,
-  getHeaderIndex,
+  getDimensionId,
+  getMemberIndex,
+  getSubChartMembers,
   isAutoScaleLegendConfig,
   measureChart,
   measureChartWithAutofit,
@@ -55,6 +61,8 @@ export {
   resolvePaneGrid,
   scaledTrack,
   solveContentScale,
+  subChartItemCoordinates,
+  validateDimensionProps,
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartComponentSizes,
@@ -73,4 +81,6 @@ export type {
   Point,
   Ring,
   SimplifiedChartConfig,
+  SubChartMembers,
+  ValueRange,
 } from "../_007_figure_core/mod.ts";

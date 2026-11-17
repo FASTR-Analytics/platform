@@ -1,6 +1,7 @@
 import { ensureDir } from "@std/fs";
 import { basename, join } from "@std/path";
 import { Hono } from "hono";
+import { decodeBase64Utf8 } from "lib";
 import {
   applyUploadVisibility,
   canUserUploadOverAsset,
@@ -113,8 +114,7 @@ function parseMetadata(metadataHeader: string | null): Record<string, string> {
   for (const pair of pairs) {
     const [key, value] = pair.trim().split(" ");
     if (key && value) {
-      // Decode base64 value
-      metadata[key] = atob(value);
+      metadata[key] = decodeBase64Utf8(value);
     }
   }
 
@@ -376,7 +376,8 @@ routesUpload.patch(
         c.header("Upload-Offset", upload.size.toString());
         c.header("Tus-Resumable", "1.0.0");
         c.header("X-Upload-Complete", "true");
-        c.header("X-Upload-Filename", upload.filename);
+        // A header value must be Latin-1; a file name need not be.
+        c.header("X-Upload-Filename", encodeURIComponent(upload.filename));
 
         return c.body(null);
       }

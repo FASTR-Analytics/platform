@@ -11,7 +11,7 @@
 
 import * as Y from "yjs";
 import type { FigureBlock, FigureBundle } from "../types/_figure_bundle.ts";
-import { setOpaque } from "./crdt_util.ts";
+import { canonicalJson, setOpaque } from "./crdt_util.ts";
 import {
   materializeFigureConfig,
   seedFigureConfigMap,
@@ -114,6 +114,30 @@ export function syncFigureEntry(
     }
     syncFigureConfigToMap(cfgMap as Y.Map<unknown>, config);
   }
-  setOpaque(entry, FIG_DATA_KEY, figData);
+  setFigData(entry, figData);
   lastFigureBundleRef.set(entry, bundle);
+}
+
+// The data half of a bundle without `snapshotAt`: every resolve stamps a new
+// one, so comparing it would make merely opening a figure editor write the
+// doc, checkpoint, and report its slide, report or visualization changed.
+function figDataForCompare(figData: unknown): string {
+  if (figData === null || typeof figData !== "object") {
+    return canonicalJson(figData);
+  }
+  const { snapshotAt: _snapshotAt, ...rest } = figData as Record<
+    string,
+    unknown
+  >;
+  return canonicalJson(rest);
+}
+
+/** Write a figure node's data half unless it differs from the stored one only
+ *  in `snapshotAt`; returns whether it wrote. */
+export function setFigData(m: Y.Map<unknown>, figData: object): boolean {
+  if (figDataForCompare(m.get(FIG_DATA_KEY)) === figDataForCompare(figData)) {
+    return false;
+  }
+  setOpaque(m, FIG_DATA_KEY, figData);
+  return true;
 }

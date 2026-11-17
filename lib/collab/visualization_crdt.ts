@@ -16,7 +16,6 @@
 
 import type * as Y from "yjs";
 import type { FigureBundle } from "../types/_figure_bundle.ts";
-import { canonicalJson, setOpaque } from "./crdt_util.ts";
 import { syncFigureConfigToMap } from "./figure_config_crdt.ts";
 import {
   FIG_DATA_KEY,
@@ -24,6 +23,7 @@ import {
   forgetSyncedFigureBundle,
   readFigureEntry,
   seedFigureEntry,
+  setFigData,
   syncFigureEntry,
 } from "./figure_entry_crdt.ts";
 
@@ -76,21 +76,6 @@ export function findVisualizationConfigMap(
   return findFigureEntryConfigMap(figureEntry(doc));
 }
 
-// The data half of a bundle, without the fields that change on every fetch
-// whatever the figure: `snapshotAt` is stamped at each resolve, so comparing
-// it would make merely opening a visualization write the doc, checkpoint and
-// bump the product to the top of the list.
-function figDataForCompare(figData: unknown): string {
-  if (figData === null || typeof figData !== "object") {
-    return canonicalJson(figData);
-  }
-  const { snapshotAt: _snapshotAt, ...rest } = figData as Record<
-    string,
-    unknown
-  >;
-  return canonicalJson(rest);
-}
-
 /** Write a freshly resolved bundle's data half (items, metadata, scope,
  *  provenance) onto the doc, leaving the co-edited config alone: the figure
  *  editor owns figConfig live. A no-op when only `snapshotAt` differs. With no
@@ -106,13 +91,7 @@ export function syncVisualizationFigData(
     return;
   }
   const { config: _config, ...figData } = bundle;
-  if (
-    figDataForCompare(entry.get(FIG_DATA_KEY)) === figDataForCompare(figData)
-  ) {
-    return;
-  }
-  setOpaque(entry, FIG_DATA_KEY, figData);
-  forgetSyncedFigureBundle(entry);
+  if (setFigData(entry, figData)) forgetSyncedFigureBundle(entry);
 }
 
 /** Diff full visualization content onto the doc (config and data).

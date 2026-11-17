@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -32,36 +32,37 @@ import {
 import { getTableDataTransformed } from "./get_table_data.ts";
 import type { TableInputs } from "./mod.ts";
 import type { MeasuredTable } from "./types.ts";
+import { tableColGroups, tableRowGroups } from "./types.ts";
 
 function getMinComfortableWidth(
   rc: RenderContext,
-  item: TableInputs,
+  inputs: TableInputs,
   availableW: number,
   fitScale?: number,
   cache?: PerScaleMeasureCache,
 ): number {
   const customFigureStyle = new CustomFigureStyle(
-    item.style,
+    inputs.style,
     fitScale,
-    item.autofitSurrounds,
+    inputs.autofitSurrounds,
   );
   const s = customFigureStyle.getMergedTableStyle();
   // Same label-resolution prelude as measureTable: the shared per-scale
   // caches key on sf alone, so both entry points must see identical labels.
   const d = resolveTableHeadersTransformed(
-    getTableDataTransformed(item.data),
+    getTableDataTransformed(inputs.data),
     s,
   ).data;
 
-  const nCols = sum(d.colGroups.map((cg) => cg.cols.length));
-  const hasRowGroupHeaders = d.rowGroups.some((rg) => rg.label);
+  const nCols = sum(tableColGroups(d).map((cg) => cg.cols.length));
+  const hasRowGroupHeaders = tableRowGroups(d).some((rg) => rg.label);
 
   // Calculate surrounds minimum width first (mainly right-positioned
   // legends) — it also feeds the row-header cap below.
   const surroundsMinWidth = estimateMinSurroundsWidth(
     rc,
     customFigureStyle,
-    item.legend,
+    inputs.legend,
   );
 
   // Model the row header exactly as measureTable lays it out: each label
@@ -74,7 +75,7 @@ function getMinComfortableWidth(
     (s.rowHeaderPadding.totalPx() +
       (hasRowGroupHeaders ? s.rowHeaderIndentIfRowGroups : 0));
   let minRowHeaderWidth = 0;
-  for (const rowGroup of d.rowGroups) {
+  for (const rowGroup of tableRowGroups(d)) {
     if (rowGroup.label !== undefined) {
       minRowHeaderWidth = Math.max(
         minRowHeaderWidth,
@@ -97,13 +98,13 @@ function getMinComfortableWidth(
   // Shared helpers — same logic used by measureTable.
   const nRows = d.aoa.length;
   const allColIndices: number[] = [];
-  for (const colGroup of d.colGroups) {
+  for (const colGroup of tableColGroups(d)) {
     for (const col of colGroup.cols) {
       allColIndices.push(col.index);
     }
   }
   const excludedRowIndices = buildExcludedRowIndices(
-    d.rowGroups,
+    tableRowGroups(d),
     d.liveDomainExcludeIds,
   );
   const columnMinMax = computeColumnMinMax(
@@ -144,7 +145,7 @@ function getMinComfortableWidth(
   // The floor must model the ACTUAL width distribution, or the fit search's
   // promise ("at minWidth, nothing overflows") breaks.
   let colsTotalWidth: number;
-  if (item.columnWidths === undefined || item.columnWidths === "equal") {
+  if (inputs.columnWidths === undefined || inputs.columnWidths === "equal") {
     // Equal division gives every column the same width, so the table is
     // only comfortable when EVERY column can hold the single widest word
     // found anywhere (incl. group labels): nCols x the global max — the
@@ -166,7 +167,7 @@ function getMinComfortableWidth(
     // INCLUDING per-group label reservations (computeAutoColumnMins is the
     // single source for both sides).
     const sf = fitScale ?? 1;
-    const entries = resolveColumnWidthEntries(item.columnWidths, nCols, sf);
+    const entries = resolveColumnWidthEntries(inputs.columnWidths, nCols, sf);
     const minsByColIndex = computeAutoColumnMins(
       d,
       entries,
@@ -194,35 +195,35 @@ function getMinComfortableWidth(
 function getIdealHeightAtScale(
   rc: RenderContext,
   width: number,
-  item: TableInputs,
+  inputs: TableInputs,
   scale: number,
   cache?: PerScaleMeasureCache,
 ): number {
   const dummyRcd = new RectCoordsDims({ x: 0, y: 0, w: width, h: 9999 });
-  const mTable = measureTable(rc, dummyRcd, item, scale, cache);
+  const mTable = measureTable(rc, dummyRcd, inputs, scale, cache);
   return mTable.measuredInfo!.finalContentH + mTable.extraHeightDueToSurrounds!;
 }
 
 function measureWithAutofit(
   rc: RenderContext,
   bounds: RectCoordsDims,
-  item: TableInputs,
+  inputs: TableInputs,
 ): MeasuredTable {
-  const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+  const autofitOpts = resolveFigureAutofitOptions(inputs.autofit);
 
   if (!autofitOpts) {
-    return measureTable(rc, bounds, item);
+    return measureTable(rc, bounds, inputs);
   }
 
   // shrink-to-fit for BOTH width and height, with a legibility floor + cramped.
-  const baseFontSizeDu = new CustomFigureStyle(item.style).baseFontSize;
+  const baseFontSizeDu = new CustomFigureStyle(inputs.style).baseFontSize;
   // One cache per autofit run: the expensive word/natural width measurements
   // are needed by the floor, the ideal-height measure, and the final measure
   // -- identical at a given scale, so measured once per scale.
   const cache = createPerScaleMeasureCache();
   const getSizeAtScale = memoizeByScale((scale: number) => ({
-    minWidth: getMinComfortableWidth(rc, item, bounds.w(), scale, cache),
-    idealHeight: getIdealHeightAtScale(rc, bounds.w(), item, scale, cache),
+    minWidth: getMinComfortableWidth(rc, inputs, bounds.w(), scale, cache),
+    idealHeight: getIdealHeightAtScale(rc, bounds.w(), inputs, scale, cache),
   }));
   const { fitScale, floorScale, cramped } = findFitScaleWithFloor(
     bounds.w(),
@@ -236,7 +237,7 @@ function measureWithAutofit(
     getSizeAtScale,
   );
 
-  const measured = measureTable(rc, bounds, item, fitScale, cache);
+  const measured = measureTable(rc, bounds, inputs, fitScale, cache);
   measured.cramped = cramped;
   measured.fitReport = buildFitReport(
     fitScale,
@@ -248,17 +249,17 @@ function measureWithAutofit(
 }
 
 export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
-  isType(item: unknown): item is TableInputs {
-    return typeof item === "object" && item !== null &&
-      "figureType" in item && item.figureType === "table";
+  isType(inputs: unknown): inputs is TableInputs {
+    return typeof inputs === "object" && inputs !== null &&
+      "figureType" in inputs && inputs.figureType === "table";
   },
 
   measure(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: TableInputs,
+    inputs: TableInputs,
   ): MeasuredTable {
-    return measureWithAutofit(rc, bounds, item);
+    return measureWithAutofit(rc, bounds, inputs);
   },
 
   render(rc: RenderContext, mTable: MeasuredTable) {
@@ -268,25 +269,25 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
   measureAndRender(
     rc: RenderContext,
     bounds: RectCoordsDims,
-    item: TableInputs,
+    inputs: TableInputs,
   ): void {
-    const measured = measureWithAutofit(rc, bounds, item);
+    const measured = measureWithAutofit(rc, bounds, inputs);
     renderTable(rc, measured);
   },
 
   getIdealHeight(
     rc: RenderContext,
     width: number,
-    item: TableInputs,
+    inputs: TableInputs,
   ): HeightConstraints {
-    const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+    const autofitOpts = resolveFigureAutofitOptions(inputs.autofit);
 
     const cache = createPerScaleMeasureCache();
 
     // Width-based scaling for optimizer scoring
     const minComfortableWidth = getMinComfortableWidth(
       rc,
-      item,
+      inputs,
       width,
       1.0,
       cache,
@@ -295,10 +296,10 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
       ? 1.0
       : width / minComfortableWidth;
 
-    const cs = new CustomFigureStyle(item.style);
+    const cs = new CustomFigureStyle(inputs.style);
 
     if (!autofitOpts) {
-      const idealH = getIdealHeightAtScale(rc, width, item, 1.0, cache);
+      const idealH = getIdealHeightAtScale(rc, width, inputs, 1.0, cache);
       return {
         minH: idealH,
         idealH,
@@ -322,8 +323,8 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
     // the scale. Reporting the height at that scale makes the subsequent
     // measure into this very box settle on the same scale with zero leftover.
     const getSizeAtScale = memoizeByScale((scale: number) => ({
-      minWidth: getMinComfortableWidth(rc, item, width, scale, cache),
-      idealHeight: getIdealHeightAtScale(rc, width, item, scale, cache),
+      minWidth: getMinComfortableWidth(rc, inputs, width, scale, cache),
+      idealHeight: getIdealHeightAtScale(rc, width, inputs, scale, cache),
     }));
     const floorOpts = {
       minScale: autofitOpts.minScale,
@@ -344,7 +345,7 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
     const floorScale = computeFloorScale(floorOpts);
     const minH = Math.min(
       idealH,
-      getIdealHeightAtScale(rc, width, item, floorScale, cache),
+      getIdealHeightAtScale(rc, width, inputs, floorScale, cache),
     );
 
     return {

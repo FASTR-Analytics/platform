@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -6,6 +6,7 @@
 export { MIN_FONT_SIZE_DU } from "../_000_consts/mod.ts";
 export {
   assert,
+  BLANK_SENTINEL,
   buildAutoFormatter,
   createArray,
   decodePeriod,
@@ -14,6 +15,7 @@ export {
   getLanguage,
   getPeriodIdFromTime,
   getValidNumberOrUndefined,
+  isBlankValue,
   isUnique,
   sum,
   toAbbrevAuto,
@@ -34,54 +36,67 @@ export {
   Padding,
   RectCoordsDims,
 } from "../_001_geometry/mod.ts";
-export type { PaddingOptions } from "../_001_geometry/mod.ts";
+export type { AlignH, AlignV, PaddingOptions } from "../_001_geometry/mod.ts";
 export {
+  buildItem,
+  compareBlankLast,
   computeBoundsForPath,
-  createHeaderItems,
-  sortHeaderItems,
+  createDimensionMembers,
+  FIGURE_TEXT_ITEM_KEY,
+  getDimensionMembers,
+  itemCoordinate,
+  labelBoxRcd,
+  sortDimensionMembers,
+  textBoxInAlignRcd,
+  unionRectCoordsDims,
   Z_INDEX,
 } from "../_001_render_system/mod.ts";
 export type {
   AreaStyle,
   Arrowhead,
-  AxisMembership,
   CascadeArrowInfo,
-  CascadeArrowPrimitive,
   ChartAxisPrimitive,
   ChartBarPrimitive,
-  ChartCaptionPrimitive,
+  ChartCascadeArrowPrimitive,
   ChartConnectorInfo,
   ChartConnectorPrimitive,
   ChartErrorBarPrimitive,
   ChartGridPrimitive,
-  ChartLabelPrimitive,
-  ChartLegendPrimitive,
+  ChartHeaderPrimitive,
   ChartSeriesInfo,
   ChartValueInfo,
+  DataDimension,
   DataLabel,
+  DimensionMember,
+  DimensionMembership,
   FigureFitReport,
   FigureLabelPrimitive,
-  HeaderItem,
-  HeaderSortConfig,
+  FigureLegendPrimitive,
+  FigureScaleLegendGradientPrimitive,
+  FigureScaleLegendSteppedPrimitive,
+  FigureTextPrimitive,
   HeightConstraints,
+  ItemCoordinate,
+  LabelHalo,
   LineStyle,
   MeasuredText,
+  MemberSortConfig,
+  NestedIdentity,
   PathSegment,
   PieSlicePrimitive,
   PointType,
   Primitive,
+  PrimitiveItem,
   RectStyle,
   RenderContext,
   SankeyLinkPrimitive,
   SankeyNodePrimitive,
-  ScaleLegendGradientPrimitive,
-  ScaleLegendSteppedPrimitive,
   ShapePathPrimitive,
   ShapePrimitive,
   SurroundsPrimitive,
   TableBorderPrimitive,
   TableGridPrimitive,
-  TableHeaderAxisPrimitive,
+  TableHeaderBorderPrimitive,
 } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type {
@@ -100,8 +115,8 @@ export type {
   MergedScaleLegendStyle,
   MergedSurroundsStyle,
   MergedXPeriodAxisStyle,
-  MergedXScaleAxisStyle,
   MergedXTextAxisStyle,
-  MergedYScaleAxisStyle,
+  MergedXValueAxisStyle,
   MergedYTextAxisStyle,
+  MergedYValueAxisStyle,
 } from "../_003_figure_style/mod.ts";

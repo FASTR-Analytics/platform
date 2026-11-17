@@ -25,7 +25,7 @@ import type {
 // text and the indicator as the message; and, for one indicator in the code
 // editor, the fix call over the same two blocks.
 
-export const hfaVerificationNewFindingSchema = z.object({
+const hfaVerificationNewFindingSchema = z.object({
   rule: z.enum(HFA_VERIFICATION_MODEL_RULE_IDS).describe(
     "The id of the one rule the indicator breaks.",
   ),
@@ -155,6 +155,41 @@ export function buildHfaVerificationBlocks(
   };
 }
 
+// The two system blocks of every verification call and of the fix call. The
+// context block is marked for the prompt cache, so a run's calls after its
+// first read it.
+export function hfaVerificationSystem(
+  blocks: { instructionBlock: string; contextBlock: string },
+) {
+  return () => [
+    { type: "text" as const, text: blocks.instructionBlock },
+    {
+      type: "text" as const,
+      text: blocks.contextBlock,
+      cache_control: { type: "ephemeral" as const },
+    },
+  ];
+}
+
+// An API error's message is its status and the response body as JSON; the
+// body's own message is the readable part (the proxy's quota rejection and
+// its reset time). Read from the error's shape, so lib needs no SDK.
+export function modelCallErrorMessage(e: unknown): string {
+  if (typeof e === "object" && e !== null && "error" in e) {
+    const body = e.error;
+    if (typeof body === "object" && body !== null && "error" in body) {
+      const detail = body.error;
+      if (
+        typeof detail === "object" && detail !== null &&
+        "message" in detail && typeof detail.message === "string"
+      ) {
+        return detail.message;
+      }
+    }
+  }
+  return e instanceof Error ? e.message : String(e);
+}
+
 function dismissedSection(dismissed: HfaVerificationFinding[]): string {
   return [
     "## Findings the user dismissed",
@@ -195,7 +230,7 @@ export function buildHfaVerificationMessages(
 }
 
 // SHA-256 hex. The model id is not an ingredient: a new model re-checks
-// through Verify all, not by marking every indicator changed.
+// through a Verify of every indicator, not by marking every indicator changed.
 export async function hfaVerificationInputHash(
   instructionBlock: string,
   hashedMessage: string,

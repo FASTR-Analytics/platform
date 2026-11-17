@@ -1,16 +1,16 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { OverhangClearance } from "../types.ts";
 
-// Screen positions for a scale axis's ticks, indexed by VALUE index
+// Screen positions for a value axis's ticks, indexed by VALUE index
 // (tick values ascending). Every site that places ticks or grid lines for a
-// scale axis must use this so positions can never drift apart.
+// value axis must use this so positions can never drift apart.
 //   axis "x": values grow rightward from axisStart + clearance.start
 //   axis "y": values grow upward from axisStart + axisExtent - clearance.start
-export function getScaleAxisTickPositions(
+export function getValueAxisTickPositions(
   axisStart: number,
   axisExtent: number,
   nTicks: number,

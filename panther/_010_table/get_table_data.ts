@@ -1,13 +1,11 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  type ColGroup,
   isTableDataJson,
   isTableDataTransformed,
-  type RowGroup,
   type TableData,
   type TableDataTransformed,
   type TableJsonDataConfig,
@@ -16,12 +14,14 @@ import {
   assert,
   assertNotUndefined,
   createArray,
-  type HeaderItem,
-  type HeaderSortConfig,
-  type HeaderSortFunc,
+  createDimensionMember,
+  type DimensionMember,
+  getDimensionId,
   type JsonArray,
   type JsonArrayItem,
-  resolveSortFunc,
+  type MemberSortConfig,
+  sortDimensionMembers,
+  validateDimensionProps,
 } from "./deps.ts";
 
 export function getTableDataTransformed(d: TableData): TableDataTransformed {
@@ -51,55 +51,66 @@ function getTableDataJsonTransformed(
   if (valueProps.length === 0) {
     throw new Error("Need at least one valueProp");
   }
+  const dimensionProps = {
+    col: colProp,
+    row: rowProp,
+    colGroup: colGroupProp,
+    rowGroup: rowGroupProp,
+  };
+  validateDimensionProps(jsonArray, dimensionProps);
 
-  const col = promoteGroupPropIfNoItemProp(
+  const col = promoteGroupPropIfNoMemberProp(
     colGroupProp,
     colProp,
     sort?.colGroup,
     sort?.col,
   );
-  const row = promoteGroupPropIfNoItemProp(
+  const row = promoteGroupPropIfNoMemberProp(
     rowGroupProp,
     rowProp,
     sort?.rowGroup,
     sort?.row,
   );
 
-  // Build structured axes from raw JSON
-  const colAxis = buildStructuredAxis(
+  // Build each side's structured dimensions from raw JSON
+  const colDataDimensions = buildStructuredDataDimensions(
     jsonArray,
     valueProps,
     col.groupProp,
-    col.itemProp,
+    col.memberProp,
     labelReplacements,
   );
-  const rowAxis = buildStructuredAxis(
+  const rowDataDimensions = buildStructuredDataDimensions(
     jsonArray,
     valueProps,
     row.groupProp,
-    row.itemProp,
+    row.memberProp,
     labelReplacements,
   );
 
-  // Sort each axis independently
-  const sortedColAxis = sortStructuredAxis(
-    colAxis,
-    resolveSortFunc(col.groupSort),
-    resolveSortFunc(col.itemSort),
+  // Sort each side independently
+  const sortedColDataDimensions = sortStructuredDataDimensions(
+    colDataDimensions,
+    col.groupSort,
+    col.memberSort,
   );
-  const sortedRowAxis = sortStructuredAxis(
-    rowAxis,
-    resolveSortFunc(row.groupSort),
-    resolveSortFunc(row.itemSort),
+  const sortedRowDataDimensions = sortStructuredDataDimensions(
+    rowDataDimensions,
+    row.groupSort,
+    row.memberSort,
   );
 
-  // Flatten to ColGroup[]/RowGroup[] and build index mappings
-  const { colGroups, colComboToIndex, totalCols } = flattenToColGroups(
-    sortedColAxis,
-  );
-  const { rowGroups, rowComboToIndex, totalRows } = flattenToRowGroups(
-    sortedRowAxis,
-  );
+  // Flatten to groups and build index mappings
+  const {
+    groups: colGroups,
+    comboToIndex: colComboToIndex,
+    total: totalCols,
+  } = flattenDataDimensions(sortedColDataDimensions);
+  const {
+    groups: rowGroups,
+    comboToIndex: rowComboToIndex,
+    total: totalRows,
+  } = flattenDataDimensions(sortedRowDataDimensions);
 
   // Initialize and fill the data array
   const aoa: string[][] = createArray(
@@ -120,9 +131,9 @@ function getTableDataJsonTransformed(
     valueProps,
     jsonDataConfig.nProps,
     col.groupProp,
-    col.itemProp,
+    col.memberProp,
     row.groupProp,
-    row.itemProp,
+    row.memberProp,
     colComboToIndex,
     rowComboToIndex,
   );
@@ -138,8 +149,24 @@ function getTableDataJsonTransformed(
 
   return {
     isTransformed: true,
-    colGroups,
-    rowGroups,
+    cols: col.memberProp === undefined ? undefined : {
+      dimension: col.memberProp,
+      groupDimension: col.groupProp,
+      groups: colGroups.map(({ id, label, members }) => ({
+        id,
+        label,
+        cols: members,
+      })),
+    },
+    rows: row.memberProp === undefined ? undefined : {
+      dimension: row.memberProp,
+      groupDimension: row.groupProp,
+      groups: rowGroups.map(({ id, label, members }) => ({
+        id,
+        label,
+        rows: members,
+      })),
+    },
     aoa: aoaWithMissing,
     liveDomainExcludeIds: jsonDataConfig.liveDomainExcludeIds,
     nMatrix: hasAnyN ? nMatrix : undefined,
@@ -150,18 +177,18 @@ function getTableDataJsonTransformed(
 // Types
 ///////////////////////////////////////////////////////////////////////////////
 
-type StructuredAxisGroup = {
-  header: HeaderItem | undefined;
-  items: (HeaderItem | undefined)[];
+type StructuredDataDimensionsGroup = {
+  groupMember: DimensionMember | undefined;
+  members: (DimensionMember | undefined)[];
 };
 
-type StructuredAxis = StructuredAxisGroup[];
+type StructuredDataDimensions = StructuredDataDimensionsGroup[];
 
-type PromotedAxisProps = {
+type PromotedDimensionProps = {
   groupProp: string | "--v" | undefined;
-  itemProp: string | "--v" | undefined;
-  groupSort: HeaderSortConfig | undefined;
-  itemSort: HeaderSortConfig | undefined;
+  memberProp: string | "--v" | undefined;
+  groupSort: MemberSortConfig | undefined;
+  memberSort: MemberSortConfig | undefined;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -170,74 +197,76 @@ type PromotedAxisProps = {
 
 const UNDEFINED_PLACEHOLDER = "___";
 
-// A group prop with no item prop produces exactly one blank item per group
-// (see buildStructuredAxis) — a group-header tier over an empty item tier.
-// Promoting the group values into the item slot collapses that to an
-// ordinary flat item axis, carrying over whatever sort was configured for
+// A group prop with no member prop produces exactly one blank member per group
+// (see buildStructuredDataDimensions) — a group-header tier over an empty member tier.
+// Promoting the group values into the member prop collapses that to an
+// ordinary flat member dimension, carrying over whatever sort was configured for
 // the group.
-function promoteGroupPropIfNoItemProp(
+function promoteGroupPropIfNoMemberProp(
   groupProp: string | "--v" | undefined,
-  itemProp: string | "--v" | undefined,
-  groupSort: HeaderSortConfig | undefined,
-  itemSort: HeaderSortConfig | undefined,
-): PromotedAxisProps {
-  if (itemProp !== undefined || groupProp === undefined) {
-    return { groupProp, itemProp, groupSort, itemSort };
+  memberProp: string | "--v" | undefined,
+  groupSort: MemberSortConfig | undefined,
+  memberSort: MemberSortConfig | undefined,
+): PromotedDimensionProps {
+  if (memberProp !== undefined || groupProp === undefined) {
+    return { groupProp, memberProp, groupSort, memberSort };
   }
   return {
     groupProp: undefined,
-    itemProp: groupProp,
+    memberProp: groupProp,
     groupSort: undefined,
-    itemSort: itemSort ?? groupSort,
+    memberSort: memberSort ?? groupSort,
   };
 }
 
-function buildStructuredAxis(
+function buildStructuredDataDimensions(
   jsonArray: JsonArray,
   valueProps: string[],
   groupProp: string | undefined,
-  itemProp: string | undefined,
+  memberProp: string | undefined,
   labelReplacements: Record<string, string> | undefined,
-): StructuredAxis {
-  // Collect unique (groupId, itemId) pairs preserving insertion order
-  const groupToItems = new Map<string | undefined, Set<string | undefined>>();
+): StructuredDataDimensions {
+  // Collect unique (groupId, memberId) pairs preserving insertion order
+  const memberIdsByGroupId = new Map<
+    string | undefined,
+    Set<string | undefined>
+  >();
 
   for (const vp of valueProps) {
     for (const obj of jsonArray) {
       const groupId = resolveId(groupProp, vp, obj);
-      const itemId = resolveId(itemProp, vp, obj);
+      const memberId = resolveId(memberProp, vp, obj);
 
-      let itemSet = groupToItems.get(groupId);
-      if (!itemSet) {
-        itemSet = new Set();
-        groupToItems.set(groupId, itemSet);
+      let memberIds = memberIdsByGroupId.get(groupId);
+      if (!memberIds) {
+        memberIds = new Set();
+        memberIdsByGroupId.set(groupId, memberIds);
       }
-      itemSet.add(itemId);
+      memberIds.add(memberId);
     }
   }
 
-  // Convert to structured axis with HeaderItems. Undefined ids are kept as
-  // undefined entries so rows with missing dimension values still get a bucket
-  // (and don't silently disappear in fillDataArray).
-  const axis: StructuredAxis = [];
-  for (const [groupId, itemIds] of groupToItems) {
-    const groupHeader = toHeaderItem(groupId, labelReplacements);
-    const items: (HeaderItem | undefined)[] = [];
-    for (const itemId of itemIds) {
-      items.push(toHeaderItem(itemId, labelReplacements));
+  // An undefined id is the lone position of a side with no member prop.
+  const dimensions: StructuredDataDimensions = [];
+  for (const [groupId, memberIds] of memberIdsByGroupId) {
+    const groupMember = toOptionalMember(groupId, labelReplacements);
+    const members: (DimensionMember | undefined)[] = [];
+    for (const memberId of memberIds) {
+      members.push(toOptionalMember(memberId, labelReplacements));
     }
-    axis.push({ header: groupHeader, items });
+    dimensions.push({ groupMember, members });
   }
 
-  return axis;
+  return dimensions;
 }
 
-function toHeaderItem(
+function toOptionalMember(
   id: string | undefined,
   labelReplacements: Record<string, string> | undefined,
-): HeaderItem | undefined {
-  if (id === undefined) return undefined;
-  return { id, label: labelReplacements?.[id] ?? id };
+): DimensionMember | undefined {
+  return id === undefined
+    ? undefined
+    : createDimensionMember(id, labelReplacements);
 }
 
 function resolveId(
@@ -247,104 +276,82 @@ function resolveId(
 ): string | undefined {
   if (prop === "--v") return valueProp;
   if (prop === undefined) return undefined;
-  const val = obj[prop];
-  return val === undefined || val === null ? undefined : String(val);
+  return getDimensionId(obj, prop);
 }
 
-function sortStructuredAxis(
-  axis: StructuredAxis,
-  groupSortFunc: HeaderSortFunc | undefined,
-  itemSortFunc: HeaderSortFunc | undefined,
-): StructuredAxis {
-  // Sort items within each group. Undefined items go last regardless of the
-  // configured sort func (they have no id/label to compare).
-  const withSortedItems = axis.map((group) => ({
-    header: group.header,
-    items: itemSortFunc
-      ? [...group.items].sort(sortWithUndefinedLast(itemSortFunc))
-      : group.items,
+function sortStructuredDataDimensions(
+  dimensions: StructuredDataDimensions,
+  groupSort: MemberSortConfig | undefined,
+  memberSort: MemberSortConfig | undefined,
+): StructuredDataDimensions {
+  const groups = dimensions.map((group) => ({
+    groupMember: group.groupMember,
+    members: sortOptionalMembers(group.members, memberSort),
   }));
-
-  // Sort groups. Undefined-headed groups go last for the same reason.
-  if (groupSortFunc) {
-    withSortedItems.sort((a, b) => {
-      const cmp = sortWithUndefinedLast(groupSortFunc);
-      return cmp(a.header, b.header);
-    });
-  }
-
-  return withSortedItems;
+  const groupByMemberId = new Map(groups.map((g) => [g.groupMember?.id, g]));
+  return sortOptionalMembers(groups.map((g) => g.groupMember), groupSort).map(
+    (member) => {
+      const group = groupByMemberId.get(member?.id);
+      assertNotUndefined(group);
+      return group;
+    },
+  );
 }
 
-function sortWithUndefinedLast(
-  fn: HeaderSortFunc,
-): (a: HeaderItem | undefined, b: HeaderItem | undefined) => number {
-  return (a, b) => {
-    if (a === undefined && b === undefined) return 0;
-    if (a === undefined) return 1;
-    if (b === undefined) return -1;
-    return fn(a, b);
-  };
+// An undefined member is the lone position of a dimension with no prop, so it never
+// sits beside a defined one.
+function sortOptionalMembers(
+  members: (DimensionMember | undefined)[],
+  sort: MemberSortConfig | undefined,
+): (DimensionMember | undefined)[] {
+  const defined = members.filter((h): h is DimensionMember => h !== undefined);
+  return defined.length === members.length
+    ? sortDimensionMembers(defined, sort)
+    : members;
 }
 
-function flattenToColGroups(axis: StructuredAxis): {
-  colGroups: ColGroup[];
-  colComboToIndex: Map<string, number>;
-  totalCols: number;
+type FlatDataDimensionsGroup = {
+  id: string | undefined;
+  label: string | undefined;
+  members: { id: string; label: string | undefined; index: number }[];
+};
+
+// Members of an absent dimension (no member prop) have no id; the caller drops such
+// a dimension, keeping only its index mapping.
+function flattenDataDimensions(dimensions: StructuredDataDimensions): {
+  groups: FlatDataDimensionsGroup[];
+  comboToIndex: Map<string, number>;
+  total: number;
 } {
-  const colGroups: ColGroup[] = [];
-  const colComboToIndex = new Map<string, number>();
+  const groups: FlatDataDimensionsGroup[] = [];
+  const comboToIndex = new Map<string, number>();
   let index = 0;
 
-  for (const group of axis) {
-    const cols: ColGroup["cols"] = group.items.map((item) => {
-      const comboKey = makeComboKey(group.header?.id, item?.id);
-      colComboToIndex.set(comboKey, index);
-      return { id: item?.id, label: item?.label, index: index++ };
-    });
-
-    colGroups.push({
-      id: group.header?.id,
-      label: group.header?.label,
-      cols,
-    });
-  }
-
-  return { colGroups, colComboToIndex, totalCols: index };
-}
-
-function flattenToRowGroups(axis: StructuredAxis): {
-  rowGroups: RowGroup[];
-  rowComboToIndex: Map<string, number>;
-  totalRows: number;
-} {
-  const rowGroups: RowGroup[] = [];
-  const rowComboToIndex = new Map<string, number>();
-  let index = 0;
-
-  for (const group of axis) {
-    const rows: RowGroup["rows"] = group.items.map((item) => {
-      const comboKey = makeComboKey(group.header?.id, item?.id);
-      rowComboToIndex.set(comboKey, index);
-      return { id: item?.id, label: item?.label, index: index++ };
-    });
-
-    rowGroups.push({
-      id: group.header?.id,
-      label: group.header?.label,
-      rows,
+  for (const group of dimensions) {
+    const members: FlatDataDimensionsGroup["members"] = [];
+    for (const member of group.members) {
+      comboToIndex.set(makeComboKey(group.groupMember?.id, member?.id), index);
+      if (member !== undefined) {
+        members.push({ id: member.id, label: member.label, index });
+      }
+      index++;
+    }
+    groups.push({
+      id: group.groupMember?.id,
+      label: group.groupMember?.label,
+      members,
     });
   }
 
-  return { rowGroups, rowComboToIndex, totalRows: index };
+  return { groups, comboToIndex, total: index };
 }
 
 function makeComboKey(
   groupId: string | undefined,
-  itemId: string | undefined,
+  memberId: string | undefined,
 ): string {
   const g = groupId ?? UNDEFINED_PLACEHOLDER;
-  const i = itemId ?? UNDEFINED_PLACEHOLDER;
+  const i = memberId ?? UNDEFINED_PLACEHOLDER;
   return `${g}:::${i}`;
 }
 
@@ -368,30 +375,30 @@ function fillDataArray(
       }
 
       const colGroupId = resolveId(colGroupProp, vp, obj);
-      const colItemId = resolveId(colProp, vp, obj);
+      const colMemberId = resolveId(colProp, vp, obj);
       const rowGroupId = resolveId(rowGroupProp, vp, obj);
-      const rowItemId = resolveId(rowProp, vp, obj);
+      const rowMemberId = resolveId(rowProp, vp, obj);
 
-      const colCombo = makeComboKey(colGroupId, colItemId);
-      const rowCombo = makeComboKey(rowGroupId, rowItemId);
+      const colCombo = makeComboKey(colGroupId, colMemberId);
+      const rowCombo = makeComboKey(rowGroupId, rowMemberId);
 
-      const colIndex = colComboToIndex.get(colCombo);
-      const rowIndex = rowComboToIndex.get(rowCombo);
+      const i_col = colComboToIndex.get(colCombo);
+      const i_row = rowComboToIndex.get(rowCombo);
 
       assertNotUndefined(
-        colIndex,
+        i_col,
         `Missing col combo in index: ${colCombo}`,
       );
       assertNotUndefined(
-        rowIndex,
+        i_row,
         `Missing row combo in index: ${rowCombo}`,
       );
 
       assert(
-        aoa[rowIndex][colIndex] === UNDEFINED_PLACEHOLDER,
+        aoa[i_row][i_col] === UNDEFINED_PLACEHOLDER,
         `Duplicate value at col=${colCombo} row=${rowCombo}`,
       );
-      aoa[rowIndex][colIndex] = String(obj[vp]);
+      aoa[i_row][i_col] = String(obj[vp]);
 
       const nProp = nProps?.[vp];
       if (nMatrix && nProp !== undefined) {
@@ -403,7 +410,7 @@ function fillDataArray(
           : typeof nVal === "string" && nVal.trim() !== ""
           ? Number(nVal)
           : NaN;
-        nMatrix[rowIndex][colIndex] = Number.isFinite(nNum) ? nNum : undefined;
+        nMatrix[i_row][i_col] = Number.isFinite(nNum) ? nNum : undefined;
       }
     }
   }

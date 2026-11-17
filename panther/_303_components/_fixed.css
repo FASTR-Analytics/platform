@@ -1725,18 +1725,18 @@
   .ui-vizgraph-group-header-default {
     @apply text-base-content-muted block truncate px-2 text-xs leading-5;
   }
-  .ui-vizgraph-lane {
+  .ui-vizgraph-band {
     @apply stroke-base-300;
     fill: none;
     rx: 6px;
   }
-  .ui-vizgraph-lane-header {
+  .ui-vizgraph-band-header {
     @apply block h-full w-full;
   }
-  .ui-vizgraph-lane-probe {
+  .ui-vizgraph-band-probe {
     @apply block w-fit;
   }
-  .ui-vizgraph-lane-header-default {
+  .ui-vizgraph-band-header-default {
     @apply text-base-content-muted block truncate px-2 text-xs leading-5;
   }
   .ui-vizgraph-node-selected {

@@ -7,10 +7,12 @@ import type {
   Slide,
   SlideDeckConfig,
   SlideFontFamily,
+  TextBackgroundKey,
 } from "lib";
 import {
   _CF_RED,
   _SLIDE_BACKGROUND_COLOR,
+  COVER_TEXT_STYLES,
   createDeckStyleContext,
   DEFAULT_TEXT_SIZE_KEY,
   getLetterSpacing,
@@ -19,7 +21,9 @@ import {
   getSlideFontInfo,
   getTextColorForBackground,
   resolveLogoSizing,
+  SECTION_TEXT_STYLES,
   slideRenderMarkdown,
+  TEXT_BACKGROUND_KEYS,
   TEXT_SIZE_REL,
 } from "lib";
 import type {
@@ -41,7 +45,7 @@ import {
 } from "~/generate_visualization/mod";
 import { _SERVER_HOST } from "~/server_actions";
 import { getImgFromCacheOrFetch } from "~/state/products/t2_images";
-import { FASTR_LOGO_VALUES } from "./fastr_logos";
+import { FASTR_LOGO_VALUES, resolveLogoUrl } from "./fastr_logos";
 import { unavailableItemMarkdown } from "~/generate_report/mod";
 import { getBackgroundDetail } from "./get_overlay_image";
 
@@ -112,22 +116,24 @@ export function buildStyleForSlide(
           fontFamily,
           coverFontSizes.titleBold,
           coverFontSizes.titleItalic,
-          true,
+          COVER_TEXT_STYLES.title.boldDefault,
         ),
         color: presetStyle.text!.coverTitle!.color,
-        relFontSize: (coverFontSizes.titleTextRelFontSize ?? 10) / 2,
+        relFontSize: (coverFontSizes.titleTextRelFontSize ??
+          COVER_TEXT_STYLES.title.sizeDefault) / 2,
         letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1,
       },
-      coverSubTitle: {
+      coverSubtitle: {
         font: getFont(
           fontFamily,
           coverFontSizes.subTitleBold,
           coverFontSizes.subTitleItalic,
-          false,
+          COVER_TEXT_STYLES.subtitle.boldDefault,
         ),
-        color: presetStyle.text!.coverSubTitle!.color,
-        relFontSize: (coverFontSizes.subTitleTextRelFontSize ?? 6) / 2,
+        color: presetStyle.text!.coverSubtitle!.color,
+        relFontSize: (coverFontSizes.subTitleTextRelFontSize ??
+          COVER_TEXT_STYLES.subtitle.sizeDefault) / 2,
         letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1.1,
       },
@@ -136,10 +142,11 @@ export function buildStyleForSlide(
           fontFamily,
           coverFontSizes.presenterBold,
           coverFontSizes.presenterItalic,
-          false,
+          COVER_TEXT_STYLES.presenter.boldDefault,
         ),
         color: presetStyle.text!.coverAuthor!.color,
-        relFontSize: (coverFontSizes.presenterTextRelFontSize ?? 4) / 2,
+        relFontSize: (coverFontSizes.presenterTextRelFontSize ??
+          COVER_TEXT_STYLES.presenter.sizeDefault) / 2,
         lineHeight: 1.2,
       },
       coverDate: {
@@ -147,10 +154,11 @@ export function buildStyleForSlide(
           fontFamily,
           coverFontSizes.dateBold,
           coverFontSizes.dateItalic,
-          false,
+          COVER_TEXT_STYLES.date.boldDefault,
         ),
         color: presetStyle.text!.coverDate!.color,
-        relFontSize: (coverFontSizes.dateTextRelFontSize ?? 3) / 2,
+        relFontSize: (coverFontSizes.dateTextRelFontSize ??
+          COVER_TEXT_STYLES.date.sizeDefault) / 2,
         lineHeight: 1.1,
       },
       sectionTitle: {
@@ -158,22 +166,24 @@ export function buildStyleForSlide(
           fontFamily,
           sectionFontSizes.sectionTitleBold,
           sectionFontSizes.sectionTitleItalic,
-          true,
+          SECTION_TEXT_STYLES.sectionTitle.boldDefault,
         ),
         color: presetStyle.text!.sectionTitle!.color,
-        relFontSize: (sectionFontSizes.sectionTextRelFontSize ?? 8) / 2,
+        relFontSize: (sectionFontSizes.sectionTextRelFontSize ??
+          SECTION_TEXT_STYLES.sectionTitle.sizeDefault) / 2,
         letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1.05,
       },
-      sectionSubTitle: {
+      sectionSubtitle: {
         font: getFont(
           fontFamily,
           sectionFontSizes.sectionSubTitleBold,
           sectionFontSizes.sectionSubTitleItalic,
-          false,
+          SECTION_TEXT_STYLES.sectionSubtitle.boldDefault,
         ),
-        color: presetStyle.text!.sectionSubTitle!.color,
-        relFontSize: (sectionFontSizes.smallerSectionTextRelFontSize ?? 5) / 2,
+        color: presetStyle.text!.sectionSubtitle!.color,
+        relFontSize: (sectionFontSizes.smallerSectionTextRelFontSize ??
+          SECTION_TEXT_STYLES.sectionSubtitle.sizeDefault) / 2,
         letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1.1,
       },
@@ -222,7 +232,7 @@ export function buildStyleForSlide(
       },
       logosPlacement: presetStyle.cover!.logosPlacement,
       titleBottomPadding: presetStyle.cover!.titleBottomPadding,
-      subTitleBottomPadding: presetStyle.cover!.subTitleBottomPadding,
+      subtitleBottomPadding: presetStyle.cover!.subtitleBottomPadding,
       authorBottomPadding: presetStyle.cover!.authorBottomPadding,
       alignH: presetStyle.cover!.alignH,
       alignV: presetStyle.cover!.alignV,
@@ -284,16 +294,24 @@ function shouldShowLogos(
   return showByDefault;
 }
 
+// Whether a deck draws a selected logo: a built-in one, or one of the deck's
+// custom logos. Any other selection is skipped.
+export function isDrawnLogo(
+  logo: string,
+  availableCustomLogos: readonly string[],
+): boolean {
+  return FASTR_LOGO_VALUES.includes(logo) ||
+    availableCustomLogos.includes(logo);
+}
+
 async function loadLogos(
   selectedLogos: string[],
   availableCustomLogos: string[],
 ): Promise<HTMLImageElement[]> {
   const result: HTMLImageElement[] = [];
   for (const logo of selectedLogos) {
-    const isFastrLogo = FASTR_LOGO_VALUES.includes(logo);
-    if (isFastrLogo || availableCustomLogos.includes(logo)) {
-      const url = isFastrLogo ? `/${logo}` : `${_SERVER_HOST}/${logo}`;
-      const resImg = await getImgFromCacheOrFetch(url);
+    if (isDrawnLogo(logo, availableCustomLogos)) {
+      const resImg = await getImgFromCacheOrFetch(resolveLogoUrl(logo));
       if (resImg.success) {
         result.push(resImg.data);
       }
@@ -329,7 +347,7 @@ export async function convertSlideToPageInputs(
       data: {
         type: "cover",
         title: slide.title,
-        subTitle: slide.subtitle,
+        subtitle: slide.subtitle,
         author: slide.presenter,
         date: slide.date,
         titleLogos,
@@ -346,7 +364,7 @@ export async function convertSlideToPageInputs(
       data: {
         type: "section",
         sectionTitle: slide.sectionTitle,
-        sectionSubTitle: slide.sectionSubtitle,
+        sectionSubtitle: slide.sectionSubtitle,
         style,
         watermark,
         overlay: backgroundDetail.overlay,
@@ -419,49 +437,42 @@ type ResolvedTextBackground = {
   textColor: string;
 };
 
+const TEXT_BACKGROUND_PADDING = [15, 20];
+
+const TEXT_BACKGROUNDS: Record<
+  Exclude<TextBackgroundKey, "none">,
+  (primaryColor: string) => ResolvedTextBackground
+> = {
+  grey: () => ({
+    containerStyle: {
+      backgroundColor: { key: "base200" },
+      padding: TEXT_BACKGROUND_PADDING,
+    },
+    textColor: "#1E1E1E",
+  }),
+  primary: (primaryColor) => solidTextBackground(primaryColor),
+  success: () => solidTextBackground(_SLIDE_BACKGROUND_COLOR),
+  danger: () => solidTextBackground(_CF_RED),
+};
+
+function solidTextBackground(color: string): ResolvedTextBackground {
+  return {
+    containerStyle: {
+      backgroundColor: color,
+      padding: TEXT_BACKGROUND_PADDING,
+    },
+    textColor: getTextColorForBackground(color),
+  };
+}
+
 function resolveTextBackground(
   bg: string | undefined,
   primaryColor: string,
 ): ResolvedTextBackground | undefined {
-  const TEXT_BACKGROUND_PADDING = [15, 20];
-  if (!bg || bg === "none") return undefined;
-  if (bg === "grey") {
-    return {
-      containerStyle: {
-        backgroundColor: { key: "base200" },
-        padding: TEXT_BACKGROUND_PADDING,
-      },
-      textColor: "#1E1E1E",
-    };
-  }
-  if (bg === "primary") {
-    return {
-      containerStyle: {
-        backgroundColor: primaryColor,
-        padding: TEXT_BACKGROUND_PADDING,
-      },
-      textColor: getTextColorForBackground(primaryColor),
-    };
-  }
-  if (bg === "success") {
-    return {
-      containerStyle: {
-        backgroundColor: _SLIDE_BACKGROUND_COLOR,
-        padding: TEXT_BACKGROUND_PADDING,
-      },
-      textColor: getTextColorForBackground(_SLIDE_BACKGROUND_COLOR),
-    };
-  }
-  if (bg === "danger") {
-    return {
-      containerStyle: {
-        backgroundColor: _CF_RED,
-        padding: TEXT_BACKGROUND_PADDING,
-      },
-      textColor: getTextColorForBackground(_CF_RED),
-    };
-  }
-  return undefined;
+  const key = TEXT_BACKGROUND_KEYS.find((k) => k === bg);
+  return key === undefined || key === "none"
+    ? undefined
+    : TEXT_BACKGROUNDS[key](primaryColor);
 }
 
 async function convertLayoutNode(

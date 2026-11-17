@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -31,7 +31,7 @@ export function measureMarkdown(
     _debug,
   );
   return {
-    item: input,
+    inputs: input,
     bounds: result.bounds,
     markdownItems: result.items,
   };

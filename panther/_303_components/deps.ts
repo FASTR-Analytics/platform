@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -29,6 +29,7 @@ export type {
 } from "../_000_utils/mod.ts";
 export { Color } from "../_001_color/mod.ts";
 export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
+export { tableColGroups, tableRowGroups } from "../_010_table/mod.ts";
 export type { TableDataTransformed } from "../_010_table/mod.ts";
 export { Csv } from "../_100_csv/mod.ts";
 export { createMarkdownIt } from "../_105_markdown/mod.ts";

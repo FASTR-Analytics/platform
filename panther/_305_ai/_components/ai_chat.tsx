@@ -1,4 +1,4 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -50,8 +50,7 @@ export function AIChat(p: Props) {
     isLoading,
     isStreaming,
     isProcessingTools,
-    currentStreamingText,
-    serverToolLabel,
+    streamingItems,
     sendMessage,
     stopGeneration,
     toolRegistry,
@@ -76,8 +75,7 @@ export function AIChat(p: Props) {
     isLoading(),
     isStreaming(),
     pendingUserAction(),
-    currentStreamingText(),
-    serverToolLabel(),
+    streamingItems(),
     queuedMessages(),
   ]);
 
@@ -124,8 +122,7 @@ export function AIChat(p: Props) {
           isLoading={isLoading()}
           isStreaming={isStreaming()}
           awaitingDecision={pendingUserAction()}
-          currentStreamingText={currentStreamingText()}
-          serverToolLabel={serverToolLabel()}
+          streamingItems={streamingItems()}
           queuedTexts={queuedMessages()}
           customRenderers={p.customRenderers}
           fallbackContent={p.fallbackContent}

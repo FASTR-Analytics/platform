@@ -1,7 +1,6 @@
 # _303_components
 
-SolidJS reactive UI components library for building interactive data
-applications.
+SolidJS reactive UI components library for building interactive data applications.
 
 ## Purpose
 
@@ -20,9 +19,7 @@ Complete set of production-ready SolidJS components:
 Your application must have:
 
 - **SolidJS** v1.8+
-- **Tailwind CSS** v4, importing `_fixed.css` (which ships the full `@theme`
-  token block — an app overrides only what it wants; see
-  **[DOC_UI_COLOR_AND_STATE.md](../../DOC_UI_COLOR_AND_STATE.md)**)
+- **Tailwind CSS** v4, importing `_fixed.css` (which ships the full `@theme` token block — an app overrides only what it wants; see **[DOC_UI_COLOR_AND_STATE.md](../../DOC_UI_COLOR_AND_STATE.md)**)
 
 ## Component Categories
 
@@ -54,14 +51,7 @@ Your application must have:
 </EmptyState>
 ```
 
-Cards clip their content to the rounded corners, hover at the frame
-(`hover:border-primary` — never a bg tint), and render selection via the
-integrated circle in marking-select mode. The body takes `pad` (default `md`;
-`pad="none"` for a flush table) and `spy` (default `none`); the header and
-footer rows keep their own inset. See
-**[DOC_UI_COLOR_AND_STATE.md](../../DOC_UI_COLOR_AND_STATE.md)** (selection
-idioms) and **[DOC_LIST_SELECTION.md](../../DOC_LIST_SELECTION.md)** (the
-controller).
+Cards clip their content to the rounded corners, hover at the frame (`hover:border-primary` — never a bg tint), and render selection via the integrated circle in marking-select mode. The body takes `pad` (default `md`; `pad="none"` for a flush table) and `spy` (default `none`); the header and footer rows keep their own inset. See **[DOC_UI_COLOR_AND_STATE.md](../../DOC_UI_COLOR_AND_STATE.md)** (selection idioms) and **[DOC_LIST_SELECTION.md](../../DOC_LIST_SELECTION.md)** (the controller).
 
 ### Form Inputs (`form_inputs/`)
 
@@ -83,9 +73,7 @@ controller).
 </Field>
 ```
 
-Complete form control library. Size via `size="sm"`, never ad-hoc classes. Every
-control renders inside `Field` (label, intent, invalid message, width); `Field`
-is also the app-facing wrapper for a control the kit does not label itself.
+Complete form control library. Size via `size="sm"`, never ad-hoc classes. Every control renders inside `Field` (label, intent, invalid message, width); `Field` is also the app-facing wrapper for a control the kit does not label itself.
 
 ### Layout (`layout/`)
 
@@ -98,35 +86,9 @@ is also the app-facing wrapper for a control the kit does not label itself.
 <CollapsibleSection title="Advanced" pad="md" spy="sm">{content}</CollapsibleSection>
 ```
 
-Frames: `FrameTop`, `FrameLeft`, `FrameRight`, plus `FrameLeftResizable`,
-`FrameRightResizable`, `FrameThreeColumnResizable`. Every slot scrolls. A slot
-owns its inset and its stack spacing: `pad` / `spy` (a `PadSize`:
-`"none" | "sm" | "md" | "lg"`, default none) on the content slot, `panelPad` /
-`panelSpy` on the panel slot, so no padding `<div>` sits between a Frame and its
-content. Side frames own their panel/content divider (never add that edge's
-border yourself). A resizable panel's width is bounded by its container: it may
-fill the container, leaving the content beside it none, but never runs past it,
-and a container narrower than `minWidth` holds a panel as wide as the container.
-`FrameThreeColumnResizable` is the exception: its two panels each leave the
-centre pane at least one grab strip, because two handles on the same pixel would
-stack and strand the frame where no drag could move it. The panel keeps the
-width it was given until it is first dragged, rather than growing and shrinking
-with its container before then; a drag in the default mode sets a share of the
-container that the panel keeps through later resizes, and a drag under
-`preventPanelResizeOnParentResize` sets a width in pixels. `resetKey`, on
-`FrameThreeColumnResizable`, returns its panels to their starting widths in
-pixels. Horizontal `TabsNavigation` is a `FrameTop` panel in its own right (it
-carries its own `ui-pad-x` and bottom border; no wrapper); inside padded content
-pass `noPad`; `size="sm"` is independent of placement. `CollapsibleSection`'s
-body takes `pad` and `spy` (default none) and its header row `headerPad`
-(default `md`). Steppers: `getStepper` with `StepperChipsWithTitles` or
-`StepperNavigationVisual`.
+Frames: `FrameTop`, `FrameLeft`, `FrameRight`, plus `FrameLeftResizable`, `FrameRightResizable`, `FrameThreeColumnResizable`. Every slot scrolls. A slot owns its inset and its stack spacing: `pad` / `spy` (a `PadSize`: `"none" | "sm" | "md" | "lg"`, default none) on the content slot, `panelPad` / `panelSpy` on the panel slot, so no padding `<div>` sits between a Frame and its content. Side frames own their panel/content divider (never add that edge's border yourself). A resizable panel's width is bounded by its container: it may fill the container, leaving the content beside it none, but never runs past it, and a container narrower than `minWidth` holds a panel as wide as the container. `FrameThreeColumnResizable` is the exception: its two panels each leave the centre pane at least one grab strip, because two handles on the same pixel would stack and strand the frame where no drag could move it. The panel keeps the width it was given until it is first dragged, rather than growing and shrinking with its container before then; a drag in the default mode sets a share of the container that the panel keeps through later resizes, and a drag under `preventPanelResizeOnParentResize` sets a width in pixels. `resetKey`, on `FrameThreeColumnResizable`, returns its panels to their starting widths in pixels. Horizontal `TabsNavigation` is a `FrameTop` panel in its own right (it carries its own `ui-pad-x` and bottom border; no wrapper); inside padded content pass `noPad`; `size="sm"` is independent of placement. `CollapsibleSection`'s body takes `pad` and `spy` (default none) and its header row `headerPad` (default `md`). Steppers: `getStepper` with `StepperChipsWithTitles` or `StepperNavigationVisual`.
 
-`SelectList` / `TabsNavigation` / `ButtonGroup` share one `items`/`value`/
-`onChange` contract (swap = rename); `EditableList` adds add/delete/reorder; the
-optional `createSelectionController` helper backs multi-select card grids via
-`Card`'s selectable mode. See
-**[DOC_LIST_SELECTION.md](../../DOC_LIST_SELECTION.md)**.
+`SelectList` / `TabsNavigation` / `ButtonGroup` share one `items`/`value`/ `onChange` contract (swap = rename); `EditableList` adds add/delete/reorder; the optional `createSelectionController` helper backs multi-select card grids via `Card`'s selectable mode. See **[DOC_LIST_SELECTION.md](../../DOC_LIST_SELECTION.md)**.
 
 ### Icons (`icons/`)
 
@@ -135,9 +97,7 @@ optional `createSelectionController` helper backs multi-select card grids via
 <IconRenderer iconName="search" size="sm" />    // form-control sized
 ```
 
-One shared `IconName` key set across two glyph sets — Tabler (default) and
-Phosphor. Select per app with `--panther-icon-set: phosphor;` in the theme
-block; unknown keys render a visible fallback, never a gap.
+One shared `IconName` key set across two glyph sets — Tabler (default) and Phosphor. Select per app with `--panther-icon-set: phosphor;` in the theme block; unknown keys render a visible fallback, never a gap.
 
 ### Special State (`special_state/`)
 
@@ -169,33 +129,11 @@ const { openEditor, EditorWrapper } = getEditorWrapper();
 </StateHolderWrapper>;
 ```
 
-Dialogs stack: one opened over another layers on top, and each promise settles
-when its own layer closes. `ModalContainer` owns the footer: `onCancel` renders
-Cancel, `actions` render right-aligned after it with the last one primary,
-`form` makes Enter click the primary action, and each action's error state
-renders under the body. The body takes `pad` and `spy`, both default `md`
-(`pad="none"` for a flush table or editor). A modal whose only button dismisses
-it passes `onClose={{ kind, onClick }}` instead: `"close"` for read-only
-content, `"done"` when the modal applied edits live with no Save step. It
-renders as the primary action; a lone button is never the outline Cancel.
-`footer` is the left slot for non-action content. Menus: `MenuButton` for a
-button that opens a menu, `ActionMenuButton` for the three-dots preset,
-`showMenu` for context menus. Never hand-roll an overlay.
+Dialogs stack: one opened over another layers on top, and each promise settles when its own layer closes. `ModalContainer` owns the footer: `onCancel` renders Cancel, `actions` render right-aligned after it with the last one primary, `form` makes Enter click the primary action, and each action's error state renders under the body. The body takes `pad` and `spy`, both default `md` (`pad="none"` for a flush table or editor). A modal whose only button dismisses it passes `onClose={{ kind, onClick }}` instead: `"close"` for read-only content, `"done"` when the modal applied edits live with no Save step. It renders as the primary action; a lone button is never the outline Cancel. `footer` is the left slot for non-action content. Menus: `MenuButton` for a button that opens a menu, `ActionMenuButton` for the three-dots preset, `showMenu` for context menus. Never hand-roll an overlay.
 
-`StateHolderWrapper` renders no element of its own: its loading, error and ready
-branches land directly in the slot it sits in and take the slot's inset. Where
-the ready branch is flush in a `none` slot, `loadingAndErrorPad` insets the two
-message blocks to match the content (`"md"` over a default `Table`), or
-`spinner` centres an indicator instead. `LoadingIndicator` on its own takes the
-same knob as `pad`.
+`StateHolderWrapper` renders no element of its own: its loading, error and ready branches land directly in the slot it sits in and take the slot's inset. Where the ready branch is flush in a `none` slot, `loadingAndErrorPad` insets the two message blocks to match the content (`"md"` over a default `Table`), or `spinner` centres an indicator instead. `LoadingIndicator` on its own takes the same knob as `pad`.
 
-A popover that can open inside an `openAlert` or `openComponent` modal must stop
-Escape itself. `AlertProvider` closes the modal from a document-level `keydown`
-listener, which the popover's own close watcher does not stop. Solid's
-`onKeyDown` is no help: `keydown` is a delegated event, so that handler already
-runs at the document. Put a native `on:keydown` on the panel and on its trigger
-that calls `preventDefault` and `stopPropagation` on Escape, as the table column
-filter (`tables/display_table/column_filter.tsx`) does.
+A popover that can open inside an `openAlert` or `openComponent` modal must stop Escape itself. `AlertProvider` closes the modal from a document-level `keydown` listener, which the popover's own close watcher does not stop. Solid's `onKeyDown` is no help: `keydown` is a delegated event, so that handler already runs at the document. Put a native `on:keydown` on the panel and on its trigger that calls `preventDefault` and `stopPropagation` on Escape, as the table column filter (`tables/display_table/column_filter.tsx`) does.
 
 ### Tables (`tables/`)
 
@@ -216,47 +154,11 @@ filter (`tables/display_table/column_filter.tsx`) does.
 <TableFromCsv csv={csvData()} />
 ```
 
-Sorting and per-column value filters via column config (`sortable`,
-`filterable`), a built-in search, controlled multi-select with bulk actions, and
-an `EmptyState` no-rows fallback. A filterable column gets a funnel button in
-its header that lists the column's distinct values as check rows; the unchecked
-values are part of the Table's config.
+Sorting and per-column value filters via column config (`sortable`, `filterable`), a built-in search, controlled multi-select with bulk actions, and an `EmptyState` no-rows fallback. A filterable column gets a funnel button in its header that lists the column's distinct values as check rows; the unchecked values are part of the Table's config.
 
-**Sorting.** Clicks on a sortable header cycle through its first direction, the
-opposite direction, and unsorted. The first direction is ascending, or
-descending for a column marked `sortDescFirst: true`, which every column of
-times takes (created, started, last active) so its first click puts the newest
-first. A `null` or `undefined` value (from `sortValue`, else the field) sorts
-after every other value in both directions; only the order of the other values
-flips. A click on a column other than the sorted one sorts it in its first
-direction. Unsorted is the rows in the order of `data`, so a table whose
-unsorted order should mean something gets that order from its source. A config
-seeded with a sort starts there, and clearing it shows the order of `data`, not
-the seed: a seed of `{ key: "lastActiveTs", direction: "desc" }` on a
-`sortDescFirst` column flips to ascending on the first click, clears on the
-second, and comes back to the seed on the third.
+**Sorting.** Clicks on a sortable header cycle through its first direction, the opposite direction, and unsorted. The first direction is ascending, or descending for a column marked `sortDescFirst: true`, which every column of times takes (created, started, last active) so its first click puts the newest first. A `null` or `undefined` value (from `sortValue`, else the field) sorts after every other value in both directions; only the order of the other values flips. A click on a column other than the sorted one sorts it in its first direction. Unsorted is the rows in the order of `data`, so a table whose unsorted order should mean something gets that order from its source. A config seeded with a sort starts there, and clearing it shows the order of `data`, not the seed: a seed of `{ key: "lastActiveTs", direction: "desc" }` on a `sortDescFirst` column flips to ascending on the first click, clears on the second, and comes back to the seed on the third.
 
-**The config** holds a Table's view state: the sort, each filtered column's
-unchecked values, the search text and the scroll position. It is a Solid store
-with its setters, made by `createTableConfig()`, optionally seeded
-(`createTableConfig({ sort: { key: "name", direction: "asc" } })`), and passed
-as `config`. Without one the Table makes its own, which a remount loses. Where
-the caller creates the config sets how long the state lives: in the body of the
-component that owns the query, above any `StateHolderWrapper`, `Show` or tab
-that remounts the Table, it lasts as long as that component; at module scope it
-lasts the session. A `StateHolderWrapper` creates its children again on every
-refetch, so a config created inside it, beside the Table, is lost with the
-Table. Read `config.state` anywhere; write only through the setters (`setSort`,
-`setFilter`, `setSearchText`, `setScrollTop`, `clearFilters`). Each setter
-replaces the whole field it changes, so a reader of a whole field
-(`on(() => config.state.sort, ...)`) sees every change. A config passed later in
-place of another is picked up, and its scroll position restored. The filters are
-plain JSON (`Record<string, string[]>`), not a `Map` of `Set`s: a store tracks
-reads inside a plain object but not inside a `Map`, and
-`JSON.stringify(config.state)` writes them out, where a `Map` comes out as `{}`.
-Selection is not part of the config: it refers to the rows currently loaded and
-drives the bulk actions, so it keeps its own `selectedKeys`/`setSelectedKeys`
-pair.
+**The config** holds a Table's view state: the sort, each filtered column's unchecked values, the search text and the scroll position. It is a Solid store with its setters, made by `createTableConfig()`, optionally seeded (`createTableConfig({ sort: { key: "name", direction: "asc" } })`), and passed as `config`. Without one the Table makes its own, which a remount loses. Where the caller creates the config sets how long the state lives: in the body of the component that owns the query, above any `StateHolderWrapper`, `Show` or tab that remounts the Table, it lasts as long as that component; at module scope it lasts the session. A `StateHolderWrapper` creates its children again on every refetch, so a config created inside it, beside the Table, is lost with the Table. Read `config.state` anywhere; write only through the setters (`setSort`, `setFilter`, `setSearchText`, `setScrollTop`, `clearFilters`). Each setter replaces the whole field it changes, so a reader of a whole field (`on(() => config.state.sort, ...)`) sees every change. A config passed later in place of another is picked up, and its scroll position restored. The filters are plain JSON (`Record<string, string[]>`), not a `Map` of `Set`s: a store tracks reads inside a plain object but not inside a `Map`, and `JSON.stringify(config.state)` writes them out, where a `Map` comes out as `{}`. Selection is not part of the config: it refers to the rows currently loaded and drives the bulk actions, so it keeps its own `selectedKeys`/`setSelectedKeys` pair.
 
 ```tsx
 const usersTable = createTableConfig({ sort: { key: "name", direction: "asc" } });
@@ -270,70 +172,22 @@ const usersTable = createTableConfig({ sort: { key: "name", direction: "asc" } }
 </StateHolderWrapper>
 ```
 
-**The frame** is the bordered, rounded box that holds the rows. It is the
-element directly around the scroll box, not the Table's root. The scroll box
-owns the sticky header and takes `maxHeight`, or the parent's definite height.
+**The frame** is the bordered, rounded box that holds the rows. It is the element directly around the scroll box, not the Table's root. The scroll box owns the sticky header and takes `maxHeight`, or the parent's definite height.
 
-**The toolbar** is a row of fixed height above the rows. It renders when
-`toolbar` is passed or `bulkActions` is non-empty, in one of two placements:
+**The toolbar** is a row of fixed height above the rows. It renders when `toolbar` is passed or `bulkActions` is non-empty, in one of two placements:
 
-- **Floating** (the default): above the frame, outside its border, with no
-  padding, background or border of its own, so its content starts and ends at
-  the frame's outer edges. The space between it and the frame is stack spacing
-  on the Table's root, sized by `toolbar.spy` (a `PadSize`, default `"md"`;
-  `"none"` puts the toolbar against the frame).
-- **Nested** (`toolbar={{ nested: true }}`): inside the frame, above the scroll
-  box, with a background and a bottom border. Its horizontal padding is always
-  the cells' (`paddingX`), so its content lines up with the first and last
-  columns. Its vertical padding is sized by `toolbar.pad` (a `PadSize`, default
-  `"md"`).
+- **Floating** (the default): above the frame, outside its border, with no padding, background or border of its own, so its content starts and ends at the frame's outer edges. The space between it and the frame is stack spacing on the Table's root, sized by `toolbar.spy` (a `PadSize`, default `"md"`; `"none"` puts the toolbar against the frame).
+- **Nested** (`toolbar={{ nested: true }}`): inside the frame, above the scroll box, with a background and a bottom border. Its horizontal padding is always the cells' (`paddingX`), so its content lines up with the first and last columns. Its vertical padding is sized by `toolbar.pad` (a `PadSize`, default `"md"`).
 
-`spy` exists only on a floating toolbar and `pad` only on a nested one. The
-floating toolbar has no inset, so it belongs in a padded parent: a `Table`
-placed flush in a `none` slot (a `<Card pad="none">`, an unpadded Frame slot)
-passes `nested`. That is the caller's job and the component does not check it.
+`spy` exists only on a floating toolbar and `pad` only on a nested one. The floating toolbar has no inset, so it belongs in a padded parent: a `Table` placed flush in a `none` slot (a `<Card pad="none">`, an unpadded Frame slot) passes `nested`. That is the caller's job and the component does not check it.
 
-Two groups. On the left, in order: the search field (`toolbar.search`, `true` or
-`{ placeholder }`), then a text, then, while rows are selected, the bulk action
-buttons with "Clear selection". On the right: `toolbar.children`. The field
-comes first because the text changes width, and anything to the right of it
-would move. The text has two faces. At rest it is the count ("12 users", or "5
-of 12 users" while a search or a filter hides rows; `toolbar.count: false`
-removes it). With rows selected it is the selection sentence ("Selected: 3
-users"), and the bulk actions follow it directly, next to the text that just
-changed. `toolbar.children` stay where they are in both faces: they are the
-table's standing buttons and have nothing to do with the selection. The search
-field stays mounted across the switch, and neither a search nor a selection
-moves it. The row's height does not change either, so selecting a row does not
-move the rows, as long as the left group fits on one line. When it does not, the
-left group wraps, the bulk actions dropping under the field; the children never
-wrap, shrink or move.
+Two groups. On the left, in order: the search field (`toolbar.search`, `true` or `{ placeholder }`), then a text, then, while rows are selected, the bulk action buttons with "Clear selection". On the right: `toolbar.children`. The field comes first because the text changes width, and anything to the right of it would move. The text has two faces. At rest it is the count ("12 users", or "5 of 12 users" while a search or a filter hides rows; `toolbar.count: false` removes it). With rows selected it is the selection sentence ("Selected: 3 users"), and the bulk actions follow it directly, next to the text that just changed. `toolbar.children` stay where they are in both faces: they are the table's standing buttons and have nothing to do with the selection. The search field stays mounted across the switch, and neither a search nor a selection moves it. The row's height does not change either, so selecting a row does not move the rows, as long as the left group fits on one line. When it does not, the left group wraps, the bulk actions dropping under the field; the children never wrap, shrink or move.
 
-**Search.** The query is split on whitespace and every token must appear in the
-row's search text, case- and accent-insensitively (`searchTokens`,
-`matchesSearch` and `foldString` in `_000_utils`). A row's search text is the
-table-level `searchValue(item)` when given; otherwise the text of every column
-not marked `searchable: false`, joined by spaces, where a column's text is its
-`searchValue(item)`, else its `filterValue(item)`, else the field as a string.
-Columns search by default: a text no column shows (an id, a resolved label) goes
-in a table-level `searchValue`. The search text is part of the config, which is
-how a field outside the table (a `HeadingBar`'s) drives it and how a search
-survives a remount of the table. Visible rows are `data` after the search and
-the column filters; sort applies after. Select-all acts on the visible rows, and
-a selected row hidden by the search or a filter stays selected. When nothing
-matches, the Table says so and offers "Clear search", which also clears the
-column filters; `noRowsMessage` is only for empty `data`.
+**Search.** The query is split on whitespace and every token must appear in the row's search text, case- and accent-insensitively (`searchTokens`, `matchesSearch` and `foldString` in `_000_utils`). A row's search text is the table-level `searchValue(item)` when given; otherwise the text of every column not marked `searchable: false`, joined by spaces, where a column's text is its `searchValue(item)`, else its `filterValue(item)`, else the field as a string. Columns search by default: a text no column shows (an id, a resolved label) goes in a table-level `searchValue`. The search text is part of the config, which is how a field outside the table (a `HeadingBar`'s) drives it and how a search survives a remount of the table. Visible rows are `data` after the search and the column filters; sort applies after. Select-all acts on the visible rows, and a selected row hidden by the search or a filter stays selected. When nothing matches, the Table says so and offers "Clear search", which also clears the column filters; `noRowsMessage` is only for empty `data`.
 
-**`itemLabel`** names what a row is, as `PluralForms<string>`. The count and the
-selection sentence pick the form with `plural()`, and the sentence is worded so
-that only the noun inflects.
+**`itemLabel`** names what a row is, as `PluralForms<string>`. The count and the selection sentence pick the form with `plural()`, and the sentence is worded so that only the noun inflects.
 
-**`SelectionActions`** is the selection sentence, the bulk action buttons and
-"Clear selection" in one flex row with no border, background or padding, for a
-screen that hosts its bulk actions in a fixed-height row of its own. The screen
-controls selection, passes the Table no `bulkActions` and no `toolbar` (it then
-shows checkboxes and no toolbar row), and swaps its ordinary buttons for the
-actions:
+**`SelectionActions`** is the selection sentence, the bulk action buttons and "Clear selection" in one flex row with no border, background or padding, for a screen that hosts its bulk actions in a fixed-height row of its own. The screen controls selection, passes the Table no `bulkActions` and no `toolbar` (it then shows checkboxes and no toolbar row), and swaps its ordinary buttons for the actions:
 
 ```tsx
 <HeadingBar heading={title}>
@@ -350,17 +204,7 @@ actions:
   selectedKeys={selectedKeys} setSelectedKeys={setSelectedKeys} />
 ```
 
-Two matrix grids draw rows × columns with a sticky row-header column and share
-the grid contract: `GridColumn { id, label, groupId? }`,
-`GridColumnGroup { id, label }`, `GridRow { id, label }`, and
-`cells[rowIndex][columnIndex]` aligned with `rows` and `columns`. `DataGrid`
-draws numeric cells and sorts: clicks on a header cycle ascending, descending,
-and unsorted (the rows in the order given), and `onSortChange` receives `null`
-for unsorted. `PresenceGrid` draws a swatch per boolean cell. Each has an
-adapter that builds the contract from a source panther already knows:
-`dataGridPropsFromTableData` from the canvas table's pivot, and
-`presenceGridColumnsFromPeriods` from an inclusive range of month period ids
-(months or quarters grouped by year, or ungrouped years, per the `PeriodType`).
+Two matrix grids draw rows × columns with a sticky row-header column and share the grid contract: `GridColumn { id, label, groupId? }`, `GridColumnGroup { id, label }`, `GridRow { id, label }`, and `cells[rowIndex][columnIndex]` aligned with `rows` and `columns`. `DataGrid` draws numeric cells and sorts: clicks on a header cycle ascending, descending, and unsorted (the rows in the order given), and `onSortChange` receives `null` for unsorted. `PresenceGrid` draws a swatch per boolean cell. Each has an adapter that builds the contract from a source panther already knows: `dataGridPropsFromTableData` from the canvas table's pivot, and `presenceGridColumnsFromPeriods` from an inclusive range of month period ids (months or quarters grouped by year, or ungrouped years, per the `PeriodType`).
 
 ```tsx
 <PresenceGrid
@@ -374,34 +218,17 @@ adapter that builds the contract from a source panther already knows:
 
 ## CSS Public API
 
-`_fixed.css` holds the `@theme` token block and the `ui-*` classes. Public
-surface for app code:
+`_fixed.css` holds the `@theme` token block and the `ui-*` classes. Public surface for app code:
 
-- **Spacing/density** — `ui-pad`, `ui-pad-sm`, `ui-pad-lg`, `ui-pad-x`,
-  `ui-pad-x-sm`, `ui-pad-x-lg`, `ui-pad-y`, `ui-pad-y-sm`, `ui-pad-y-lg`, and
-  one-sided `ui-pad-{t,b,l,r}`, `-sm`, `-lg`, `ui-gap`, `ui-gap-sm`,
-  `ui-gap-lg`, `ui-spy`, `ui-spy-sm`, `ui-spy-lg`; and the `ui-tablepad-*`
-  family (`ui-tablepad-x-compact`, `-x-normal`, `-x-comfortable`, the same three
-  for `-y-`, and `ui-tablepad-y-header`), which is the padding of `Table`'s
-  cells and header row, one token per `paddingX` / `paddingY` value, so an app
-  tunes table density by overriding the `--ui-tablepad-*` variables
-- **Form density** — `ui-form-pad`, `ui-form-pad-sm`, `ui-form-text-size`,
-  `ui-form-text-size-sm`, `ui-icon-only-correction`,
-  `ui-icon-only-correction-sm`
-- **State** — the `ui-hoverable-{token}` family (`base-100`, `base-200`,
-  `base-300`, `base-content`, and the five intents), its outline sibling
-  `ui-hoverable-outline-on-{token}`, `ui-hoverable-ghost`, and `ui-focusable`
-- **Type** — three roles: body (14px, inherited from `body`, no class),
-  `ui-text-caption` (12px, muted) and `ui-text-heading` (16px, bold); plus
-  `ui-text-overline`, `ui-text-small`, `ui-form-text`, `ui-label`
-- **Skins** — `ui-fill-{intent}`, `ui-outline-{intent}`, `ui-ghost-{intent}`,
-  for building a control the kit doesn't provide
+- **Spacing/density** — `ui-pad`, `ui-pad-sm`, `ui-pad-lg`, `ui-pad-x`, `ui-pad-x-sm`, `ui-pad-x-lg`, `ui-pad-y`, `ui-pad-y-sm`, `ui-pad-y-lg`, and one-sided `ui-pad-{t,b,l,r}`, `-sm`, `-lg`, `ui-gap`, `ui-gap-sm`, `ui-gap-lg`, `ui-spy`, `ui-spy-sm`, `ui-spy-lg`; and the `ui-tablepad-*` family (`ui-tablepad-x-compact`, `-x-normal`, `-x-comfortable`, the same three for `-y-`, and `ui-tablepad-y-header`), which is the padding of `Table`'s cells and header row, one token per `paddingX` / `paddingY` value, so an app tunes table density by overriding the `--ui-tablepad-*` variables
+- **Form density** — `ui-form-pad`, `ui-form-pad-sm`, `ui-form-text-size`, `ui-form-text-size-sm`, `ui-icon-only-correction`, `ui-icon-only-correction-sm`
+- **State** — the `ui-hoverable-{token}` family (`base-100`, `base-200`, `base-300`, `base-content`, and the five intents), its outline sibling `ui-hoverable-outline-on-{token}`, `ui-hoverable-ghost`, and `ui-focusable`
+- **Type** — three roles: body (14px, inherited from `body`, no class), `ui-text-caption` (12px, muted) and `ui-text-heading` (16px, bold); plus `ui-text-overline`, `ui-text-small`, `ui-form-text`, `ui-label`
+- **Skins** — `ui-fill-{intent}`, `ui-outline-{intent}`, `ui-ghost-{intent}`, for building a control the kit doesn't provide
 
 Every other `ui-*` class is internal and may change without notice.
 
-Color tokens, the state doctrine, and theming:
-**[DOC_UI_COLOR_AND_STATE.md](../../DOC_UI_COLOR_AND_STATE.md)**. App-facing
-rules: `protocols/PROTOCOL_UI_STYLING.md`.
+Color tokens, the state doctrine, and theming: **[DOC_UI_COLOR_AND_STATE.md](../../DOC_UI_COLOR_AND_STATE.md)**. App-facing rules: `protocols/PROTOCOL_UI_STYLING.md`.
 
 ## Usage Example
 

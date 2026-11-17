@@ -77,7 +77,7 @@ export const copilotInteractions = defineAIInteractions({
         p.slideId,
     coalesce: oncePerSlide,
     format: (p) =>
-      `The content of slide ${p.slideId} changed while it was open (re-read it with get_slide before editing it)`,
+      `The content of slide ${p.slideId} changed while it was open (re-read it with get_slides before editing it)`,
   }),
   edited_report_locally: interaction<{ reportId: string }>({
     relevantIn: ["editing_report"],

@@ -1,10 +1,18 @@
-// Copyright 2023-2026, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton. MIT license.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Coordinates, RectCoordsDims, Z_INDEX } from "../deps.ts";
-import type { ChartLegendPrimitive } from "../deps.ts";
+import {
+  buildItem,
+  Coordinates,
+  itemCoordinate,
+  labelBoxRcd,
+  RectCoordsDims,
+  unionRectCoordsDims,
+  Z_INDEX,
+} from "../deps.ts";
+import type { FigureLegendPrimitive, NestedIdentity } from "../deps.ts";
 import type { MeasuredLegend } from "./measure_legend.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,21 +25,23 @@ export function generateLegendPrimitive(
   coords: Coordinates,
   mLegend: MeasuredLegend,
   bounds: RectCoordsDims,
-): ChartLegendPrimitive {
-  const items: ChartLegendPrimitive["items"] = [];
+  seriesDimension: string | undefined,
+): FigureLegendPrimitive {
+  const entries: FigureLegendPrimitive["entries"] = [];
 
   let currentX = coords.x();
   let currentY = coords.y();
   const colorBoxWidthOrPointWidth = mLegend.colorBoxWidthOrPointWidth;
 
   mLegend.groups.forEach(
-    ({ allMeasuredLines, legendItemsThisGroup, wThisGroupLabels }) => {
-      allMeasuredLines.forEach((mText, i_legendItem) => {
-        const item = legendItemsThisGroup[i_legendItem]!;
-        const pointStyle = item.pointStyle;
-        const lineStrokeWidthScaleFactor = item.lineStrokeWidthScaleFactor ?? 1;
-        const lineDash = item.lineDash ?? "solid";
-        const color = item.color;
+    ({ allMeasuredLines, legendEntriesThisGroup, wThisGroupLabels }) => {
+      allMeasuredLines.forEach((mText, i_legendEntry) => {
+        const entry = legendEntriesThisGroup[i_legendEntry]!;
+        const pointStyle = entry.pointStyle;
+        const lineStrokeWidthScaleFactor = entry.lineStrokeWidthScaleFactor ??
+          1;
+        const lineDash = entry.lineDash ?? "solid";
+        const color = entry.color;
 
         // Label position (to the right of symbol)
         const labelPosition = new Coordinates([
@@ -40,7 +50,7 @@ export function generateLegendPrimitive(
         ]);
 
         // Symbol configuration (discriminated union)
-        let symbol: ChartLegendPrimitive["items"][number]["symbol"];
+        let symbol: FigureLegendPrimitive["entries"][number]["symbol"];
 
         if (pointStyle === undefined || pointStyle === "as-block") {
           // Rectangle symbol
@@ -93,13 +103,30 @@ export function generateLegendPrimitive(
           };
         }
 
-        items.push({
+        const seriesMember = entry.id === undefined
+          ? undefined
+          : { id: entry.id, label: entry.label };
+        entries.push({
+          seriesMember,
           mText,
           labelPosition,
           symbol,
+          ...entryIdentity(
+            seriesDimension,
+            seriesMember,
+            unionRectCoordsDims([
+              new RectCoordsDims([
+                currentX,
+                currentY,
+                colorBoxWidthOrPointWidth,
+                mText.dims.h(),
+              ]),
+              labelBoxRcd(mText, labelPosition, "left", "top"),
+            ]),
+          ),
         });
 
-        currentY += mText.dims.h() + mLegend.s.legendItemVerticalGap;
+        currentY += mText.dims.h() + mLegend.s.legendEntryVerticalGap;
       });
 
       // Move to next column
@@ -112,13 +139,24 @@ export function generateLegendPrimitive(
   );
 
   return {
-    type: "chart-legend",
+    type: "figure-legend",
     key: "legend",
     bounds,
     meta: {
-      // Figure-level legend - no paneIndex
+      // Figure-level legend - no i_pane
     },
-    items,
+    entries,
     zIndex: Z_INDEX.LEGEND,
   };
+}
+
+// An entry that names a series stands for it, and is hit on its symbol's
+// slot and its label.
+function entryIdentity(
+  seriesDimension: string | undefined,
+  seriesMember: FigureLegendPrimitive["entries"][number]["seriesMember"],
+  hitBounds: RectCoordsDims,
+): NestedIdentity {
+  const item = buildItem([itemCoordinate(seriesDimension, seriesMember)]);
+  return item === undefined ? {} : { item, part: "header", hitBounds };
 }

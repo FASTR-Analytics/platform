@@ -5,14 +5,14 @@ import {
 } from "lib";
 
 // Modules in module order (compareModules), each with its family and tier,
-// so the model meets each family's primary result first.
+// so the model meets each family's primary result first. A module's count is
+// of its ready metrics, the ones get_available_metrics lists.
 export function formatModulesListForAI(
   modules: InstalledModuleSummary[],
   metrics: MetricWithStatus[],
 ): string {
-  // Build metric count per module
   const metricCountByModule = new Map<string, number>();
-  for (const metric of metrics) {
+  for (const metric of metrics.filter((m) => m.status === "ready")) {
     const count = metricCountByModule.get(metric.moduleId) ?? 0;
     metricCountByModule.set(metric.moduleId, count + 1);
   }

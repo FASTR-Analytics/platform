@@ -7,6 +7,7 @@ export const AUTHENTICATION_REQUIRED = "Authentication required";
 export const SERVICE_UNAVAILABLE = "Service temporarily unavailable";
 export const AWAITING_APPROVAL = "Your account is awaiting approval";
 export const ADMIN_REQUIRED = "Admin access required";
+export const UNRESTRICTED_REQUIRED = "Access to all data required";
 export const OPERATOR_REQUIRED = "Not authorized";
 export const STATUS_KEY_REQUIRED = "Status key required";
 export const PRODUCT_ACCESS_REFUSED = "You do not have access to this product";

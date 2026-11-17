@@ -20,14 +20,14 @@ function getMapCoverage(data: MapDataTransformed): MapCoverage {
     for (const lanes of tiers) {
       for (const values of lanes) {
         for (const areaId of Object.keys(values)) {
-          if (areaId !== "") dataAreas.add(areaId);
+          dataAreas.add(areaId);
         }
       }
     }
   }
   const boundaries = new Set<string>();
   for (const feature of data.geoFeatures) {
-    const id = feature.properties?.[data.areaMatchProp];
+    const id = feature.properties?.[data.mapArea.matchProp];
     if (id !== undefined && id !== null && id !== "") {
       boundaries.add(String(id));
     }

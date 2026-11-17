@@ -33,7 +33,8 @@ const GROUPS = {
     "get_module_log",
     "get_module_settings",
   ],
-  deck_reads: ["get_deck", "get_slide"],
+  deck_reads: ["get_deck", "get_slides", "get_slide_images"],
+  image_assets: ["get_image_assets"],
   deck_writes: [
     "create_slide",
     "update_slide",
@@ -42,6 +43,7 @@ const GROUPS = {
     "delete_slides",
     "duplicate_slides",
     "move_slides",
+    "update_deck_settings",
   ],
   // Applying a deck blueprint: outer tools (no package binding), the outline
   // card being the run's one confirmation.
@@ -50,6 +52,7 @@ const GROUPS = {
   report_reads: [
     "get_report_editor",
     "get_report_figure",
+    "get_report_figure_images",
     "get_report_pages",
     "get_page_template",
   ],
@@ -62,7 +65,11 @@ const GROUPS = {
     "replace_figure",
     "update_report_figure",
   ],
-  figure_editor: ["get_figure_editor", "update_figure_editor"],
+  figure_editor: [
+    "get_figure_editor",
+    "get_figure_editor_image",
+    "update_figure_editor",
+  ],
   hfa_reads: [
     "get_hfa_indicators",
     "get_hfa_indicator_details",
@@ -106,7 +113,13 @@ const VIEWS: {
   {
     id: "editing_slide_deck",
     hasPackage: true,
-    groups: [...PRODUCT, "deck_reads", "deck_writes", "deck_blueprint"],
+    groups: [
+      ...PRODUCT,
+      "deck_reads",
+      "deck_writes",
+      "deck_blueprint",
+      "image_assets",
+    ],
   },
   {
     id: "editing_slide_figure",

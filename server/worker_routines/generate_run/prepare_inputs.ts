@@ -2,6 +2,7 @@ import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
   ADMIN_AREA_COLUMNS,
+  csvCell,
   type DatasetType,
   type HfaIndicator,
   type HfaIndicatorCode,
@@ -517,10 +518,6 @@ async function writePopulationPersonYears(
     coverage,
     ...extractMonths,
   };
-}
-
-function csvCell(value: string): string {
-  return /[",\n\r]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
 }
 
 async function writeInputJson(

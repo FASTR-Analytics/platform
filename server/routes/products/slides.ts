@@ -132,7 +132,8 @@ defineRoute(
     // authoritative: a direct DB write would be silently overwritten by the
     // room's next checkpoint. Route the save through the room instead: the
     // change merges into the shared doc (relayed live to connected editors)
-    // and the room checkpoints it immediately, firing its own notifications.
+    // and the room checkpoints it immediately, firing its own notifications when
+    // the config changed.
     // The expectedLastUpdated conflict check does not apply on this path:
     // merging into the live doc IS the conflict resolution.
     // The route body schema validated this before the handler ran, which

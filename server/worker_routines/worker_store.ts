@@ -1,13 +1,19 @@
 // "hmis" = the CSV wizard's staging/integration workers; "hmis_dhis2_run" =
 // the DHIS2 per-pair import run worker (separate key so deleting a CSV
 // attempt can never terminate a DHIS2 run: cross-type mutual exclusion is
-// enforced by the DB guards, not by this store).
-export type WorkerKey = "hmis" | "hfa" | "iceh" | "hmis_dhis2_run";
+// enforced by the DB guards, not by this store); "hfa_verification" = the
+// HFA indicator verification run's worker, one live run being the DB's rule.
+export type WorkerKey =
+  | "hmis"
+  | "hfa"
+  | "iceh"
+  | "hmis_dhis2_run"
+  | "hfa_verification";
 
-// Active worker per import family (one concurrent import each): stored at
-// spawn, cleared on completion, crash, or cancel. clearWorker is
-// compare-and-delete so a stale worker's late event cannot clobber a
-// successor stored under the same key.
+// Active worker per key (one concurrent job each): stored at spawn, cleared
+// on completion, crash, or cancel. clearWorker is compare-and-delete so a
+// stale worker's late event cannot clobber a successor stored under the same
+// key.
 const workers = new Map<WorkerKey, Worker>();
 
 export function setWorker(key: WorkerKey, worker: Worker): void {

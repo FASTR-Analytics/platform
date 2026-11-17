@@ -221,12 +221,14 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
     folderIds.push(visibleFolder.folderId, hiddenFolder.folderId);
     const inside = await ok<{ productId: string }>(open, "POST", "/products", {
       type: "report",
+      label: "Test report",
       folderId: visibleFolder.folderId,
       runId,
       scopeId: granted,
     });
     const outside = await ok<{ productId: string }>(open, "POST", "/products", {
       type: "report",
+      label: "Test report",
       folderId: hiddenFolder.folderId,
       runId,
       scopeId: other,
@@ -348,6 +350,7 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
     assertEquals(
       (await call(limited, "POST", "/products", {
         type: "report",
+        label: "Test report",
         folderId: null,
         runId,
         scopeId: other,

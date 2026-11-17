@@ -11,7 +11,6 @@ import {
   Button,
   createButtonAction,
   createDeleteAction,
-  createQuery,
   Csv,
   downloadCsv,
   FrameTop,
@@ -27,7 +26,6 @@ import { BulkEditScopesForm } from "./bulk_edit_scopes_form";
 import { User } from "./user";
 import { BulkAction, createTableConfig, Table, TableColumn } from "panther";
 import { serverActions } from "~/server_actions";
-import type { UserLastActive } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 import { openShellEditor } from "~/state/t4_ui";
 import {
@@ -43,13 +41,6 @@ import {
 export function InstanceUsers() {
   holdCopilotView();
   copilotViewController.setView("users");
-  // The Last active column exists only for a caller its route admits; the
-  // query follows the permission live.
-  const lastActiveQuery = createMemo(() =>
-    canCallRoute("getUsersLastActive")
-      ? createQuery(() => serverActions.getUsersLastActive({}))
-      : undefined
-  );
 
   const [showHUsers, setShowHUsers] = createSignal(false);
   // Operators are hidden by default; Download exports what the table shows.
@@ -91,11 +82,6 @@ export function InstanceUsers() {
         <div class="min-h-0 flex-1" data-tour="instance-users-table">
           <UserTable
             users={visibleUsers()}
-            showLastActive={lastActiveQuery() !== undefined}
-            lastActive={(() => {
-              const s = lastActiveQuery()?.state();
-              return s?.status === "ready" ? s.data : undefined;
-            })()}
             onUserClick={(user) =>
               void openShellEditor({
                 element: User,
@@ -246,15 +232,7 @@ function getScopesLabel(user: OtherUser): string {
   return summariseLabels(labels);
 }
 
-type UserTableData = OtherUser & {
-  lastActiveTs: number;
-};
-
 function formatTimeAgo(date: Date): string {
-  if (!date || isNaN(date.getTime())) {
-    return t3({ en: "Unknown", fr: "Inconnu", pt: "Desconhecido" });
-  }
-
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
@@ -290,54 +268,14 @@ function formatTimeAgo(date: Date): string {
 
 function UserTable(p: {
   users: OtherUser[];
-  showLastActive: boolean;
-  lastActive: UserLastActive[] | undefined;
   onUserClick: (user: OtherUser) => void;
   toolbarChildren: JSX.Element;
 }) {
   const usersTable = createTableConfig({
-    sort: p.showLastActive
-      ? { key: "lastActiveTs", direction: "desc" }
-      : { key: "email", direction: "asc" },
+    sort: { key: "lastActiveAt", direction: "desc" },
   });
 
-  const userRows = (): UserTableData[] => {
-    const map = new Map(
-      (p.lastActive ?? []).map((
-        r,
-      ) => [r.email, new Date(r.lastActive).getTime()]),
-    );
-    return p.users.map((user) => ({
-      ...user,
-      lastActiveTs: map.get(user.email) ?? -1,
-    }));
-  };
-
-  const lastActiveColumn: TableColumn<UserTableData> = {
-    key: "lastActiveTs",
-    header: t3({
-      en: "Last active",
-      fr: "Dernière activité",
-      pt: "Última atividade",
-    }),
-    sortable: true,
-    sortDescFirst: true,
-    searchable: false,
-    render: (user) => {
-      if (user.lastActiveTs === -1) {
-        return (
-          <span class="text-base-content-muted">
-            {p.lastActive === undefined
-              ? "..."
-              : t3({ en: "Never", fr: "Jamais", pt: "Nunca" })}
-          </span>
-        );
-      }
-      return <span>{formatTimeAgo(new Date(user.lastActiveTs))}</span>;
-    },
-  };
-
-  const columns = createMemo((): TableColumn<UserTableData>[] => [
+  const columns = createMemo((): TableColumn<OtherUser>[] => [
     {
       key: "firstName",
       header: t3({ en: "Name", fr: "Nom", pt: "Nome" }),
@@ -355,7 +293,25 @@ function UserTable(p: {
       header: t3(TC.email),
       sortable: true,
     },
-    ...(p.showLastActive ? [lastActiveColumn] : []),
+    {
+      key: "lastActiveAt",
+      header: t3({
+        en: "Last active",
+        fr: "Dernière activité",
+        pt: "Última atividade",
+      }),
+      sortable: true,
+      sortDescFirst: true,
+      searchable: false,
+      render: (user) =>
+        user.lastActiveAt === null
+          ? (
+            <span class="text-base-content-muted">
+              {t3({ en: "Never", fr: "Jamais", pt: "Nunca" })}
+            </span>
+          )
+          : <span>{formatTimeAgo(new Date(user.lastActiveAt))}</span>,
+    },
     {
       key: "isGlobalAdmin",
       header: t3({ en: "Status", fr: "Statut", pt: "Estado" }),
@@ -396,7 +352,7 @@ function UserTable(p: {
   // toggleUserAdmin refuses any batch that names the caller, so their own
   // row is never sent.
   const bulkMakeAdmin = createButtonAction(
-    async (selectedUsers: UserTableData[]) => {
+    async (selectedUsers: OtherUser[]) => {
       const emails = selectedUsers
         .map((u) => u.email)
         .filter((email) => email !== instanceState.currentUserEmail);
@@ -406,7 +362,7 @@ function UserTable(p: {
 
   // An admin cannot demote themselves, so their own row is never sent.
   const bulkMakeNonAdmin = createButtonAction(
-    async (selectedUsers: UserTableData[]) => {
+    async (selectedUsers: OtherUser[]) => {
       const emails = selectedUsers
         .map((u) => u.email)
         .filter((email) => email !== instanceState.currentUserEmail);
@@ -416,13 +372,13 @@ function UserTable(p: {
 
   // The rows the user-management rule lets the caller name: never their own,
   // and no admin's unless the caller is an admin.
-  const manageable = (selectedUsers: UserTableData[]) =>
+  const manageable = (selectedUsers: OtherUser[]) =>
     selectedUsers.filter((u) =>
       u.email !== instanceState.currentUserEmail &&
       (isGlobalAdmin() || !u.isGlobalAdmin)
     );
 
-  async function handleBulkRemoveUsers(selectedUsers: UserTableData[]) {
+  async function handleBulkRemoveUsers(selectedUsers: OtherUser[]) {
     const emails = manageable(selectedUsers).map((u) => u.email);
     if (emails.length === 0) return;
     const userCount = emails.length;
@@ -456,7 +412,7 @@ function UserTable(p: {
 
   // Global admins always have every scope (the route refuses their rows),
   // so they are skipped and counted.
-  async function handleBulkEditScopes(selectedUsers: UserTableData[]) {
+  async function handleBulkEditScopes(selectedUsers: OtherUser[]) {
     const admins = selectedUsers.filter((u) => u.isGlobalAdmin);
     const emails = manageable(selectedUsers)
       .filter((u) => !u.isGlobalAdmin)
@@ -467,7 +423,7 @@ function UserTable(p: {
     });
   }
 
-  async function handleBulkEditPermissions(selectedUsers: UserTableData[]) {
+  async function handleBulkEditPermissions(selectedUsers: OtherUser[]) {
     const emails = manageable(selectedUsers).map((u) => u.email);
     if (emails.length === 0) return;
     await openComponent({
@@ -476,7 +432,7 @@ function UserTable(p: {
     });
   }
 
-  function handleBulkDownloadCSV(selectedUsers: UserTableData[]) {
+  function handleBulkDownloadCSV(selectedUsers: OtherUser[]) {
     const csv = new Csv({
       colHeaders: ["email", "is_global_admin"],
       aoa: selectedUsers.map((user) => [
@@ -490,7 +446,7 @@ function UserTable(p: {
   }
 
   // Each bulk action renders only for a caller its route admits.
-  const bulkActions = createMemo<BulkAction<UserTableData>[]>(() => [
+  const bulkActions = createMemo<BulkAction<OtherUser>[]>(() => [
     ...(canCallRoute("toggleUserAdmin")
       ? [
         {
@@ -568,7 +524,7 @@ function UserTable(p: {
 
   return (
     <Table
-      data={userRows()}
+      data={p.users}
       columns={columns()}
       config={usersTable}
       keyField="email"
