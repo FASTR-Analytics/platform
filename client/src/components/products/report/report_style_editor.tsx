@@ -28,8 +28,9 @@ import { ReportBackboneFields } from "./report_backbone_fields";
 // wizard step, one panther modal slot). Delete lives here (not on picker
 // tiles) because openConfirm would replace the picker modal.
 //
-// Visibility is per PRODUCT: this report, a
-// chosen set of reports, or every report on the instance.
+// Visibility is per PRODUCT: every report on the instance (a new backbone's
+// default: the library is the instance's), a chosen set of reports, or this
+// report only.
 //
 // A new one can start from an example: an example PDF the AI reads, or the
 // report the editor was opened from, measured (`measureReport`). Either
@@ -118,7 +119,7 @@ export function ReportStyleEditor(p: Props) {
       : base.productIds.length === 1 && base.productIds[0] === p.productId
       ? "report"
       : "selected"
-    : "report";
+    : "instance";
   const [visibility, setVisibility] = createSignal<Visibility>(
     initialVisibility,
   );
@@ -375,11 +376,11 @@ export function ReportStyleEditor(p: Props) {
             horizontal
             options={[
               {
-                value: "report",
+                value: "instance",
                 label: t3({
-                  en: "This report",
-                  fr: "Ce rapport",
-                  pt: "Este relatório",
+                  en: "All reports",
+                  fr: "Tous les rapports",
+                  pt: "Todos os relatórios",
                 }),
               },
               {
@@ -391,11 +392,11 @@ export function ReportStyleEditor(p: Props) {
                 }),
               },
               {
-                value: "instance",
+                value: "report",
                 label: t3({
-                  en: "All reports",
-                  fr: "Tous les rapports",
-                  pt: "Todos os relatórios",
+                  en: "This report",
+                  fr: "Ce rapport",
+                  pt: "Este relatório",
                 }),
               },
             ]}
