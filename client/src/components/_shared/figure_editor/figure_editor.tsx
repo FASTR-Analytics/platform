@@ -30,7 +30,6 @@ import {
   downloadJson,
   FigureHolder,
   FigureInputs,
-  FrameLeft,
   FrameLeftResizable,
   FrameTop,
   getEditorWrapper,
@@ -71,7 +70,7 @@ import {
   setFigureEditorView,
 } from "~/components/instance/copilot/mod.ts";
 import { VizEditorCursors } from "./viz_editor_cursors";
-import { ReplicateByOptionsList } from "./replicate_by_options";
+import { ReplicateByOptionsSelect } from "./replicate_by_options";
 import { DownloadPresentationObject } from "./download_presentation_object";
 import { ViewResultsObject } from "./view_results_object";
 import {
@@ -920,25 +919,6 @@ export function VisualizationEditorInner(p: InnerProps) {
     });
   }
 
-  // Memoised so a filter edit that leaves the replicated dimension unchanged
-  // does not rebuild the panel, which FrameLeft would remount.
-  const replicateBy = createMemo(() => getReplicateByProp(tempConfig));
-  const replicantPanel = () => {
-    const keyedReplicateBy = replicateBy();
-    if (!keyedReplicateBy) return undefined;
-    return (
-      <ReplicateByOptionsList
-        scope={scope()}
-        replicateBy={keyedReplicateBy}
-        config={tempConfig}
-        metric={metric}
-        selectedReplicantValue={tempConfig.d.selectedReplicantValue}
-        setSelectedReplicant={(v) =>
-          manuallyUpdateTempConfig("d", "selectedReplicantValue", v)}
-      />
-    );
-  };
-
   return (
     <EditorWrapperForResultsObject>
       <FrameTop
@@ -1064,7 +1044,32 @@ export function VisualizationEditorInner(p: InnerProps) {
             />
           }
         >
-          <FrameLeft panelPad="md" panelChildren={replicantPanel()}>
+          {
+            /* Keyed on the replicated dimension, so a filter edit that leaves
+              it unchanged does not rebuild the strip. */
+          }
+          <FrameTop
+            panelChildren={
+              <Show when={getReplicateByProp(tempConfig)} keyed>
+                {(replicateBy) => (
+                  <ReplicateByOptionsSelect
+                    scope={scope()}
+                    replicateBy={replicateBy}
+                    config={tempConfig}
+                    metric={metric}
+                    selectedReplicantValue={tempConfig.d
+                      .selectedReplicantValue}
+                    setSelectedReplicant={(v) =>
+                      manuallyUpdateTempConfig(
+                        "d",
+                        "selectedReplicantValue",
+                        v,
+                      )}
+                  />
+                )}
+              </Show>
+            }
+          >
             <div
               class="ui-pad h-full w-full overflow-auto"
               data-cursor-zone="preview-area"
@@ -1104,7 +1109,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                 )}
               </Show>
             </div>
-          </FrameLeft>
+          </FrameTop>
         </FrameLeftResizable>
       </FrameTop>
       <VizEditorCursors

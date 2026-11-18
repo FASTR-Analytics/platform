@@ -192,3 +192,6 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 - A value-discovery tool for the copilot (SYSTEM_13 Open items).
 
 ## §6 Log
+
+- Step 2 deleted the `replicateBy` memo with `replicantPanel` instead of keeping it: the strip is a keyed `<Show when={getReplicateByProp(tempConfig)}>` (PROTOCOL_UI_SOLIDJS rules 1 and 6: no conditional return), and Solid's `Show` memoises `when` with `===`, so a filter edit that leaves the dimension unchanged does not rebuild the strip without a second memo. The comment on the `Show` says so.
+- Step 2 deleted the `ReplicateByOptionsSelect` re-export from `client/src/components/_shared/figure_editor/mod.ts`, outside the Surface, under §0's leftover rule: no other folder imports it, and `figure_editor.tsx` imports the strip from inside the folder.

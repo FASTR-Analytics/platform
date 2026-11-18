@@ -293,9 +293,7 @@ function getDisplayedIndicatorDimensionValues(
       // A replicated figure shows exactly one value of the replicant dimension.
       // A PO config stores no-selection as undefined (the field is optional and
       // the starting config leaves it unset), but "" also reaches here: the
-      // deck config's default is "", and ReplicateByOptions feeds
-      // `selectedReplicantValue || ""` into tempConfig. Both mean "nothing
-      // selected".
+      // deck config's default is "". Both mean "nothing selected".
       //
       // Returning undefined here (rather than falling through to enumeration)
       // is a latent behaviour change from the pre-per-value code, reachable
