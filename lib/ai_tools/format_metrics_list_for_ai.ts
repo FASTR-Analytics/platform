@@ -6,8 +6,7 @@ import type {
 import { ICEH_STRAT_INFO } from "../types/iceh_strats.ts";
 import { getReplicateByProp } from "../get_disaggregator_display_prop.ts";
 import { compareModules } from "../group_metrics.ts";
-
-type IcehIndicator = { id: string; label: string; category: string };
+import { AI_INLINE_LIST_MAX } from "./read_bounds.ts";
 
 export type ModuleForAI = Pick<
   InstalledModuleSummary,
@@ -21,7 +20,6 @@ export type ModuleForAI = Pick<
 export function formatMetricsListForAI(
   metrics: MetricWithStatus[],
   modules: ModuleForAI[],
-  icehIndicators: IcehIndicator[],
   hfaTaxonomy: HfaTaxonomyForAI,
 ): string {
   const lines: string[] = [
@@ -34,8 +32,8 @@ export function formatMetricsListForAI(
     "",
   ];
 
-  // HFA module active → surface the full indicator taxonomy up front so the
-  // model has every category / sub-category / service-category / time-point ID.
+  // HFA module active → surface the taxonomy up front so the model has every
+  // category / sub-category / service-category / time-point ID.
   if (hfaTaxonomy.indicators.length > 0) {
     lines.push(...formatHfaTaxonomyForAI(hfaTaxonomy));
   }
@@ -45,6 +43,10 @@ export function formatMetricsListForAI(
   if (readyMetrics.length === 0) {
     lines.push("No metrics available.");
     return lines.join("\n");
+  }
+
+  if (readyMetrics.some(isIcehMetric)) {
+    lines.push(...formatIcehStratifiersForAI());
   }
 
   const orderedModules = modules.toSorted(compareModules);
@@ -114,39 +116,6 @@ export function formatMetricsListForAI(
       );
     }
 
-    const isIcehMetric = metric.disaggregationOptions.some((opt) =>
-      opt.value === "iceh_indicator"
-    );
-    if (isIcehMetric && icehIndicators.length > 0) {
-      const grouped = new Map<string, IcehIndicator[]>();
-      for (const ind of icehIndicators) {
-        const cat = ind.category || "Other";
-        if (!grouped.has(cat)) grouped.set(cat, []);
-        grouped.get(cat)!.push(ind);
-      }
-      lines.push(`  ICEH indicators (iceh_indicator column values):`);
-      for (const [category, indicators] of grouped) {
-        lines.push(`    [${category}]`);
-        for (const ind of indicators) {
-          lines.push(`      - ${ind.id}: ${ind.label}`);
-        }
-      }
-      lines.push(`  ICEH stratifiers (strat column values):`);
-      for (const [stratCode, info] of Object.entries(ICEH_STRAT_INFO)) {
-        const levelsStr = info.levels
-          ? ` → levels: ${
-            Object.entries(info.levels).map(([k, v]) => `${k} (${v})`).join(
-              ", ",
-            )
-          }`
-          : "";
-        const equityNote = info.isEquityDimension ? " [equity dimension]" : "";
-        lines.push(
-          `    - ${stratCode}: ${info.label}${equityNote}${levelsStr}`,
-        );
-      }
-    }
-
     if (metric.vizPresets && metric.vizPresets.length > 0) {
       lines.push(`  Visualization presets:`);
       for (const preset of metric.vizPresets) {
@@ -181,10 +150,44 @@ function getAIStr(val: string | { en: string; fr?: string }): string {
   return val.en;
 }
 
+function isIcehMetric(metric: MetricWithStatus): boolean {
+  return metric.disaggregationOptions.some((opt) =>
+    opt.value === "iceh_indicator"
+  );
+}
+
+function formatIcehStratifiersForAI(): string[] {
+  return [
+    "ICEH STRATIFIERS",
+    "=".repeat(80),
+    "Every ICEH metric below has a strat column, which takes these values. get_dimension_values lists an ICEH metric's indicators (iceh_indicator values), each with its category.",
+    ...Object.entries(ICEH_STRAT_INFO).map(([stratCode, info]) => {
+      const levelsStr = info.levels
+        ? ` → levels: ${
+          Object.entries(info.levels).map(([k, v]) => `${k} (${v})`).join(", ")
+        }`
+        : "";
+      const equityNote = info.isEquityDimension ? " [equity dimension]" : "";
+      return `  - ${stratCode}: ${info.label}${equityNote}${levelsStr}`;
+    }),
+    "",
+  ];
+}
+
+function indicatorCount(n: number): string {
+  return `${n} ${n === 1 ? "indicator" : "indicators"}`;
+}
+
 function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
   const lines: string[] = [];
   const catLabel = new Map(tax.categories.map((c) => [c.id, c.label]));
   const subLabel = new Map(tax.subCategories.map((s) => [s.id, s.label]));
+  const inCategory = Map.groupBy(tax.indicators, (i) => i.categoryId);
+  const inSubCategory = Map.groupBy(tax.indicators, (i) => i.subCategoryId);
+  const countIn = (
+    groups: Map<string | null, unknown[]>,
+    id: string | null,
+  ) => indicatorCount(groups.get(id)?.length ?? 0);
 
   lines.push("HFA INDICATORS (Health Facility Assessment)");
   lines.push("=".repeat(80));
@@ -208,13 +211,22 @@ function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
   }
   lines.push("");
 
-  lines.push("Categories (id: label) with their sub-categories:");
+  lines.push(
+    `Categories (id: label (how many of all ${
+      indicatorCount(tax.indicators.length)
+    } it holds)) with their sub-categories:`,
+  );
   for (const cat of tax.categories) {
-    lines.push(`  - ${cat.id}: ${cat.label}`);
+    lines.push(`  - ${cat.id}: ${cat.label} (${countIn(inCategory, cat.id)})`);
     const subs = tax.subCategories.filter((s) => s.categoryId === cat.id);
     for (const sub of subs) {
-      lines.push(`      - ${sub.id}: ${sub.label}`);
+      lines.push(
+        `      - ${sub.id}: ${sub.label} (${countIn(inSubCategory, sub.id)})`,
+      );
     }
+  }
+  if (inCategory.has(null)) {
+    lines.push(`  - no category (${countIn(inCategory, null)})`);
   }
   lines.push("");
 
@@ -237,7 +249,11 @@ function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
       const members = tax.indicators
         .filter((i) => i.variantGroupId === group.id)
         .map((i) => i.id);
-      if (members.length > 0) {
+      if (members.length > AI_INLINE_LIST_MAX) {
+        lines.push(
+          `      [${members.length} indicators in this group, more than ${AI_INLINE_LIST_MAX}, too many to list here: get_dimension_values lists the by-variant metric's hfa_indicator values, the indicators with variant items]`,
+        );
+      } else if (members.length > 0) {
         lines.push(`      [indicators in this group: ${members.join(", ")}]`);
       }
     }
@@ -249,6 +265,14 @@ function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
     lines.push(`  - ${tp.id} (period ${tp.periodId})`);
   }
   lines.push("");
+
+  if (tax.indicators.length > AI_INLINE_LIST_MAX) {
+    lines.push(
+      `Indicators (hfa_indicator values): ${tax.indicators.length}, more than ${AI_INLINE_LIST_MAX}, too many to list here. get_dimension_values with disOpt "hfa_indicator" and the id of an HFA metric below lists them, each with its measure, category, sub-category and service categories, and its search finds them by name or by a category id.`,
+    );
+    lines.push("");
+    return lines;
+  }
 
   lines.push(
     "Indicators (hfa_indicator values), grouped by category › sub-category:",

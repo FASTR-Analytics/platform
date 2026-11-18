@@ -1,4 +1,5 @@
 import {
+  AI_INLINE_LIST_MAX,
   buildAiContextSections,
   buildDataCoverageSections,
   buildInstanceContextSections,
@@ -351,6 +352,8 @@ function categoryPart(v: ResolvedView): string | undefined {
   if (category?.placement !== "laid_out") return undefined;
   const values = category.values.length === 0
     ? `all (${category.options.length})`
+    : category.values.length > AI_INLINE_LIST_MAX
+    ? `${category.values.length} of ${category.options.length} chosen`
     : category.values.map((id) => optionLabel(category.options, id)).join(", ");
   return `${category.dimension}: ${values}`;
 }

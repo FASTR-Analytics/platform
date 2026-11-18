@@ -1,7 +1,8 @@
 import { AIToolFailure } from "@timroberton/panther";
 
-// The most values get_dimension_values writes for one dimension when it lists
-// every dimension; over it the dimension is written as its count.
+// The most entries a list whose length follows the data writes where the
+// copilot did not ask for that list. Over it the list is written as its
+// count.
 export const AI_INLINE_LIST_MAX = 100;
 
 // The most values one call of get_dimension_values writes for a named

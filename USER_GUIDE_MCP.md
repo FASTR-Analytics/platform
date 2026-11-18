@@ -126,7 +126,7 @@ Start a Claude session with the FASTR connector enabled. A good first move is to
 
 - **"Use the FASTR tools. Call get_overview and tell me which results package is pinned and what metrics it holds."**
 
-`get_overview` carries the live grounding (the pinned package's name, its datasets, indicators and period coverage) and how to query metric data. Then ask naturally:
+`get_overview` carries the live grounding (the pinned package's name, its datasets, indicators and period coverage) and how to query metric data. A package with more than 100 HMIS indicators, or more than 100 ICEH indicators, is given as a count in the overview, and the assistant looks the indicators of a metric up with `get_dimension_values`. Then ask naturally:
 
 - **Explore data**: "What's the trend in <metric> over the last two years? Break it down by region." The assistant calls `get_available_metrics` to find ids, then `get_metric_data` (returns CSV) and reasons over it.
 - **Reference docs**: "Load the ICEH methodology and explain the equity measures." The assistant calls `get_reference_docs` for the ids, then `get_reference_doc` for the document.

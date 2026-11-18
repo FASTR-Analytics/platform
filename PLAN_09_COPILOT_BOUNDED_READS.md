@@ -212,6 +212,7 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 
 - `lib/ai_tools/build_system_prompt.ts`
 - `lib/ai_tools/format_metrics_list_for_ai.ts`
+- `lib/ai_tools/read_bounds.ts`
 - `lib/ai_tools/tools_metrics.ts`
 - `client/src/components/instance/copilot/build_system_prompt.ts`
 - `client/src/components/instance/copilot/ai_debug_panel.tsx`

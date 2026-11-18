@@ -5,6 +5,7 @@ import {
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
 } from "../consts.ts";
+import type { DisaggregationOption } from "../types/disaggregation_options.ts";
 import type { RunDataset } from "../types/run_datasets.ts";
 import type { InstanceGrounding } from "../types/instance_sse.ts";
 import type { InstanceCalendar } from "../types/instance.ts";
@@ -17,6 +18,7 @@ import {
   describeHmisIndicatorLine,
   HMIS_INDICATOR_LINE_SHAPE,
 } from "./format_dimension_values_for_ai.ts";
+import { AI_INLINE_LIST_MAX } from "./read_bounds.ts";
 import type { ScopeDefinition } from "../types/scope.ts";
 import { MODULE_FAMILY_ORDER } from "../group_metrics.ts";
 import {
@@ -294,21 +296,29 @@ export function buildPackageGroundingSections(
   if (grounding.hmisIndicators.length > 0) {
     sections.push("");
     sections.push(
-      `**HMIS indicators (${grounding.hmisIndicators.length}):** ${HMIS_INDICATOR_LINE_SHAPE}. Read every value against its declared direction.`,
+      ...indicatorListLines({
+        heading: "HMIS indicators",
+        lines: grounding.hmisIndicators.map(describeHmisIndicatorLine),
+        lineShape: HMIS_INDICATOR_LINE_SHAPE,
+        disOpt: "indicator_common_id",
+        lookupFacts: "format, direction, thresholds, target and formula",
+        rest: " Read every value against its declared direction.",
+      }),
     );
-    for (const ind of grounding.hmisIndicators) {
-      sections.push(`- ${describeHmisIndicatorLine(ind)}`);
-    }
   }
 
   if (grounding.icehIndicators.length > 0) {
     sections.push("");
     sections.push(
-      `**ICEH indicators (${grounding.icehIndicators.length}):**`,
+      ...indicatorListLines({
+        heading: "ICEH indicators",
+        lines: grounding.icehIndicators.map((ind) => `${ind.id}: ${ind.label}`),
+        lineShape: undefined,
+        disOpt: "iceh_indicator",
+        lookupFacts: "category",
+        rest: "",
+      }),
     );
-    for (const ind of grounding.icehIndicators) {
-      sections.push(`- ${ind.id}: ${ind.label}`);
-    }
   }
 
   if (grounding.periodCoverage !== undefined) {
@@ -324,6 +334,30 @@ export function buildPackageGroundingSections(
   return sections;
 }
 
+// A package's indicators are listed whole up to the inline cap. Over it the
+// heading states their count and names the lookup, which lists the ones a
+// metric holds with their facts.
+function indicatorListLines(list: {
+  heading: string;
+  lines: string[];
+  lineShape: string | undefined;
+  disOpt: DisaggregationOption;
+  lookupFacts: string;
+  rest: string;
+}): string[] {
+  const n = list.lines.length;
+  if (n > AI_INLINE_LIST_MAX) {
+    return [
+      `**${list.heading} (${n}):** more than ${AI_INLINE_LIST_MAX}, too many to list here. get_dimension_values with a metric's id and disOpt "${list.disOpt}" lists the ones the metric holds, each with its ${list.lookupFacts}, and its search finds them by name.${list.rest}`,
+    ];
+  }
+  const shape = list.lineShape === undefined ? "" : ` ${list.lineShape}.`;
+  return [
+    `**${list.heading} (${n}):**${shape}${list.rest}`,
+    ...list.lines.map((line) => `- ${line}`),
+  ];
+}
+
 // ── The package block: the package in view, its scope and its grounding ──
 //
 // The chat's per-turn consumer block for the results package the current
@@ -335,6 +369,12 @@ export function buildPackageGroundingSections(
 // definition, and the authoring context's grounding.
 
 const FAMILY_NAMES = { hmis: "HMIS", hfa: "HFA", iceh: "ICEH" } as const;
+
+function limitList(noun: string, values: string[]): string {
+  return values.length > AI_INLINE_LIST_MAX
+    ? `${values.length} ${noun} (more than ${AI_INLINE_LIST_MAX}, too many to list here: get_dimension_values lists the ones a metric holds under this scope)`
+    : `${noun} ${values.join(", ")}`;
+}
 
 // One family's section of the scope: excluded, unlimited, or its limits.
 function familyLine(
@@ -352,14 +392,14 @@ function familyLine(
     "years" in section && section.years !== null &&
     `years ${section.years.start} to ${section.years.end}`,
     "timePoints" in section && section.timePoints !== null &&
-    `time points ${section.timePoints.join(", ")}`,
+    limitList("time points", section.timePoints),
+    // Written whole: a package holds a handful of modules, whatever its data.
     section.modules !== null && `modules ${section.modules.join(", ")}`,
-    section.indicators !== null &&
-    `indicators ${section.indicators.join(", ")}`,
+    section.indicators !== null && limitList("indicators", section.indicators),
     "categories" in section && section.categories !== null &&
-    `categories ${section.categories.join(", ")}`,
+    limitList("categories", section.categories),
     "serviceCategories" in section && section.serviceCategories !== null &&
-    `service categories ${section.serviceCategories.join(", ")}`,
+    limitList("service categories", section.serviceCategories),
   ].filter((limit) => typeof limit === "string");
   return limits.length === 0
     ? `- ${name}: included, no limits.`
@@ -516,7 +556,7 @@ ${principles}
 
 Before writing any interpretation, settle which way is good for the indicator.
 
-**Use the declared direction first.** Every HMIS indicator declares "higher is better" or "lower is better" in the HMIS indicators list above and in get_metric_data's Dimension Summary, with its thresholds and target where it has them. That declaration is the instance's own reading of the indicator and overrides any guess from the name.
+**Use the declared direction first.** Every HMIS indicator declares "higher is better" or "lower is better", with its thresholds and target where it has them. The declaration is written in three places: the results package's list of HMIS indicators, when the package has few enough to list there; get_metric_data's Dimension Summary; and get_dimension_values, beside each indicator_common_id value. That declaration is the instance's own reading of the indicator and overrides any guess from the name.
 
 **Only where nothing is declared** (HFA and ICEH indicators, module metrics such as outlier, completeness or dropout rates), infer the direction from what the indicator measures:
 - Service delivery and coverage (visits, deliveries, immunizations, family planning, skilled birth attendance): higher is better. Expected values: "surplus" = positive, "disruption" = concern.
