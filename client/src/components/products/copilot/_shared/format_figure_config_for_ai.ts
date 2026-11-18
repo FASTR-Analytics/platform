@@ -1,5 +1,4 @@
 import {
-  dimensionLookupSentence,
   type DisaggregationOption,
   formatValueForAI,
   getDisaggregationLabel,
@@ -74,13 +73,11 @@ export async function formatFigureConfigForAI(
           : selected
       }`,
     );
-    if (metric !== undefined && options !== undefined) {
+    if (options !== undefined) {
       lines.push(
         values === undefined
           ? `Replicant values: (${options.status})`
-          : `Replicant values: ${values.length} under this figure's filters and period. ${
-            dimensionLookupSentence(metric.id, replicateBy)
-          }`,
+          : `Replicant values: ${values.length} under this figure's filters and period`,
       );
     }
   }
