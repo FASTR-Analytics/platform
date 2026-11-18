@@ -20,7 +20,11 @@ import {
   type IndicatorFactsForAI,
 } from "./format_dimension_values_for_ai.ts";
 import { validateAiMetricQuery } from "./content_validators.ts";
-import { AI_INLINE_LIST_MAX, AI_VALUE_PAGE_MAX } from "./read_bounds.ts";
+import {
+  AI_DATA_ROWS_MAX,
+  AI_INLINE_LIST_MAX,
+  AI_VALUE_PAGE_MAX,
+} from "./read_bounds.ts";
 import type { AIToolEnv } from "./env.ts";
 
 export function getSharedToolsForMetrics(
@@ -69,7 +73,7 @@ export function getSharedToolsForMetrics(
     createAITool({
       name: "get_metric_data",
       description:
-        "Query data from a metric WITHOUT creating a visualization. Returns CSV data with dimension summary, plus detailed metric context (methodology, interpretation, typical ranges, caveats). Required disaggregations are automatically included. Use for: (1) answering data questions directly, (2) exploring data before visualizing. To find the values a filter takes, use get_dimension_values.",
+        `Query data from a metric WITHOUT creating a visualization. Returns CSV data with dimension summary, plus detailed metric context (methodology, interpretation, typical ranges, caveats). Required disaggregations are automatically included. A read writes at most ${AI_DATA_ROWS_MAX} rows: a read that holds more returns its row count and its dimension summary and no rows, so narrow it with a filter, a shorter period or fewer disaggregations. Use for: (1) answering data questions directly, (2) exploring data before visualizing. To find the values a filter takes, use get_dimension_values.`,
       inputSchema: AiMetricQuerySchema,
       handler: async (input: AiMetricQuery) => {
         const metric = metrics.find((m) => m.id === input.metricId);

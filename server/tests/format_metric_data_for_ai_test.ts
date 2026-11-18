@@ -2,14 +2,16 @@
 // row naming every dimension as the data holds it, no row for a value the data
 // does not hold, and a label with a comma or a quote kept in one cell; the
 // time range it states, which is the rows' own and not the window asked for;
-// the status it gives when a query returns too many items; and an indicator
-// read's format, stated once in the header when its rows share one and in a
-// format column when they do not, never in the Dimension Summary.
+// the status it gives when a query returns too many items; the row ceiling,
+// over which a read writes its counts and no rows; and an indicator read's
+// format, stated once in the header when its rows share one and in a format
+// column when they do not, never in the Dimension Summary.
 //
 //   deno test -A --no-check server/tests/format_metric_data_for_ai_test.ts
 
 import { assert, assertEquals } from "@std/assert";
 import { getMetricDataForAI } from "../../lib/ai_tools/format_metric_data_for_ai.ts";
+import { AI_DATA_ROWS_MAX } from "../../lib/ai_tools/read_bounds.ts";
 import type { AIToolEnv } from "../../lib/ai_tools/env.ts";
 import type {
   AiMetricQuery,
@@ -192,6 +194,38 @@ Deno.test("the time range in data is the rows' own, not the window asked for", a
     text,
   );
   assert(!text.includes("202312"), text);
+});
+
+// Fifty indicators by as many areas as the rows need, fifty rows to an area.
+function rowsOf(n: number): JsonArrayItem[] {
+  return Array.from({ length: n }, (_, i) => ({
+    indicator_common_id: `ind_${i % 50}`,
+    admin_area_2: `area_${Math.floor(i / 50)}`,
+    value: i,
+  }));
+}
+
+Deno.test("a read of exactly the row ceiling writes every row", async () => {
+  const text = await textFor(rowsOf(AI_DATA_ROWS_MAX), ["admin_area_2"]);
+  const [header, ...rows] = csvOf(text);
+  assertEquals(header, "indicator_common_id,admin_area_2,value");
+  assertEquals(rows.length, AI_DATA_ROWS_MAX);
+});
+
+Deno.test("a read of one row over the ceiling writes its header, its counts and the line, and no rows", async () => {
+  const n = AI_DATA_ROWS_MAX + 1;
+  const text = await textFor(rowsOf(n), ["admin_area_2"]);
+  assert(text.startsWith("# METRIC DATA\n"), text);
+  assert(text.includes(`**Metric ID (metricId):** ${METRIC.id}\n`), text);
+  assert(text.includes(`**Total rows:** ${n}\n`), text);
+  assert(text.includes("**indicator_common_id:** 50 unique values\n"), text);
+  assert(text.includes("**admin_area_2:** 21 unique values\n"), text);
+  assert(!text.includes("## Data (CSV)"), text);
+  assert(!text.includes("ind_0,"), text);
+  assertEquals(
+    text.split("\n").at(-1),
+    `**STATUS: ${n} rows, more than the ${AI_DATA_ROWS_MAX} a read writes, so no rows are written.** Add a filter, narrow the period or remove a disaggregation to read fewer rows. get_dimension_values with metricId "${METRIC.id}" lists a dimension's values to filter by.`,
+  );
 });
 
 const INDICATOR_METRIC = {

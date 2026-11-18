@@ -9,6 +9,10 @@ export const AI_INLINE_LIST_MAX = 100;
 // dimension.
 export const AI_VALUE_PAGE_MAX = 500;
 
+// The most CSV rows one read of a metric's data writes. Over it the read
+// writes its counts and no rows.
+export const AI_DATA_ROWS_MAX = 1000;
+
 // The sentence a text ends with when it holds a dimension's values only as a
 // count, or only those near what the copilot sent.
 export function dimensionLookupSentence(

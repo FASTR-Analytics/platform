@@ -32,6 +32,7 @@ import { csvCell } from "../utils.ts";
 import { AIToolFailure } from "@timroberton/panther";
 import type { AIToolEnv } from "./env.ts";
 import { validateMetricInputsAgainstValueInfo } from "./content_validators.ts";
+import { AI_DATA_ROWS_MAX } from "./read_bounds.ts";
 
 export function inferPeriodFilter(
   startDate: number | undefined,
@@ -428,6 +429,15 @@ function formatItemsAsMarkdown(
       }
     }
     lines.push("");
+  }
+
+  // No partial rows: a comparison over some of the rows would be read as a
+  // claim about all of them.
+  if (items.length > AI_DATA_ROWS_MAX) {
+    lines.push(
+      `**STATUS: ${items.length} rows, more than the ${AI_DATA_ROWS_MAX} a read writes, so no rows are written.** Add a filter, narrow the period or remove a disaggregation to read fewer rows. get_dimension_values with metricId "${metric.id}" lists a dimension's values to filter by.`,
+    );
+    return lines.join("\n");
   }
 
   lines.push("## Data (CSV)");
