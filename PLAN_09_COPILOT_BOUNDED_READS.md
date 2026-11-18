@@ -1,14 +1,14 @@
 # PLAN_09: What the copilot reads is bounded, and its lists are looked up
 
-Text written for the copilot grows with an instance's data in two ways. Some lists are written whole whether or not the copilot asked for them: on the sierraleone instance, whose packages hold 1,591 HMIS indicators, the package block alone is 215,778 characters. Other values are written nowhere: for most dimensions the copilot sets a filter by guessing a value and learns the right one from the validator's error. This plan gives the copilot one lookup for the values of any dimension of a metric, bounds every list the copilot is given without asking, and bounds every read whose size follows the data: metric rows, module scripts and logs, and the record lists. It also narrows the authoring context's dataset entries to what their reader uses, and lets an HMIS indicator declare no direction.
+Text written for the copilot grows with an instance's data in two ways. Some lists are written whole whether or not the copilot asked for them: on the sierraleone instance, whose packages hold 1,591 HMIS indicators, the package block alone is 215,778 characters. Other values are written nowhere: for most dimensions the copilot sets a filter by guessing a value and learns the right one from the validator's error. This plan gives the copilot one lookup for the values of any dimension of a metric, bounds every list the copilot is given without asking, and bounds every read whose size follows the data: metric rows, module scripts and logs, and the record lists. It also shrinks three payloads the same review found: the authoring context's dataset entries, the manifest's copy of an import's staging result, and the indicator catalog that every items read and stored figure carries whole. And it lets an HMIS indicator declare no direction.
 
 **Next step: Do 1.**
 
-Branch: `main`. Repos: this one. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Principles" 2, "What a message carries" in "The client copilot", "Tools, view gating, and approval", "Tool input schemas", "System prompt, documents, prompt library", "The HFA tools" and Open items, [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) "Disaggregation options", [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md). For step 7, also [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md) "Module settings and the run-keyed mounts". For step 8, also [SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md) "The four indicator dictionaries", [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) "SQL Migrations" and "Run Input Transforms", [PROTOCOL_APP_UI_CONVENTIONS.md](PROTOCOL_APP_UI_CONVENTIONS.md) and [panther/protocols/PROTOCOL_ALL_TRANSLATION.md](panther/protocols/PROTOCOL_ALL_TRANSLATION.md).
+Branch: `main`. Repos: this one. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Principles" 2, "What a message carries" in "The client copilot", "Tools, view gating, and approval", "Tool input schemas", "System prompt, documents, prompt library", "The HFA tools" and Open items, [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) "Disaggregation options", [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md). For steps 7 and 8, also [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md) "Module settings and the run-keyed mounts" and "The results package format (authoritative)", and [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) "Run Manifest Transforms". For step 9, also [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) "SQL assembly", "Caching" and "FigureBundle: the capture side", [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) "The bundle shape", [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md) on `PO_CACHE_VERSION`, [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md) on the staleness rule, [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) "JSON Data Transforms" and [PROTOCOL_APP_QUERY_RIG.md](PROTOCOL_APP_QUERY_RIG.md). For step 10, also [SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md) "The four indicator dictionaries", [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) "SQL Migrations" and "Run Input Transforms", [PROTOCOL_APP_UI_CONVENTIONS.md](PROTOCOL_APP_UI_CONVENTIONS.md) and [panther/protocols/PROTOCOL_ALL_TRANSLATION.md](panther/protocols/PROTOCOL_ALL_TRANSLATION.md).
 
 ## §0 How to work this plan
 
-The instruction is "Do the next step of PLAN_09_COPILOT_BOUNDED_READS.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 8.
+The instruction is "Do the next step of PLAN_09_COPILOT_BOUNDED_READS.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 10.
 
 ### Vocabulary
 
@@ -24,12 +24,14 @@ The instruction is "Do the next step of PLAN_09_COPILOT_BOUNDED_READS.md." Branc
 - **record page**: `AI_RECORD_PAGE_MAX`, 100. The most one-line records a record list writes in one call.
 - **the row ceiling**: `AI_DATA_ROWS_MAX`, 1,000. The most CSV rows one metric data read writes.
 - **text window**: the part of a module's script or log one call writes: whole lines, at most `AI_TEXT_WINDOW_MAX_CHARS` (40,000) characters, each line cut at `AI_TEXT_LINE_MAX_CHARS` (2,000).
+- **the staging result**: `DatasetHmisVersion.stagingResult`, what one HMIS import recorded of its fetches.
+- **the catalog**: a module's indicator catalog in the manifest, the `IndicatorMetadata` entries `getIndicatorMetadataFromRun` returns: the module's indicators and, for HFA, its category, sub-category, service-category and variant-item labels.
 - **undeclared**: an HMIS indicator whose `direction` is NULL.
 
 ### Rules peculiar to this plan
 
 - A step deletes everything its change leaves unused, in the same commit: functions, constants, types, parameters, imports, translations, fixtures, tests and the doc lines that describe them. A step's Deliverable names the leftovers known when the plan was written, and the rule covers any it missed. A review treats anything left unused as a finding. `panther/` is excluded: it is a synced library with other consumers.
-- Every bound is applied where text is written for the copilot. No route, server read or cache changes its payload for a bound (ruling 14).
+- The bounds of steps 1 to 6 are applied where text is written for the copilot. No route, server read or cache changes its payload for one (ruling 14). Steps 7 to 9 change a payload, each under its own ruling.
 - The sizes in §1 were measured on 2026-11-18. No step needs production access: every Deliverable is pinned by a test over a fixture.
 
 ## §1 The problem
@@ -76,9 +78,19 @@ HMIS indicators per instance (`indicators` rows), over the 39 instances on the s
 - **Module scripts and logs.** `get_module_r_script` and `get_module_log` return the file ([modules.ts:52](client/src/components/instance/copilot/tools/modules.ts#L52), 67). m012's script holds the indicator dictionary three times, twice in comments.
 - **Record lists.** `get_hfa_indicators` writes one line per indicator ([format_hfa_indicators_for_ai.ts:279](lib/ai_tools/format_hfa_indicators_for_ai.ts#L279)): 499 on sierraleone. `get_hfa_variables` writes one line per survey variable (555): 139 on sierraleone, 172 on guinee, 249 on somalia. `list_products` writes one line per product ([format_products_list_for_ai.ts:51](lib/ai_tools/format_products_list_for_ai.ts#L51)): 769 on nigeria, 444 on ethiopia, 436 on ghana, 273 on sierraleone.
 
-### The authoring context's datasets
+### The package's dataset entries
 
-`getRunDatasetsFromManifest` copies each dataset's `info` from the manifest ([run_read.ts:420](server/run_query/run_read.ts#L420)). The HMIS `info.version` holds the import's `stagingResult` ([dataset_hmis.ts:9](lib/types/dataset_hmis.ts#L9)), whose `periodIndicatorStats` has one entry per period and indicator pair: 131,306 on sierraleone. The authoring context carries it to the client on every read. Its only reader is the package block, which writes each dataset's type and the HMIS version id ([build_system_prompt.ts:277](lib/ai_tools/build_system_prompt.ts#L277), from [build_system_prompt.ts:78](client/src/components/instance/copilot/build_system_prompt.ts#L78) and [context_cache.ts:303](server/mcp/context_cache.ts#L303)).
+Capture writes the HMIS import version whole into the manifest's `datasets[].info` ([hmis.ts:197](server/runs/capture_inputs/hmis.ts#L197)). The version holds the staging result ([dataset_hmis.ts:9](lib/types/dataset_hmis.ts#L9)), whose `periodIndicatorStats` has one entry per period and indicator pair: 131,306 on sierraleone.
+
+- **In the manifest.** The staging result is 10,715,445 characters of sierraleone's `manifest.json`, a file of 29,500,503 bytes that the read path parses and caches ([manifest_cache.ts:16](server/runs/manifest_cache.ts#L16)). Nothing reads the staging result from a manifest. The manifest's `datasets` have three readers: `getRunDatasetsFromManifest` ([run_read.ts:420](server/run_query/run_read.ts#L420)), the summary transform, for each entry's type ([runs_summary.ts:57](server/db/migrations/data_transforms/runs_summary.ts#L57)), and manifest block 9. The import ledger keeps the staging result under the version id ([_main_database.sql:605](server/db/instance/_main_database.sql#L605)).
+- **In the authoring context.** `getRunDatasetsFromManifest` copies each entry's `info`, so the authoring context carries the staging result to the client on every read. Its only reader is the package block, which writes each dataset's type and the HMIS version id ([build_system_prompt.ts:277](lib/ai_tools/build_system_prompt.ts#L277), from [build_system_prompt.ts:78](client/src/components/instance/copilot/build_system_prompt.ts#L78) and [context_cache.ts:303](server/mcp/context_cache.ts#L303)).
+
+### The catalog in a read and in a stored figure
+
+- `getPresentationObjectItemsFromRun` attaches the module's whole catalog, in its display fields, to every `ok` items holder ([run_read.ts:1026](server/run_query/run_read.ts#L1026)), and the Explore grid read passes it on ([run_data_reads.ts:276](server/run_query/run_data_reads.ts#L276)). A figure bundle is assembled with it ([resolve_figure_from_metric.ts:157](client/src/generate_visualization/resolve_figure_from_metric.ts#L157)) and stored with it ([_figure_bundle.ts:131](lib/types/_figure_bundle.ts#L131)).
+- On sierraleone, m012's catalog in its display fields is 307,663 characters of JSON, carried by every read of an m012 metric. One stored slide there is 744,989 characters and holds the whole dictionary.
+- A figure looks an entry up by a row's cell, by a filter value of its config or by its selected replicant value: for labels ([build_figure_inputs.ts:119](client/src/generate_visualization/build_figure_inputs.ts#L119)), for the catalog's order (122) and for the facts of the indicators on display ([resolve_effective_indicator_facts.ts:129](lib/resolve_effective_indicator_facts.ts#L129), 300). The comment at 125 gives the reason the bundle holds the whole catalog: an indicator pinned by a filter has no column in the rows.
+- A run is immutable, so the run-keyed Valkey entries of an existing package change only with `PO_CACHE_VERSION` ([visualizations.ts:114](server/routes/caches/visualizations.ts#L114)).
 
 ### Direction
 
@@ -95,6 +107,8 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - **Module scripts and logs.** A read writes one text window: the start of a script, the end of a log, the lines from a given line, or the lines that match a search.
 - **Record lists.** `get_hfa_indicators`, `get_hfa_variables` and `list_products` write one record page and say how to read the next.
 - **The authoring context** carries, for each dataset of the package, its type and, for HMIS, its version id.
+- **The manifest** keeps, of an HMIS import version, its id and its row counts.
+- **The catalog.** An items read carries the catalog entries the read names: those whose id is a cell of a returned row or a value of one of the read's filters. A stored figure holds the entries its rows, its filters and its selected replicant value name.
 - **Direction.** An HMIS indicator declares `higher-is-better`, `lower-is-better` or nothing. An indicator with a conditional-formatting rule declares one. Nothing writes a direction nobody chose, and text for the copilot states a direction only where one is declared.
 
 ## §3 Rulings
@@ -117,14 +131,22 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 11. **Record pages.** `get_hfa_indicators`, `get_hfa_variables` and `list_products` write a record page of 100 and take `offset`. `get_hfa_indicators` writes the taxonomy on the first page only. `list_products` also takes `search`, a text matched as the HFA tools' `search` is, over a product's label, type, folder path, package label and scope label. `list_products` was not among the reads Tim was shown: nigeria holds 769 products. (Tim, 2026-11-18, for the two HFA lists. `list_products`, the page size and the first-page rule are _(proposed)_.)
 12. **Datasets.** `RunAuthoringContext.datasets` and `PackageGrounding.datasets` hold `{ datasetType: "hmis"; versionId: number } | { datasetType: "hfa" } | { datasetType: "iceh" }`. The client cache `run_authoring_context_v4` becomes `_v5`. The authoring context has no Valkey entry and no stored copy, so there is no other layer. The `RunDataset*Info` types stay: they type what capture writes into the manifest. (Tim, 2026-11-18, for the narrowing. The shape and the cache name are _(proposed)_.)
 13. **Direction.** (Tim, 2026-11-18: the column is nullable with no default, in a new migration, and an undeclared direction is written nowhere. The items below are _(proposed)_.)
-    - a. The migration sets `direction` to NULL on every row that is `higher-is-better` and has no conditional-formatting rule and no target. A `lower-is-better` row was chosen, and a row with a rule or a target was curated, so both keep their direction. The migration moves no `updated_at`: the indicator stamps key the package staleness comparison, and this change is not an edit to any indicator.
+    - a. The migration sets `direction` to NULL on every row that is `higher-is-better` and has no conditional-formatting rule and no target. A `lower-is-better` row was chosen, and a row with a rule or a target was curated, so both keep their direction. The migration moves no `updated_at`, as migration 088 did not: this is not an edit to any indicator, and the stamps computed from `updated_at` are what a package records of the dictionary it was generated from.
     - b. A new constraint, `indicators_rule_direction_check`: `thresholds IS NULL OR direction IS NOT NULL`. A rule's bands have a good side, so an indicator with a rule declares its direction. The save route refuses a rule on an undeclared indicator with a message that names the Direction control.
     - c. The indicator editor's Direction control has three options: not set, higher is better, lower is better. A new indicator starts at not set. The DHIS2 select form and the DHIS2 id repair create undeclared indicators.
     - d. The dictionary download writes an empty cell, as its column comment already says. The catalog row and the `indicators.json` mirror row carry `direction: null`, as they carry `target: null`, and the mirror's row schema accepts it. A package generated after the migration states no direction for an undeclared indicator.
     - e. No transform rewrites an existing package. A package states the direction its dictionary held when it was generated, and an input block renames or recomputes and never drops a stored fact (PROTOCOL_APP_MIGRATIONS "Run Input Transforms"). For a package generated before the migration the copilot keeps reading the stored direction.
-    - f. The three persistence layers: the `indicators` rows (the migration), the client cache `instance_indicators_v7` (becomes `_v8`, since the migration moves no stamp), and Valkey, which holds no copy of the dictionary. `PO_CACHE_VERSION` and `RUN_MANIFEST_SCHEMA_VERSION` do not move: no stored manifest, mirror or figure bundle changes, and `direction` is already optional in all three.
-14. Every bound is applied where text is written for the copilot: in a lib formatter or a tool handler. No route, server read or cache changes its payload for a bound, because the same reads serve the app's own screens. _(proposed)_
+    - f. The three persistence layers: the `indicators` rows (the migration), the client cache `instance_indicators_v7` (becomes `_v8`, since the migration moves no stamp), and Valkey, which holds no copy of the dictionary. Step 10 moves neither `PO_CACHE_VERSION` nor `RUN_MANIFEST_SCHEMA_VERSION`: it changes no stored manifest, mirror or figure bundle, and `direction` is already optional in all three.
+14. The bounds of steps 1 to 6 are applied where text is written for the copilot: in a lib formatter or a tool handler. No route, server read or cache changes its payload for one, because the same reads serve the app's own screens. _(proposed)_
 15. [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md) gains a section "Bounded reads" that states ruling 1 as the recipe for a new tool, with the constants and what each bounds. Step 1 writes it and each later step adds what it lands. _(proposed)_
+16. **The staging result.** Capture stops writing it, and a manifest block deletes it from stored manifests, as block 9 deleted the keys nothing read. `RUN_MANIFEST_SCHEMA_VERSION` and `PO_CACHE_VERSION` each take their next value, as the block checklist requires. (Tim, 2026-11-18.) The manifest's HMIS entry keeps the version's `id`, `nRowsTotalImported`, `nRowsInserted` and `nRowsUpdated`. The other layers: no figure bundle holds a dataset entry, `runs.summary` reads each entry's type alone and is not touched, and the import ledger keeps the staging result under the id the manifest records. _(proposed)_
+17. **The catalog a read carries.** An items read returns the catalog entries whose id appears in a returned row or in one of the read's filters, and the grid read carries the same. A data-transform block trims every stored figure with the same function. `PO_CACHE_VERSION` takes its next value, and `./validate_queries` is a gate. (Tim, 2026-11-18. The items below are _(proposed)_.)
+    - a. An entry is kept when its id equals, as text, any cell of a row or any filter value. The test is wide on purpose: a cell that equals an id by coincidence keeps an entry nothing looks up, which costs one entry and breaks nothing. Kept entries stay in the catalog's order.
+    - b. One pure function in lib computes it. The read gives it the returned rows and the fetch config's filters, which hold the replicant pin. The transform gives it a bundle's items, its config's filter values and its selected replicant value.
+    - c. The whole catalog stays on the server, where the catalog-expression evaluation reads it.
+    - d. The parse-only skip gate cannot see a bundle that holds more than it names, so each of the three sweeps (`slide_config`, `reports`, `visualizations`) also runs the transform for a row holding a bundle the function would shorten. A sweep bumps `last_updated` on a row it rewrites, as it does today, so a stored CRDT state is re-seeded from the trimmed content (SYSTEM_16, the staleness rule).
+    - e. The client caches `run_po_items_v3` and `run_grid_items_v3` keep their names: an entry that holds the whole catalog is a correct superset.
+    - f. Value info is unchanged. Its `indicatorFormats` and `indicatorRules` hold one entry per catalog indicator that declares a format or a rule, and its value lists already hold every indicator of the metric.
 
 ## §4 Steps
 
@@ -196,7 +218,7 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - The new test file pins: an HFA taxonomy at the cap lists its indicators; one over it writes the count, names the lookup and writes no indicator line; each category line carries its count; a variant group's members over the cap are a count; the stratifier table appears once with two ICEH metrics; no ICEH indicator id appears in the listing.
 - Docs. SYSTEM_13: principle 2's account of what `buildPackageGroundingSections` lists and of the metrics listing; "What a message carries" and "System prompt, documents, prompt library" where they describe the package block's indicator lists and the scope lines; the manifest lists the new test. PROTOCOL_APP_AI_TOOLS.md "Bounded reads" states the pushed-list rule. USER_GUIDE_MCP.md says what the overview carries for a package over the cap.
 
-**Not in this step.** The errors, the read-back and the Dimension Summary (step 3). The package block's "Loaded datasets" lines (step 7). What an undeclared direction reads as (step 8).
+**Not in this step.** The errors, the read-back and the Dimension Summary (step 3). The package block's "Loaded datasets" lines (step 7). What an undeclared direction reads as (step 10).
 
 **Gates.** `deno task test:files server/tests/copilot_prompt_test.ts server/tests/format_metrics_list_for_ai_test.ts`.
 
@@ -337,13 +359,78 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - `copilot_prompt_test.ts`'s dataset fixture is a summary, and the test of the block's dataset lines passes unchanged in what it asserts.
 - Docs. SYSTEM_06, the sentence that names `RunDataset` as the stamps the manifest records and `getRunDatasetsFromManifest` as their reader. SYSTEM_08, where it lists what the authoring context carries.
 
-**Not in this step.** The manifest's own copy of the staging result (§5).
+**Not in this step.** The manifest's own copy of the staging result (step 8).
 
 **Gates.** `deno task test:files server/tests/copilot_prompt_test.ts`.
 
 **Ends with.** One commit.
 
-### Step 8: an indicator may declare no direction
+### Step 8: the staging result leaves the manifest
+
+**Surface.**
+
+- `lib/types/run_datasets.ts`
+- `lib/types/run_manifest.ts`
+- `server/runs/capture_inputs/hmis.ts`
+- `server/runs/manifest_transform.ts`
+- `server/routes/caches/visualizations.ts`
+- `server/tests/run_manifest_transform_test.ts`
+- `SYSTEM_03_realtime_cache.md`
+- `SYSTEM_06_ingestion.md`
+- `SYSTEM_08_results_packages.md`
+
+**Deliverable.**
+
+- `RunDatasetHmisInfo.version` is the four fields of ruling 16, and capture writes those four.
+- Manifest block 14 deletes `info.version.stagingResult` from every HMIS entry of `datasets[]` and stamps version 16. It touches no other key of `info`. The file header's block list names it, and names block 13, which the list omits today.
+- `RUN_MANIFEST_SCHEMA_VERSION` is 16, with its history line. `PO_CACHE_VERSION` takes its next value, with its history line.
+- The test file pins: a version 15 manifest whose HMIS entry holds a staging result loses it and keeps the version's id, its row counts and every other key of `info`; a manifest with no HMIS entry is stamped and otherwise unchanged; a second pass changes nothing.
+- Docs. SYSTEM_08's `manifestSchemaVersion` paragraph states version 16 and what an HMIS entry holds. SYSTEM_03 states the current `PO_CACHE_VERSION`. SYSTEM_06, where it says what capture records of the dataset version.
+
+**Not in this step.** The other stamps of `info` (`totalRows`, `structureLastUpdated`, the indicator stamps, the HFA and ICEH hashes). `runs.summary`. The import ledger.
+
+**Gates.** `deno task test:files server/tests/run_manifest_transform_test.ts`.
+
+**Ends with.** One commit.
+
+### Step 9: a read carries the catalog entries it names
+
+**Surface.**
+
+- `lib/indicator_metadata_for_read.ts` (new)
+- `lib/mod.ts`
+- `lib/resolve_effective_indicator_facts.ts`
+- `lib/types/instance.ts`
+- `server/server_only_funcs_presentation_objects/presentation_object_items_core.ts`
+- `server/run_query/run_read.ts`
+- `server/routes/caches/visualizations.ts`
+- `server/db/migrations/data_transforms/_figure_block.ts`
+- `server/db/migrations/data_transforms/slide_config.ts`
+- `server/db/migrations/data_transforms/reports.ts`
+- `server/db/migrations/data_transforms/visualizations.ts`
+- `server/tests/indicator_metadata_for_read_test.ts` (new)
+- `SYSTEM_03_realtime_cache.md`
+- `SYSTEM_09_viz_query_cache.md`
+- `SYSTEM_10_figure_render_export.md`
+- `PROTOCOL_APP_MIGRATIONS.md`
+
+**Deliverable.**
+
+- The pure function of ruling 17a and 17b in `lib/indicator_metadata_for_read.ts`, exported through `lib/mod.ts`.
+- An `ok` items holder carries the function's result over its returned rows and its fetch config's filters. The grid read carries the same, since it reads through the items read. The catalog-expression evaluation still reads the whole catalog.
+- A block in `transformFigureBlock` sets a bundle's `indicatorMetadata` to the function's result over the bundle's items, its config's filter values and its selected replicant value. One predicate says whether a bundle holds an entry the function would drop, and the three sweeps run the transform for a row where it holds, beside their two string gates. A row the block has trimmed is skipped on the next boot.
+- `PO_CACHE_VERSION` takes its next value, with its history line: `po_items` and `grid_items` entries hold whole catalogs.
+- The comment on `resolveEffectiveIndicatorFactsFromItems` and the comment on the items holder's `indicatorMetadata` say what the field holds.
+- The test file pins: an entry named by a row's cell is kept; one named only by a filter value is kept; one named only by the selected replicant value is kept by the transform; an entry nothing names is dropped; the kept entries are in the catalog's order; a numeric cell that equals an id as text keeps the entry; the predicate holds for a bundle with an unnamed entry and not for a trimmed one; the block leaves a trimmed bundle byte-identical.
+- Docs. SYSTEM_09: the indicator metadata paragraph of "Disaggregation options", the status envelope's line in "SQL assembly", and "FigureBundle: the capture side". SYSTEM_10 "The bundle shape": what `indicatorMetadata` holds. SYSTEM_03: the current `PO_CACHE_VERSION`. PROTOCOL_APP_MIGRATIONS.md "Skip-Gate Gotcha": the predicate, as the third forced gate of the figure sweeps. The manifest of SYSTEM_09 lists the new lib file and the new test.
+
+**Not in this step.** Value info's `indicatorFormats` and `indicatorRules` (ruling 17f). The client cache names (ruling 17e). The catalog the manifest stores.
+
+**Gates.** `./validate_queries`; `deno task test:files server/tests/indicator_metadata_for_read_test.ts`.
+
+**Ends with.** One commit.
+
+### Step 10: an indicator may declare no direction
 
 **Surface.**
 
@@ -388,9 +475,10 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 
 ## §5 Out of scope
 
-- **The manifest's copy of the staging result.** Capture writes the HMIS import's `stagingResult` into `datasets[].info.version` ([hmis.ts:197](server/runs/capture_inputs/hmis.ts#L197)): 10.7 MB of sierraleone's 29.5 MB `manifest.json`. Step 7 stops it reaching the client. Dropping it from capture and from stored manifests is a manifest transform, in S8.
-- **The module catalog in an items read and in a stored figure.** Every items holder carries its module's whole indicator catalog, and a stored figure bundle freezes it (`resolveEffectiveIndicatorFactsFromItems`, [resolve_effective_indicator_facts.ts:125](lib/resolve_effective_indicator_facts.ts#L125)). On sierraleone m012's is 307,663 characters, and one stored slide is 744,989.
 - **Existing packages' directions** (ruling 13e).
+- **The other stamps of a dataset entry.** `totalRows`, `structureLastUpdated`, the two indicator stamps and the HFA and ICEH hashes stay in the manifest as capture writes them.
+- **Value info's per-indicator records** (ruling 17f).
+- **The catalog the manifest stores.** `indicators[]` holds one catalog per module, and every HMIS module's catalog is derived from the same mirror by the same branch ([indicator_catalog.ts:362](server/runs/indicator_catalog.ts#L362)): on sierraleone, six identical copies of 513,869 characters.
 - **A filter on the lookup**: the values of one dimension under a filter on another. `get_metric_data` answers that with a grouped read.
 - **The Dimension Summary's bound of 20** values with labels and facts.
 - **`get_deck`'s outline** and **`get_image_assets`**: on nigeria, ethiopia, ghana and sierraleone the longest deck holds 156 slides and no instance has more than 13 image assets. **`get_reference_docs`**, whose length follows no instance's data.
