@@ -17,6 +17,7 @@ import {
   MultiSelectSearch,
   Select,
   type SelectOption,
+  SelectSearch,
 } from "panther";
 import { For, type JSX, Match, Show, Switch } from "solid-js";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
@@ -97,7 +98,7 @@ export function Toolbar(p: {
                 <CapMessage pin={pin} family={p.family} />
               </Match>
               <Match when={pin.options.length > 1}>
-                <Select
+                <SelectSearch
                   value={pin.value}
                   options={pin.options.map((o) => ({
                     value: o.id,
