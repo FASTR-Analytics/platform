@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-18T04:15:58.898Z",
-  "sourceCommit": "1418445",
-  "sourceSubject": "Page numbers: a toggle under Header and footer",
+  "timestamp": "2026-11-18T04:31:38.212Z",
+  "sourceCommit": "0791717",
+  "sourceSubject": "Footer: Page number and Report title toggles",
   "sourceDirty": false,
   "target": "platform"
 }

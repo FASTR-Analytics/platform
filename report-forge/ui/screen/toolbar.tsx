@@ -1102,28 +1102,10 @@ export function ReportToolbar(p: Props) {
                       footer: v.length > 0 ? v : undefined,
                     })}
                 />
-                <PopoverRow
-                  active={psAttr("footer") === "none"}
-                  onClick={() =>
-                    p.onPatchPageSetup({
-                      footer: psAttr("footer") === "none" ? undefined : "none",
-                    })}
-                >
-                  <span class="rf:flex-1">
-                    {t3({
-                      en: "Page number only",
-                      fr: "Numéro de page seulement",
-                      pt: "Só o número da página",
-                    })}
-                  </span>
-                  <Show when={psAttr("footer") === "none"}>
-                    <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
-                  </Show>
-                </PopoverRow>
                 {
-                  /* Page numbers are on by default; `pagenumbers=none` (a
-                    bulletin with none) takes them away, and this brings them
-                    back. */
+                  /* The footer's two parts, each on by default: the page
+                    number (`pagenumbers=none` takes it away) and the report's
+                    title, or the footer text above (`footer=none`). */
                 }
                 <PopoverRow
                   active={psAttr("pagenumbers") !== "none"}
@@ -1136,12 +1118,30 @@ export function ReportToolbar(p: Props) {
                 >
                   <span class="rf:flex-1">
                     {t3({
-                      en: "Page numbers",
-                      fr: "Numéros de page",
-                      pt: "Números de página",
+                      en: "Page number",
+                      fr: "Numéro de page",
+                      pt: "Número da página",
                     })}
                   </span>
                   <Show when={psAttr("pagenumbers") !== "none"}>
+                    <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
+                  </Show>
+                </PopoverRow>
+                <PopoverRow
+                  active={psAttr("footer") !== "none"}
+                  onClick={() =>
+                    p.onPatchPageSetup({
+                      footer: psAttr("footer") === "none" ? undefined : "none",
+                    })}
+                >
+                  <span class="rf:flex-1">
+                    {t3({
+                      en: "Report title",
+                      fr: "Titre du rapport",
+                      pt: "Título do relatório",
+                    })}
+                  </span>
+                  <Show when={psAttr("footer") !== "none"}>
                     <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
                   </Show>
                 </PopoverRow>
