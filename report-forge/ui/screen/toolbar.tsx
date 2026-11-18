@@ -876,6 +876,14 @@ export function ReportToolbar(p: Props) {
       >
         {(close) => (
           <div class="rf:ui-spy-sm rf:flex rf:w-56 rf:flex-col">
+            <MenuGroupLabel
+              first={true}
+              label={t3({
+                en: "Look",
+                fr: "Apparence",
+                pt: "Aspeto",
+              })}
+            />
             {
               /* Theme and Background open flyouts, the way Insert's pickers
                   do: the menu stays one short list of names. */
@@ -1016,44 +1024,85 @@ export function ReportToolbar(p: Props) {
                 </Show>
               </div>
             </MenuFlyout>
-            <PopoverRow
-              active={psAttr("numbering") === "sections"}
-              onClick={() =>
-                p.onPatchPageSetup({
-                  numbering: psAttr("numbering") === "sections"
-                    ? undefined
-                    : "sections",
-                })}
+            <MenuFlyout
+              label={t3({
+                en: "Page frame",
+                fr: "Cadre de page",
+                pt: "Moldura da página",
+              })}
             >
-              <span class="rf:flex-1">
-                {t3({
-                  en: "Numbered sections",
-                  fr: "Sections numérotées",
-                  pt: "Secções numeradas",
-                })}
-              </span>
-              <Show when={psAttr("numbering") === "sections"}>
-                <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
-              </Show>
-            </PopoverRow>
-            <PopoverRow
-              active={psAttr("sections") === "bar"}
-              onClick={() =>
-                p.onPatchPageSetup({
-                  sections: psAttr("sections") === "bar" ? undefined : "bar",
-                })}
+              <FramePanel
+                scopeClass={scopeClass}
+                style={psAttr("frame")}
+                colors={psAttr("framecolor")}
+                onPatch={p.onPatchPageSetup}
+              />
+            </MenuFlyout>
+            <MenuGroupLabel
+              first={false}
+              label={t3({
+                en: "Page",
+                fr: "Page",
+                pt: "Página",
+              })}
+            />
+            {
+              /* The printed sheet is A4 (the page-size choice was removed
+                2026-09-30; a report that already names another size keeps
+                it). Orientation is the one sheet choice; margins stay at
+                their default. */
+            }
+            <MenuFlyout
+              label={t3({
+                en: "Orientation",
+                fr: "Orientation",
+                pt: "Orientação",
+              })}
             >
-              <span class="rf:flex-1">
-                {t3({
-                  en: "Section headings as bars",
-                  fr: "Titres de section en bandeaux",
-                  pt: "Títulos de secção em faixas",
-                })}
-              </span>
-              <Show when={psAttr("sections") === "bar"}>
-                <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
-              </Show>
-            </PopoverRow>
+              <div class="rf:bg-base-100 rf:ui-spy-sm rf:shadow-floating rf:flex rf:w-40 rf:flex-col rf:rounded rf:border rf:p-1">
+                <For
+                  each={[
+                    {
+                      value: "portrait",
+                      label: t3({
+                        en: "Portrait",
+                        fr: "Portrait",
+                        pt: "Vertical",
+                      }),
+                    },
+                    {
+                      value: "landscape",
+                      label: t3({
+                        en: "Landscape",
+                        fr: "Paysage",
+                        pt: "Horizontal",
+                      }),
+                    },
+                  ]}
+                >
+                  {(opt) => (
+                    <PopoverRow
+                      active={(psAttr("orientation") ?? "portrait") ===
+                        opt.value}
+                      onClick={() =>
+                        p.onPatchPageSetup({
+                          orientation: opt.value === "portrait"
+                            ? undefined
+                            : opt.value,
+                        })}
+                    >
+                      <span class="rf:flex-1">{opt.label}</span>
+                      <Show
+                        when={(psAttr("orientation") ?? "portrait") ===
+                          opt.value}
+                      >
+                        <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
+                      </Show>
+                    </PopoverRow>
+                  )}
+                </For>
+              </div>
+            </MenuFlyout>
             {
               /* Page furniture (FastrPageFurniture): what every page carries
                 in its margins. Text fields are written when the menu closes. */
@@ -1160,20 +1209,60 @@ export function ReportToolbar(p: Props) {
                 />
               </div>
             </MenuFlyout>
-            <MenuFlyout
+            <MenuGroupLabel
+              first={false}
               label={t3({
-                en: "Page frame",
-                fr: "Cadre de page",
-                pt: "Moldura da página",
+                en: "Headings",
+                fr: "Titres",
+                pt: "Títulos",
               })}
+            />
+            <PopoverRow
+              active={psAttr("numbering") === "sections"}
+              onClick={() =>
+                p.onPatchPageSetup({
+                  numbering: psAttr("numbering") === "sections"
+                    ? undefined
+                    : "sections",
+                })}
             >
-              <FramePanel
-                scopeClass={scopeClass}
-                style={psAttr("frame")}
-                colors={psAttr("framecolor")}
-                onPatch={p.onPatchPageSetup}
-              />
-            </MenuFlyout>
+              <span class="rf:flex-1">
+                {t3({
+                  en: "Numbered sections",
+                  fr: "Sections numérotées",
+                  pt: "Secções numeradas",
+                })}
+              </span>
+              <Show when={psAttr("numbering") === "sections"}>
+                <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
+              </Show>
+            </PopoverRow>
+            <PopoverRow
+              active={psAttr("sections") === "bar"}
+              onClick={() =>
+                p.onPatchPageSetup({
+                  sections: psAttr("sections") === "bar" ? undefined : "bar",
+                })}
+            >
+              <span class="rf:flex-1">
+                {t3({
+                  en: "Section headings as bars",
+                  fr: "Titres de section en bandeaux",
+                  pt: "Títulos de secção em faixas",
+                })}
+              </span>
+              <Show when={psAttr("sections") === "bar"}>
+                <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
+              </Show>
+            </PopoverRow>
+            <MenuGroupLabel
+              first={false}
+              label={t3({
+                en: "Figures and tables",
+                fr: "Figures et tableaux",
+                pt: "Figuras e tabelas",
+              })}
+            />
             {
               /* The figure conventions (fastr_figure_captions.ts): numbered
                 captions, captions over the figure, and the source line every
@@ -1245,63 +1334,7 @@ export function ReportToolbar(p: Props) {
                 />
               </div>
             </MenuFlyout>
-            {
-              /* The printed sheet is A4 (the page-size choice was removed
-                2026-09-30; a report that already names another size keeps
-                it). Orientation is the one sheet choice; margins stay at
-                their default. */
-            }
-            <MenuFlyout
-              label={t3({
-                en: "Orientation",
-                fr: "Orientation",
-                pt: "Orientação",
-              })}
-            >
-              <div class="rf:bg-base-100 rf:ui-spy-sm rf:shadow-floating rf:flex rf:w-40 rf:flex-col rf:rounded rf:border rf:p-1">
-                <For
-                  each={[
-                    {
-                      value: "portrait",
-                      label: t3({
-                        en: "Portrait",
-                        fr: "Portrait",
-                        pt: "Vertical",
-                      }),
-                    },
-                    {
-                      value: "landscape",
-                      label: t3({
-                        en: "Landscape",
-                        fr: "Paysage",
-                        pt: "Horizontal",
-                      }),
-                    },
-                  ]}
-                >
-                  {(opt) => (
-                    <PopoverRow
-                      active={(psAttr("orientation") ?? "portrait") ===
-                        opt.value}
-                      onClick={() =>
-                        p.onPatchPageSetup({
-                          orientation: opt.value === "portrait"
-                            ? undefined
-                            : opt.value,
-                        })}
-                    >
-                      <span class="rf:flex-1">{opt.label}</span>
-                      <Show
-                        when={(psAttr("orientation") ?? "portrait") ===
-                          opt.value}
-                      >
-                        <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
-                      </Show>
-                    </PopoverRow>
-                  )}
-                </For>
-              </div>
-            </MenuFlyout>
+            <div class="rf:border-base-300 rf:my-1 rf:border-t" />
             <MenuFlyout
               label={t3({
                 en: "Document details",
@@ -2777,6 +2810,22 @@ function CoverColorsPanel(p: {
         </Show>
       </PopoverRow>
       <LiteralColours literal={current()} onLiteral={(c) => set(c)} />
+    </div>
+  );
+}
+
+// A group's heading in a menu: the Page menu's settings stand in groups
+// (look, page, headings, figures), each named, ruled off from the one above.
+function MenuGroupLabel(p: { label: string; first?: boolean }) {
+  return (
+    <div
+      class="rf:text-base-content-muted rf:px-2 rf:pb-0.5 rf:text-xs rf:font-700"
+      classList={{
+        "rf:border-base-300 rf:mt-1 rf:border-t rf:pt-2": p.first !== true,
+        "rf:pt-1": p.first === true,
+      }}
+    >
+      {p.label}
     </div>
   );
 }

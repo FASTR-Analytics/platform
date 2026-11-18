@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-18T04:31:38.212Z",
-  "sourceCommit": "0791717",
-  "sourceSubject": "Footer: Page number and Report title toggles",
+  "timestamp": "2026-11-18T04:41:13.686Z",
+  "sourceCommit": "def8b53",
+  "sourceSubject": "Page menu: its settings in named groups",
   "sourceDirty": false,
   "target": "platform"
 }
