@@ -133,6 +133,23 @@ const FIXED_COLORS: string[] = [
   "#000000",
 ];
 
+// FIXED_COLORS beside a theme swatch, six to a row as there: the swatch and
+// five neutrals, the three hue rows, the purples and brown with two greys.
+const THEMED_FIXED_COLORS: string[] = [
+  "#ffffff",
+  "#e0e0e0",
+  "#9e9e9e",
+  "#424242",
+  "#000000",
+  ...FIXED_COLORS.slice(0, 18),
+  "#e1bee7",
+  "#ab47bc",
+  "#7b1fa2",
+  "#4e342e",
+  "#757575",
+  "#212121",
+];
+
 // The FASTR Markdown toolbar, under the report header — laid out like Google
 // Docs: a MENU row (Insert and Page open dropdown menus) above ONE persistent
 // toolbar row. The toolbar row adapts to what was last clicked: an embed's
@@ -2053,6 +2070,7 @@ export function ReportToolbar(p: Props) {
                     {() => (
                       <CoverColorsPanel
                         attrs={block().attrs}
+                        scopeClass={scopeClass}
                         onPatch={patchGround}
                       />
                     )}
@@ -2750,6 +2768,7 @@ function CoverColorDots(p: { attrs: FastrOpenFence["attrs"] }) {
 
 function CoverColorsPanel(p: {
   attrs: FastrOpenFence["attrs"];
+  scopeClass: string;
   onPatch: (patch: FastrFencePatch) => void;
 }) {
   const layout = () => {
@@ -2773,45 +2792,54 @@ function CoverColorsPanel(p: {
     });
   }
   return (
-    <div class="rf:flex rf:w-56 rf:flex-col">
-      <div class="rf:flex rf:flex-col rf:gap-0.5 rf:pb-2">
+    <div class="rf:flex rf:w-60 rf:flex-col">
+      {/* Which part the colours below paint: tabs, not ticked choices. */}
+      <div class="rf:border-base-300 rf:flex rf:border-b">
         <For each={parts()}>
           {(k) => (
-            <PopoverRow active={part() === k} onClick={() => setPart(k)}>
-              <span class="rf:flex rf:flex-1 rf:items-center rf:gap-1.5">
-                <span
-                  class="rf:bg-base-100 rf:inline-block rf:h-3.5 rf:w-3.5 rf:rounded-full rf:border"
-                  style={coverColorNow(p.attrs)[k] === undefined
-                    ? undefined
-                    : { "background-color": coverColorNow(p.attrs)[k] }}
-                />
-                <span>{coverColorPartLabel(k, layout())}</span>
-              </span>
-              <Show when={part() === k}>
-                <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
-              </Show>
-            </PopoverRow>
+            <button
+              type="button"
+              class="rf:ui-focusable rf:-mb-px rf:flex rf:flex-1 rf:cursor-pointer rf:items-center rf:justify-center rf:gap-1 rf:border-b-2 rf:px-1 rf:py-1.5 rf:text-xs rf:whitespace-nowrap"
+              classList={{
+                "rf:border-primary rf:font-700": part() === k,
+                "rf:border-transparent rf:text-base-content-muted":
+                  part() !== k,
+              }}
+              onClick={() => setPart(k)}
+            >
+              <span
+                class="rf:inline-block rf:h-3 rf:w-3 rf:shrink-0 rf:rounded-full rf:border"
+                classList={{
+                  [p.scopeClass]: coverColorNow(p.attrs)[k] === undefined,
+                }}
+                style={{
+                  background: coverColorNow(p.attrs)[k] ??
+                    coverThemePaint(k),
+                }}
+              />
+              <span>{coverColorPartLabel(k, layout())}</span>
+            </button>
           )}
         </For>
       </div>
-      <PopoverRow
-        active={current() === undefined}
-        onClick={() => set(undefined)}
-      >
-        <span class="rf:flex-1">
-          {t3({
-            en: "The theme's colour",
-            fr: "La couleur du thème",
-            pt: "A cor do tema",
-          })}
-        </span>
-        <Show when={current() === undefined}>
-          <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
-        </Show>
-      </PopoverRow>
-      <LiteralColours literal={current()} onLiteral={(c) => set(c)} />
+      <LiteralColours
+        literal={current()}
+        onLiteral={(c) => set(c)}
+        theme={{
+          scopeClass: p.scopeClass,
+          paint: coverThemePaint(part()),
+          active: current() === undefined,
+          onPick: () => set(undefined),
+        }}
+      />
     </div>
   );
+}
+
+// What a cover part takes from the theme when it has no colour of its own:
+// the box, band and issue strip the accent ground, the date the ink.
+function coverThemePaint(part: FastrCoverColorPart): string {
+  return part === "date" ? "var(--fm-ink)" : "var(--fm-accent-ground)";
 }
 
 // A group's heading in a menu: the Page menu's settings stand in groups
@@ -3046,12 +3074,23 @@ function FramePanel(p: {
 }
 
 // The literal half of both panels. The caption says outright that these
-// stop re-theming.
+// stop re-theming. With `theme`, the grid's first swatch is "the theme's
+// colour" (painted with the scoped theme variable, so it shows the colour
+// the part gets): the neutrals move up into its row, one light grey steps
+// out, and the hue rows stay rows (THEMED_FIXED_COLORS).
 function LiteralColours(p: {
   literal: string | undefined;
   onLiteral: (color: string) => void;
   onPick?: () => void;
+  theme?: {
+    scopeClass: string;
+    paint: string;
+    active: boolean;
+    onPick: () => void;
+  };
 }) {
+  const colors = () =>
+    p.theme === undefined ? FIXED_COLORS : THEMED_FIXED_COLORS;
   const [hexInput, setHexInput] = createSignal<string | null>(null);
   const displayHex = () => hexInput() ?? p.literal ?? "";
   const hexIsValid = () => {
@@ -3060,11 +3099,41 @@ function LiteralColours(p: {
   };
   return (
     <>
-      <div class="rf:text-base-content-muted rf:pt-2 rf:pb-1 rf:text-xs">
-        {t3({ en: "Fixed colours", fr: "Couleurs fixes", pt: "Cores fixas" })}
-      </div>
-      <div class="rf:grid rf:grid-cols-6 rf:gap-1">
-        <For each={FIXED_COLORS}>
+      <Show when={p.theme === undefined}>
+        <div class="rf:text-base-content-muted rf:pt-2 rf:pb-1 rf:text-xs">
+          {t3({
+            en: "Fixed colours",
+            fr: "Couleurs fixes",
+            pt: "Cores fixas",
+          })}
+        </div>
+      </Show>
+      <div
+        class="rf:grid rf:grid-cols-6 rf:gap-1"
+        classList={{ "rf:pt-2": p.theme !== undefined }}
+      >
+        <Show when={p.theme}>
+          {(th) => (
+            <button
+              type="button"
+              class={`${th().scopeClass} rf:ui-focusable rf:relative rf:h-6 rf:cursor-pointer rf:rounded rf:border`}
+              classList={{ "rf:ring-2 rf:ring-primary": th().active }}
+              style={{ background: th().paint }}
+              title={t3({
+                en: "The theme's colour",
+                fr: "La couleur du thème",
+                pt: "A cor do tema",
+              })}
+              onClick={() => {
+                th().onPick();
+                p.onPick?.();
+              }}
+            >
+              <span class="rf:absolute rf:right-0.5 rf:bottom-0.5 rf:h-1.5 rf:w-1.5 rf:rounded-full rf:border rf:border-white rf:bg-white/60" />
+            </button>
+          )}
+        </Show>
+        <For each={colors()}>
           {(color) => (
             <button
               type="button"

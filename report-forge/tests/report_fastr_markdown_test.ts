@@ -261,8 +261,15 @@ Deno.test("line anchors are markdown source lines, 0-based", () => {
     { lineAnchors: true },
   );
   assertStringIncludes(html, `<h1 class="fm-top" data-line="0">`);
-  assertStringIncludes(html, `<p data-line="2">`);
+  assertStringIncludes(html, `<p data-line="2" data-line-end="2">`);
   assertStringIncludes(html, `data-line="4"`);
+  // A paragraph's end is the parser's: a heading straight under it (no
+  // blank line between) ends it, as under a cover's ministry lines.
+  const cover = renderFastrMarkdownToHtml(
+    ":::cover{layout=letterhead}\nRépublique\nMinistère\n# Title\n:::\n",
+    { lineAnchors: true },
+  );
+  assertStringIncludes(cover, `data-line="1" data-line-end="2"`);
   // Off by default, so exports and diffs stay clean.
   assert(!render("# H\n").includes("data-line"));
 });
@@ -2108,7 +2115,7 @@ Deno.test(":::pagebreak is a one-line leaf that renders an empty marker", () => 
     { lineAnchors: true },
   );
   assertStringIncludes(html, '<div class="fm-pagebreak" data-line="2">');
-  assertStringIncludes(html, '<p data-line="4">After</p>');
+  assertStringIncludes(html, '<p data-line="4" data-line-end="4">After</p>');
   assertEquals(
     listFastrContainerDefects("Before\n\n:::pagebreak\n\nAfter"),
     [],

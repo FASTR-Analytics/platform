@@ -806,6 +806,11 @@ export function createFastrMarkdownIt(): MarkdownIt {
     for (const token of state.tokens) {
       if (token.block && token.nesting >= 0 && token.map) {
         token.attrSet("data-line", String(token.map[0]));
+        // A paragraph's LAST source line too: a heading or a list straight
+        // under it (no blank line) ends it, which only the parser knows.
+        if (token.type === "paragraph_open") {
+          token.attrSet("data-line-end", String(token.map[1] - 1));
+        }
       }
     }
     return true;

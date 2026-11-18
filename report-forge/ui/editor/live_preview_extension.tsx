@@ -2354,8 +2354,17 @@ export function attachTextEditor(
   sourceLines: string[],
   rel: number,
 ) {
+  // The parser's own end for a paragraph (data-line-end); the scan for a
+  // blank line only where it gave none.
+  const parsedEnd = Number(el.getAttribute("data-line-end") ?? NaN);
   const sourceOf = (lines: string[]) =>
-    lines.slice(rel, textIslandEndRel(lines, rel, el.tagName) + 1).join("\n");
+    lines.slice(
+      rel,
+      (Number.isInteger(parsedEnd) && parsedEnd >= rel &&
+          parsedEnd < lines.length
+        ? parsedEnd
+        : textIslandEndRel(lines, rel, el.tagName)) + 1,
+    ).join("\n");
   let original = sourceOf(sourceLines);
   // What the document holds for this island right now. Edits are committed
   // AS THEY ARE TYPED (peers see them live, and nothing can be lost on a
@@ -8260,9 +8269,25 @@ function pageBoxPlugin(resolver: EmbedResolver) {
           return extent;
         };
         const ends = new Map<number, number>();
+        // The block a page ends on: its own last, or, on a page holding
+        // only the tail of a block from the page before, that block (the
+        // blank line after it is still this page's to count).
+        const endingBlock = (i: number): FlowBlock | undefined => {
+          const own = pageBlocks[i][pageBlocks[i].length - 1];
+          if (own !== undefined) return own;
+          for (let j = i - 1; j >= 0; j--) {
+            const prev = pageBlocks[j][pageBlocks[j].length - 1];
+            if (prev === undefined) continue;
+            const first = pages[i]?.firstLine;
+            return first !== undefined && prev.endLine >= first
+              ? prev
+              : undefined;
+          }
+          return undefined;
+        };
         const leftovers = pages.map((page, i) => {
           const list = pageBlocks[i];
-          const last = list[list.length - 1];
+          const last = endingBlock(i);
           const to = pages[i + 1]?.firstLine ?? doc.lines;
           let extent = page.contentHeight;
           for (const fb of list) {

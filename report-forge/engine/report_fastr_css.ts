@@ -1080,7 +1080,8 @@ ${d}.fm-cover.fm-cover--letterhead > .fm-cover__head {
   flex-direction: column;
   align-items: flex-start;
   gap: 1em;
-  padding-bottom: 1.4em;
+  /* A theme's heavier rule is given back from the room above it. */
+  padding-bottom: calc(1.4em - var(--fm-border-give, 0px));
   border-bottom: var(--fm-border-width) solid currentColor;
   margin-bottom: 4em;
 }
@@ -1755,9 +1756,10 @@ ${scope} {
 /* A cover's height is print's: 34rem at the 16px root, in px so the editor
    and the layout frame agree whatever their roots and viewports (the screen
    sheet's 72vh cap would make it depend on the window). With fill=page it
-   fills its page: the host sets --fm-page-h to the printed page's height. */
+   fills its page: the host sets --fm-page-h to the printed page's height,
+   its padding inside it, as print's border box (report_fastr_paged.ts). */
 ${d}.fm-cover { min-height: 544px; }
-${d}.fm-cover.fm-cover--fill { min-height: var(--fm-page-h, 544px); }
+${d}.fm-cover.fm-cover--fill { min-height: var(--fm-page-h, 544px); box-sizing: border-box; }
 /* A page template is its page: a ground it takes is the whole sheet's, as
    print paints it (the runner's afterPageLayout), drawn here as shadows out
    to the sheet's edges (the widget's own overflow clips everything else). */
