@@ -669,8 +669,12 @@ class RegionWidget extends WidgetType {
         }
       }
       // Caret on the clicked line. data-line values are region-relative
-      // (the renderer saw only the slice).
-      const anchorEl = target.closest<HTMLElement>("[data-line]");
+      // (the renderer saw only the slice). An official cover's head is part
+      // of the cover's design, set from its toolbar: a press there is on the
+      // cover itself (its fence line).
+      const anchorEl = target.closest(".fm-cover__head")
+        ? target.closest<HTMLElement>(".fm-cover[data-line]")
+        : target.closest<HTMLElement>("[data-line]");
       const rel = anchorEl ? Number(anchorEl.getAttribute("data-line")) : NaN;
       const fallback = self().kind === "container"
         ? self().startLine + 2
@@ -935,6 +939,8 @@ class RegionWidget extends WidgetType {
       )
     ) {
       if (textEl.closest(".fm-stat") || textEl.querySelector("img")) continue;
+      // An official cover's head is set from the cover's toolbar.
+      if (textEl.closest(".fm-cover__head")) continue;
       const rel = Number(textEl.getAttribute("data-line"));
       if (!Number.isFinite(rel) || sourceLines[rel] === undefined) continue;
       attachTextEditor(textEl, view, this.startLine, sourceLines, rel);
@@ -1589,21 +1595,28 @@ function attachLogoRows(
       if (fence?.name === "logos") resolver.onEditLogos?.(fence);
     };
     const empty = row.querySelector("img.fm-logo") === null;
+    // An official cover's logos are chosen from the cover's toolbar: the row
+    // there opens nothing, and an empty one only shows where they will go.
+    const inHead = row.closest(".fm-cover__head") !== null;
     // On the press, not dblclick/click: the first press activates the region
     // and rebuilds this DOM, so the release (and a dblclick) land on a new
     // element. A press always lands on the row that is there.
-    row.addEventListener("mousedown", (e) => {
-      if (e.button === 0 && (empty || e.detail >= 2)) open();
-    });
+    if (!inHead) {
+      row.addEventListener("mousedown", (e) => {
+        if (e.button === 0 && (empty || e.detail >= 2)) open();
+      });
+    }
     if (!empty) continue;
     row.classList.add("fm-logos--empty");
     const label = document.createElement("span");
     label.className = "fm-logos__empty";
-    label.textContent = t3({
-      en: "Choose logos",
-      fr: "Choisir des logos",
-      pt: "Escolher logótipos",
-    });
+    label.textContent = inHead
+      ? t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })
+      : t3({
+        en: "Choose logos",
+        fr: "Choisir des logos",
+        pt: "Escolher logótipos",
+      });
     row.append(label);
   }
 }

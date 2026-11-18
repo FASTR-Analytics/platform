@@ -833,6 +833,19 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     });
   }
 
+  // An official cover with no logos row yet: its head takes a new one.
+  async function addCoverLogos(coverLine: number) {
+    const host = p.imageHost;
+    if (!host || !canEdit()) return;
+    const picked = await openModal({
+      element: LogoPicker,
+      props: { host, initial: [], initialSize: "m", editing: false },
+    });
+    if (!picked || picked.files.length === 0) return;
+    const ids = await registerLogos(picked.files);
+    editorApi?.setCoverHeadLogos(coverLine, logosSnippet(ids, picked.size));
+  }
+
   // By id, not by the selection: a caption typed just before a click away
   // lands after the selection has gone.
   function handleUpdateCaption(id: string, caption: string) {
@@ -969,6 +982,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             onInsertImage={() => void insertImage()}
             onInsertLogos={() => void insertLogos()}
             onEditLogos={(fence) => void editLogos(fence)}
+            onAddCoverLogos={(line) => void addCoverLogos(line)}
           />
         </HeaderRows>
       </Show>

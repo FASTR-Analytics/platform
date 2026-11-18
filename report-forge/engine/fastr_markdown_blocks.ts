@@ -1298,6 +1298,111 @@ export function logosSnippet(
   return `:::logos{src="${fastrLogoSrcAttr(imageIds)}"${z}}`;
 }
 
+// ── An official cover's head, in the source ──────────────────────────────
+// What the compiler wraps as the head (report_fastr_markdown.ts,
+// fm_cover_head): the run straight after an official cover's fence of
+// `:::logos` rows, paragraphs and blank lines. It is set from the cover's
+// toolbar, not typed on the page: the ministry lines as plain lines (one
+// paragraph, one source line each), the logos as the row's fence.
+export type FastrCoverHead = {
+  // 0-based document lines.
+  logosLine: number | undefined;
+  logos: FastrContainerAttrs | undefined;
+  lines: string[];
+  // The span of the lines' paragraphs, inclusive, when there are any.
+  linesFrom: number | undefined;
+  linesTo: number | undefined;
+};
+
+// A line markdown would read as something other than paragraph text (a
+// heading, quote, list item, fence, embed, setext rule, block fence): in
+// the head it is written with a leading backslash, which renders nothing.
+const COVER_LINE_SYNTAX_RE =
+  /^(#{1,6}(\s|$)|>|[-+*](\s|$)|\d{1,9}[.)](\s|$)|```|~~~|!\[|:::|=+\s*$|-+\s*$)/;
+
+export function fastrCoverHeadOf(
+  docLines: readonly string[],
+  coverLine: number,
+): FastrCoverHead {
+  const head: FastrCoverHead = {
+    logosLine: undefined,
+    logos: undefined,
+    lines: [],
+    linesFrom: undefined,
+    linesTo: undefined,
+  };
+  for (let i = coverLine + 1; i < docLines.length; i++) {
+    const raw = docLines[i];
+    const text = raw.trim();
+    if (text.length === 0) continue;
+    const fence = parseContainerFence(text);
+    if (fence !== undefined) {
+      if (
+        fence.kind === "open" && fence.name === "logos" &&
+        head.logosLine === undefined
+      ) {
+        head.logosLine = i;
+        head.logos = fence.attrs;
+        continue;
+      }
+      break;
+    }
+    if (COVER_LINE_SYNTAX_RE.test(text)) break;
+    head.lines.push(
+      text.replace(/\\$/, "").trimEnd()
+        .replace(/^\\(?=[^A-Za-z0-9\s])/, "")
+        .replace(/^(\d{1,9})\\([.)])/, "$1$2"),
+    );
+    head.linesFrom ??= i;
+    head.linesTo = i;
+  }
+  return head;
+}
+
+// A change to the head as a 0-based line range [from, to) and the lines
+// that replace it.
+export type FastrLinesEdit = { from: number; to: number; insert: string[] };
+
+// The head's ministry lines set to `lines` (blank ones dropped; none removes
+// them). Each is written so markdown reads it as text.
+export function fastrCoverHeadLinesEdit(
+  docLines: readonly string[],
+  coverLine: number,
+  lines: readonly string[],
+): FastrLinesEdit {
+  const head = fastrCoverHeadOf(docLines, coverLine);
+  const insert = lines.map((l) => l.trim().replace(/[\r\n]/g, " "))
+    .filter((l) => l.length > 0)
+    .map((l) =>
+      !COVER_LINE_SYNTAX_RE.test(l)
+        ? l
+        // `1.` is escaped at its stop: a backslash before a digit is text.
+        : /^\d/.test(l)
+        ? l.replace(/^(\d{1,9})([.)])/, "$1\\$2")
+        : `\\${l}`
+    );
+  if (head.linesFrom !== undefined && head.linesTo !== undefined) {
+    return { from: head.linesFrom, to: head.linesTo + 1, insert };
+  }
+  const at = (head.logosLine ?? coverLine) + 1;
+  return { from: at, to: at, insert };
+}
+
+// The head's logos row set to `fence` (a `:::logos{…}` line), or removed.
+// A new row leads the head.
+export function fastrCoverHeadLogosEdit(
+  docLines: readonly string[],
+  coverLine: number,
+  fence: string | undefined,
+): FastrLinesEdit {
+  const head = fastrCoverHeadOf(docLines, coverLine);
+  const insert = fence === undefined ? [] : [fence];
+  if (head.logosLine !== undefined) {
+    return { from: head.logosLine, to: head.logosLine + 1, insert };
+  }
+  return { from: coverLine + 1, to: coverLine + 1, insert };
+}
+
 // Per-block markup, BEFORE the shared surface attributes are folded in.
 function blockShapeFor(
   name: string,

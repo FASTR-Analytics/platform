@@ -2358,6 +2358,9 @@ ${d}.fm-logos--empty {
   cursor: pointer;
 }
 ${d}.fm-logos__empty { font-size: 0.8em; }
+/* On an official cover the slot only shows where the logos go: they are
+   chosen from the cover's toolbar. */
+${d}.fm-cover__head > .fm-logos--empty { cursor: default; }
 /* A block the paginator had to split because it is taller than a page: a
    chip laid over the block's top corner, out of the flow, so the block's
    box is print's box and the layout that placed the seam is not moved by

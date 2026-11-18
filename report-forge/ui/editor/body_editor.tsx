@@ -27,10 +27,15 @@ import {
   type FastrAlign,
   type FastrChartPalette,
   fastrContainerStackUpTo,
+  type FastrCoverHead,
+  fastrCoverHeadLinesEdit,
+  fastrCoverHeadLogosEdit,
+  fastrCoverHeadOf,
   type FastrFencePatch,
   type FastrFigureWidth,
   type FastrInkRole,
   type FastrLayoutHint,
+  type FastrLinesEdit,
   fastrMissingSlots,
   type FastrOpenFence,
   fastrOpenFenceOnLine,
@@ -50,7 +55,9 @@ import {
   insertLinkEdit,
   insertPageTemplateEdit,
   isFastrEmbedLine,
+  isFastrOfficialCover,
   paragraphAlignAtLine,
+  parseContainerFence,
   type ReportEmbedRef,
   rewriteReportEmbedToken,
   setHeadingLevelEdit,
@@ -212,6 +219,11 @@ export type ReportEditorApi = {
   // The line is explicit rather than "wherever the cursor is" so the toolbar
   // can tone an OUTER block while the caret sits inside one of its cards.
   setBlockAttrs: (line: number, patch: FastrFencePatch) => void;
+  // An official cover's head, from the cover's toolbar: the cover whose
+  // fence is on `coverLine` (1-based) takes these ministry lines, or this
+  // logos row (a `:::logos{…}` line; undefined removes the row).
+  setCoverHeadLines: (coverLine: number, lines: string[]) => void;
+  setCoverHeadLogos: (coverLine: number, fence: string | undefined) => void;
   // Create the `:::report` page-setup header (first line) when the document
   // lacks one — the toolbar's Page setup control targets it from anywhere.
   insertPageSetup: (patch: FastrFencePatch) => void;
@@ -374,6 +386,10 @@ export type ReportBlockContext = {
   // The alignment of the paragraph the caret is in; undefined when the caret
   // is not in one (a heading, a list, a fence, an embed line).
   align: FastrAlign | undefined;
+  // The official cover the caret is in (on its fence, or anywhere in it):
+  // its fence line (1-based) and its head as the source has it
+  // (fastrCoverHeadOf), which the cover's toolbar sets.
+  coverHead: (FastrCoverHead & { coverLine: number }) | undefined;
   // The page template the caret is in: its fence line (1-based), what it
   // gets wrong in the user's words (the template chrome's list, validator
   // and measured), the areas of its layout it does not have, and the area
@@ -936,6 +952,78 @@ export function ReportBodyEditor(p: Props) {
     view.dispatch({ changes: { from: line.from, to: line.to, insert: next } });
   }
 
+  // A head edit (0-based [from, to) replaced by whole lines) as one
+  // transaction on the live doc.
+  function applyLinesEdit(coverLine: number, e: FastrLinesEdit) {
+    const view = editableView();
+    if (!view) return;
+    const doc = view.state.doc;
+    // In the document's lines, the cover's fence at `coverLine`.
+    const from0 = coverLine - 1 + e.from;
+    const to0 = coverLine - 1 + e.to;
+    if (from0 < 0 || to0 > doc.lines) return;
+    let change: { from: number; to: number; insert: string };
+    if (from0 === to0) {
+      if (e.insert.length === 0) return;
+      change = from0 < doc.lines
+        ? {
+          from: doc.line(from0 + 1).from,
+          to: doc.line(from0 + 1).from,
+          insert: e.insert.map((l) => `${l}\n`).join(""),
+        }
+        : {
+          from: doc.length,
+          to: doc.length,
+          insert: e.insert.map((l) => `\n${l}`).join(""),
+        };
+    } else if (e.insert.length === 0) {
+      // The lines go with their line breaks.
+      const end = doc.line(to0);
+      change = end.number < doc.lines
+        ? { from: doc.line(from0 + 1).from, to: end.to + 1, insert: "" }
+        : {
+          from: Math.max(0, doc.line(from0 + 1).from - 1),
+          to: end.to,
+          insert: "",
+        };
+    } else {
+      change = {
+        from: doc.line(from0 + 1).from,
+        to: doc.line(to0).to,
+        insert: e.insert.join("\n"),
+      };
+      if (doc.sliceString(change.from, change.to) === change.insert) return;
+    }
+    view.dispatch({ changes: change });
+  }
+
+  function coverLinesFrom(coverLine: number): string[] | undefined {
+    const view = editableView();
+    if (!view || coverLine < 1 || coverLine > view.state.doc.lines) {
+      return undefined;
+    }
+    const lines: string[] = [];
+    for (const text of view.state.doc.iterLines(coverLine)) {
+      lines.push(text);
+      if (lines.length > 40) break;
+    }
+    // Still a cover there (a collaborator may have moved it meanwhile).
+    const fence = parseContainerFence(lines[0]);
+    return fence?.kind === "open" && fence.name === "cover" ? lines : undefined;
+  }
+
+  function setCoverHeadLines(coverLine: number, lines: string[]) {
+    const doc = coverLinesFrom(coverLine);
+    if (doc === undefined) return;
+    applyLinesEdit(coverLine, fastrCoverHeadLinesEdit(doc, 0, lines));
+  }
+
+  function setCoverHeadLogos(coverLine: number, fence: string | undefined) {
+    const doc = coverLinesFrom(coverLine);
+    if (doc === undefined) return;
+    applyLinesEdit(coverLine, fastrCoverHeadLogosEdit(doc, 0, fence));
+  }
+
   function insertPageSetup(patch: FastrFencePatch) {
     const view = editableView();
     if (!view) return;
@@ -1208,11 +1296,12 @@ export function ReportBodyEditor(p: Props) {
       line.number - 1,
     );
     const template = templateContext(state, fenceHere, line.number);
+    const coverHead = coverHeadContext(state, fenceHere);
     const key = `${line.number}|${align ?? "-"}|${!sel.empty}|${line.text}|${
       JSON.stringify(template)
-    }|${JSON.stringify(marks)}|${JSON.stringify(table)}|${
-      measureFontSizePt(pos) ?? "?"
-    }|${
+    }|${JSON.stringify(coverHead)}|${JSON.stringify(marks)}|${
+      JSON.stringify(table)
+    }|${measureFontSizePt(pos) ?? "?"}|${
       ctxStack
         .map((f) => `${f.name}${f.line}${JSON.stringify(f.attrs)}`)
         .join(">")
@@ -1230,12 +1319,43 @@ export function ReportBodyEditor(p: Props) {
       embed: isFastrEmbedLine(line.text),
       align,
       template,
+      coverHead,
     };
     // Out of the CodeMirror update. A synchronous signal write here re-renders
     // the toolbar mid-update, and anything in that render that touches the
     // view throws "Calls to EditorView.update are not allowed while an update
     // is in progress".
     queueMicrotask(() => p.onContextChange?.(ctx));
+  }
+
+  // The official cover around the caret (on its fence, or anywhere in it).
+  function coverHeadContext(
+    state: EditorState,
+    fenceHere: FastrOpenFence | undefined,
+  ): ReportBlockContext["coverHead"] {
+    const fence = fenceHere?.name === "cover"
+      ? fenceHere
+      : ctxStack.findLast((f) => f.name === "cover");
+    if (fence === undefined || !isFastrOfficialCover(fence.attrs["layout"])) {
+      return undefined;
+    }
+    const lines: string[] = [];
+    for (const text of state.doc.iterLines(fence.line)) {
+      lines.push(text);
+      // The head runs to the title at the latest: a few lines in.
+      if (lines.length > 40) break;
+    }
+    // Read from the cover's own line: shifted to the document's lines.
+    const head = fastrCoverHeadOf(lines, 0);
+    const at = (rel: number | undefined) =>
+      rel === undefined ? undefined : rel + fence.line - 1;
+    return {
+      ...head,
+      coverLine: fence.line,
+      logosLine: at(head.logosLine),
+      linesFrom: at(head.linesFrom),
+      linesTo: at(head.linesTo),
+    };
   }
 
   // The template around the caret (on its fence, or anywhere in it).
@@ -1633,6 +1753,8 @@ export function ReportBodyEditor(p: Props) {
       setEmbedAttrs,
       getSelection,
       setBlockAttrs,
+      setCoverHeadLines,
+      setCoverHeadLogos,
       insertPageSetup,
       toggleInlineMark,
       setInlineRole,
