@@ -23,16 +23,23 @@ import { getRunDatasetsFromManifest } from "../run_query/run_read.ts";
 
 const STORED_VERSION = 10;
 
-const HMIS_VERSION = { id: 14, nRowsTotalImported: 0 };
+const HMIS_VERSION = {
+  id: 14,
+  nRowsTotalImported: 20,
+  nRowsInserted: 15,
+  nRowsUpdated: 5,
+};
 
 // A dataset entry as a package written before schema v16 stores it.
 type StoredDatasetEntry = RunManifest["datasets"][number] & {
   lastUpdated?: string;
 };
 
-type ScratchOverrides = Partial<Pick<RunManifest, "modules" | "metrics">> & {
-  datasets?: StoredDatasetEntry[];
-};
+type ScratchOverrides =
+  & Partial<Pick<RunManifest, "modules" | "metrics" | "manifestSchemaVersion">>
+  & {
+    datasets?: StoredDatasetEntry[];
+  };
 
 function scratchManifest(overrides: ScratchOverrides): RunManifest {
   return {
@@ -261,15 +268,7 @@ Deno.test("getRunDatasetsFromManifest reads each entry's family and the HMIS ver
   assertEquals(
     getRunDatasetsFromManifest(scratchManifest({
       datasets: [
-        {
-          datasetType: "hmis",
-          info: {
-            version: {
-              ...HMIS_VERSION,
-              stagingResult: { periodIndicatorStats: [] },
-            },
-          },
-        },
+        { datasetType: "hmis", info: { version: HMIS_VERSION } },
         { datasetType: "hfa", info: {} },
         { datasetType: "iceh", info: { icehCacheHash: "h" } },
       ],
@@ -372,21 +371,6 @@ Deno.test("block 13 gives a v14 package a null geojson stamp, once", async () =>
   assertEquals(second.manifest.geojsonMaps, null);
 });
 
-async function writeV16Package(
-  datasets: RunManifest["datasets"],
-): Promise<{ runDir: string; stored: RunManifest }> {
-  const runDir = await Deno.makeTempDir({ prefix: "run_manifest_transform_" });
-  const stored = {
-    ...scratchManifest({ datasets }),
-    manifestSchemaVersion: 16,
-  };
-  await Deno.writeTextFile(
-    join(runDir, "manifest.json"),
-    JSON.stringify(stored, null, 2),
-  );
-  return { runDir, stored };
-}
-
 Deno.test("block 15 drops a v16 HMIS entry's staging result and keeps the version's id, its row counts and every other key of info", async () => {
   const kept = {
     totalRows: 12,
@@ -394,28 +378,25 @@ Deno.test("block 15 drops a v16 HMIS entry's staging result and keeps the versio
     indicatorsVersion: "aaa",
     countIndicatorsVersion: "bbb",
   };
-  const version = {
-    id: 14,
-    nRowsTotalImported: 20,
-    nRowsInserted: 15,
-    nRowsUpdated: 5,
-  };
-  const { runDir } = await writeV16Package([{
-    datasetType: "hmis",
-    info: {
-      ...kept,
-      version: {
-        ...version,
-        stagingResult: {
-          periodIndicatorStats: [{
-            periodId: 202301,
-            indicatorRawId: "a",
-            nRecords: 3,
-          }],
+  const runDir = await writeScratchPackage({
+    manifestSchemaVersion: 16,
+    datasets: [{
+      datasetType: "hmis",
+      info: {
+        ...kept,
+        version: {
+          ...HMIS_VERSION,
+          stagingResult: {
+            periodIndicatorStats: [{
+              periodId: 202301,
+              indicatorRawId: "a",
+              nRecords: 3,
+            }],
+          },
         },
       },
-    },
-  }]);
+    }],
+  });
   const outcome = await transformRunManifestFile(runDir);
   assert(outcome.kind === "ok");
   assert(outcome.transformed);
@@ -424,7 +405,7 @@ Deno.test("block 15 drops a v16 HMIS entry's staging result and keeps the versio
     RUN_MANIFEST_SCHEMA_VERSION,
   );
   assertEquals((await readStoredManifest(runDir)).datasets, [
-    { datasetType: "hmis", info: { ...kept, version } },
+    { datasetType: "hmis", info: { ...kept, version: HMIS_VERSION } },
   ]);
   const second = await transformRunManifestFile(runDir);
   assert(second.kind === "ok");
@@ -432,14 +413,18 @@ Deno.test("block 15 drops a v16 HMIS entry's staging result and keeps the versio
 });
 
 Deno.test("block 15 stamps a v16 manifest with no HMIS entry and changes nothing else", async () => {
-  const { runDir, stored } = await writeV16Package([
+  const datasets = [
     { datasetType: "hfa", info: { hfaCacheHash: "eee" } },
     { datasetType: "iceh", info: { icehCacheHash: "fff" } },
-  ]);
+  ];
+  const runDir = await writeScratchPackage({
+    manifestSchemaVersion: 16,
+    datasets,
+  });
   const outcome = await transformRunManifestFile(runDir);
   assert(outcome.kind === "ok");
   assertEquals(await readStoredManifest(runDir), {
-    ...stored,
+    ...scratchManifest({ manifestSchemaVersion: 16, datasets }),
     manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
   });
 });

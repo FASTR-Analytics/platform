@@ -409,6 +409,7 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - `lib/types/run_datasets.ts`
 - `lib/types/run_manifest.ts`
 - `server/runs/capture_inputs/hmis.ts`
+- `server/db/instance/dataset_hmis.ts`
 - `server/runs/manifest_transform.ts`
 - `server/routes/caches/visualizations.ts`
 - `server/tests/run_manifest_transform_test.ts`

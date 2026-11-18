@@ -424,10 +424,11 @@ WHERE id NOT IN (
 // Reader: running-run versions excluded; see getVersionsForDatasetHmis.
 export async function getCurrentDatasetHmisVersion(
   mainDb: Sql,
-): Promise<DatasetHmisVersion | undefined> {
-  const rawDatasetVersion = (
-    await mainDb<DBDatasetHmisVersion[]>`
-SELECT * FROM dataset_hmis_versions
+): Promise<Omit<DatasetHmisVersion, "stagingResult"> | undefined> {
+  const row = (
+    await mainDb<Omit<DBDatasetHmisVersion, "staging_result">[]>`
+SELECT id, n_rows_total_imported, n_rows_inserted, n_rows_updated
+FROM dataset_hmis_versions
 WHERE id NOT IN (
   SELECT version_id FROM dataset_hmis_import_runs
   WHERE status = 'running' AND version_id IS NOT NULL
@@ -436,19 +437,11 @@ ORDER BY id DESC
 LIMIT 1
 `
   ).at(0);
-  if (!rawDatasetVersion) {
-    return undefined;
-  }
-  const datasetVersion: DatasetHmisVersion = {
-    id: rawDatasetVersion.id,
-    nRowsTotalImported: rawDatasetVersion.n_rows_total_imported,
-    nRowsInserted: rawDatasetVersion.n_rows_inserted ?? undefined,
-    nRowsUpdated: rawDatasetVersion.n_rows_updated ?? undefined,
-    stagingResult: rawDatasetVersion.staging_result
-      ? parseJsonOrUndefined<DatasetStagingResult>(
-        rawDatasetVersion.staging_result,
-      )
-      : undefined,
+  if (!row) return undefined;
+  return {
+    id: row.id,
+    nRowsTotalImported: row.n_rows_total_imported,
+    nRowsInserted: row.n_rows_inserted ?? undefined,
+    nRowsUpdated: row.n_rows_updated ?? undefined,
   };
-  return datasetVersion;
 }
