@@ -195,7 +195,7 @@ export function ReplicateByOptionsSelect(p: ReplicateByOptionsProps) {
                   <>
                     <div class="w-96">
                       <SelectSearch
-                        label={dimensionLabel()}
+                        label={<span class="font-700">{dimensionLabel()}</span>}
                         options={options()}
                         value={p.selectedReplicantValue}
                         onChange={p.setSelectedReplicant}
