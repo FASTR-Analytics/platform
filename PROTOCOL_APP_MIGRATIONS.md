@@ -199,7 +199,7 @@ A DB transform only reshuffles fields inside the row it was handed, so it _canno
 - **A field knowable only at generation time is nullable forever.** `createdAt`, `appVersion`, `rImageTag`, `label`, `provenance`, `calendar`, `countryIso3`, `structureSchemaHmis` / `structureSchemaHfa` (generation-only; copied forward from the legacy `facilityColumnsConfig` key by block 3, null for families not in the package), `datasets[]`, `modules[]`, `metrics[]`, `inputKey`, `outputFileHashes`. Carry them forward untouched; leave them null where they never existed. Never synthesize a plausible value.
 - Recomputable, therefore fair game: `runId` (the directory name), `assets[].sha256`, `facilitiesTables[].columns`, `resultsObjects[]`, `metricAvailability[]`, `inputFiles[]`.
 - **Whatever a block reads becomes a permanent part of the package format.** An input file a transform recomputes from can never be dropped.
-- A recompute is a pure function of (package files × **app code**), not of the files alone, e.g. `buildRunIndicatorCatalog` (`server/runs/indicator_catalog.ts`) branches on `scriptGenerationType`. That is intended (see 2), but it means recomputed fields are not byte-stable across app versions.
+- A recompute is a pure function of (package files × **app code**), not of the files alone, e.g. `buildRunIndicatorCatalog` (`server/runs/indicator_catalog.ts`) writes the ICEH stratifier entries from `ICEH_STRAT_INFO` in lib. That is intended (see 2), but it means recomputed fields are not byte-stable across app versions.
 
 **2. The forced gate is the version integer, and blocks run only behind it.**
 

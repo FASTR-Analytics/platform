@@ -2,7 +2,8 @@
 // The run's indicator catalog: ONE derivation, two callers
 // =============================================================================
 //
-// Composes IndicatorMetadata per module from the run's input mirrors. Called
+// Composes IndicatorMetadata per dataset family from the run's input mirrors,
+// one catalog for each family the run's modules have. Called
 // by the finalize writer (buildRunPackageIntoTmp, over the tmp dir it is
 // building) and by the manifest transform block (over an existing package
 // dir), so a stamped catalog and a recomputed one cannot disagree.
@@ -20,15 +21,15 @@
 import { z } from "zod";
 import {
   composeHfaIndicatorLabel,
+  type DatasetType,
   getHfaIndicatorMeasure,
   type HfaIndicatorAggregation,
   type HfaIndicatorType,
   ICEH_STRAT_INFO,
   type IndicatorMetadata,
   PACKAGE_INDICATOR_TYPES,
+  type RunFamilyIndicators,
   type RunHmisIndicator,
-  type RunModule,
-  type RunModuleIndicators,
   thresholdsRuleSchema,
   trafficLightThresholdsToRule,
 } from "lib";
@@ -242,14 +243,14 @@ export type RunInputRowsReader = <T>(
 ) => Promise<T[]>;
 
 export async function buildRunIndicatorCatalog(
-  modules: RunModule[],
+  families: readonly DatasetType[],
   readRows: RunInputRowsReader,
-): Promise<RunModuleIndicators[]> {
-  const catalog: RunModuleIndicators[] = [];
-  for (const mod of modules) {
+): Promise<RunFamilyIndicators[]> {
+  const catalog: RunFamilyIndicators[] = [];
+  for (const family of families) {
     catalog.push({
-      moduleId: mod.id,
-      indicators: await deriveIndicatorMetadata(mod.moduleDefinition, readRows),
+      family,
+      indicators: await deriveFamilyCatalog(family, readRows),
     });
   }
   return catalog;
@@ -291,74 +292,86 @@ export async function buildRunHmisIndicators(
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
-async function deriveIndicatorMetadata(
-  moduleDefinition: string,
+function deriveFamilyCatalog(
+  family: DatasetType,
+  readRows: RunInputRowsReader,
+): Promise<IndicatorMetadata[]> {
+  switch (family) {
+    case "hmis":
+      return deriveHmisCatalog(readRows);
+    case "hfa":
+      return deriveHfaCatalog(readRows);
+    case "iceh":
+      return deriveIcehCatalog(readRows);
+  }
+}
+
+async function deriveHfaCatalog(
+  readRows: RunInputRowsReader,
+): Promise<IndicatorMetadata[]> {
+  const hfaIndicators = (
+    await readRows("hfa_indicators_snapshot.json", hfaIndicatorRow)
+  )
+    .sort(
+      (a, b) =>
+        a.sort_order - b.sort_order ||
+        a.indicator_id.localeCompare(b.indicator_id),
+    )
+    .map((row) => ({
+      id: row.indicator_id,
+      label: composeHfaIndicatorLabel(
+        { shortLabel: row.short_label, definition: row.definition },
+        "compact",
+      ),
+      format_as: getHfaIndicatorMeasure(
+        row.type as HfaIndicatorType,
+        row.aggregation as HfaIndicatorAggregation,
+      ).kind,
+    }));
+  return [
+    ...ranked(hfaIndicators, (row) => ({ format_as: row.format_as })),
+    ...(await readHfaLabelDimensions(readRows)),
+  ];
+}
+
+async function deriveIcehCatalog(
   readRows: RunInputRowsReader,
 ): Promise<IndicatorMetadata[]> {
   const metadata: IndicatorMetadata[] = [];
-
-  const datasetTypes = getDatasetTypes(moduleDefinition);
-  const isHfaModule = isHfaScriptGeneration(moduleDefinition);
-  const isIcehModule = datasetTypes.includes("iceh");
-
-  if (isHfaModule) {
-    const hfaIndicators = (
-      await readRows("hfa_indicators_snapshot.json", hfaIndicatorRow)
-    )
-      .sort(
-        (a, b) =>
-          a.sort_order - b.sort_order ||
-          a.indicator_id.localeCompare(b.indicator_id),
-      )
-      .map((row) => ({
-        id: row.indicator_id,
-        label: composeHfaIndicatorLabel(
-          { shortLabel: row.short_label, definition: row.definition },
-          "compact",
-        ),
-        format_as: getHfaIndicatorMeasure(
-          row.type as HfaIndicatorType,
-          row.aggregation as HfaIndicatorAggregation,
-        ).kind,
-      }));
-    return [
-      ...ranked(hfaIndicators, (row) => ({ format_as: row.format_as })),
-      ...(await readHfaLabelDimensions(readRows)),
-    ];
+  const icehIndicators = (
+    await readRows("iceh_indicators_snapshot.json", icehIndicatorRow)
+  ).sort(
+    (a, b) =>
+      a.sort_order - b.sort_order ||
+      a.iceh_indicator.localeCompare(b.iceh_indicator),
+  );
+  for (const ind of icehIndicators) {
+    metadata.push({
+      id: ind.iceh_indicator,
+      label: ind.indicator_name,
+      format_as: "percent",
+      group_label: ind.category,
+      sort_order: ind.sort_order,
+    });
   }
-
-  if (isIcehModule) {
-    const icehIndicators = (
-      await readRows("iceh_indicators_snapshot.json", icehIndicatorRow)
-    ).sort(
-      (a, b) =>
-        a.sort_order - b.sort_order ||
-        a.iceh_indicator.localeCompare(b.iceh_indicator),
-    );
-    for (const ind of icehIndicators) {
-      metadata.push({
-        id: ind.iceh_indicator,
-        label: ind.indicator_name,
-        format_as: "percent",
-        group_label: ind.category,
-        sort_order: ind.sort_order,
-      });
-    }
-    for (const [stratCode, info] of Object.entries(ICEH_STRAT_INFO)) {
-      metadata.push({
-        id: stratCode,
-        label: info.label,
-        sort_order: info.sortOrder,
-      });
-      if (info.levels) {
-        for (const [levelCode, levelLabel] of Object.entries(info.levels)) {
-          metadata.push({ id: levelCode, label: levelLabel });
-        }
+  for (const [stratCode, info] of Object.entries(ICEH_STRAT_INFO)) {
+    metadata.push({
+      id: stratCode,
+      label: info.label,
+      sort_order: info.sortOrder,
+    });
+    if (info.levels) {
+      for (const [levelCode, levelLabel] of Object.entries(info.levels)) {
+        metadata.push({ id: levelCode, label: levelLabel });
       }
     }
-    return metadata;
   }
+  return metadata;
+}
 
+async function deriveHmisCatalog(
+  readRows: RunInputRowsReader,
+): Promise<IndicatorMetadata[]> {
   const indicatorRows = await readRows("indicators.json", indicatorRow);
 
   // ── v2: the mirror already IS the catalog ────────────────────────────────
@@ -388,6 +401,7 @@ async function deriveIndicatorMetadata(
   // a base row of the same id, so this merges by id rather than appending);
   // the only addition is sort_order, backfilled by the shared rule so a
   // legacy package's axes order the way the live dictionary now does.
+  const metadata: IndicatorMetadata[] = [];
   for (const ind of indicatorRows as z.infer<typeof indicatorRowV1>[]) {
     if (ind.indicator_common_id && ind.indicator_common_label) {
       metadata.push({
@@ -439,30 +453,6 @@ async function deriveIndicatorMetadata(
     .toSorted((a, b) =>
       (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.id.localeCompare(b.id)
     );
-}
-
-// Dispatch on the module's declared data sources, not its presentation
-// family: this runs in transform block 1, before block 11 stamps `family`
-// into legacy blobs, and blocks are never reordered.
-function getDatasetTypes(moduleDefinition: string): string[] {
-  try {
-    const parsed = JSON.parse(moduleDefinition) as {
-      dataSources?: { sourceType: string; datasetType?: string }[];
-    };
-    return (parsed.dataSources ?? []).flatMap((ds) =>
-      ds.sourceType === "dataset" && ds.datasetType ? [ds.datasetType] : []
-    );
-  } catch {
-    return [];
-  }
-}
-
-function isHfaScriptGeneration(moduleDefinition: string): boolean {
-  try {
-    return JSON.parse(moduleDefinition).scriptGenerationType === "hfa";
-  } catch {
-    return false;
-  }
 }
 
 // The two failure classes of an input mirror, kept apart on purpose: they sit

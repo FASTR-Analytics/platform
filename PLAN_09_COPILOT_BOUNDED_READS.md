@@ -442,6 +442,7 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - `server/runs/build_run_package.ts`
 - `server/runs/manifest_transform.ts`
 - `server/run_query/run_read.ts`
+- `server/run_query/mod.ts`
 - `server/routes/caches/visualizations.ts`
 - `server/tests/run_manifest_transform_test.ts`
 - `SYSTEM_03_realtime_cache.md`
@@ -564,3 +565,5 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - Steps 2 and 3: the floor's `./run` was replaced by booting `main.ts` alone with `PORT=8099` against the running containers, because Tim's own `./run` holds port 8000 and `./run` replaces the `pg` and `valkey-local` containers under it.
 - Step 3: the header's format line is one function for every read, so a `percent` metric's read states how its values are written, as an indicator read whose rows share `percent` does.
 - Step 7: deleting `dateExported` left the manifest's `datasets[].lastUpdated` unread, so step 7 deletes it under the leftover rule, with manifest block 14, version 16 and `PO_CACHE_VERSION` "31". Steps 8 and 9 take blocks 15 and 16 and versions 17 and 18.
+- Step 9: the floor's `./run` was replaced by booting `main.ts` alone with `PORT=8099` against the running containers, because `./run` replaces the running `pg` and `valkey-local` containers.
+- Step 9: `./validate_queries`, run to prove finalize's catalog, did not typecheck: `query_rig/build_package.ts` still wrote the dataset entry's `lastUpdated`, which step 7 deleted. A step 7 commit made after step 7 closed deletes it and lists the rig in step 7's Surface.

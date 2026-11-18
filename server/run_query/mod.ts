@@ -41,6 +41,7 @@ export {
   getRunManifestForRun,
   getRunReadContextForRun,
   getRunVersionInfo,
+  moduleFamilyFromDefinition,
   moduleHasRun,
   resolveMetricFromRun,
   type RunReadContext,

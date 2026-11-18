@@ -1,25 +1,32 @@
-// Pins manifest blocks 9, 11, 13, 14 and 15 through transformRunManifestFile
-// over a scratch package on disk: datasets[].info leaves the transform holding
-// exactly the keys lib/types/run_datasets.ts types, every module blob and
-// metric carries the declared presentation facts, a package written before
-// the geojson capture carries a null stamp, a dataset entry carries no
-// `lastUpdated`, an HMIS entry's version holds no staging result, and a
-// second pass writes nothing.
-// Also pins getRunDatasetsFromManifest: each entry read as its family and,
-// for HMIS, its import version id.
+// Pins manifest blocks 1, 9, 11, 13, 14, 15 and 16 through
+// transformRunManifestFile over a scratch package on disk: the indicator
+// catalog is one entry per family the modules have, datasets[].info leaves
+// the transform holding exactly the keys lib/types/run_datasets.ts types,
+// every module blob and metric carries the declared presentation facts, a
+// package written before the geojson capture carries a null stamp, a dataset
+// entry carries no `lastUpdated`, an HMIS entry's version holds no staging
+// result, and a second pass writes nothing.
+// Also pins getRunDatasetsFromManifest, each entry read as its family and,
+// for HMIS, its import version id, and getIndicatorMetadataFromRun, a module
+// read as its family's catalog.
 //
 //   deno test -A --env-file server/tests/run_manifest_transform_test.ts
 
 import { assert, assertEquals, assertRejects, assertThrows } from "@std/assert";
 import { join } from "@std/path";
 import {
+  type DatasetType,
+  type IndicatorMetadata,
   RUN_MANIFEST_SCHEMA_VERSION,
   type RunManifest,
   type RunMetric,
   type RunModule,
 } from "lib";
 import { transformRunManifestFile } from "../runs/manifest_transform.ts";
-import { getRunDatasetsFromManifest } from "../run_query/run_read.ts";
+import {
+  getIndicatorMetadataFromRun,
+  getRunDatasetsFromManifest,
+} from "../run_query/run_read.ts";
 
 const STORED_VERSION = 10;
 
@@ -40,6 +47,79 @@ type ScratchOverrides =
   & {
     datasets?: StoredDatasetEntry[];
   };
+
+// An indicators[] entry as a package written before schema v18 stores it.
+type StoredModuleCatalog = {
+  moduleId: string;
+  indicators: IndicatorMetadata[];
+};
+
+// What a package holds beside its manifest's own fields: the per-module
+// catalogs a pre-v18 manifest stores, and the input mirrors block 1 reads.
+type ScratchStored = {
+  catalogs?: StoredModuleCatalog[];
+  mirrors?: Record<string, unknown[]>;
+};
+
+const HMIS_MIRROR_ROWS = [
+  {
+    indicator_common_id: "anc1",
+    indicator_common_label: "ANC 1",
+    type: "dhis2_element",
+    expression: null,
+    slot_map: null,
+    format_as: "number",
+    thresholds: null,
+    sort_order: 1,
+  },
+  {
+    indicator_common_id: "penta3",
+    indicator_common_label: "Penta 3",
+    type: "uploaded",
+    expression: null,
+    slot_map: null,
+    format_as: "percent",
+    thresholds: null,
+    sort_order: 2,
+  },
+];
+
+const HMIS_CATALOG: IndicatorMetadata[] = [
+  {
+    id: "anc1",
+    label: "ANC 1",
+    format_as: "number",
+    sort_order: 1,
+    type: "dhis2_element",
+  },
+  {
+    id: "penta3",
+    label: "Penta 3",
+    format_as: "percent",
+    sort_order: 2,
+    type: "uploaded",
+  },
+];
+
+const HFA_MIRROR_ROWS = [
+  {
+    indicator_id: "ind_a",
+    short_label: "Has power",
+    definition: "Facility has power",
+    type: "binary",
+    aggregation: "avg",
+    sort_order: 1,
+  },
+];
+
+const HFA_CATALOG: IndicatorMetadata[] = [
+  { id: "ind_a", label: "Has power", format_as: "percent", sort_order: 0 },
+];
+
+const MIRRORS = {
+  "indicators.json": HMIS_MIRROR_ROWS,
+  "hfa_indicators_snapshot.json": HFA_MIRROR_ROWS,
+};
 
 function scratchManifest(overrides: ScratchOverrides): RunManifest {
   return {
@@ -72,11 +152,28 @@ function scratchManifest(overrides: ScratchOverrides): RunManifest {
 
 async function writeScratchPackage(
   overrides: ScratchOverrides,
+  stored: ScratchStored = {},
 ): Promise<string> {
   const runDir = await Deno.makeTempDir({ prefix: "run_manifest_transform_" });
+  const mirrors = Object.entries(stored.mirrors ?? {});
+  await Deno.mkdir(join(runDir, "inputs"));
+  for (const [fileName, rows] of mirrors) {
+    await Deno.writeTextFile(
+      join(runDir, "inputs", fileName),
+      JSON.stringify(rows),
+    );
+  }
   await Deno.writeTextFile(
     join(runDir, "manifest.json"),
-    JSON.stringify(scratchManifest(overrides), null, 2),
+    JSON.stringify(
+      {
+        ...scratchManifest(overrides),
+        indicators: stored.catalogs ?? [],
+        inputFiles: mirrors.map(([fileName]) => `inputs/${fileName}`),
+      },
+      null,
+      2,
+    ),
   );
   return runDir;
 }
@@ -98,6 +195,16 @@ function legacyBlob(id: string): string {
     script: "",
     assetsToImport: [],
     resultsObjects: [],
+  });
+}
+
+// A module blob as a v13 or later package stores it.
+function declaredBlob(id: string, family: DatasetType): string {
+  return JSON.stringify({
+    ...JSON.parse(legacyBlob(id)),
+    family,
+    tier: "secondary",
+    sortOrder: 1,
   });
 }
 
@@ -336,15 +443,87 @@ Deno.test("block 11 leaves a blob that already declares the facts byte-for-byte"
   assertEquals(outcome.manifest.metrics[0].datasetFamily, "hmis");
 });
 
-Deno.test("block 11 throws on a module id outside the frozen map", async () => {
+Deno.test("a legacy blob whose module id is outside the frozen map throws", async () => {
   const runDir = await writeScratchPackage({
     modules: [runModule("m099", legacyBlob("m099"))],
   });
   await assertRejects(
     () => transformRunManifestFile(runDir),
     Error,
-    "block 11: module m099",
+    "module m099 has no legacy presentation entry",
   );
+});
+
+Deno.test("blocks 1 and 16 give a v17 manifest one catalog per family, each what its modules held", async () => {
+  const runDir = await writeScratchPackage(
+    {
+      manifestSchemaVersion: 17,
+      modules: [
+        runModule("m001", declaredBlob("m001", "hmis")),
+        runModule("m002", declaredBlob("m002", "hmis")),
+        runModule("m010", declaredBlob("m010", "hfa")),
+        runModule("m012", declaredBlob("m012", "hmis")),
+      ],
+    },
+    {
+      catalogs: [
+        { moduleId: "m001", indicators: HMIS_CATALOG },
+        { moduleId: "m002", indicators: HMIS_CATALOG },
+        { moduleId: "m010", indicators: HFA_CATALOG },
+        { moduleId: "m012", indicators: HMIS_CATALOG },
+      ],
+      mirrors: MIRRORS,
+    },
+  );
+  const outcome = await transformRunManifestFile(runDir);
+  assert(outcome.kind === "ok");
+  assert(outcome.transformed);
+  assertEquals(
+    outcome.manifest.manifestSchemaVersion,
+    RUN_MANIFEST_SCHEMA_VERSION,
+  );
+  const families = [
+    { family: "hmis", indicators: HMIS_CATALOG },
+    { family: "hfa", indicators: HFA_CATALOG },
+  ];
+  assertEquals(outcome.manifest.indicators, families);
+  assertEquals((await readStoredManifest(runDir)).indicators, families);
+
+  const second = await transformRunManifestFile(runDir);
+  assert(second.kind === "ok");
+  assertEquals(second.transformed, false);
+});
+
+Deno.test("block 1 reads a legacy blob's family from the frozen map", async () => {
+  const runDir = await writeScratchPackage(
+    { modules: [runModule("m010", legacyBlob("m010"))] },
+    { mirrors: MIRRORS },
+  );
+  const outcome = await transformRunManifestFile(runDir);
+  assert(outcome.kind === "ok");
+  assertEquals(outcome.manifest.indicators, [
+    { family: "hfa", indicators: HFA_CATALOG },
+  ]);
+});
+
+Deno.test("getIndicatorMetadataFromRun reads a module's family's catalog", async () => {
+  const runDir = await writeScratchPackage(
+    {
+      modules: [
+        runModule("m001", declaredBlob("m001", "hmis")),
+        runModule("m010", declaredBlob("m010", "hfa")),
+        runModule("m012", declaredBlob("m012", "hmis")),
+      ],
+    },
+    { mirrors: MIRRORS },
+  );
+  const outcome = await transformRunManifestFile(runDir);
+  assert(outcome.kind === "ok");
+  const ctx = { manifest: outcome.manifest };
+  assertEquals(getIndicatorMetadataFromRun(ctx, "m001"), HMIS_CATALOG);
+  assertEquals(getIndicatorMetadataFromRun(ctx, "m012"), HMIS_CATALOG);
+  assertEquals(getIndicatorMetadataFromRun(ctx, "m010"), HFA_CATALOG);
+  assertEquals(getIndicatorMetadataFromRun(ctx, "m099"), []);
 });
 
 Deno.test("block 13 gives a v14 package a null geojson stamp, once", async () => {

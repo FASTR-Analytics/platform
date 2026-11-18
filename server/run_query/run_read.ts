@@ -545,18 +545,18 @@ function parseServiceCategoryIds(raw: unknown): string[] {
   return [];
 }
 
-// A manifest lookup, not a derivation: the catalog is stamped at finalize by
-// buildRunIndicatorCatalog (server/runs/indicator_catalog.ts) and recomputed
-// forward by manifest transform block 1. Nothing here re-reads the input
-// mirrors: the manifest's "precomputed, never probed" doctrine.
-//
-// An empty array for an unknown module is the same answer the derivation gave
-// (it returned early on a module missing from the catalog).
+// A manifest lookup, not a derivation: the package holds one catalog per
+// family, stamped at finalize by buildRunIndicatorCatalog
+// (server/runs/indicator_catalog.ts) and recomputed forward by manifest
+// transform block 1, and a module reads its family's. Nothing here re-reads
+// the input mirrors: the manifest's "precomputed, never probed" doctrine.
+// Empty for a module the manifest does not hold.
 export function getIndicatorMetadataFromRun(
   ctx: { manifest: RunManifest },
   moduleId: string,
 ): IndicatorMetadata[] {
-  return ctx.manifest.indicators.find((e) => e.moduleId === moduleId)
+  const family = datasetFamilyFromManifest(ctx.manifest, moduleId);
+  return ctx.manifest.indicators.find((e) => e.family === family)
     ?.indicators ?? [];
 }
 
@@ -755,7 +755,9 @@ export function getModuleWithConfigSelectionsFromManifest(
 // (script included) is parsed only where a summary is built.
 const moduleFamilyOnly = moduleDefinitionInstalledStrict.pick({ family: true });
 
-function moduleFamilyFromDefinition(moduleDefinition: string): DatasetType {
+export function moduleFamilyFromDefinition(
+  moduleDefinition: string,
+): DatasetType {
   return moduleFamilyOnly.parse(JSON.parse(moduleDefinition)).family;
 }
 
