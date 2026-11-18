@@ -108,7 +108,10 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "29" (2026-11-08): the blank fold trims every character JavaScript's trim()
 // strips, where "28" trimmed only space, tab, CR and LF. A cell of only a
 // no-break space was a named group in "28" entries and is the blank group now.
-const PO_CACHE_VERSION = "29";
+// "30" (2026-11-18): possible values carry every value of a dimension.
+// metric_info and replicant_opts "29" entries hold a `too_many_values` status
+// for a dimension over 500 values, which no code handles.
+const PO_CACHE_VERSION = "30";
 
 // The immutable run id is the uniqueness scope for the four data caches, so two
 // products on the same run share entries. The scopeToken rides beside it: the

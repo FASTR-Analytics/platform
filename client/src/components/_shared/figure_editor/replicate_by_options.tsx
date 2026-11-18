@@ -135,18 +135,6 @@ function ReplicantOptionsMessage(mp: {
 }) {
   return (
     <Switch>
-      <Match when={mp.status === "too_many_values"}>
-        <div>
-          {t3({
-            en:
-              "Too many replicant values (over 500). Use filter options to narrow down.",
-            fr:
-              "Trop de valeurs de réplicant (plus de 500). Utilisez les options de filtre pour affiner.",
-            pt:
-              "Demasiados valores de replicante (mais de 500). Utilize as opções de filtro para restringir.",
-          })}
-        </div>
-      </Match>
       <Match when={mp.status === "no_values_available"}>
         <div>
           {t3({

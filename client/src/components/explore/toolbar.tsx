@@ -5,7 +5,6 @@ import {
   type ExploreLevel,
   type ExplorePeriod,
   type ExplorePeriodChoice,
-  type ExplorePin,
   type FamilyQuery,
   periodChoiceId,
   type ResolvedView,
@@ -19,7 +18,7 @@ import {
   type SelectOption,
   SelectSearch,
 } from "panther";
-import { For, type JSX, Match, Show, Switch } from "solid-js";
+import { For, type JSX, Show } from "solid-js";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 
 const NATIONAL_LABEL = { en: "National", fr: "National", pt: "Nacional" };
@@ -30,9 +29,8 @@ const NATIONAL_LABEL = { en: "National", fr: "National", pt: "Nacional" };
 // (a multi-select when laid out; pinned, it is among the pins), the period
 // and the grain. A control appears only when its role is present and its
 // options number more than one, except the level and period selects, which
-// always appear with their role. A pinned dimension over the server's cap
-// shows the cap message where its select would be. Every control
-// shows the resolved value, so it shows what is read.
+// always appear with their role. Every control shows the resolved value, so
+// it shows what is read.
 export function Toolbar(p: {
   selectors: JSX.Element;
   tools: JSX.Element;
@@ -93,22 +91,17 @@ export function Toolbar(p: {
         </Show>
         <For each={p.view.pins}>
           {(pin) => (
-            <Switch>
-              <Match when={pin.status === "too_many_values"}>
-                <CapMessage pin={pin} family={p.family} />
-              </Match>
-              <Match when={pin.options.length > 1}>
-                <SelectSearch
-                  value={pin.value}
-                  options={pin.options.map((o) => ({
-                    value: o.id,
-                    label: o.label,
-                  }))}
-                  onChange={(value) => p.onPin(pin.dimension, value)}
-                  size="sm"
-                />
-              </Match>
-            </Switch>
+            <Show when={pin.options.length > 1}>
+              <SelectSearch
+                value={pin.value}
+                options={pin.options.map((o) => ({
+                  value: o.id,
+                  label: o.label,
+                }))}
+                onChange={(value) => p.onPin(pin.dimension, value)}
+                size="sm"
+              />
+            </Show>
           )}
         </For>
         <Show
@@ -225,23 +218,6 @@ export function TableTools(p: {
         {t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
       </Button>
     </>
-  );
-}
-
-// The same limit the editor's replicant list states inline.
-function CapMessage(p: { pin: ExplorePin; family: DatasetType }) {
-  const label = () =>
-    t3(getDisplayDisaggregationLabel(p.pin.dimension, p.family));
-  return (
-    <div class="text-base-content-muted w-48 text-sm">
-      {t3({
-        en: `Too many ${label()} values (over 500). Choose a narrower scope.`,
-        fr:
-          `Trop de valeurs de ${label()} (plus de 500). Choisissez une portée plus restreinte.`,
-        pt:
-          `Demasiados valores de ${label()} (mais de 500). Escolha um âmbito mais restrito.`,
-      })}
-    </div>
   );
 }
 

@@ -13,7 +13,6 @@ import {
   buildWhereClause,
   shouldFoldBlank,
 } from "./query_helpers.ts";
-import { REPLICANT_OPTIONS_QUERY_LIMIT } from "./consts.ts";
 import {
   type DynamicPeriodColumn,
   getPeriodColumnExpression,
@@ -263,8 +262,7 @@ facility_subset AS (
 FROM ${sourceTable}
 LEFT JOIN facility_subset f ON ${sourceTable}.facility_id = f.facility_id
 ${whereClause}
-ORDER BY ${orderByRef}
-LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
+ORDER BY ${orderByRef}`;
     } else {
       // Check if the column exists before querying (skip for dynamic period columns)
       if (!isDynamicPeriodColumn) {
@@ -298,14 +296,12 @@ LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
           `${ctePrefix}SELECT DISTINCT ${columnRef} AS disaggregation_value
 FROM ${sourceTable}
 ${whereClause}
-ORDER BY ${orderByRef}
-LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
+ORDER BY ${orderByRef}`;
       } else {
         sqlQuery = `SELECT DISTINCT ${columnRef} AS disaggregation_value
 FROM ${tableName}
 ${whereClause}
-ORDER BY ${orderByRef}
-LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
+ORDER BY ${orderByRef}`;
       }
     }
 
@@ -331,11 +327,8 @@ LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
     possibleValues.sort((a, b) => compareOptionIds(a.id, b.id));
 
     // Sentinel last, regardless of collation. SQL cannot do this under SELECT
-    // DISTINCT (ORDER BY may only use expressions that appear in the select
-    // list, and the sort key is a comparison against the alias), and the set is
-    // capped at MAX_REPLICANT_OPTIONS so ordering it here is free. Leaving it
-    // where the collation put it, first, ahead of every lowercase value, made
-    // the blank cohort the auto-selected default replicant.
+    // DISTINCT: ORDER BY may only use expressions that appear in the select
+    // list, and the sort key is a comparison against the alias.
     const blankIndex = possibleValues.findIndex((v) => v.id === BLANK_SENTINEL);
     if (blankIndex >= 0) {
       possibleValues.push(possibleValues.splice(blankIndex, 1)[0]);

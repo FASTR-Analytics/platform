@@ -12,6 +12,7 @@ import type {
   ScopeDefinition,
 } from "lib";
 import { ALL_DATA_SCOPE_DEFINITION } from "lib";
+import { LONG_DIMENSION_IDS } from "./fixtures.ts";
 
 export type Case = {
   name: string;
@@ -45,7 +46,7 @@ export type Case = {
     | {
       dimStatus: {
         disOpt: DisaggregationOption;
-        status: "ok" | "too_many_values" | "no_values_available" | "error";
+        status: "ok" | "no_values_available" | "error";
         namedCount?: number;
         isSingleValueDim?: boolean;
       };
@@ -926,30 +927,28 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
 
-  // ── Option-list cap: the sentinel must not consume a named slot ───────────
+  // ── A long dimension: every value, the blank last ───────────────────────
   {
-    name: "option cap: exactly 500 named values PLUS a blank stays ok",
-    fixture: "hmis_option_cap",
+    name: "long dimension: metric info holds all 10,000 named values",
+    fixture: "hmis_long_dimension",
     entry: "metricInfo",
     fetchConfig: { ...base(), groupBys: [] },
-    // 501 options come back; the cap counts the 500 named ones. Counting the
-    // sentinel would flip this to too_many_values and the filter would vanish.
     expect: {
       dimStatus: {
         disOpt: "source_indicator",
         status: "ok",
-        namedCount: 500,
+        namedCount: 10000,
       },
     },
   },
   {
-    name: "option cap: 501 named values is too_many_values",
-    fixture: "hmis_option_cap",
-    entry: "metricInfo",
+    name:
+      "long dimension: the replicant read returns all 10,000, the blank last",
+    fixture: "hmis_long_dimension",
+    entry: "replicantOptions",
+    disOpt: "source_indicator",
     fetchConfig: { ...base(), groupBys: [] },
-    expect: {
-      dimStatus: { disOpt: "target_population", status: "too_many_values" },
-    },
+    expect: { replicantIds: [...LONG_DIMENSION_IDS, BLANK_SENTINEL] },
   },
 
   // ── Sample size (__n_*) ──────────────────────────────────────────────────

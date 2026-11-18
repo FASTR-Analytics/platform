@@ -636,7 +636,6 @@ Deno.test("pin: the m012 timeseries drops the area, the m011 admin-area-2 view p
   assertEquals(pinned.pins, [{
     dimension: "admin_area_2",
     role: "area",
-    status: "ok",
     options: [{ id: "Kano", label: "Kano" }, { id: "Lagos", label: "Lagos" }],
     value: "Kano",
     replicant: true,
@@ -676,15 +675,9 @@ Deno.test("pin: a required non-time facet is the replicant, an optional one a fi
   ]);
 });
 
-Deno.test("pin: a dimension over the cap has no value and no config", () => {
-  const view = resolve(M009_INEQ, "iceh", {
-    possibleValues: { ...PV, strat: { status: "too_many_values" } },
-  });
-  assertEquals(view.pins[0].status, "too_many_values");
-  assertEquals(view.pins[0].value, undefined);
-  assertEquals(deriveViewConfig(view, "en"), undefined);
+Deno.test("pin: a dimension whose values are not served yet has no value and no config", () => {
   const pending = resolve(M009_INEQ, "iceh", { possibleValues: {} });
-  assertEquals(pending.pins[0].status, "pending");
+  assertEquals(pending.pins[0].value, undefined);
   assertEquals(deriveViewConfig(pending, "en"), undefined);
 });
 

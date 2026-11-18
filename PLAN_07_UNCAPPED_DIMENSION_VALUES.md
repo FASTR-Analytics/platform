@@ -162,6 +162,7 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 - `query_rig/fixtures.ts`
 - `query_rig/cases.ts`
 - `server/tests/explore_query_test.ts`
+- `SYSTEM_03_realtime_cache.md` (the current `PO_CACHE_VERSION` at 119)
 - `SYSTEM_09_viz_query_cache.md`
 - `SYSTEM_10_figure_render_export.md`
 - `SYSTEM_11_viz_authoring.md`
@@ -195,3 +196,4 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 ## §6 Log
 
 - Step 2 replaced the `replicateBy` memo and `replicantPanel` with `replicantStrip`, `children()` over a `<Show when={getReplicateByProp(tempConfig)} keyed>`: `replicantPanel` returned early when there was no replicant (PROTOCOL_UI_SOLIDJS rules 1 and 6), the keyed `Show` memoises the dimension with `===`, so a filter edit that leaves it unchanged does not rebuild the strip, and `children()` resolves the `Show` so `FrameTop` gets no panel without a replicant.
+- Step 4 deleted `ExplorePin.status` whole, not only its `too_many_values` member: without that member, nothing outside the test reads the field (the leftover rule of §0). The test's `pending` half asserts no value and no config.

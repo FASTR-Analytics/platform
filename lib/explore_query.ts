@@ -85,12 +85,10 @@ export type ExplorePeriodChoice = {
 
 // A dimension read at one value. `replicant` says how it enters the config:
 // as the replicant when the metric requires it and it is not time-based, as
-// a filter otherwise. `pending` is a dimension whose values are not served
-// yet; `too_many_values` is the server's cap.
+// a filter otherwise.
 export type ExplorePin = {
   dimension: DisaggregationOption;
   role: "area" | "unit" | "category" | "facet";
-  status: "ok" | "too_many_values" | "no_values" | "pending";
   options: ExploreOption[];
   value: string | undefined;
   replicant: boolean;
@@ -275,18 +273,8 @@ function resolvePin(args: {
   options: ExploreOption[] | undefined;
   possibleValues: ExplorePossibleValues;
 }): ExplorePin {
-  const served = args.possibleValues[args.dimension];
   const options = args.options ??
     servedValues(args.possibleValues, args.dimension);
-  const status: ExplorePin["status"] = args.options !== undefined
-    ? (options.length > 0 ? "ok" : "no_values")
-    : served === undefined
-    ? "pending"
-    : served.status === "ok"
-    ? "ok"
-    : served.status === "too_many_values"
-    ? "too_many_values"
-    : "no_values";
   const value = args.chosen !== undefined &&
       options.some((o) => o.id === args.chosen)
     ? args.chosen
@@ -294,7 +282,6 @@ function resolvePin(args: {
   return {
     dimension: args.dimension,
     role: args.role,
-    status,
     options,
     value,
     replicant: isReplicant(args.metric, args.dimension),
@@ -704,8 +691,8 @@ function borrowedStyle(
 
 // The figure config the resolved view reads: `d` derived from the type's
 // layout and the pins, `s` borrowed by type, `t` empty since the view's name
-// is the caption. Undefined while a pin has no value, over the cap, or when a
-// pinned time has no period to read.
+// is the caption. Undefined while a pin has no value or a pinned time has no
+// period to read.
 export function deriveViewConfig(
   view: ResolvedView,
   language: Language,

@@ -355,8 +355,8 @@ function categoryPart(v: ResolvedView): string | undefined {
   return `${category.dimension}: ${values}`;
 }
 
-// The toolbar's values, each by the id a package tool takes: a pin over the
-// server's cap says so, and a pin with no value yet is left out.
+// The toolbar's values, each by the id a package tool takes. A pin with no
+// value yet is left out.
 function formatResolvedSettings(v: ResolvedView): string {
   const period = periodLabel(v);
   return joinParts([
@@ -368,9 +368,7 @@ function formatResolvedSettings(v: ResolvedView): string {
     }`,
     v.area === undefined ? undefined : `level: ${v.area.level}`,
     ...v.pins.map((pin) =>
-      pin.status === "too_many_values"
-        ? `${pin.dimension}: too many values (over 500)`
-        : pin.value === undefined
+      pin.value === undefined
         ? undefined
         : `${pin.dimension}: ${optionLabel(pin.options, pin.value)}`
     ),

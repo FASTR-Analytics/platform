@@ -23,10 +23,7 @@ import {
   type RowsCacheParams,
 } from "../routes/caches/visualizations.ts";
 import type { TimCacheC } from "../valkey/cache_class_C.ts";
-import {
-  exceedsMaxReplicantOptions,
-  GRID_MAX_CELLS,
-} from "../server_only_funcs_presentation_objects/consts.ts";
+import { GRID_MAX_CELLS } from "../server_only_funcs_presentation_objects/consts.ts";
 import { RequestQueue } from "../utils/request_queue.ts";
 import { getCatalogEvaluationForResultsObject } from "./catalog_expression_items.ts";
 import {
@@ -342,10 +339,9 @@ type ReplicantOptionsBody = {
   fetchConfig: GenericLongFormFetchConfig;
 };
 
-// The replicant dimension's option list: one figure per value, so this is
-// what bounds the fan-out before any items query runs. Keyed by results
-// object, the cache identity; the run-keyed route narrows its metric id to
-// the results object first.
+// The replicant dimension's value list under the figure's filters and
+// period. Keyed by results object, the cache identity; the run-keyed route
+// narrows its metric id to the results object first.
 export async function readRunReplicantOptions(
   runCtx: RunReadContext,
   body: ReplicantOptionsBody,
@@ -484,12 +480,6 @@ export async function computeRunReplicantOptions(
   }
 
   const vals = resDisPossibleVals.data;
-  if (exceedsMaxReplicantOptions(vals)) {
-    return {
-      success: true,
-      data: { ...holderBase, status: "too_many_values" },
-    };
-  }
   if (vals.length === 0) {
     return {
       success: true,
