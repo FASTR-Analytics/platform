@@ -61,6 +61,9 @@
 //      the boundary-file capture (schema v15).
 //  14. datasets[] entries lose `lastUpdated`, the capture time no reader
 //      consumes (schema v16). Key delete, no recompute.
+//  15. an HMIS entry's info.version loses `stagingResult`, which the import
+//      ledger keeps under the version id (schema v17). Key delete, no
+//      recompute.
 //
 // The input mirrors' own blocks are listed in input_transform.ts
 // (INPUT TRANSFORM BLOCKS); they run behind this file's version gate.
@@ -379,6 +382,21 @@ async function transformRunManifest(
     }
   }
   m.manifestSchemaVersion = 16;
+
+  // 15. An HMIS entry's info.version.stagingResult: no reader consumes it,
+  //     and the import ledger keeps it under the version id. Touches no
+  //     other key of info. Idempotent.
+  if (Array.isArray(m.datasets)) {
+    for (const dataset of m.datasets as Record<string, unknown>[]) {
+      if (dataset.datasetType !== "hmis") continue;
+      const info = dataset.info;
+      if (info === null || typeof info !== "object") continue;
+      const version = (info as Record<string, unknown>).version;
+      if (version === null || typeof version !== "object") continue;
+      delete (version as Record<string, unknown>).stagingResult;
+    }
+  }
+  m.manifestSchemaVersion = 17;
 
   const validated = runManifestSchema.parse(m);
   // The schema deliberately accepts ANY integer version: it has to, so a

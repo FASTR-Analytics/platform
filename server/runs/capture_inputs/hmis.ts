@@ -194,7 +194,12 @@ export async function computeDatasetHmisRunCapture(
     const countIndicatorsVersion = await getCountIndicatorsVersion(mainDb);
 
     const info: RunDatasetHmisInfo = {
-      version,
+      version: {
+        id: version.id,
+        nRowsTotalImported: version.nRowsTotalImported,
+        nRowsInserted: version.nRowsInserted,
+        nRowsUpdated: version.nRowsUpdated,
+      },
       totalRows,
       structureLastUpdated,
       indicatorsVersion,

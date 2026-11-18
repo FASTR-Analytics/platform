@@ -68,7 +68,10 @@ import {
 // generation-time fact cannot be invented. Block 13.
 // 16: `datasets[]` entries carry no `lastUpdated`, the capture time no reader
 // consumes. Block 14.
-export const RUN_MANIFEST_SCHEMA_VERSION = 16;
+// 17: an HMIS entry's `info.version` holds the import version's id and row
+// counts, not its staging result, which the import ledger keeps under that
+// id. Block 15.
+export const RUN_MANIFEST_SCHEMA_VERSION = 17;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([

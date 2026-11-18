@@ -415,6 +415,7 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - `SYSTEM_03_realtime_cache.md`
 - `SYSTEM_06_ingestion.md`
 - `SYSTEM_08_results_packages.md`
+- `SYSTEM_09_viz_query_cache.md`
 
 **Deliverable.**
 

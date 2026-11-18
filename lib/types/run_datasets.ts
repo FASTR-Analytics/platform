@@ -14,10 +14,11 @@ export type RunDataset =
   | { datasetType: "hfa" }
   | { datasetType: "iceh" };
 
-// Capture is always the full dataset. Manifest transform block 9 holds every
-// stored info to exactly these keys.
+// Capture is always the full dataset. Manifest transform blocks 9 and 15 hold
+// every stored info to exactly these keys.
 export type RunDatasetHmisInfo = {
-  version: DatasetHmisVersion;
+  // The import ledger keeps the staging result under the version id.
+  version: Omit<DatasetHmisVersion, "stagingResult">;
   totalRows?: number;
   // Metadata snapshots for staleness detection
   structureLastUpdated?: string;

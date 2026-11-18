@@ -114,7 +114,10 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "31" (2026-11-18): manifest schema v16 (datasets[] entries carry no
 // `lastUpdated`). No cached payload carries a dataset entry; the bump is the
 // protocol's per-block rule.
-const PO_CACHE_VERSION = "31";
+// "32" (2026-11-18): manifest schema v17 (an HMIS dataset entry holds no
+// staging result). No cached payload carries a dataset entry; the bump is the
+// protocol's per-block rule.
+const PO_CACHE_VERSION = "32";
 
 // The immutable run id is the uniqueness scope for the four data caches, so two
 // products on the same run share entries. The scopeToken rides beside it: the
