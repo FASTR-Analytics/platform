@@ -190,7 +190,10 @@ export function validateMetricInputsAgainstValueInfo(
             invalid.join(", ")
           }. ` +
             `Valid: ${
-              formatValueListForAI(dimValues.values, invalid.map(String))
+              formatValueListForAI(dimValues.values, invalid.map(String), {
+                metricId,
+                disOpt: filter.disOpt,
+              })
             }`,
         );
       }

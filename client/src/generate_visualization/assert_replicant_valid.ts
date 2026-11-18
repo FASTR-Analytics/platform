@@ -1,9 +1,10 @@
 import type { PackageScope, PresentationObjectConfig, ResultsValue } from "lib";
 import { AIToolFailure } from "panther";
 import {
-  formatReplicantValueListForAI,
+  formatValueListForAI,
   getFetchConfigFromPresentationObjectConfig,
   getReplicateByProp,
+  replicantValuesForAI,
 } from "lib";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/products/t2_replicant_options";
 
@@ -47,10 +48,10 @@ export async function assertReplicantValid(
     const valid = optRes.data.possibleValues;
     const selected = config.d.selectedReplicantValue;
     if (selected && valid.some((v) => v.id === selected)) return;
-    const validList = formatReplicantValueListForAI(
-      valid,
-      replicateBy,
-      selected,
+    const validList = formatValueListForAI(
+      replicantValuesForAI(valid, replicateBy),
+      selected ? [selected] : [],
+      { metricId: metric.id, disOpt: replicateBy },
     );
     throw new AIToolFailure(
       selected

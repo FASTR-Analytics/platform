@@ -9,6 +9,15 @@ export const AI_INLINE_LIST_MAX = 100;
 // dimension.
 export const AI_VALUE_PAGE_MAX = 500;
 
+// The sentence a text ends with when it holds a dimension's values only as a
+// count, or only those near what the copilot sent.
+export function dimensionLookupSentence(
+  metricId: string,
+  disOpt: string,
+): string {
+  return `get_dimension_values with metricId "${metricId}" and disOpt "${disOpt}" lists this dimension's values under the scope, before any filter, and its search finds one by name or id.`;
+}
+
 export type PageForAI<T> = { entries: T[]; summary: string };
 
 // One page of a list the copilot reads in pages, and the sentence that says

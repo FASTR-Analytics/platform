@@ -1,8 +1,6 @@
 import { foldString, matchesSearch, searchTokens } from "@timroberton/panther";
 import { formatReplicantLabelForDisplay } from "../format_nigeria_admin_label.ts";
-
-// Bounds the text one value list adds to the copilot's context.
-export const AI_VALUE_LIST_MAX = 500;
+import { AI_INLINE_LIST_MAX, dimensionLookupSentence } from "./read_bounds.ts";
 
 // The terms the copilot sent, matched by the matcher every searchable list in
 // the app uses: a text matches when it holds every token of one term. A term
@@ -29,43 +27,45 @@ export function searchForAI(terms: string[]): SearchForAI | undefined {
   };
 }
 
-// The value list in the validator's and the replicant check's errors and in a
-// figure's read-back. `near` is the text the copilot sent.
+// The value list in the validator's and the replicant check's errors. `near`
+// is the text the copilot sent, and `lookup` the metric and the dimension the
+// values are of.
 export function formatValueListForAI(
   values: { id: string; label: string }[],
   near: string[],
+  lookup: { metricId: string; disOpt: string },
 ): string {
-  if (values.length <= AI_VALUE_LIST_MAX) {
+  if (values.length <= AI_INLINE_LIST_MAX) {
     return values.map(formatValueForAI).join(", ");
   }
   const tooMany = `${values.length} values, too many to list`;
+  const pointer = dimensionLookupSentence(lookup.metricId, lookup.disOpt);
   const search = searchForAI(near);
   if (search === undefined) {
-    return `${tooMany}.`;
+    return `${tooMany}. ${pointer}`;
   }
   const matched = values.filter((v) => search.matches(`${v.id} ${v.label}`));
   const counts = `${tooMany}; ${matched.length} match ${search.quoted}`;
   if (matched.length === 0) {
-    return `${counts}.`;
+    return `${counts}. ${pointer}`;
   }
-  const listed = matched.slice(0, AI_VALUE_LIST_MAX).map(formatValueForAI);
-  return matched.length > AI_VALUE_LIST_MAX
-    ? `${counts}, the first ${AI_VALUE_LIST_MAX} listed: ${listed.join(", ")}`
-    : `${counts}: ${listed.join(", ")}`;
+  const listed = matched.slice(0, AI_INLINE_LIST_MAX).map(formatValueForAI);
+  return matched.length > AI_INLINE_LIST_MAX
+    ? `${counts}, the first ${AI_INLINE_LIST_MAX} listed: ${
+      listed.join(", ")
+    }. ${pointer}`
+    : `${counts}: ${listed.join(", ")}. ${pointer}`;
 }
 
-export function formatReplicantValueListForAI(
+// A replicant's values with each label as the figure displays it.
+export function replicantValuesForAI(
   values: { id: string; label: string }[],
   replicateBy: string,
-  selected: string | undefined,
-): string {
-  return formatValueListForAI(
-    values.map((v) => ({
-      id: v.id,
-      label: formatReplicantLabelForDisplay(v.label, replicateBy, undefined),
-    })),
-    selected ? [selected] : [],
-  );
+): { id: string; label: string }[] {
+  return values.map((v) => ({
+    id: v.id,
+    label: formatReplicantLabelForDisplay(v.label, replicateBy, undefined),
+  }));
 }
 
 // Checks compare ids, so a value whose label differs is written

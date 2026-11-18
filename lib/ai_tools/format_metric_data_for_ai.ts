@@ -165,10 +165,8 @@ export async function getMetricDataForAI(
 
   // uniqueDisaggregations, not the model's own list: the required options were
   // merged into the QUERY, so they are real columns of the rows below. Passing
-  // the shorter list left the indicator dimension out of the Dimension Summary,
-  // the very place the "Format: varies by indicator" line promises the
-  // per-indicator formats are listed, and made the CSV format its ids as
-  // values.
+  // the shorter list left the indicator dimension out of the Dimension Summary
+  // and made the CSV format its ids as values.
   return formatItemsAsMarkdown(
     itemsHolder,
     metric,
@@ -239,18 +237,21 @@ function formatItemsAsMarkdown(
   periodCoverage?: PeriodBounds | null,
 ): string {
   const lines: string[] = [];
+  const metadataById = new Map(indicatorMetadata?.map((m) => [m.id, m]) ?? []);
+  const formatFor = resolveItemFormat(metric.formatAs, metadataById);
+  const rowFormats = itemsHolder.status === "ok"
+    ? [...new Set(itemsHolder.items.map(formatFor))]
+    : [];
 
   lines.push("# METRIC DATA");
   lines.push("=".repeat(80));
   lines.push("");
   lines.push(...metricIdentityLines(metric));
-  if (metric.formatAs === "indicator") {
-    lines.push(
-      "**Format:** varies by indicator — each value is in its own indicator's format (percent values are 0-1 fractions; rate_per_10k values are written in the CSV already scaled to counts per 10,000; per-indicator formats are listed in the Dimension Summary below)",
-    );
-  } else {
-    lines.push(`**Format:** ${metric.formatAs}`);
-  }
+  lines.push(
+    formatLine(
+      metric.formatAs === "indicator" ? rowFormats : [metric.formatAs],
+    ),
+  );
 
   if (metric.valueProps.length > 0) {
     lines.push("");
@@ -389,8 +390,6 @@ function formatItemsAsMarkdown(
   );
   const valueColumns = columns.filter((col) => !dimensionColumns.includes(col));
 
-  const metadataById = new Map(indicatorMetadata?.map((m) => [m.id, m]) ?? []);
-
   if (dimensionColumns.length > 0) {
     const dimensionStats = getDimensionStats(items, dimensionColumns);
     lines.push("## Dimension Summary");
@@ -406,17 +405,9 @@ function formatItemsAsMarkdown(
         if (stats.uniqueCount <= 20) {
           const valuesWithLabels = stats.uniqueValues.map((val) => {
             const meta = metadataById.get(val);
-            // "indicator" metric: the value's format is a per-indicator fact
-            // the model needs to read the CSV honestly. Direction and
-            // thresholds, where the indicator declares them, are what
-            // "good"/"bad" means for that row.
-            const format = metric.formatAs === "indicator"
-              ? meta?.format_as
-              : undefined;
-            const notes = [
-              ...(format ? [format] : []),
-              ...(meta ? describeIndicatorFacts(meta) : []),
-            ];
+            // Direction and thresholds, where the indicator declares them,
+            // are what "good"/"bad" means for that row.
+            const notes = meta ? describeIndicatorFacts(meta) : [];
             if (meta?.label && meta.label !== val) {
               return notes.length > 0
                 ? `${val} (${meta.label} — ${notes.join("; ")})`
@@ -433,23 +424,6 @@ function formatItemsAsMarkdown(
             return val;
           });
           lines.push(`  ${valuesWithLabels.join(", ")}`);
-        } else {
-          // Over the cap the labels are dropped as noise, but on an "indicator"
-          // metric the FORMATS cannot be: the header above tells the model that
-          // percent values are 0-1 fractions and rates are pre-scaled, and
-          // without this the two are indistinguishable in the CSV: 0.853
-          // (85.3%) sits beside 4.20 (per 10,000) with nothing to tell them
-          // apart. Grouped by format so the cost is O(formats), not O(values).
-          if (metric.formatAs === "indicator") {
-            for (
-              const [format, ids] of groupIdsByFormat(
-                stats.uniqueValues,
-                metadataById,
-              )
-            ) {
-              lines.push(`  ${format}: ${ids.join(", ")}`);
-            }
-          }
         }
       }
     }
@@ -469,11 +443,38 @@ function formatItemsAsMarkdown(
       items,
       dimensionColumns,
       valueColumns,
-      resolveItemFormat(metric.formatAs, metadataById),
+      formatFor,
+      rowFormats.length > 1,
     ),
   );
 
   return lines.join("\n");
+}
+
+const FORMAT_UNITS: Partial<Record<IndicatorFormat, string>> = {
+  percent: "written as 0-1 fractions",
+  rate_per_10k: "written already scaled to counts per 10,000",
+};
+
+// The rows' one format, or that the CSV's format column gives each row's.
+// An "indicator" metric with no rows has no format to state.
+function formatLine(formats: IndicatorFormat[]): string {
+  if (formats.length === 0) {
+    return "**Format:** varies by indicator";
+  }
+  if (formats.length === 1) {
+    const unit = FORMAT_UNITS[formats[0]];
+    return `**Format:** ${formats[0]}${
+      unit === undefined ? "" : ` (values are ${unit})`
+    }`;
+  }
+  const notes = formats.flatMap((f) => {
+    const unit = FORMAT_UNITS[f];
+    return unit === undefined ? [] : [`${f} values are ${unit}`];
+  });
+  return `**Format:** varies by indicator: the format column gives each row's${
+    notes.length > 0 ? ` (${notes.join("; ")})` : ""
+  }`;
 }
 
 // A stored value in DISPLAY units, a percent with its sign.
@@ -548,29 +549,6 @@ export function formatIndicatorThresholds(
   return bands.join("; ") + unit;
 }
 
-// Ids that DECLARE a format, bucketed by it, in first-seen format order. Ids
-// with no declared format are omitted rather than bucketed as "unknown": on a
-// dimension whose values are not indicators at all (an admin area, an HFA
-// category) that would print the entire value list under a meaningless
-// heading, which is exactly the noise the 20-value cap exists to prevent.
-function groupIdsByFormat(
-  values: string[],
-  metadataById: Map<string, IndicatorMetadata>,
-): Map<IndicatorFormat, string[]> {
-  const byFormat = new Map<IndicatorFormat, string[]>();
-  for (const val of values) {
-    const format = metadataById.get(val)?.format_as;
-    if (format === undefined) continue;
-    const bucket = byFormat.get(format);
-    if (bucket) {
-      bucket.push(val);
-    } else {
-      byFormat.set(format, [val]);
-    }
-  }
-  return byFormat;
-}
-
 function getDimensionStats(
   items: JsonArrayItem[],
   columns: string[],
@@ -635,22 +613,28 @@ function formatIndicatorValueForCsv(
 
 // One row per combination of dimension values: every dimension cell as
 // written, so an id, a label or a period such as 202301 reads as the data
-// holds it, then the value cells.
+// holds it, then the row's format when the rows hold more than one, then the
+// value cells.
 function formatLongCSV(
   items: JsonArrayItem[],
   dimensionColumns: string[],
   valueColumns: string[],
   formatFor: (item: JsonArrayItem) => IndicatorFormat,
+  withFormatColumn: boolean,
 ): string {
-  const header = [...dimensionColumns, ...valueColumns].map(csvCell).join(",");
-  const rows = items.map((item) =>
-    [
+  const header = [
+    ...dimensionColumns,
+    ...(withFormatColumn ? ["format"] : []),
+    ...valueColumns,
+  ].map(csvCell).join(",");
+  const rows = items.map((item) => {
+    const format = formatFor(item);
+    return [
       ...dimensionColumns.map((col) => csvCell(String(item[col] ?? ""))),
-      ...valueColumns.map((col) =>
-        formatValueWithN(item, col, formatFor(item))
-      ),
-    ].join(",")
-  );
+      ...(withFormatColumn ? [format] : []),
+      ...valueColumns.map((col) => formatValueWithN(item, col, format)),
+    ].join(",");
+  });
   return [header, ...rows].join("\n");
 }
 

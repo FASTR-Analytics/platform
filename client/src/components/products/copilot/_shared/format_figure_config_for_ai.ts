@@ -1,5 +1,7 @@
 import {
-  formatReplicantValueListForAI,
+  dimensionLookupSentence,
+  type DisaggregationOption,
+  formatValueForAI,
   getDisaggregationLabel,
   getFetchConfigFromPresentationObjectConfig,
   getReplicateByProp,
@@ -7,6 +9,8 @@ import {
   type MetricWithStatus,
   type PeriodBounds,
   type PresentationObjectConfig,
+  replicantValuesForAI,
+  type RunReplicantOptions,
   VIZ_TYPE_CONFIG,
 } from "lib";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
@@ -51,39 +55,33 @@ export async function formatFigureConfigForAI(
 
   if (replicateBy) {
     lines.push(`Replicate by: ${replicateBy}`);
+    const selected = config.d.selectedReplicantValue;
+    const options = metric === undefined
+      ? undefined
+      : await readReplicantOptions(env, metric, config, replicateBy);
+    const values = options?.status === "ok"
+      ? replicantValuesForAI(options.possibleValues, replicateBy)
+      : undefined;
+    const selectedValue = values?.find((v) => v.id === selected);
     lines.push(
       `Selected replicant: ${
-        config.d.selectedReplicantValue ?? "(none — INVALID, must set)"
+        selected === undefined
+          ? "(none — INVALID, must set)"
+          : selectedValue !== undefined
+          ? formatValueForAI(selectedValue)
+          : values !== undefined
+          ? `${selected} (not among this figure's values)`
+          : selected
       }`,
     );
-    if (metric) {
-      const resOpts = getFetchConfigFromPresentationObjectConfig(
-        metric,
-        config,
-        {
-          excludeReplicantFilter: true,
-        },
+    if (metric !== undefined && options !== undefined) {
+      lines.push(
+        values === undefined
+          ? `Replicant values: (${options.status})`
+          : `Replicant values: ${values.length} under this figure's filters and period. ${
+            dimensionLookupSentence(metric.id, replicateBy)
+          }`,
       );
-      if (resOpts.success) {
-        const optRes = await env.getReplicantOptions(
-          metric.id,
-          replicateBy,
-          resOpts.data,
-        );
-        if (optRes.success && optRes.data.status === "ok") {
-          lines.push(
-            `Available replicant values: ${
-              formatReplicantValueListForAI(
-                optRes.data.possibleValues,
-                replicateBy,
-                config.d.selectedReplicantValue,
-              )
-            }`,
-          );
-        } else if (optRes.success) {
-          lines.push(`Available replicant values: (${optRes.data.status})`);
-        }
-      }
     }
   }
 
@@ -160,4 +158,24 @@ export async function formatFigureConfigForAI(
   );
 
   return lines.join("\n");
+}
+
+// The replicant's values under the figure's own filters and period, the read
+// the replicant check makes; undefined when the read fails.
+async function readReplicantOptions(
+  env: ClientAIToolEnv,
+  metric: MetricWithStatus,
+  config: PresentationObjectConfig,
+  replicateBy: DisaggregationOption,
+): Promise<RunReplicantOptions | undefined> {
+  const resOpts = getFetchConfigFromPresentationObjectConfig(metric, config, {
+    excludeReplicantFilter: true,
+  });
+  if (!resOpts.success) return undefined;
+  const optRes = await env.getReplicantOptions(
+    metric.id,
+    replicateBy,
+    resOpts.data,
+  );
+  return optRes.success ? optRes.data : undefined;
 }

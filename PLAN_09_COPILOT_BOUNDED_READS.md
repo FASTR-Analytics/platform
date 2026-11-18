@@ -540,3 +540,6 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - **The report tools' `FIGURE_DATA_MAX_CHARS`** cut and `get_metric_data`'s missing roll-up row (SYSTEM_13 Open items).
 
 ## §6 Log
+
+- Steps 2 and 3: the floor's `./run` was replaced by booting `main.ts` alone with `PORT=8099` against the running containers, because Tim's own `./run` holds port 8000 and `./run` replaces the `pg` and `valkey-local` containers under it.
+- Step 3: the header's format line is one function for every read, so a `percent` metric's read states how its values are written, as an indicator read whose rows share `percent` does.
