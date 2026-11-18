@@ -70,6 +70,7 @@ export type ComboBoxPanelController = {
   query: () => string;
   openPanel: () => void;
   closePanel: () => void;
+  dismissPanel: () => void;
   handleBlur: (e: FocusEvent) => void;
   handleKeyDown: (e: KeyboardEvent) => void;
   handleInput: (value: string) => void;
@@ -180,6 +181,16 @@ export function createComboBoxPanel(
     }
   }
 
+  // Blurs as well as closing. The closed input is readonly: it emits no input
+  // events and cannot re-fire focus while it holds it, so focus kept here
+  // leaves a caret in a box that takes no typing, no way to reopen the panel
+  // short of reaching for the pointer, and a dialog opened from onChange
+  // handing focus back to the input on close, which reopens the panel.
+  function dismissPanel() {
+    closePanel();
+    inputRef?.blur();
+  }
+
   function handleBlur(e: FocusEvent) {
     const rt = e.relatedTarget;
     if (
@@ -205,12 +216,7 @@ export function createComboBoxPanel(
       // this, dismissing the panel also dismisses the modal around it.
       e.preventDefault();
       e.stopPropagation();
-      closePanel();
-      // Blur too: on close the input flips back to readonly, and a readonly
-      // input emits no input events and cannot re-fire focus while it still
-      // holds it — keeping focus here leaves a keyboard user with no way to
-      // reopen the panel short of reaching for the pointer.
-      inputRef?.blur();
+      dismissPanel();
       return;
     }
     if (e.key === "Enter") {
@@ -247,6 +253,7 @@ export function createComboBoxPanel(
     query,
     openPanel,
     closePanel,
+    dismissPanel,
     handleBlur,
     handleKeyDown,
     handleInput,
@@ -262,12 +269,11 @@ type ComboBoxFrameProps = {
   // selection summary (multi). Drives the placeholder swap, and gates the
   // overlay. Undefined means nothing is selected.
   displayText?: string;
-  // Painted over the closed input rather than written into it as a value:
-  // the input keeps focus across a row click, and setting value on a focused
-  // input parks the caret at the end, so the box would scroll to the tail of a
-  // long label and drop its ellipsis. An overlay span also makes a truncation
-  // test exact — it measures zero padding, not an input padded by 2.5em of
-  // chevron. Rendered only while closed and only when displayText is set.
+  // Painted over the closed input rather than written into it as a value: an
+  // overlay can hold markup (the multi peer's +N count sits in a span that
+  // survives truncation of the names), and it makes a truncation test exact —
+  // it measures zero padding, not an input padded by 2.5em of chevron.
+  // Rendered only while closed and only when displayText is set.
   overlay?: JSX.Element;
   label?: string | JSX.Element;
   placeholder?: string;
