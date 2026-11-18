@@ -469,9 +469,7 @@ const FORMAT_UNITS: Partial<Record<IndicatorFormat, string>> = {
   rate_per_10k: "written already scaled to counts per 10,000",
 };
 
-// The rows' one format, or that the CSV's format column gives each row's, or,
-// when no row is written, the formats the rows hold. An "indicator" metric
-// with no rows has no format to state.
+// An "indicator" metric with no rows has no format to state.
 function formatLine(
   formats: IndicatorFormat[],
   rowsOmitted: boolean,
