@@ -16,8 +16,8 @@ import {
 } from "./format_metric_data_for_ai.ts";
 import {
   formatValueForAI,
+  requiredSearchForAI,
   type SearchForAI,
-  searchForAI,
 } from "./format_value_list_for_ai.ts";
 import {
   AI_INLINE_LIST_MAX,
@@ -221,14 +221,7 @@ export function formatDimensionValuesForAI(
 ): string {
   const search = query.search === undefined
     ? undefined
-    : searchForAI(query.search);
-  if (query.search !== undefined && search === undefined) {
-    throw new AIToolFailure(
-      `search ${
-        JSON.stringify(query.search)
-      } holds no word to match: give at least one term with a letter or digit.`,
-    );
-  }
+    : requiredSearchForAI(query.search);
   const head = [
     "# DIMENSION VALUES",
     "",

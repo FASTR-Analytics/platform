@@ -1,4 +1,9 @@
-import { foldString, matchesSearch, searchTokens } from "@timroberton/panther";
+import {
+  AIToolFailure,
+  foldString,
+  matchesSearch,
+  searchTokens,
+} from "@timroberton/panther";
 import { formatReplicantLabelForDisplay } from "../format_nigeria_admin_label.ts";
 import { AI_INLINE_LIST_MAX, dimensionLookupSentence } from "./read_bounds.ts";
 
@@ -25,6 +30,20 @@ export function searchForAI(terms: string[]): SearchForAI | undefined {
       return queries.some((q) => matchesSearch(folded, q.tokens));
     },
   };
+}
+
+// A search the copilot asked for: terms with no word are refused rather than
+// read as no search.
+export function requiredSearchForAI(terms: string[]): SearchForAI {
+  const search = searchForAI(terms);
+  if (search === undefined) {
+    throw new AIToolFailure(
+      `search ${
+        JSON.stringify(terms)
+      } holds no word to match: give at least one term with a letter or digit.`,
+    );
+  }
+  return search;
 }
 
 // The value list in the validator's and the replicant check's errors. `near`

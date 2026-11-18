@@ -311,6 +311,8 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 
 - `lib/ai_tools/read_bounds.ts`
 - `lib/ai_tools/format_text_window_for_ai.ts` (new)
+- `lib/ai_tools/format_value_list_for_ai.ts`
+- `lib/ai_tools/format_dimension_values_for_ai.ts`
 - `lib/ai_tools/mod.ts`
 - `client/src/components/instance/copilot/tools/modules.ts`
 - `server/tests/text_window_for_ai_test.ts` (new)

@@ -13,6 +13,11 @@ export const AI_VALUE_PAGE_MAX = 500;
 // writes its counts and no rows.
 export const AI_DATA_ROWS_MAX = 1000;
 
+// The most characters one window of a module's script or log writes, in
+// whole lines, and the most of one line it writes.
+export const AI_TEXT_WINDOW_MAX_CHARS = 40000;
+export const AI_TEXT_LINE_MAX_CHARS = 2000;
+
 // The sentence a text ends with when it holds a dimension's values only as a
 // count, or only those near what the copilot sent.
 export function dimensionLookupSentence(

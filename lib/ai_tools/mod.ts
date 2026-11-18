@@ -17,6 +17,7 @@ export * from "./format_hfa_indicators_for_ai.ts";
 export * from "./format_metric_data_for_ai.ts";
 export * from "./format_metrics_list_for_ai.ts";
 export * from "./format_products_list_for_ai.ts";
+export * from "./format_text_window_for_ai.ts";
 export * from "./format_value_list_for_ai.ts";
 export * from "./hfa_time_points_for_ai.ts";
 export * from "./read_bounds.ts";
