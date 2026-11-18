@@ -10,6 +10,7 @@ import {
 } from "panther";
 import { z } from "zod";
 import {
+  AI_RECORD_PAGE_MAX,
   composeHfaIndicatorLabel,
   composeHfaVariantColumnName,
   COPILOT_TOOL_VIEWS,
@@ -654,7 +655,7 @@ export function buildHfaIndicatorTools() {
       name: "get_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicators,
       description:
-        "List HFA indicators, one line each: id, long label, type and aggregation, category, sub-category and service categories, variant group, rounds with code, round status and whether the rounds agree, under the taxonomy (categories, sub-categories, service categories, variant groups and items, each id: label). The ids it prints are what every other HFA tool takes. Filter rather than list everything: the default workbook holds hundreds of indicators. Filtering by status also prints each round's issues. withCode ends each line with the main code and filter, printed once when every round holds the same; it says 'differs by round' when they differ, 'none' without code, and leaves out variant code: read those with get_hfa_indicator_details. The search reads labels and ids, not code: namesVariable finds the indicators whose code names given variables.",
+        `List HFA indicators, ${AI_RECORD_PAGE_MAX} a call, one line each: id, long label, type and aggregation, category, sub-category and service categories, variant group, rounds with code, round status and whether the rounds agree, under the taxonomy (categories, sub-categories, service categories, variant groups and items, each id: label), which the first page alone writes. The count line states how many indicators match the filters, how many exist, which are written and the offset of the next page. The ids it prints are what every other HFA tool takes. Filter rather than page through everything: the default workbook holds hundreds of indicators. Filtering by status also prints each round's issues. withCode ends each line with the main code and filter, printed once when every round holds the same; it says 'differs by round' when they differ, 'none' without code, and leaves out variant code: read those with get_hfa_indicator_details. The search reads labels and ids, not code: namesVariable finds the indicators whose code names given variables.`,
       kind: "read",
       inputSchema: z.object({
         search: z.string().optional().describe(
@@ -682,6 +683,9 @@ export function buildHfaIndicatorTools() {
         ),
         withCode: z.boolean().optional().describe(
           "End each line with the main code and filter: once when the rounds agree, else 'differs by round', 'none' without code. Variant code is not shown.",
+        ),
+        offset: z.number().int().min(0).optional().describe(
+          "Optional: how many of the matching indicators to skip. Each page names the offset of the next.",
         ),
       }),
       handler: async (input) => {
@@ -711,6 +715,7 @@ export function buildHfaIndicatorTools() {
         return formatHfaIndicatorListForAI(read, listed, {
           withIssues: input.status !== undefined,
           withCode: input.withCode === true,
+          offset: input.offset ?? 0,
         });
       },
       inProgressLabel: () =>
@@ -785,7 +790,7 @@ export function buildHfaIndicatorTools() {
       name: "get_hfa_variables",
       availableIn: COPILOT_TOOL_VIEWS.get_hfa_variables,
       description:
-        "List the HFA survey variables, one line each: id, label and type, and per round it is in, how many indicators' code of that round names it. Filter rather than list everything: a survey has hundreds of variables. To see a variable's options, counts and values, and which indicators name it, use get_hfa_variable_details.",
+        `List the HFA survey variables, ${AI_RECORD_PAGE_MAX} a call, one line each: id, label and type, and per round it is in, how many indicators' code of that round names it. The count line states how many variables match the filters, how many exist, which are written and the offset of the next page. Filter rather than page through everything: a survey has hundreds of variables. To see a variable's options, counts and values, and which indicators name it, use get_hfa_variable_details.`,
       kind: "read",
       inputSchema: z.object({
         search: z.string().optional().describe(
@@ -796,6 +801,9 @@ export function buildHfaIndicatorTools() {
         ),
         unusedOnly: z.boolean().optional().describe(
           "Only variables that no indicator's code names in some round they are in (in the given round, when one is given). Structural columns are never listed.",
+        ),
+        offset: z.number().int().min(0).optional().describe(
+          "Optional: how many of the matching variables to skip. Each page names the offset of the next.",
         ),
       }),
       handler: async (input) => {
@@ -824,7 +832,7 @@ export function buildHfaIndicatorTools() {
           (!input.unusedOnly ||
             (unusedIn.has(id) && !HFA_STRUCTURAL_VARIABLE_IDS.has(id)))
         ).map(([id]) => id);
-        return formatHfaVariableListForAI(read, ids);
+        return formatHfaVariableListForAI(read, ids, input.offset ?? 0);
       },
       inProgressLabel: () =>
         t3({

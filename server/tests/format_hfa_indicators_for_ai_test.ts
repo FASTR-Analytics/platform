@@ -2,12 +2,15 @@
 // detail block, the variable listing and the variable details, over one
 // fixture with a variant indicator, a variable absent from a round, one blank
 // in every round, a text choice code, identical rounds folded, and no display
-// rows.
+// rows; and the record pages the chat reads both listings in, the taxonomy on
+// the first page alone.
 //
 //   deno test -A server/tests/format_hfa_indicators_for_ai_test.ts
 
-import { assertEquals } from "@std/assert";
+import { assert, assertEquals, assertThrows } from "@std/assert";
+import { AIToolFailure } from "@timroberton/panther";
 import {
+  AI_RECORD_PAGE_MAX,
   formatHfaIndicatorDetailsForAI,
   formatHfaIndicatorListForAI,
   formatHfaVariableDetailsForAI,
@@ -354,7 +357,7 @@ Deno.test("the variable listing counts the indicators naming each variable per r
   assertEquals(
     formatHfaVariableListForAI(full, ["wat_01", "vac", "beds"]),
     [
-      "3 variables. Each line: id | label | type | per round it is in, the number of indicators whose code of that round names it.",
+      "3 of 4 variables. Each line: id | label | type | per round it is in, the number of indicators whose code of that round names it.",
       "wat_01 | Has water | select_one | R1: 1 indicator, R2: 1 indicator",
       "vac | Vaccination | select_one | R1: 1 indicator",
       "beds | Beds | integer | R1: 1 indicator, R2: 1 indicator",
@@ -389,4 +392,123 @@ Deno.test("the variable details of one round, without display rows", () => {
       "  named by: ind001 (Long ind001)",
     ].join("\n"),
   );
+});
+
+const LISTING_COLUMNS =
+  "Each line: id | long label | type, aggregation | category, sub-category, service categories | variant group | rounds with code | round status | consistency across rounds.";
+
+function withIndicators(n: number): HfaIndicatorsForAIInput {
+  const indicators = Array.from(
+    { length: n },
+    (_, i) => ind(`p${String(i + 1).padStart(3, "0")}`),
+  );
+  return { ...full, indicators, code: [], variantCode: [], status: new Map() };
+}
+
+function pageOfIndicators(input: HfaIndicatorsForAIInput, offset: number) {
+  const lines = formatHfaIndicatorListForAI(input, input.indicators, {
+    withIssues: false,
+    withCode: false,
+    offset,
+  }).split("\n");
+  return {
+    lines,
+    countLine: lines.find((l) => l.endsWith(LISTING_COLUMNS)),
+    listed: lines.filter((l) => /^p\d{3} \| /.test(l)).map((l) =>
+      l.slice(0, 4)
+    ),
+  };
+}
+
+Deno.test("an indicator listing of exactly a page writes every indicator and no next offset", () => {
+  const n = AI_RECORD_PAGE_MAX;
+  const { lines, countLine, listed } = pageOfIndicators(withIndicators(n), 0);
+  assert(lines[0].startsWith("Categories "), lines[0]);
+  assertEquals(
+    countLine,
+    `${n} of ${n} indicators. Written: indicators 1 to ${n} of ${n}. ${LISTING_COLUMNS}`,
+  );
+  assertEquals(listed.length, n);
+});
+
+Deno.test("a longer indicator listing writes its first page and names the next offset", () => {
+  const n = AI_RECORD_PAGE_MAX + 1;
+  const { countLine, listed } = pageOfIndicators(withIndicators(n), 0);
+  assertEquals(
+    countLine,
+    `${n} of ${n} indicators. Written: indicators 1 to ${AI_RECORD_PAGE_MAX} of ${n}. The next page is offset ${AI_RECORD_PAGE_MAX}. ${LISTING_COLUMNS}`,
+  );
+  assertEquals(listed.length, AI_RECORD_PAGE_MAX);
+  assertEquals(listed[0], "p001");
+});
+
+Deno.test("the second page of indicators writes the rest without the taxonomy", () => {
+  const n = AI_RECORD_PAGE_MAX + 1;
+  const { lines, countLine, listed } = pageOfIndicators(
+    withIndicators(n),
+    AI_RECORD_PAGE_MAX,
+  );
+  assertEquals(lines[0], countLine);
+  assertEquals(
+    countLine,
+    `${n} of ${n} indicators. Written: indicators ${n} to ${n} of ${n}. ${LISTING_COLUMNS}`,
+  );
+  assertEquals(listed, [`p${n}`]);
+  assert(!lines.some((l) => l.startsWith("Categories ")));
+});
+
+Deno.test("an indicator offset at the number of indicators refuses with that number", () => {
+  assertThrows(
+    () => pageOfIndicators(withIndicators(3), 3),
+    AIToolFailure,
+    "offset 3 is past the end: there are 3 indicators, so an offset must be below 3.",
+  );
+});
+
+const VARIABLE_COLUMNS =
+  "Each line: id | label | type | per round it is in, the number of indicators whose code of that round names it.";
+
+function withVariables(n: number): HfaIndicatorsForAIInput {
+  const variables = Array.from({ length: n }, (_, i) => ({
+    variableId: `v${String(i + 1).padStart(3, "0")}`,
+    variableLabel: `Variable ${i + 1}`,
+    variableType: "integer",
+  }));
+  return {
+    ...full,
+    dictionary: { timePoints: [{ timePoint: "R1", variables, values: [] }] },
+  };
+}
+
+function pageOfVariables(input: HfaIndicatorsForAIInput, offset: number) {
+  const ids = input.dictionary.timePoints[0].variables.map((v) => v.variableId);
+  const [countLine, ...rows] = formatHfaVariableListForAI(input, ids, offset)
+    .split("\n");
+  return { countLine, listed: rows.map((r) => r.slice(0, 4)) };
+}
+
+Deno.test("a variable listing of exactly a page writes every variable and no next offset", () => {
+  const n = AI_RECORD_PAGE_MAX;
+  const { countLine, listed } = pageOfVariables(withVariables(n), 0);
+  assertEquals(
+    countLine,
+    `${n} of ${n} variables. Written: variables 1 to ${n} of ${n}. ${VARIABLE_COLUMNS}`,
+  );
+  assertEquals(listed.length, n);
+});
+
+Deno.test("a longer variable listing writes its first page and names the next offset, and the second page the rest", () => {
+  const n = AI_RECORD_PAGE_MAX + 1;
+  const first = pageOfVariables(withVariables(n), 0);
+  assertEquals(
+    first.countLine,
+    `${n} of ${n} variables. Written: variables 1 to ${AI_RECORD_PAGE_MAX} of ${n}. The next page is offset ${AI_RECORD_PAGE_MAX}. ${VARIABLE_COLUMNS}`,
+  );
+  assertEquals(first.listed.length, AI_RECORD_PAGE_MAX);
+  const second = pageOfVariables(withVariables(n), AI_RECORD_PAGE_MAX);
+  assertEquals(
+    second.countLine,
+    `${n} of ${n} variables. Written: variables ${n} to ${n} of ${n}. ${VARIABLE_COLUMNS}`,
+  );
+  assertEquals(second.listed, [`v${n}`]);
 });

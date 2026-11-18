@@ -242,7 +242,7 @@ Each step has: **Do**, **Ground truth** (what you check with the hook, the page 
 **B1. list_products.**
 
 - Do: send "List the products on this instance with their folder and package."
-- Ground truth: H3 shows one `list_products` call with `err: false`. Take a snapshot of the Products page and compare: every product the page lists is in the tool result text, with the same folder.
+- Ground truth: H3 shows `list_products` with `err: false`, its result holding a line "N of N products. Written: products 1 to K of N.", with N the page's count. Over 100 products that line goes on "The next page is offset 100." and the copilot calls again with that offset until no next page is named. Take a snapshot of the Products page and compare: every product the page lists is in the tool results' text, with the same folder.
 - Ask the copilot: "How many products did the tool return, and how many of them can I edit?"
 - Pass: the count equals the page's count; the levels match the badges on the page. Record the user's level on each product for section I.
 
@@ -655,7 +655,7 @@ Skip if the Data page shows no HFA data. Go to Data, open HFA indicators. NEW CO
 
 - Ground truth: H1 is hfa_indicators; H5's instructions contain "# Current View: HFA indicators manager", "## The HFA indicator model" and "## The code", and no tool name ending in `_hfa_indicators` or `_hfa_variables`.
 - Do: send "List the taxonomy and count the indicators per category."
-- Ground truth: H3 shows `get_hfa_indicators` with `err: false`, its result a text that starts with "Categories (id: label (how many of all M indicators it holds))", gives each category and sub-category its count in brackets, and has a line "N of M indicators". No server `code_execution` call follows: the counts are read from the taxonomy lines. If it is `err: true` naming the `can_configure_data` permission, that is the pass condition: record it and skip to K.
+- Ground truth: H3 shows `get_hfa_indicators` with `err: false`, its result a text that starts with "Categories (id: label (how many of all M indicators it holds))", gives each category and sub-category its count in brackets, and has a line that starts "N of M indicators. Written: indicators 1 to K of N." and, when N is over 100, goes on "The next page is offset 100.". No server `code_execution` call follows: the counts are read from the taxonomy lines. If it is `err: true` naming the `can_configure_data` permission, that is the pass condition: record it and skip to K.
 - Pass: the turn ends with an answer, and the counts in it equal the taxonomy lines' and match the manager's table on screen.
 
 **J2. Status filter and the detail block.**

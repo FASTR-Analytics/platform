@@ -18,6 +18,10 @@ export const AI_DATA_ROWS_MAX = 1000;
 export const AI_TEXT_WINDOW_MAX_CHARS = 40000;
 export const AI_TEXT_LINE_MAX_CHARS = 2000;
 
+// The most one-line records one call of a record list writes:
+// get_hfa_indicators, get_hfa_variables and list_products.
+export const AI_RECORD_PAGE_MAX = 100;
+
 // The sentence a text ends with when it holds a dimension's values only as a
 // count, or only those near what the copilot sent.
 export function dimensionLookupSentence(
