@@ -4,7 +4,7 @@ The possible-values reads stop at 500 values per dimension and answer `too_many_
 
 **Next step: Do 1.**
 
-Branch: `main`. Repos: this one. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) "Disaggregation options" and "Caching", [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md) "The Explore page", "Explore query model" and "Replicant machinery", [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Tool input schemas" and Open items, [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) "Editor/render divergence", [PROTOCOL_APP_QUERY_RIG.md](PROTOCOL_APP_QUERY_RIG.md).
+Branch: `main`. Repos: this one. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) "Disaggregation options" and "Caching", [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md) "The Explore page", "Explore query model" and "Replicant machinery", [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Tool input schemas" and Open items, [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) "Editor/render divergence", [PROTOCOL_APP_QUERY_RIG.md](PROTOCOL_APP_QUERY_RIG.md). For steps 2 and 3, also [PROTOCOL_APP_UI_CONVENTIONS.md](PROTOCOL_APP_UI_CONVENTIONS.md), [panther/protocols/PROTOCOL_UI_COMPONENTS.md](panther/protocols/PROTOCOL_UI_COMPONENTS.md) and [panther/protocols/PROTOCOL_ALL_TRANSLATION.md](panther/protocols/PROTOCOL_ALL_TRANSLATION.md).
 
 ## §0 How to work this plan
 
@@ -89,11 +89,11 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 - The test file pins: a list of exactly `AI_VALUE_LIST_MAX` values is written whole; a longer list is written as only its matching values, with both counts; a longer list with no match gives the counts and no values; matching ignores case and accents; a value whose label equals its id is written as the id alone.
 - SYSTEM_13's manifest lists the test file, and its "Layer-2 (data-dependent) validation" line says the value lists are bounded and how.
 
-**Not in this step.** the cap, and a value-discovery tool for the copilot (SYSTEM_13 Open items).
+**Not in this step.** The cap, and a value-discovery tool for the copilot (SYSTEM_13 Open items).
 
 **Gates.** `deno task test:files server/tests/format_value_list_for_ai_test.ts`.
 
-**Ends with.** one commit.
+**Ends with.** One commit.
 
 ### Step 2: the replicant picker above the figure
 
@@ -117,9 +117,9 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 
 **Not in this step.** Explore's pins (step 3), and the `too_many_values` message in `ReplicantOptionsMessage` (step 4).
 
-**Gates.** the floor.
+**Gates.** The floor.
 
-**Ends with.** one commit.
+**Ends with.** One commit.
 
 ### Step 3: searchable Explore pins
 
@@ -135,9 +135,9 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 
 **Not in this step.** `CapMessage` and its `Match` (step 4).
 
-**Gates.** the floor.
+**Gates.** The floor.
 
-**Ends with.** one commit.
+**Ends with.** One commit.
 
 ### Step 4: delete the cap
 
@@ -178,11 +178,11 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 - `explore_query_test.ts`: the test "pin: a dimension over the cap has no value and no config" keeps only its `pending` half and is named for it.
 - Docs: SYSTEM_09 "Disaggregation options" (the possible-values, cap and status paragraphs) states the full value list and ruling 2's accepted limit, and "Caching" names the `_v4` caches; SYSTEM_10 "Editor/render divergence" drops `too_many_values` from the cannot-enumerate statuses; SYSTEM_11 drops the cap from "The Explore page", "Explore query model" and "Replicant machinery"; PROTOCOL_APP_QUERY_RIG.md's control table has ruling 7's row in place of the `exceedsMaxReplicantOptions` row.
 
-**Not in this step.** anything in §5.
+**Not in this step.** Anything in §5.
 
 **Gates.** `./validate_queries`; `deno task test:files server/tests/explore_query_test.ts`; at the close, `deno task test`.
 
-**Ends with.** one commit, then the close commit that deletes this file.
+**Ends with.** One commit, then the close commit that deletes this file.
 
 ## §5 Out of scope
 
