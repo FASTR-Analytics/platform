@@ -379,6 +379,7 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - `server/runs/manifest_transform.ts`
 - `server/routes/caches/visualizations.ts`
 - `client/src/state/instance/t2_run_authoring_context.ts`
+- `query_rig/build_package.ts`
 - `server/tests/copilot_prompt_test.ts`
 - `server/tests/run_manifest_transform_test.ts`
 - `server/tests/runs_summary_families_test.ts`
