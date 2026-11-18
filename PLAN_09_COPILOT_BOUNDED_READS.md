@@ -240,7 +240,7 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 
 **Not in this step.** The errors, the read-back and the Dimension Summary (step 3). The package block's "Loaded datasets" lines (step 7). What an undeclared direction reads as (step 11).
 
-**Gates.** `deno task test:files server/tests/copilot_prompt_test.ts server/tests/format_metrics_list_for_ai_test.ts`.
+**Gates.** `deno task test:files server/tests/copilot_prompt_test.ts server/tests/format_metrics_list_for_ai_test.ts server/tests/dimension_values_for_ai_test.ts`.
 
 **Ends with.** One commit.
 
