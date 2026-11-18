@@ -1,7 +1,7 @@
 import type { PackageScope, PresentationObjectConfig, ResultsValue } from "lib";
 import { AIToolFailure } from "panther";
 import {
-  formatReplicantLabelForDisplay,
+  formatReplicantValueListForAI,
   getFetchConfigFromPresentationObjectConfig,
   getReplicateByProp,
 } from "lib";
@@ -46,13 +46,11 @@ export async function assertReplicantValid(
   if (optRes.success && optRes.data.status === "ok") {
     const valid = optRes.data.possibleValues;
     const selected = config.d.selectedReplicantValue;
-    // The check is on the id, so the list spells each value as `id (label)`:
-    // a caller that copies the label alone from this message fails again.
-    const validList = valid.map((v) =>
-      `${v.id} (${
-        formatReplicantLabelForDisplay(v.label, replicateBy, undefined)
-      })`
-    ).join(", ");
+    const validList = formatReplicantValueListForAI(
+      valid,
+      replicateBy,
+      selected,
+    );
     if (!selected) {
       throw new AIToolFailure(
         `This figure replicates by "${replicateBy}" and needs a selected replicant value (pass the id). ` +
