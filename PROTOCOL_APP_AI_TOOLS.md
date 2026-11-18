@@ -107,6 +107,19 @@ A turn is everything from one user message to the reply that calls no tool. A ro
 
 The reference implementations are the deck's tools. `get_slides({ slideIds })` reads any number of slides in one round. The four slide writes (`create_slide`, `replace_slide`, `update_slide`, `update_figure`) return one result composed by `prepareSlideWriteResult` (`client/src/components/products/copilot/ai_tools/tools/slide_write_result.ts`): the sentence saying what was done, then, for a content slide, its blocks by id and type, its layout, whether it overflows the page and the config of each figure the write built or changed. The three figure patch tools (`update_figure`, `update_report_figure`, `update_figure_editor`) return their per-field report and then the config that resulted, as the matching read prints it.
 
+## Bounded reads
+
+A list or a read whose size follows the instance's data (its indicators, areas, facilities, products, a module's files) is bounded wherever the copilot is given it without asking, and is complete only where the copilot asks for it, in bounded pages. A tool's result, description and errors, a view's state and a consumer block all follow this.
+
+The bounds and the one paging helper live in [lib/ai_tools/read_bounds.ts](lib/ai_tools/read_bounds.ts). `pageForAI` takes the entries, the offset and the page size, refuses an offset past the entries, and returns the page with the sentence that says which entries are written, how many there are and the offset of the next page.
+
+| Constant             | Value | Bounds                                                                                                                                |
+| -------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `AI_INLINE_LIST_MAX` | 100   | the entries of a list written without being asked for: each dimension's values in `get_dimension_values`'s listing of every dimension |
+| `AI_VALUE_PAGE_MAX`  | 500   | the values one call of `get_dimension_values` writes for a named dimension                                                            |
+
+**The lookup.** `get_dimension_values({ metricId, disOpt?, search?, offset? })` is where the copilot reads a dimension's values. Without `disOpt` it writes every dimension of the metric with its count and, up to `AI_INLINE_LIST_MAX`, its values; with `disOpt` that dimension in pages of `AI_VALUE_PAGE_MAX`. `search` narrows by the copilot's terms (`searchForAI`) before paging. A text that tells the model where a filter value comes from names the lookup, never `get_metric_data`.
+
 ## Gotchas
 
 - **Never `z.strictObject()`.** It rejects instead of strips unknown properties; Claude sometimes adds underscore-prefixed metadata keys, which then throw on every call. Empty-input tools use `z.object({})`.
@@ -122,3 +135,4 @@ The reference implementations are the deck's tools. `get_slides({ slideIds })` r
 6. Handlers throw on failure; never return error strings; never `z.strictObject` / `strict: true`.
 7. If the tool's _output_ prints a schema example, it must match the real schema exactly.
 8. A read that can be asked for many takes an array, and a write's result states what the write left: "The round budget".
+9. A list whose length follows the instance's data is bounded where the copilot did not ask for it and paged where it did: "Bounded reads".

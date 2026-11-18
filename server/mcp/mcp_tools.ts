@@ -61,6 +61,7 @@ const TEMPLATE_TOOLS: AnyTool[] = getSharedToolsForMetrics(
   [],
   [],
   [],
+  [],
   structuredClone(EMPTY_HFA_TAXONOMY),
 );
 
@@ -87,7 +88,7 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
         return [
           `FASTR Analytics instance "${grounding.instanceName}" — health-facility data analysis over the instance's pinned results package.`,
           NO_PIN_MESSAGE,
-          "Until a package is pinned, the package tools (get_available_metrics, get_metric_data) cannot answer. The reference tools (get_reference_docs, get_reference_doc) still work.",
+          "Until a package is pinned, the package tools (get_available_metrics, get_dimension_values, get_metric_data) cannot answer. The reference tools (get_reference_docs, get_reference_doc) still work.",
         ].join("\n\n");
       }
       const ctx = await resolvePackageContext(principal, runId);
@@ -101,7 +102,7 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
         ...buildDataCoverageSections(grounding),
         ...buildAiContextSections(grounding.aiContext),
         "",
-        "get_available_metrics and get_metric_data read all data in the package. Discover metric ids with get_available_metrics; never invent them.",
+        "get_available_metrics, get_dimension_values and get_metric_data read all data in the package. Discover metric ids with get_available_metrics and the values a filter takes with get_dimension_values; never invent either.",
         "",
         "---",
         "",
@@ -114,13 +115,13 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
         currentDate: isoDateToday(),
         toolCatalog: buildToolCatalog(tools),
         roleAndPurpose:
-          "You are an AI assistant helping users explore and analyze the health data in this instance's pinned results package. You can list metrics and query metric data (CSV), and read the FASTR methodology and reference docs. Everything is read-only.",
+          "You are an AI assistant helping users explore and analyze the health data in this instance's pinned results package. You can list metrics, look up the values of their dimensions, query metric data (CSV), and read the FASTR methodology and reference docs. Everything is read-only.",
         extraCorePrinciples: [],
       });
     },
   });
 
-  // The 2 package tools, bound: the outer tool is the boot-time template
+  // The 3 package tools, bound: the outer tool is the boot-time template
   // (static schema); resolve() runs per call, reads the pin, and hands back
   // the inner tool from that package's context, authorization (an approved
   // user) runs inside resolvePackageContext on every cold resolve,

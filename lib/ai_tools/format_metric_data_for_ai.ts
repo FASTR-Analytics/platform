@@ -205,6 +205,27 @@ function toStr(val: TranslatableString): string {
   return val.en;
 }
 
+export function metricIdentityLines(metric: MetricWithStatus): string[] {
+  return [
+    `**Metric ID (metricId):** ${metric.id}`,
+    `**Metric Label:** ${metric.label}${
+      metric.variantLabel ? ` [${metric.variantLabel}]` : ""
+    }`,
+  ];
+}
+
+// The metric's full range, whatever a read's own filters: null = the metric
+// is not time-indexed.
+export function periodCoverageLine(
+  periodCoverage: PeriodBounds | null,
+): string {
+  return periodCoverage === null
+    ? "**Period coverage (all data for this metric):** not time-indexed"
+    : `**Period coverage (all data for this metric):** ${
+      inferPeriodFormatFromValue(periodCoverage.min) ?? "unknown"
+    } ${periodCoverage.min} to ${periodCoverage.max}`;
+}
+
 function formatItemsAsMarkdown(
   itemsHolder: ItemsHolderPresentationObject,
   metric: MetricWithStatus,
@@ -222,12 +243,7 @@ function formatItemsAsMarkdown(
   lines.push("# METRIC DATA");
   lines.push("=".repeat(80));
   lines.push("");
-  lines.push(`**Metric ID (metricId):** ${metric.id}`);
-  lines.push(
-    `**Metric Label:** ${metric.label}${
-      metric.variantLabel ? ` [${metric.variantLabel}]` : ""
-    }`,
-  );
+  lines.push(...metricIdentityLines(metric));
   if (metric.formatAs === "indicator") {
     lines.push(
       "**Format:** varies by indicator — each value is in its own indicator's format (percent values are 0-1 fractions; rate_per_10k values are written in the CSV already scaled to counts per 10,000; per-indicator formats are listed in the Dimension Summary below)",
@@ -295,13 +311,7 @@ function formatItemsAsMarkdown(
   }
 
   if (periodCoverage !== undefined) {
-    lines.push(
-      periodCoverage === null
-        ? "**Period coverage (all data for this metric):** not time-indexed"
-        : `**Period coverage (all data for this metric):** ${
-          inferPeriodFormatFromValue(periodCoverage.min) ?? "unknown"
-        } ${periodCoverage.min} to ${periodCoverage.max}`,
-    );
+    lines.push(periodCoverageLine(periodCoverage));
     lines.push("");
   }
 

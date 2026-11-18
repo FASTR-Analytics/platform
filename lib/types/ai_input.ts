@@ -52,7 +52,7 @@ export const AiMetricQuerySchema = z.object({
     .array(aiFilterElementSchema)
     .optional()
     .describe(
-      "Optional: Array of filters to limit which data is displayed. Each filter has 'disOpt' (dimension name) and 'values' (array of values to include). Values must exist in the data.",
+      "Optional: Array of filters to limit which data is displayed. Each filter has 'disOpt' (dimension name) and 'values' (array of value ids to include). get_dimension_values lists a dimension's values.",
     ),
   // EXCEPTION: startDate/endDate is a simpler abstraction than full periodFilter.
   // AI provides dates in flexible format (YYYY or YYYYMM), system converts using
@@ -72,6 +72,34 @@ export const AiMetricQuerySchema = z.object({
   valuesFilter: configDStrict.shape.valuesFilter
     .describe(
       "Optional: Array of value property names to include in the results. If omitted, all value properties are returned. Use the value property names shown by get_available_metrics.",
+    ),
+});
+
+export const AiDimensionValuesQuerySchema = z.object({
+  metricId: z
+    .string()
+    .describe(
+      "The metric whose dimensions to list, by the id get_available_metrics gives.",
+    ),
+  disOpt: configDStrict.shape.disaggregateBy.element.shape.disOpt
+    .optional()
+    .describe(
+      "Optional: one dimension of the metric, to list all its values in pages of 500. Omit to list every dimension with its count.",
+    ),
+  search: z
+    .array(z.string())
+    .min(1)
+    .optional()
+    .describe(
+      "Optional: terms to find values by. A value matches when its line, label and facts included, holds every word of one term, case and accents ignored. Without disOpt, every dimension is searched.",
+    ),
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe(
+      "Optional, with disOpt only: how many values to skip (matching values, with search). Each page names the offset of the next.",
     ),
 });
 
@@ -126,14 +154,14 @@ export const AiFigureFromMetricSchema = z.object({
     .string()
     .optional()
     .describe(
-      "REQUIRED when the preset is marked `REQUIRES selectedReplicant` in get_available_metrics; the value is one value of the dimension named there (e.g. 'anc1'), as listed by get_metric_data. Omit otherwise.",
+      "REQUIRED when the preset is marked `REQUIRES selectedReplicant` in get_available_metrics; the value is the id of one value of the dimension named there (e.g. 'anc1'), as get_dimension_values lists it. Omit otherwise.",
     ),
   // DERIVED from storage schema (same as AiMetricQuerySchema)
   filters: z
     .array(aiFilterElementSchema)
     .optional()
     .describe(
-      "Optional: Filters to limit which data is displayed. Each filter has 'disOpt' (dimension name from the preset's 'filters:' list in get_available_metrics) and 'values' (array of values to include).",
+      "Optional: Filters to limit which data is displayed. Each filter has 'disOpt' (dimension name from the preset's 'filters:' list in get_available_metrics) and 'values' (array of value ids to include, as get_dimension_values lists them).",
     ),
   valuesFilter: configDStrict.shape.valuesFilter
     .describe(
@@ -541,6 +569,9 @@ export const AiSlideUpdateSchema = z
 
 export type AiTextBlock = z.infer<typeof AiTextBlockSchema>;
 export type AiMetricQuery = z.infer<typeof AiMetricQuerySchema>;
+export type AiDimensionValuesQuery = z.infer<
+  typeof AiDimensionValuesQuerySchema
+>;
 export type AiFigureFromMetric = z.infer<typeof AiFigureFromMetricSchema>;
 export type AiContentBlockInput = z.infer<typeof AiContentBlockInputSchema>;
 export type AiContentSlideInput = z.infer<typeof AiContentSlideSchema>;

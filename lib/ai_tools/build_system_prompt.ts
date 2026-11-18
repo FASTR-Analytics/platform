@@ -13,7 +13,10 @@ import type { RunHmisIndicator } from "../types/run_manifest.ts";
 import type { GeoJsonMapSummary } from "../types/geojson_maps.ts";
 import type { FacilityFamily } from "../types/structure.ts";
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
-import { describeIndicatorFacts } from "./format_metric_data_for_ai.ts";
+import {
+  describeHmisIndicatorLine,
+  HMIS_INDICATOR_LINE_SHAPE,
+} from "./format_dimension_values_for_ai.ts";
 import type { ScopeDefinition } from "../types/scope.ts";
 import { MODULE_FAMILY_ORDER } from "../group_metrics.ts";
 import {
@@ -291,10 +294,10 @@ export function buildPackageGroundingSections(
   if (grounding.hmisIndicators.length > 0) {
     sections.push("");
     sections.push(
-      `**HMIS indicators (${grounding.hmisIndicators.length}):** id: label [format; direction; thresholds in display units; target] = formula over counts and population types (computed indicators only). Read every value against its declared direction.`,
+      `**HMIS indicators (${grounding.hmisIndicators.length}):** ${HMIS_INDICATOR_LINE_SHAPE}. Read every value against its declared direction.`,
     );
     for (const ind of grounding.hmisIndicators) {
-      sections.push(describeHmisIndicatorForPrompt(ind));
+      sections.push(`- ${describeHmisIndicatorLine(ind)}`);
     }
   }
 
@@ -319,18 +322,6 @@ export function buildPackageGroundingSections(
     );
   }
   return sections;
-}
-
-// One prompt line per HMIS indicator: the facts the package declares for
-// it, nothing for a fact it lacks, so a legacy package prints `id: label`.
-function describeHmisIndicatorForPrompt(ind: RunHmisIndicator): string {
-  const facts = [
-    ...(ind.format_as ? [ind.format_as] : []),
-    ...describeIndicatorFacts(ind),
-  ];
-  const factText = facts.length > 0 ? ` [${facts.join("; ")}]` : "";
-  const formula = ind.expression ? ` = ${ind.expression}` : "";
-  return `- ${ind.id}: ${ind.label}${factText}${formula}`;
 }
 
 // ── The package block: the package in view, its scope and its grounding ──

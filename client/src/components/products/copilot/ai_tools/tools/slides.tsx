@@ -55,7 +55,7 @@ import {
 // package and scope: there is no figure library to point at, so every
 // figure block starts from a metric and one of that metric's presets.
 const CONTENT_BLOCKS_NOTE =
-  "\n\nA content block is one of:\n- from_metric: a figure built from a metric + one of its presets. IMPORTANT: always call get_metric_data FIRST to see available disaggregations, filters and time ranges. The figure resolves under the deck's results package and scope.\n- text: markdown content with autofit. IMPORTANT: Markdown tables are NOT allowed. To display tabular data, use a from_metric block with a table-type preset.\n- image: one of the instance's image assets, named by its file as get_image_assets lists it.";
+  "\n\nA content block is one of:\n- from_metric: a figure built from a metric + one of its presets. IMPORTANT: always call get_metric_data FIRST to see the data and its time range; get_dimension_values lists the values a filter or selectedReplicant takes. The figure resolves under the deck's results package and scope.\n- text: markdown content with autofit. IMPORTANT: Markdown tables are NOT allowed. To display tabular data, use a from_metric block with a table-type preset.\n- image: one of the instance's image assets, named by its file as get_image_assets lists it.";
 
 // The content checks a whole new slide must pass before it is converted.
 function validateAiSlideInput(slide: AiSlideInput): void {

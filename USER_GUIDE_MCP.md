@@ -22,15 +22,15 @@ No repo checkout, no local process, nothing to configure per product. **One conn
 
 ## What you get
 
-The `/mcp` endpoint is for **seeing results**: it exposes the FASTR AI Assistant's **shared** metric tools (the same tool definitions the in-app chat uses to query data) over the pinned package: **5 read-only tools, no writes**. Module internals (R scripts, logs, settings), product content (slide decks, reports and their figures) and the browser-only editor tools are **not** exposed. They are the in-app assistant's, belong to a product, or need a live browser tab.
+The `/mcp` endpoint is for **seeing results**: it exposes the FASTR AI Assistant's **shared** metric tools (the same tool definitions the in-app chat uses to query data) over the pinned package: **6 read-only tools, no writes**. Module internals (R scripts, logs, settings), product content (slide decks, reports and their figures) and the browser-only editor tools are **not** exposed. They are the in-app assistant's, belong to a product, or need a live browser tab.
 
-| Area      | Tools                                                   |
-| --------- | ------------------------------------------------------- |
-| Overview  | `get_overview` (call this first)                        |
-| Metrics   | `get_available_metrics`, `get_metric_data` (CSV output) |
-| Reference | `get_reference_docs`, `get_reference_doc`               |
+| Area      | Tools                                                                                                                    |
+| --------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Overview  | `get_overview` (call this first)                                                                                         |
+| Metrics   | `get_available_metrics`, `get_dimension_values` (the values a metric can be filtered by), `get_metric_data` (CSV output) |
+| Reference | `get_reference_docs`, `get_reference_doc`                                                                                |
 
-No tool takes a product or package id. The two metric tools, `get_available_metrics` and `get_metric_data`, read whatever package is pinned **right now** (an admin re-pinning moves the connector on the next call); the reference tools read the FASTR methodology and reference docs, not the package: `get_reference_docs` lists the app's own documents and the chapters of the FASTR methodology hub, and `get_reference_doc` reads one by the id the list gives. Reading the package needs an **approved** FASTR account with access to **all data**; global admins always have both. Otherwise the metric tools answer with one of two messages: "Your account is awaiting approval, which the results-package reads require. Ask an instance admin to approve it." or "Your account is limited to some scopes, and this connection reads all data in the results package. Ask an instance admin if you need it."
+No tool takes a product or package id. The three metric tools, `get_available_metrics`, `get_dimension_values` and `get_metric_data`, read whatever package is pinned **right now** (an admin re-pinning moves the connector on the next call); the reference tools read the FASTR methodology and reference docs, not the package: `get_reference_docs` lists the app's own documents and the chapters of the FASTR methodology hub, and `get_reference_doc` reads one by the id the list gives. Reading the package needs an **approved** FASTR account with access to **all data**; global admins always have both. Otherwise the metric tools answer with one of two messages: "Your account is awaiting approval, which the results-package reads require. Ask an instance admin to approve it." or "Your account is limited to some scopes, and this connection reads all data in the results package. Ask an instance admin if you need it."
 
 If **nothing is pinned**, `get_overview` still answers and says so; the package tools return the same message until an admin with `can_configure_data` pins a package under Results packages.
 

@@ -115,6 +115,7 @@ const PRODUCTS_VIEWS = ["products"] as const;
 // the registry narrows its view to these.
 export const COPILOT_TOOL_VIEWS = {
   get_available_metrics: COPILOT_PACKAGE_VIEWS,
+  get_dimension_values: COPILOT_PACKAGE_VIEWS,
   get_metric_data: COPILOT_PACKAGE_VIEWS,
   get_available_modules: COPILOT_PACKAGE_VIEWS,
   get_module_r_script: COPILOT_PACKAGE_VIEWS,
@@ -177,6 +178,7 @@ export const COPILOT_TOOL_REQUIREMENTS = {
   get_reference_docs: "none",
   get_reference_doc: "none",
   get_available_metrics: "none",
+  get_dimension_values: "none",
   get_metric_data: "none",
   get_available_modules: "none",
   get_module_r_script: "can_view_data",

@@ -170,16 +170,19 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - `lib/ai_tools/read_bounds.ts` (new)
 - `lib/ai_tools/format_dimension_values_for_ai.ts` (new)
 - `lib/ai_tools/format_value_list_for_ai.ts`
+- `lib/ai_tools/format_metric_data_for_ai.ts`
 - `lib/ai_tools/build_system_prompt.ts`
 - `lib/ai_tools/tools_metrics.ts`
 - `lib/ai_tools/copilot_catalogue.ts`
 - `lib/ai_tools/mod.ts`
 - `client/src/components/instance/copilot_tools.ts`
+- `client/src/components/products/copilot/ai_tools/tools/slides.tsx`
 - `server/mcp/context_cache.ts`
 - `server/mcp/mcp_tools.ts`
 - `server/mcp/mcp_endpoint.ts`
 - `server/tests/dimension_values_for_ai_test.ts` (new)
 - `server/tests/copilot_catalogue_test.ts`
+- `SYSTEM_08_results_packages.md`
 - `SYSTEM_13_ai_assistant.md`
 - `PROTOCOL_APP_AI_TOOLS.md`
 - `USER_GUIDE_MCP.md`

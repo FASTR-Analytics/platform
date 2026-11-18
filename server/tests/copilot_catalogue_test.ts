@@ -25,6 +25,7 @@ const GROUPS = {
   chat_wide: ["ask_user_questions", "get_reference_docs", "get_reference_doc"],
   package_reads: [
     "get_available_metrics",
+    "get_dimension_values",
     "get_metric_data",
     "get_available_modules",
   ],
