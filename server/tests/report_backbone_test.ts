@@ -235,6 +235,7 @@ const DRAFT: ReportBackboneDraftOutput = {
     "figuresNumbered",
     "captionsAbove",
     "captionsBold",
+    "noPageNumbers",
     "oneFigurePerSection",
     "justified",
     "coverFillsPage",
@@ -325,12 +326,12 @@ Deno.test("a draft becomes a checked backbone, and what does not fit is said", (
   const usual = backboneFromDraft({
     ...DRAFT,
     traits: [
-      ...DRAFT.traits.filter((t) => t !== "justified"),
+      // Page numbers unnamed either way: they stay.
+      ...DRAFT.traits.filter((t) => t !== "justified" && t !== "noPageNumbers"),
       "sectionHeadings",
       "introduction",
       "conclusion",
       "figureIntroSentence",
-      "pageNumbers",
     ],
   }).backbone;
   assertEquals(usual.structure?.headings, undefined);

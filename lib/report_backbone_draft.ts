@@ -47,7 +47,7 @@ export const REPORT_BACKBONE_DRAFT_TRAITS = [
   "figuresNumbered",
   "captionsAbove",
   "captionsBold",
-  "pageNumbers",
+  "noPageNumbers",
   "numberedSections",
   "sectionBars",
   "sectionHeadings",
@@ -151,7 +151,7 @@ MEASURE, do not guess: count the pages, the words on typical pages (body text, n
 Answer every field. "" or 0 or [] means the example has none of it, or it cannot be told.
 
 Fields:
-- traits: every one of these the example shows (leave out those it does not): figuresNumbered (figures and tables carry numbers, "Figure 3", "Tableau 2"); captionsAbove (their titles stand over them); captionsBold (the WHOLE caption is bold in the accent colour, not just its number); pageNumbers (the pages carry page numbers); numberedSections (the section headings carry numbers); sectionBars (the section headings are set as filled bars); sectionHeadings (the body has section headings, larger titles over its sections; leave it out when its only titles are the figure and table captions); introduction (an introduction section); conclusion (a conclusion or recommendations section); figureIntroSentence (a sentence before a figure announces it, "The chart below shows…"; leave it out when a caption follows the previous analysis directly); oneFigurePerSection (each section is one figure or table and its analysis); justified (the body text is justified, both edges straight); coverFillsPage (the cover is a page of its own); coverTitleCapitals (the cover title is set in capitals); signoffRight (the signature block stands at the right).
+- traits: every one of these the example shows (leave out those it does not): figuresNumbered (figures and tables carry numbers, "Figure 3", "Tableau 2"); captionsAbove (their titles stand over them); captionsBold (the WHOLE caption is bold in the accent colour, not just its number); noPageNumbers (NO page of the example carries a page number at all; leave it out when any does, or when you cannot tell); numberedSections (the section headings carry numbers); sectionBars (the section headings are set as filled bars); sectionHeadings (the body has section headings, larger titles over its sections; leave it out when its only titles are the figure and table captions); introduction (an introduction section); conclusion (a conclusion or recommendations section); figureIntroSentence (a sentence before a figure announces it, "The chart below shows…"; leave it out when a caption follows the previous analysis directly); oneFigurePerSection (each section is one figure or table and its analysis); justified (the body text is justified, both edges straight); coverFillsPage (the cover is a page of its own); coverTitleCapitals (the cover title is set in capitals); signoffRight (the signature block stands at the right).
 - name: a short name for the style, in the example's language ("Bulletin mensuel de district"). description: one line saying what kind of report it is.
 - pageColor, inkColor, accentColor: hex colours of the page, the body text and the accent the BODY uses (figure captions, headings, rules). A cover's own colours are asked for separately (coverBoxColor), so take the accent from the inner pages.
 - theme: the closest of these themes, chosen by the BODY TEXT's typeface first (the colours are set separately): a plain office sans (Arial, Calibri, Century Gothic, Helvetica, Verdana) is "default"; a condensed sans is "assessment"; a serif body is "editorial" or "broadsheet"; a serif headline over a sans body is "ministry" or "executive". The rest are designed looks an office document rarely has. The themes:
@@ -284,7 +284,9 @@ export function backboneFromDraft(
     if (fc.length > 0) report.framecolor = fc.join(" ");
   }
   if (has("captionsBold")) report.captionstyle = "bold";
-  if (!has("pageNumbers")) {
+  // Page numbers stay unless the example plainly has none: a trait the model
+  // fails to name must not take them away.
+  if (has("noPageNumbers")) {
     report.pagenumbers = "none";
     // No page number and no footer line: the foot of the page is empty.
     if (report.footer === undefined) report.footer = "none";
