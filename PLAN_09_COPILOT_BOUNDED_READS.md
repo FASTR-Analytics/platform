@@ -211,6 +211,7 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 **Surface.**
 
 - `lib/ai_tools/build_system_prompt.ts`
+- `lib/ai_tools/format_dimension_values_for_ai.ts`
 - `lib/ai_tools/format_metrics_list_for_ai.ts`
 - `lib/ai_tools/read_bounds.ts`
 - `lib/ai_tools/tools_metrics.ts`
@@ -218,6 +219,7 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - `client/src/components/instance/copilot/build_system_prompt.ts`
 - `client/src/components/instance/copilot/ai_debug_panel.tsx`
 - `server/tests/copilot_prompt_test.ts`
+- `server/tests/dimension_values_for_ai_test.ts`
 - `server/tests/format_metrics_list_for_ai_test.ts` (new)
 - `SYSTEM_11_viz_authoring.md`
 - `SYSTEM_13_ai_assistant.md`

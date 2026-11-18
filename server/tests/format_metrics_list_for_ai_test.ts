@@ -94,7 +94,7 @@ Deno.test("an HFA taxonomy over the inline cap writes the count, names the looku
   const text = hfaListing(hfaIndicators(n));
   assertStringIncludes(
     text,
-    `Indicators (hfa_indicator values): ${n}, more than ${AI_INLINE_LIST_MAX}, too many to list here. get_dimension_values with disOpt "hfa_indicator" and the id of an HFA metric below lists them, each with its measure, category, sub-category and service categories, and its search finds them by name or by a category id.`,
+    `Indicators (hfa_indicator values): ${n}, more than ${AI_INLINE_LIST_MAX}, too many to list here. get_dimension_values with disOpt "hfa_indicator" and the id of an HFA metric below lists them, each with its measure, category, sub-category, service categories and variant group, and its search finds them by name or by a category or variant group id.`,
   );
   assert(!text.includes("hfa_0"));
   assert(!text.includes("grouped by category › sub-category"));
@@ -138,7 +138,7 @@ Deno.test("a variant group's members are listed up to the inline cap and counted
   const counted = hfaListing(hfaIndicators(n, { variantGroupId: "grp" }));
   assertStringIncludes(
     counted,
-    `      [${n} indicators in this group, more than ${AI_INLINE_LIST_MAX}, too many to list here: get_dimension_values lists the by-variant metric's hfa_indicator values, the indicators with variant items]`,
+    `      [${n} indicators in this group, more than ${AI_INLINE_LIST_MAX}, too many to list here: get_dimension_values on the by-variant metric with disOpt "hfa_indicator" and search ["variant group grp"] lists them]`,
   );
   assert(!counted.includes("indicators in this group:"));
 });

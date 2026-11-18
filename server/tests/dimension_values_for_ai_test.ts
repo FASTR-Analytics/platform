@@ -297,7 +297,7 @@ Deno.test("an HMIS, an HFA and an ICEH indicator are each written with their fac
     "- opd: Outpatient visits",
   ]);
   assertEquals(section(text, "hfa_indicator"), [
-    "**hfa_indicator** (1 value), each line id: label [measure; category; sub-category; service categories]:",
+    "**hfa_indicator** (1 value), each line id: label [measure; category; sub-category; service categories; variant group]:",
     "- wat_01: Improved water [% of facilities; category infra; sub-category water; service categories hosp, phc]",
   ]);
   assertEquals(section(text, "iceh_indicator"), [
@@ -344,6 +344,41 @@ Deno.test("matching ignores case and accents and reads the facts", async () => {
     FACTS,
   );
   assertStringIncludes(byCategory, `(1 value; 1 match "maternal")`);
+});
+
+// The metrics listing names this search for a variant group whose members
+// are too many to list there.
+Deno.test("an HFA indicator's variant group is a fact, so a search lists one group's members", async () => {
+  const member = (id: string, variantGroupId: string | null) => ({
+    ...FACTS.hfaIndicators[0],
+    id,
+    label: `Indicator ${id}`,
+    variantGroupId,
+  });
+  const text = await lookup(
+    {
+      hfa_indicator: ok(
+        ["staff_1", "staff_2", "stock_1"].map((id) => ({
+          id,
+          label: `Indicator ${id}`,
+        })),
+      ),
+    },
+    { disOpt: "hfa_indicator", search: ["variant group staff"] },
+    {
+      ...NO_FACTS,
+      hfaIndicators: [
+        member("staff_1", "staff"),
+        member("staff_2", "staff"),
+        member("stock_1", "stock"),
+      ],
+    },
+  );
+  assertEquals(section(text, "hfa_indicator").slice(1), [
+    "Written: matching values 1 to 2 of 2.",
+    "- staff_1: Indicator staff_1 [% of facilities; category infra; sub-category water; service categories hosp, phc; variant group staff]",
+    "- staff_2: Indicator staff_2 [% of facilities; category infra; sub-category water; service categories hosp, phc; variant group staff]",
+  ]);
 });
 
 Deno.test("a dimension with no values and one that failed are written as that", async () => {

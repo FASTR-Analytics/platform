@@ -77,7 +77,7 @@ function valueWriter(disOpt: string, facts: IndicatorFactsForAI): ValueWriter {
     const byId = new Map(facts.hfaIndicators.map((i) => [i.id, i]));
     return {
       lineShape:
-        "id: label [measure; category; sub-category; service categories]",
+        "id: label [measure; category; sub-category; service categories; variant group]",
       write: (v) => {
         const ind = byId.get(v.id);
         const indFacts = ind === undefined ? [] : [
@@ -86,6 +86,9 @@ function valueWriter(disOpt: string, facts: IndicatorFactsForAI): ValueWriter {
           ...(ind.subCategoryId ? [`sub-category ${ind.subCategoryId}`] : []),
           ...(ind.serviceCategoryIds.length > 0
             ? [`service categories ${ind.serviceCategoryIds.join(", ")}`]
+            : []),
+          ...(ind.variantGroupId
+            ? [`variant group ${ind.variantGroupId}`]
             : []),
         ];
         return `${v.id}: ${v.label}${factsText(indFacts)}`;

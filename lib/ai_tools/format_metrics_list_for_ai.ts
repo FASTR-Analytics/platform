@@ -249,7 +249,7 @@ function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
         .map((i) => i.id);
       if (members.length > AI_INLINE_LIST_MAX) {
         lines.push(
-          `      [${members.length} indicators in this group, more than ${AI_INLINE_LIST_MAX}, too many to list here: get_dimension_values lists the by-variant metric's hfa_indicator values, the indicators with variant items]`,
+          `      [${members.length} indicators in this group, more than ${AI_INLINE_LIST_MAX}, too many to list here: get_dimension_values on the by-variant metric with disOpt "hfa_indicator" and search ["variant group ${group.id}"] lists them]`,
         );
       } else if (members.length > 0) {
         lines.push(`      [indicators in this group: ${members.join(", ")}]`);
@@ -266,7 +266,7 @@ function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
 
   if (tax.indicators.length > AI_INLINE_LIST_MAX) {
     lines.push(
-      `Indicators (hfa_indicator values): ${tax.indicators.length}, more than ${AI_INLINE_LIST_MAX}, too many to list here. get_dimension_values with disOpt "hfa_indicator" and the id of an HFA metric below lists them, each with its measure, category, sub-category and service categories, and its search finds them by name or by a category id.`,
+      `Indicators (hfa_indicator values): ${tax.indicators.length}, more than ${AI_INLINE_LIST_MAX}, too many to list here. get_dimension_values with disOpt "hfa_indicator" and the id of an HFA metric below lists them, each with its measure, category, sub-category, service categories and variant group, and its search finds them by name or by a category or variant group id.`,
     );
     lines.push("");
     return lines;
