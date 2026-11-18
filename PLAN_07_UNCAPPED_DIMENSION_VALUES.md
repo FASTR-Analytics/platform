@@ -101,6 +101,7 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 
 - `client/src/components/_shared/figure_editor/replicate_by_options.tsx`
 - `client/src/components/_shared/figure_editor/figure_editor.tsx`
+- `client/src/components/_shared/figure_editor/mod.ts` (the `ReplicateByOptionsSelect` re-export, which nothing imports)
 - `lib/resolve_effective_indicator_facts.ts` (the comment at 294 that names the `|| ""` feed)
 - `SYSTEM_09_viz_query_cache.md` (the options-caller count at 64)
 - `SYSTEM_11_viz_authoring.md`
@@ -194,4 +195,3 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 ## §6 Log
 
 - Step 2 replaced the `replicateBy` memo and `replicantPanel` with `replicantStrip`, `children()` over a `<Show when={getReplicateByProp(tempConfig)} keyed>`: `replicantPanel` returned early when there was no replicant (PROTOCOL_UI_SOLIDJS rules 1 and 6), the keyed `Show` memoises the dimension with `===`, so a filter edit that leaves it unchanged does not rebuild the strip, and `children()` resolves the `Show` so `FrameTop` gets no panel without a replicant.
-- Step 2 deleted the `ReplicateByOptionsSelect` re-export from `client/src/components/_shared/figure_editor/mod.ts`, outside the Surface: no folder imports it, and it had no importer before this step either.
