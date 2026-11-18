@@ -49,7 +49,6 @@ async function writeManifest(
     JSON.stringify({
       datasets: datasetTypes.map((datasetType) => ({
         datasetType,
-        lastUpdated: "t",
         info: {},
       })),
     }),

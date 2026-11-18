@@ -66,7 +66,9 @@ import {
 // 15: `geojsonMaps` stamps the boundary files a generation copied into
 // inputs/geojson/; null in every package written before the capture, since a
 // generation-time fact cannot be invented. Block 13.
-export const RUN_MANIFEST_SCHEMA_VERSION = 15;
+// 16: `datasets[]` entries carry no `lastUpdated`, the capture time no reader
+// consumes. Block 14.
+export const RUN_MANIFEST_SCHEMA_VERSION = 16;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([
@@ -149,12 +151,11 @@ export const runMetricAvailabilitySchema = z.object({
 });
 export type RunMetricAvailability = z.infer<typeof runMetricAvailabilitySchema>;
 
-// Inputs record per dataset family, captured at finalize. The raw manifest
+// Inputs record per dataset family, captured by generate_run/prepare_inputs.ts. The raw manifest
 // row: `info` is opaque here, written per family as a RunDataset*Info
 // (lib/types/run_datasets.ts), and readers consume its RunDataset summary.
 export const runManifestDatasetSchema = z.object({
   datasetType: z.string(),
-  lastUpdated: z.string(),
   info: z.unknown(),
 });
 export type RunManifestDataset = z.infer<typeof runManifestDatasetSchema>;

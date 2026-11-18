@@ -57,6 +57,10 @@
 //      metrics[].datasetFamily recomputed from the module's family.
 //  12. indicators[] sort_order is the rank within the entry's dimension
 //      (schema v14): block 1 recomputes it, so this block only stamps.
+//  13. `geojsonMaps` carried forward as null for a package written before
+//      the boundary-file capture (schema v15).
+//  14. datasets[] entries lose `lastUpdated`, the capture time no reader
+//      consumes (schema v16). Key delete, no recompute.
 //
 // The input mirrors' own blocks are listed in input_transform.ts
 // (INPUT TRANSFORM BLOCKS); they run behind this file's version gate.
@@ -367,6 +371,14 @@ async function transformRunManifest(
   //     a package written before the capture carries null.
   if (m.geojsonMaps === undefined) m.geojsonMaps = null;
   m.manifestSchemaVersion = 15;
+
+  // 14. A dataset entry's `lastUpdated`: no reader consumes it. Idempotent.
+  if (Array.isArray(m.datasets)) {
+    for (const dataset of m.datasets as Record<string, unknown>[]) {
+      delete dataset.lastUpdated;
+    }
+  }
+  m.manifestSchemaVersion = 16;
 
   const validated = runManifestSchema.parse(m);
   // The schema deliberately accepts ANY integer version: it has to, so a

@@ -111,7 +111,10 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "30" (2026-11-18): possible values carry every value of a dimension.
 // metric_info and replicant_opts "29" entries hold a `too_many_values` status
 // for a dimension over 500 values, which no code handles.
-const PO_CACHE_VERSION = "30";
+// "31" (2026-11-18): manifest schema v16 (datasets[] entries carry no
+// `lastUpdated`). No cached payload carries a dataset entry; the bump is the
+// protocol's per-block rule.
+const PO_CACHE_VERSION = "31";
 
 // The immutable run id is the uniqueness scope for the four data caches, so two
 // products on the same run share entries. The scopeToken rides beside it: the

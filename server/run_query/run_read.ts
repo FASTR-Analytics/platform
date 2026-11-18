@@ -8,6 +8,7 @@ import {
   composeHfaIndicatorLabel,
   convertPeriodValue,
   type DatasetType,
+  datasetTypeSchema,
   type DisaggregationOption,
   disaggregationOption,
   type GenericLongFormFetchConfig,
@@ -425,18 +426,14 @@ export function getRunDatasetsFromManifest(
   manifest: RunManifest,
 ): RunDataset[] {
   return manifest.datasets.map((d): RunDataset => {
-    if (d.datasetType === "hmis") {
+    const datasetType = datasetTypeSchema.parse(d.datasetType);
+    if (datasetType === "hmis") {
       return {
-        datasetType: "hmis",
+        datasetType,
         versionId: hmisDatasetVersionIdSchema.parse(d.info).version.id,
       };
     }
-    if (d.datasetType === "hfa" || d.datasetType === "iceh") {
-      return { datasetType: d.datasetType };
-    }
-    throw new Error(
-      `Run manifest dataset of unknown type "${d.datasetType}"`,
-    );
+    return { datasetType };
   });
 }
 

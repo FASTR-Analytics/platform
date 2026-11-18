@@ -32,7 +32,6 @@ import {
 
 export type DatasetHfaRunCapture = {
   info: RunDatasetHfaInfo;
-  lastUpdated: string;
   facilities: RunFacilityRow[];
   variables: { variable_id: string; example_values: string }[];
   sentinelValues: {
@@ -245,7 +244,6 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       success: true,
       data: {
         info,
-        lastUpdated: new Date().toISOString(),
         facilities,
         variables: variables.map((v) => ({
           variable_id: v.variable_id,

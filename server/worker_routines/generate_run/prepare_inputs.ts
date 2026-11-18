@@ -158,7 +158,6 @@ export async function prepareRunInputs(
     const capture = res.data;
     datasets.push({
       datasetType: "hmis",
-      lastUpdated: capture.lastUpdated,
       info: capture.info,
     });
     // The v2 indicators mirror: the WHOLE HMIS dictionary, resolved. The
@@ -198,7 +197,6 @@ export async function prepareRunInputs(
     const capture = res.data;
     datasets.push({
       datasetType: "hfa",
-      lastUpdated: capture.lastUpdated,
       info: capture.info,
     });
     await writeInputJson(
@@ -277,7 +275,6 @@ export async function prepareRunInputs(
     const capture = res.data;
     datasets.push({
       datasetType: "iceh",
-      lastUpdated: capture.lastUpdated,
       info: capture.info,
     });
     await writeInputJson(

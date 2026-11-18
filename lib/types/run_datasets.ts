@@ -1,14 +1,13 @@
 import type { DatasetHmisVersion } from "./dataset_hmis.ts";
 
 // RunDataset is what a reader of a results package carries of each dataset
-// it captured: the family and, for HMIS, the import version (the authoring
+// it captured: the family and, for HMIS, the import version's id (the authoring
 // context and the package grounding, read from the run manifest by
 // getRunDatasetsFromManifest, never from a database).
 //
 // The RunDataset*Info types are what capture writes into a manifest dataset
 // entry's `info`: what was exported into the run workspace at generation
-// time, plus the metadata snapshots a reader compares against the live
-// instance to judge staleness.
+// time, plus the instance's metadata stamps at capture time.
 
 export type RunDataset =
   | { datasetType: "hmis"; versionId: number }
@@ -27,8 +26,7 @@ export type RunDatasetHmisInfo = {
 };
 
 export type RunDatasetHfaInfo = {
-  // Optional because captures that predate staleness tracking stored '{}',
-  // and the client compares missing-vs-present uniformly.
+  // Optional because captures that predate staleness tracking stored '{}'.
   hfaCacheHash?: string;
   hfaIndicatorsVersion?: string;
   structureLastUpdated?: string;

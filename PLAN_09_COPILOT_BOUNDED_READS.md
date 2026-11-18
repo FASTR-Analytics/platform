@@ -372,9 +372,19 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - `lib/types/run_manifest.ts`
 - `lib/ai_tools/build_system_prompt.ts`
 - `server/run_query/run_read.ts`
+- `server/runs/capture_inputs/hmis.ts`
+- `server/runs/capture_inputs/hfa.ts`
+- `server/runs/capture_inputs/iceh.ts`
+- `server/worker_routines/generate_run/prepare_inputs.ts`
+- `server/runs/manifest_transform.ts`
+- `server/routes/caches/visualizations.ts`
 - `client/src/state/instance/t2_run_authoring_context.ts`
 - `server/tests/copilot_prompt_test.ts`
+- `server/tests/run_manifest_transform_test.ts`
+- `server/tests/runs_summary_families_test.ts`
+- `SYSTEM_03_realtime_cache.md`
 - `SYSTEM_06_ingestion.md`
+- `SYSTEM_08_results_packages.md`
 - `SYSTEM_09_viz_query_cache.md`
 
 **Deliverable.**
@@ -409,10 +419,10 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 **Deliverable.**
 
 - `RunDatasetHmisInfo.version` is the four fields of ruling 16, and capture writes those four.
-- Manifest block 14 deletes `info.version.stagingResult` from every HMIS entry of `datasets[]` and stamps version 16. It touches no other key of `info`. The file header's block list names it, and names block 13, which the list omits today.
-- `RUN_MANIFEST_SCHEMA_VERSION` is 16, with its history line. `PO_CACHE_VERSION` takes its next value, with its history line.
-- The test file pins: a version 15 manifest whose HMIS entry holds a staging result loses it and keeps the version's id, its row counts and every other key of `info`; a manifest with no HMIS entry is stamped and otherwise unchanged; a second pass changes nothing.
-- Docs. SYSTEM_08's `manifestSchemaVersion` paragraph states version 16 and what an HMIS entry holds. SYSTEM_03 states the current `PO_CACHE_VERSION`. SYSTEM_06, where it says what capture records of the dataset version.
+- Manifest block 15 deletes `info.version.stagingResult` from every HMIS entry of `datasets[]` and stamps version 17. It touches no other key of `info`. The file header's block list names it.
+- `RUN_MANIFEST_SCHEMA_VERSION` is 17, with its history line. `PO_CACHE_VERSION` takes its next value, with its history line.
+- The test file pins: a version 16 manifest whose HMIS entry holds a staging result loses it and keeps the version's id, its row counts and every other key of `info`; a manifest with no HMIS entry is stamped and otherwise unchanged; a second pass changes nothing.
+- Docs. SYSTEM_08's `manifestSchemaVersion` paragraph states version 17 and what an HMIS entry holds. SYSTEM_03 states the current `PO_CACHE_VERSION`. SYSTEM_06, where it says what capture records of the dataset version.
 
 **Not in this step.** The other stamps of `info` (`totalRows`, `structureLastUpdated`, the indicator stamps, the HFA and ICEH hashes). `runs.summary`. The import ledger.
 
@@ -441,10 +451,10 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - The manifest schema's `indicators` is an array of `{ family, indicators }`, and its type and schema are named for a family's catalog, not a module's.
 - `buildRunIndicatorCatalog` as ruling 18a, called by finalize and by manifest block 1 as ruling 18b. The transform has one function that gives a module's family, from its blob or from the frozen legacy map, and block 1 and block 11 both call it.
 - `getIndicatorMetadataFromRun` returns the catalog of the module's family, and an empty list for a module the manifest does not hold.
-- Manifest block 15 stamps version 17 and does nothing else. The file header's block list names it.
-- `RUN_MANIFEST_SCHEMA_VERSION` is 17, with its history line. `PO_CACHE_VERSION` takes its next value, with its history line.
+- Manifest block 16 stamps version 18 and does nothing else. The file header's block list names it.
+- `RUN_MANIFEST_SCHEMA_VERSION` is 18, with its history line. `PO_CACHE_VERSION` takes its next value, with its history line.
 - Leftovers deleted: `getDatasetTypes` and `isHfaScriptGeneration` in `indicator_catalog.ts`, when nothing else calls them.
-- The test file pins: a version 16 manifest with three HMIS modules and one HFA module comes out with two entries, each catalog equal to what its modules held; a blob with no `family` takes its family from the frozen map in block 1; a module id outside the map throws; `getIndicatorMetadataFromRun` returns the same catalog for two HMIS modules and an empty list for an unknown module; a second pass changes nothing.
+- The test file pins: a version 17 manifest with three HMIS modules and one HFA module comes out with two entries, each catalog equal to what its modules held; a blob with no `family` takes its family from the frozen map in block 1; a module id outside the map throws; `getIndicatorMetadataFromRun` returns the same catalog for two HMIS modules and an empty list for an unknown module; a second pass changes nothing.
 - Docs. SYSTEM_08: the format's account of `indicators[]` and the `manifestSchemaVersion` paragraph. SYSTEM_09 "Disaggregation options": the indicator metadata paragraph, which calls the catalog per-module. SYSTEM_03: the current `PO_CACHE_VERSION`. PROTOCOL_APP_MIGRATIONS.md "Run Manifest Transforms": the sentence that gives `buildRunIndicatorCatalog`'s branch on `scriptGenerationType` as its example of app code in a recompute.
 
 **Not in this step.** `hmisIndicators`, the manifest's other list of the dictionary. What a read carries of the catalog (step 10).
@@ -550,3 +560,4 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 
 - Steps 2 and 3: the floor's `./run` was replaced by booting `main.ts` alone with `PORT=8099` against the running containers, because Tim's own `./run` holds port 8000 and `./run` replaces the `pg` and `valkey-local` containers under it.
 - Step 3: the header's format line is one function for every read, so a `percent` metric's read states how its values are written, as an indicator read whose rows share `percent` does.
+- Step 7: deleting `dateExported` left the manifest's `datasets[].lastUpdated` unread, so step 7 deletes it under the leftover rule, with manifest block 14, version 16 and `PO_CACHE_VERSION` "31". Steps 8 and 9 take blocks 15 and 16 and versions 17 and 18.

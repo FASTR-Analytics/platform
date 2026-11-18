@@ -1,12 +1,15 @@
-// Pins manifest blocks 9, 11 and 13 through transformRunManifestFile over a
-// scratch package on disk: datasets[].info leaves the transform holding
+// Pins manifest blocks 9, 11, 13 and 14 through transformRunManifestFile over
+// a scratch package on disk: datasets[].info leaves the transform holding
 // exactly the keys lib/types/run_datasets.ts types, every module blob and
 // metric carries the declared presentation facts, a package written before
-// the geojson capture carries a null stamp, and a second pass writes nothing.
+// the geojson capture carries a null stamp, a dataset entry carries no
+// `lastUpdated`, and a second pass writes nothing.
+// Also pins getRunDatasetsFromManifest: each entry read as its family and,
+// for HMIS, its import version id.
 //
 //   deno test -A --env-file server/tests/run_manifest_transform_test.ts
 
-import { assert, assertEquals, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertRejects, assertThrows } from "@std/assert";
 import { join } from "@std/path";
 import {
   RUN_MANIFEST_SCHEMA_VERSION,
@@ -15,14 +18,22 @@ import {
   type RunModule,
 } from "lib";
 import { transformRunManifestFile } from "../runs/manifest_transform.ts";
+import { getRunDatasetsFromManifest } from "../run_query/run_read.ts";
 
 const STORED_VERSION = 10;
 
 const HMIS_VERSION = { id: 14, nRowsTotalImported: 0 };
 
-function scratchManifest(
-  overrides: Partial<Pick<RunManifest, "datasets" | "modules" | "metrics">>,
-): RunManifest {
+// A dataset entry as a package written before schema v16 stores it.
+type StoredDatasetEntry = RunManifest["datasets"][number] & {
+  lastUpdated?: string;
+};
+
+type ScratchOverrides = Partial<Pick<RunManifest, "modules" | "metrics">> & {
+  datasets?: StoredDatasetEntry[];
+};
+
+function scratchManifest(overrides: ScratchOverrides): RunManifest {
   return {
     manifestSchemaVersion: STORED_VERSION,
     runId: "00000000-0000-4000-8000-000000000000",
@@ -52,7 +63,7 @@ function scratchManifest(
 }
 
 async function writeScratchPackage(
-  overrides: Partial<Pick<RunManifest, "datasets" | "modules" | "metrics">>,
+  overrides: ScratchOverrides,
 ): Promise<string> {
   const runDir = await Deno.makeTempDir({ prefix: "run_manifest_transform_" });
   await Deno.writeTextFile(
@@ -222,6 +233,63 @@ Deno.test("a stamp already under its current name is kept, and a package written
   assertEquals(outcome.manifest.datasets[0].info, current);
 });
 
+Deno.test("block 14 deletes every dataset entry's lastUpdated and keeps its type and info", async () => {
+  const hmisInfo = { version: HMIS_VERSION, totalRows: 3 };
+  const runDir = await writeScratchPackage({
+    datasets: [
+      {
+        datasetType: "hmis",
+        lastUpdated: "2026-11-01T00:00:00.000Z",
+        info: hmisInfo,
+      },
+      {
+        datasetType: "iceh",
+        lastUpdated: "2026-11-01T00:00:00.000Z",
+        info: { icehCacheHash: "fff" },
+      },
+    ],
+  });
+  const outcome = await transformRunManifestFile(runDir);
+  assert(outcome.kind === "ok");
+  assertEquals((await readStoredManifest(runDir)).datasets, [
+    { datasetType: "hmis", info: hmisInfo },
+    { datasetType: "iceh", info: { icehCacheHash: "fff" } },
+  ]);
+  const second = await transformRunManifestFile(runDir);
+  assert(second.kind === "ok");
+  assertEquals(second.transformed, false);
+});
+
+Deno.test("getRunDatasetsFromManifest reads each entry's family and the HMIS version id", () => {
+  assertEquals(
+    getRunDatasetsFromManifest(scratchManifest({
+      datasets: [
+        {
+          datasetType: "hmis",
+          info: {
+            version: {
+              ...HMIS_VERSION,
+              stagingResult: { periodIndicatorStats: [] },
+            },
+          },
+        },
+        { datasetType: "hfa", info: {} },
+        { datasetType: "iceh", info: { icehCacheHash: "h" } },
+      ],
+    })),
+    [
+      { datasetType: "hmis", versionId: 14 },
+      { datasetType: "hfa" },
+      { datasetType: "iceh" },
+    ],
+  );
+  assertThrows(() =>
+    getRunDatasetsFromManifest(scratchManifest({
+      datasets: [{ datasetType: "other", info: {} }],
+    }))
+  );
+});
+
 Deno.test("block 11 stamps a legacy blob from the frozen map and its metrics from the module", async () => {
   const runDir = await writeScratchPackage({
     modules: [
@@ -296,7 +364,10 @@ Deno.test("block 13 gives a v14 package a null geojson stamp, once", async () =>
   const outcome = await transformRunManifestFile(runDir);
   assert(outcome.kind === "ok");
   assert(outcome.transformed);
-  assertEquals(outcome.manifest.manifestSchemaVersion, 15);
+  assertEquals(
+    outcome.manifest.manifestSchemaVersion,
+    RUN_MANIFEST_SCHEMA_VERSION,
+  );
   assertEquals(outcome.manifest.geojsonMaps, null);
   const second = await transformRunManifestFile(runDir);
   assert(second.kind === "ok");
