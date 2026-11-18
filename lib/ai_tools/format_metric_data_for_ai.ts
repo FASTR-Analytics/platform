@@ -243,6 +243,8 @@ function formatItemsAsMarkdown(
   const rowFormats = itemsHolder.status === "ok"
     ? [...new Set(itemsHolder.items.map(formatFor))]
     : [];
+  const overCeiling = itemsHolder.status === "ok" &&
+    itemsHolder.items.length > AI_DATA_ROWS_MAX;
 
   lines.push("# METRIC DATA");
   lines.push("=".repeat(80));
@@ -251,6 +253,7 @@ function formatItemsAsMarkdown(
   lines.push(
     formatLine(
       metric.formatAs === "indicator" ? rowFormats : [metric.formatAs],
+      overCeiling,
     ),
   );
 
@@ -433,7 +436,7 @@ function formatItemsAsMarkdown(
 
   // No partial rows: a comparison over some of the rows would be read as a
   // claim about all of them.
-  if (items.length > AI_DATA_ROWS_MAX) {
+  if (overCeiling) {
     lines.push(
       `**STATUS: ${items.length} rows, more than the ${AI_DATA_ROWS_MAX} a read writes, so no rows are written.** Add a filter, narrow the period or remove a disaggregation to read fewer rows. get_dimension_values with metricId "${metric.id}" lists a dimension's values to filter by.`,
     );
@@ -466,9 +469,13 @@ const FORMAT_UNITS: Partial<Record<IndicatorFormat, string>> = {
   rate_per_10k: "written already scaled to counts per 10,000",
 };
 
-// The rows' one format, or that the CSV's format column gives each row's.
-// An "indicator" metric with no rows has no format to state.
-function formatLine(formats: IndicatorFormat[]): string {
+// The rows' one format, or that the CSV's format column gives each row's, or,
+// when no row is written, the formats the rows hold. An "indicator" metric
+// with no rows has no format to state.
+function formatLine(
+  formats: IndicatorFormat[],
+  rowsOmitted: boolean,
+): string {
   if (formats.length === 0) {
     return "**Format:** varies by indicator";
   }
@@ -477,6 +484,9 @@ function formatLine(formats: IndicatorFormat[]): string {
     return `**Format:** ${formats[0]}${
       unit === undefined ? "" : ` (values are ${unit})`
     }`;
+  }
+  if (rowsOmitted) {
+    return `**Format:** varies by indicator (${formats.join(", ")})`;
   }
   const notes = formats.flatMap((f) => {
     const unit = FORMAT_UNITS[f];

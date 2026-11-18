@@ -196,7 +196,6 @@ Deno.test("the time range in data is the rows' own, not the window asked for", a
   assert(!text.includes("202312"), text);
 });
 
-// Fifty indicators by as many areas as the rows need, fifty rows to an area.
 function rowsOf(n: number): JsonArrayItem[] {
   return Array.from({ length: n }, (_, i) => ({
     indicator_common_id: `ind_${i % 50}`,
@@ -226,6 +225,25 @@ Deno.test("a read of one row over the ceiling writes its header, its counts and 
     text.split("\n").at(-1),
     `**STATUS: ${n} rows, more than the ${AI_DATA_ROWS_MAX} a read writes, so no rows are written.** Add a filter, narrow the period or remove a disaggregation to read fewer rows. get_dimension_values with metricId "${METRIC.id}" lists a dimension's values to filter by.`,
   );
+});
+
+Deno.test("an indicator read over the ceiling whose rows hold two formats names them and no format column", async () => {
+  const text = await indicatorRead(
+    Array.from({ length: AI_DATA_ROWS_MAX + 1 }, (_, i) => ({
+      indicator_common_id: i % 2 === 0 ? "anc1" : "mmr",
+      period_id: 200001 + i,
+      value: 0.5,
+    })),
+    [
+      { id: "anc1", label: "ANC 1", format_as: "percent" },
+      { id: "mmr", label: "Maternal deaths", format_as: "rate_per_10k" },
+    ],
+  );
+  assert(
+    text.includes("**Format:** varies by indicator (percent, rate_per_10k)"),
+    text,
+  );
+  assert(!text.includes("format column"), text);
 });
 
 const INDICATOR_METRIC = {
