@@ -171,7 +171,7 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 
 **Deliverable.**
 
-- The three possible-values queries have no `LIMIT`. The blank sentinel still moves last, and its comment states only the SQL reason.
+- The three possible-values queries have no `LIMIT` and no `ORDER BY`: `compareOptionIds` orders the list. The blank sentinel still moves last, and its comment states why: the comparator puts it first, and the first value is the default replicant.
 - `MAX_REPLICANT_OPTIONS`, `REPLICANT_OPTIONS_QUERY_LIMIT` and `exceedsMaxReplicantOptions` are deleted. `consts.ts` holds `MAX_ITEMS` and `GRID_MAX_CELLS`.
 - `too_many_values` is gone from `DisaggregationPossibleValuesStatus`, `RunReplicantOptions` and `ExplorePin["status"]`, and from every branch that handled it: `buildResultsValueInfo`, `readRunReplicantOptions`, the editor filter, `ReplicantOptionsMessage`, the custom value order's `NOTE_TOO_MANY` and its branch, `resolvePin`, the toolbar's `CapMessage` and its `Match`, and the instance copilot's `formatResolvedSettings`.
 - Comments that give the cap as a reason state the reason that remains: the `indicatorFormats` comment ([presentation_objects.ts:86](lib/types/presentation_objects.ts#L86)) cites the `error` and `no_values_available` holes; the status-loop comment ([results_value_info_core.ts:16](server/server_only_funcs_presentation_objects/results_value_info_core.ts#L16)); the `ExplorePin` comment ([explore_query.ts:89](lib/explore_query.ts#L89)); the custom value order's `OrderRow` comment; and the two fan-out comments of §1 say what the read is, the replicant dimension's value list under the figure's filters and period.

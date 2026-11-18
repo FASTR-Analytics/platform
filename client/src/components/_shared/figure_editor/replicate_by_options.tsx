@@ -34,7 +34,7 @@ import { trackDeep } from "@solid-primitives/deep";
 
 // Replicant picker options with Nigeria admin-area labels cleaned for display
 // (raw id/value untouched). Re-sorts by cleaned label only when cleaning
-// changed something, so the server's ORDER BY ordering is preserved otherwise.
+// changed something, so the server's order is kept otherwise.
 function cleanedReplicantSelectOptions(
   possibleValues: { id: string; label: string }[],
   replicateBy: DisaggregationOption,
