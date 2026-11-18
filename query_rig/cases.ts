@@ -861,7 +861,7 @@ const EXPLICIT_CASES: Case[] = [
     entry: "possibleValues",
     disOpt: "source_indicator",
     fetchConfig: { ...base(), groupBys: [] },
-    // The WHOLE order is ours: possible_values_core re-sorts in TS with a
+    // The WHOLE order is ours: possible_values_core sorts in TS with a
     // hand-rolled comparator (code point over a case-folded diacritic-stripped
     // key, numeric digit runs), so neither the DB image's collation nor the
     // host runtime's ICU version may move these. " x" sorts FIRST: the
