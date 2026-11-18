@@ -254,6 +254,7 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - `lib/ai_tools/format_metric_data_for_ai.ts`
 - `client/src/generate_visualization/assert_replicant_valid.ts`
 - `client/src/components/products/copilot/_shared/format_figure_config_for_ai.ts`
+- `client/src/components/products/copilot/ai_tools/tools/figure_editor.ts`
 - `client/src/components/products/copilot/ai_tools/tools/get_slides.ts`
 - `client/src/components/products/copilot/ai_tools/tools/report_editor.ts`
 - `server/tests/format_value_list_for_ai_test.ts`

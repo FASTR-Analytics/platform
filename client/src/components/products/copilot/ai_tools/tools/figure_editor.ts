@@ -77,7 +77,7 @@ export function getClientToolsForFigureEditor(
       viewRegistry: copilotViews,
       name: "get_figure_editor",
       description:
-        "Read the figure open in the figure editor as its draft stands: the metric, the chart type, each disaggregation and its display slot, the filters, the active replicant and its options, the period range and the captions. Call this before update_figure_editor.",
+        "Read the figure open in the figure editor as its draft stands: the metric, the chart type, each disaggregation and its display slot, the filters, the active replicant and the count of its values (get_dimension_values lists them), the period range and the captions. Call this before update_figure_editor.",
       inputSchema: z.object({}),
       availableIn: COPILOT_TOOL_VIEWS.get_figure_editor,
       kind: "read",

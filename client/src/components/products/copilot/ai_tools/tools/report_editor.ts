@@ -451,7 +451,7 @@ export function getClientToolsForReportEditor(
       viewRegistry: copilotViews,
       name: "get_report_editor",
       description:
-        "Get the report's current body (FASTR Markdown), a headings index (each heading's line and the exact section range rewrite_section would replace), a one-line index of each embedded figure (id, metric, type, caption, active replicant), and the embedded image ids (live editor state, including unsaved changes). ALWAYS call this first before proposing edits. For a figure's full config (available replicant values, slots, filters) call get_report_figure.",
+        "Get the report's current body (FASTR Markdown), a headings index (each heading's line and the exact section range rewrite_section would replace), a one-line index of each embedded figure (id, metric, type, caption, active replicant), and the embedded image ids (live editor state, including unsaved changes). ALWAYS call this first before proposing edits. For a figure's full config (the active replicant and the count of its values, slots, filters) call get_report_figure.",
       inputSchema: z.object({}),
       availableIn: COPILOT_TOOL_VIEWS.get_report_editor,
       kind: "read",
