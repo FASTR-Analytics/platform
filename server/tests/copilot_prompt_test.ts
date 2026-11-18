@@ -426,7 +426,7 @@ Deno.test("a scope limit over the inline cap is written as its count and names t
   const counted = blockWith({}, definitionWith(overCap));
   assertStringIncludes(
     counted,
-    `- HMIS: included, limited to admin area 2 "Kano"; years 2022 to 2024; ${overCap.length} indicators (more than ${AI_INLINE_LIST_MAX}, too many to list here: get_dimension_values lists the ones a metric holds under this scope).`,
+    `- HMIS: included, limited to admin area 2 "Kano"; years 2022 to 2024; ${overCap.length} indicators (more than ${AI_INLINE_LIST_MAX}, too many to list here: get_dimension_values with a metric's id and disOpt "indicator_common_id" lists the ones the metric holds under this scope).`,
   );
   assert(!counted.includes("ind_0"));
 });

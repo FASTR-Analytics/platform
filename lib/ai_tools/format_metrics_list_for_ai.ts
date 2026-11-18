@@ -180,8 +180,6 @@ function indicatorCount(n: number): string {
 
 function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
   const lines: string[] = [];
-  const catLabel = new Map(tax.categories.map((c) => [c.id, c.label]));
-  const subLabel = new Map(tax.subCategories.map((s) => [s.id, s.label]));
   const inCategory = Map.groupBy(tax.indicators, (i) => i.categoryId);
   const inSubCategory = Map.groupBy(tax.indicators, (i) => i.subCategoryId);
   const countIn = (
@@ -274,6 +272,8 @@ function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
     return lines;
   }
 
+  const catLabel = new Map(tax.categories.map((c) => [c.id, c.label]));
+  const subLabel = new Map(tax.subCategories.map((s) => [s.id, s.label]));
   lines.push(
     "Indicators (hfa_indicator values), grouped by category › sub-category:",
   );

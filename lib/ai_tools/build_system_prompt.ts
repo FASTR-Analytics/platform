@@ -19,7 +19,10 @@ import {
   HMIS_INDICATOR_LINE_SHAPE,
 } from "./format_dimension_values_for_ai.ts";
 import { AI_INLINE_LIST_MAX } from "./read_bounds.ts";
-import type { ScopeDefinition } from "../types/scope.ts";
+import {
+  SCOPE_INDICATOR_COLUMN,
+  type ScopeDefinition,
+} from "../types/scope.ts";
 import { MODULE_FAMILY_ORDER } from "../group_metrics.ts";
 import {
   fastrThemeProse,
@@ -334,9 +337,6 @@ export function buildPackageGroundingSections(
   return sections;
 }
 
-// A package's indicators are listed whole up to the inline cap. Over it the
-// heading states their count and names the lookup, which lists the ones a
-// metric holds with their facts.
 function indicatorListLines(list: {
   heading: string;
   lines: string[];
@@ -370,9 +370,13 @@ function indicatorListLines(list: {
 
 const FAMILY_NAMES = { hmis: "HMIS", hfa: "HFA", iceh: "ICEH" } as const;
 
-function limitList(noun: string, values: string[]): string {
+function limitList(
+  noun: string,
+  disOpt: DisaggregationOption,
+  values: string[],
+): string {
   return values.length > AI_INLINE_LIST_MAX
-    ? `${values.length} ${noun} (more than ${AI_INLINE_LIST_MAX}, too many to list here: get_dimension_values lists the ones a metric holds under this scope)`
+    ? `${values.length} ${noun} (more than ${AI_INLINE_LIST_MAX}, too many to list here: get_dimension_values with a metric's id and disOpt "${disOpt}" lists the ones the metric holds under this scope)`
     : `${noun} ${values.join(", ")}`;
 }
 
@@ -392,14 +396,23 @@ function familyLine(
     "years" in section && section.years !== null &&
     `years ${section.years.start} to ${section.years.end}`,
     "timePoints" in section && section.timePoints !== null &&
-    limitList("time points", section.timePoints),
+    limitList("time points", "time_point", section.timePoints),
     // Written whole: a package holds a handful of modules, whatever its data.
     section.modules !== null && `modules ${section.modules.join(", ")}`,
-    section.indicators !== null && limitList("indicators", section.indicators),
+    section.indicators !== null &&
+    limitList(
+      "indicators",
+      SCOPE_INDICATOR_COLUMN[family],
+      section.indicators,
+    ),
     "categories" in section && section.categories !== null &&
-    limitList("categories", section.categories),
+    limitList("categories", "hfa_category", section.categories),
     "serviceCategories" in section && section.serviceCategories !== null &&
-    limitList("service categories", section.serviceCategories),
+    limitList(
+      "service categories",
+      "hfa_service_category",
+      section.serviceCategories,
+    ),
   ].filter((limit) => typeof limit === "string");
   return limits.length === 0
     ? `- ${name}: included, no limits.`
