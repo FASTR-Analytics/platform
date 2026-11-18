@@ -2,7 +2,7 @@
 
 The possible-values reads stop at 500 values per dimension and answer `too_many_values` above that. On the sierraleone instance, which has more than 500 HMIS indicators, this leaves the figure editor with no way to filter indicators or to pick one as a replicant. This plan deletes the cap, so every read returns a dimension's full value list. Steps 1 to 3 make the three places that would show or send a long list handle one: the copilot's value lists, the editor's replicant picker, which moves to a searchable select above the figure, and Explore's pinned-dimension selects. Step 4 deletes the cap.
 
-**Next step: Do 2.**
+**Next step: Do 3.**
 
 Branch: `main`. Repos: this one. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) "Disaggregation options" and "Caching", [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md) "The Explore page", "Explore query model" and "Replicant machinery", [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Tool input schemas" and Open items, [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) "Editor/render divergence", [PROTOCOL_APP_QUERY_RIG.md](PROTOCOL_APP_QUERY_RIG.md). For steps 2 and 3, also [PROTOCOL_APP_UI_CONVENTIONS.md](PROTOCOL_APP_UI_CONVENTIONS.md), [panther/protocols/PROTOCOL_UI_COMPONENTS.md](panther/protocols/PROTOCOL_UI_COMPONENTS.md) and [panther/protocols/PROTOCOL_ALL_TRANSLATION.md](panther/protocols/PROTOCOL_ALL_TRANSLATION.md).
 
