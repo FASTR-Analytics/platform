@@ -1,6 +1,6 @@
 # PLAN_07: Every dimension's full value list
 
-The possible-values reads stop at 500 values per dimension and answer `too_many_values` above that. On the sierraleone instance, which has more than 500 HMIS indicators, this leaves the figure editor with no way to filter indicators or to pick one as a replicant. This plan deletes the cap, so every read returns a dimension's full value list. Steps 1 to 3 make the three places that would show or send a long list handle one: the copilot's value lists, the editor's replicant picker and Explore's pinned-dimension selects. Step 4 deletes the cap.
+The possible-values reads stop at 500 values per dimension and answer `too_many_values` above that. On the sierraleone instance, which has more than 500 HMIS indicators, this leaves the figure editor with no way to filter indicators or to pick one as a replicant. This plan deletes the cap, so every read returns a dimension's full value list. Steps 1 to 3 make the three places that would show or send a long list handle one: the copilot's value lists, the editor's replicant picker, which moves to a searchable select above the figure, and Explore's pinned-dimension selects. Step 4 deletes the cap.
 
 **Next step: Do 1.**
 
@@ -17,6 +17,10 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 - **metric info**: `ResultsValueInfoForPresentationObject`, a value list or a status for every dimension of one metric, built by `buildResultsValueInfo`.
 - **replicant read**: `readRunReplicantOptions`, the value list of a figure's replicant dimension under the figure's filters and period.
 - **AI value list**: a list of a dimension's values written into text the copilot reads.
+
+### Rules peculiar to this plan
+
+- A step deletes everything its change leaves unused, in the same commit: components, functions, constants, types, union members, props, parameters, imports, translations, fixtures, tests and the doc lines that describe them. A step's Deliverable names the leftovers known when the plan was written, and the rule covers any it missed. A review treats anything left unused as a finding. `panther/` is excluded: it is a synced library with other consumers.
 
 ## §1 The problem
 
@@ -38,13 +42,13 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 **What would mishandle a long list once the cap is gone.**
 
 - The three AI value lists write every value: [content_validators.ts:191](lib/ai_tools/content_validators.ts#L191), [assert_replicant_valid.ts:51](client/src/generate_visualization/assert_replicant_valid.ts#L51) and [format_figure_config_for_ai.ts:75](client/src/components/products/copilot/_shared/format_figure_config_for_ai.ts#L75).
-- The replicant picker is a `SelectList` with no search ([replicate_by_options.tsx:190](client/src/components/_shared/figure_editor/replicate_by_options.tsx#L190)).
+- The replicant picker is a `SelectList` with no search ([replicate_by_options.tsx:190](client/src/components/_shared/figure_editor/replicate_by_options.tsx#L190)), in a column of its own between the settings panel and the figure ([figure_editor.tsx:1067](client/src/components/_shared/figure_editor/figure_editor.tsx#L1067)). Its `SelectSearch` twin, `ReplicateByOptionsSelect`, is used nowhere, and its effect hands `selectedReplicantValue || ""` and every value back to its host when the options load ([replicate_by_options.tsx:218](client/src/components/_shared/figure_editor/replicate_by_options.tsx#L218)).
 - An Explore pin is a native `<select>` ([toolbar.tsx:100](client/src/components/explore/toolbar.tsx#L100)).
 
 ## §2 The model
 
 - `getPossibleValuesCore` returns every distinct value of the column under the filters and period it is given, with no `LIMIT`. Metric info and the replicant read answer `ok`, `no_values_available` or `error`. `too_many_values`, `MAX_REPLICANT_OPTIONS`, `REPLICANT_OPTIONS_QUERY_LIMIT` and `exceedsMaxReplicantOptions` do not exist.
-- Each consumer that handled `too_many_values` takes the full list: the editor filter through its `MultiSelectSearch`, the replicant picker through its search box, custom value order through its modal's existing search, Explore pins through `SelectSearch`, and the format resolver and the AI validator directly.
+- Each consumer that handled `too_many_values` takes the full list: the editor filter through its `MultiSelectSearch`, the replicant picker through a `SelectSearch` above the figure, custom value order through its modal's existing search, Explore pins through `SelectSearch`, and the format resolver and the AI validator directly.
 - Every AI value list is written by one function, `formatValueListForAI`, which writes at most `AI_VALUE_LIST_MAX` values.
 - The row caps are unchanged: `MAX_ITEMS` (20,000) per figure items read and `GRID_MAX_CELLS` (500,000) for the Explore data table.
 
@@ -54,7 +58,13 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 2. No other ceiling replaces it. `facility_custom_1..5` are free text, so a column holding a different value for each facility returns a value list as long as the facility count. SYSTEM_09 states this as an accepted limit. _(proposed)_
 3. Caches. `PO_CACHE_VERSION` goes from "29" to "30" with its history line: the Valkey `metric_info` and `replicant_opts` entries hold `too_many_values` payloads, and the version hash does not track code. The client caches `run_metric_info_v3` and `run_replicant_options_v3` become `_v4`: production clears client caches on a version change, but dev has no deploy, and a dev browser would keep serving a status no code handles. Neither status type has a zod schema or a stored copy, so there is no migration and no stored-figure sweep.
 4. AI value lists. `formatValueListForAI(values, near)` in `lib/ai_tools/format_value_list_for_ai.ts` writes each value as `id (label)`, or `id` alone when the label equals the id. At or below `AI_VALUE_LIST_MAX` (500, the most named values any list held under the cap) it writes every value. Above it, it writes the values whose folded `id label` matches every search token of one of the `near` strings (`foldString`, `searchTokens` and `matchesSearch` from panther's `_000_utils`, the matcher every searchable list in the app uses), at most `AI_VALUE_LIST_MAX` of them, and states how many values exist and how many matched. `near` is what the copilot sent: the invalid filter values in the validator, and the selected replicant value, when there is one, in the replicant check and the figure description. _(proposed)_
-5. Replicant picker search. A clearable search `Input` sits above the list when the list holds more than 20 values, and filters on the folded display label. The fold-and-filter and the threshold are one helper, `createFoldedSearch`, in `client/src/components/_shared/figure_editor/_shared/`, used by the replicant picker and by the custom-value-order modal, which holds the same code today ([custom_value_order_section.tsx:308](client/src/components/_shared/figure_editor/editor_panel_style/custom_value_order_section.tsx#L308)). _(proposed)_
+5. The editor's replicant picker moves from its column beside the figure to a strip above the figure, a `FrameTop` panel over the preview. The design to follow is the strip in the mockup's two "Proposed" boards ([canvas](https://claude.ai/artifact/449RDJZmbtrF3ZNhBF14uj)), and only the strip. The mockup is not a replica of the app: its header, settings panel, chart, colours and sizes are approximations, and none of them is a change. The strip is built from panther's components and the app's own tokens and spacing, not from the mockup's markup. The strip holds, in order:
+   - a label: the dimension's display label, then "one chart for each of N";
+   - `ReplicateByOptionsSelect`, a `SelectSearch` showing the selected value;
+   - previous and next buttons that step through the values in the select's order;
+   - the position, "i of N".
+
+   It works as the list does. It always shows the value the editor resolved or the user chose (`resolveDefaultReplicant` and the write-back at [figure_editor.tsx:395](client/src/components/_shared/figure_editor/figure_editor.tsx#L395)), so there is no unselected resting state. A value picked from the select or with a button is written through the same setter as a list click. `ReplicateByOptionsList` is deleted. The select's report-back effect and the setter's `allOptions` parameter are deleted: in the editor, that effect would write the value back as a user edit. (Tim, 2026-11-18, approving the mockup.) Each step button is disabled at its end of the list. _(proposed)_
 6. Explore pins render as `SelectSearch`. The level, switch, period and grain selects stay `Select`. _(proposed)_
 7. Query rig F9 becomes a dimension of 10,000 named values plus a blank, more than Nigeria's 8,809 wards. Metric info answers `ok` with 10,000 named values, and the replicant read returns all 10,000 ids with the blank last. The control row in PROTOCOL_APP_QUERY_RIG.md becomes "a `LIMIT` on the possible-values query", which turns F9 red. _(proposed)_
 
@@ -85,24 +95,27 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 
 **Ends with.** one commit.
 
-### Step 2: search in the replicant picker
+### Step 2: the replicant picker above the figure
 
 **Surface.**
 
-- `client/src/components/_shared/figure_editor/_shared/folded_search.ts` (new)
-- `client/src/components/_shared/figure_editor/_shared/mod.ts`
 - `client/src/components/_shared/figure_editor/replicate_by_options.tsx`
-- `client/src/components/_shared/figure_editor/editor_panel_style/custom_value_order_section.tsx`
+- `client/src/components/_shared/figure_editor/figure_editor.tsx`
+- `lib/resolve_effective_indicator_facts.ts` (the comment at 294 that names the `|| ""` feed)
+- `SYSTEM_09_viz_query_cache.md` (the options-caller count at 64)
 - `SYSTEM_11_viz_authoring.md`
 
 **Deliverable.**
 
-- `createFoldedSearch` and its threshold as ruling 5, exported through `_shared/mod.ts`.
-- `ReplicateByOptionsList` shows the search input when it holds more than 20 options, and its `SelectList` shows the options matching the input.
-- `CustomValueOrderModal` uses the same helper and threshold in place of `MODAL_SEARCH_THRESHOLD` and its own fold-and-filter, with unchanged behaviour.
-- SYSTEM_11 "Replicant machinery" describes the search.
+- The figure editor wraps the preview in a `FrameTop` whose panel is the strip of ruling 5 while the figure has a replicant, and no panel otherwise. The `FrameLeft` around the preview is gone. The `replicateBy` memo still keeps a filter edit that leaves the replicated dimension unchanged from rebuilding the strip, and its comment says so for the strip.
+- The strip's label, buttons and position text are translated (en, fr, pt). The buttons have accessible names that name the dimension.
+- The non-`ok` statuses show `ReplicantOptionsMessage` in the strip, in place of the select.
+- `ReplicateByOptionsList` is deleted. `ReplicateByOptionsSelect` has no report-back effect, and `setSelectedReplicant` takes the value only.
+- Leftovers deleted: the `SelectList` and `selectOptionToListItem` imports in `replicate_by_options.tsx`, the `FrameLeft` import in `figure_editor.tsx`, the `replicantPanel` function, and any prop of `ReplicateByOptionsProps` that no caller passes.
+- The comment in `resolve_effective_indicator_facts.ts` no longer names a `|| ""` feed from the picker. The deck config's `""` default remains the reason the check accepts `""`.
+- SYSTEM_11 "Replicant machinery" describes the strip and the one select variant. SYSTEM_09 counts the options callers as they are.
 
-**Not in this step.** `ReplicateByOptionsSelect`, and the `too_many_values` message in `ReplicantOptionsMessage` (step 4).
+**Not in this step.** Explore's pins (step 3), and the `too_many_values` message in `ReplicantOptionsMessage` (step 4).
 
 **Gates.** the floor.
 
@@ -160,6 +173,7 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 - `too_many_values` is gone from `DisaggregationPossibleValuesStatus`, `RunReplicantOptions` and `ExplorePin["status"]`, and from every branch that handled it: `buildResultsValueInfo`, `readRunReplicantOptions`, the editor filter, `ReplicantOptionsMessage`, the custom value order's `NOTE_TOO_MANY` and its branch, `resolvePin`, the toolbar's `CapMessage` and its `Match`, and the instance copilot's `formatResolvedSettings`.
 - Comments that give the cap as a reason state the reason that remains: the `indicatorFormats` comment ([presentation_objects.ts:86](lib/types/presentation_objects.ts#L86)) cites the `error` and `no_values_available` holes; the status-loop comment ([results_value_info_core.ts:16](server/server_only_funcs_presentation_objects/results_value_info_core.ts#L16)); the `ExplorePin` comment ([explore_query.ts:89](lib/explore_query.ts#L89)); the custom value order's `OrderRow` comment; and the two fan-out comments of §1 say what the read is, the replicant dimension's value list under the figure's filters and period.
 - The cache changes of ruling 3.
+- Leftovers deleted: the `BLANK_SENTINEL` import in `consts.ts`; `CAP_ROWS` in the rig fixtures; `CapMessage`; `NOTE_TOO_MANY`. In `filters.tsx`, `FILTER_SEARCH_THRESHOLD` is deleted with the two chip-cloud branches it makes unreachable (the values filter's and the dimension filter's), and with any toggle function only those branches call. Each filter then renders its `MultiSelectSearch` directly.
 - Query rig F9 as ruling 7, its fixture named for what it now tests. The `dimStatus` status union in `cases.ts` loses `too_many_values`.
 - `explore_query_test.ts`: the test "pin: a dimension over the cap has no value and no config" keeps only its `pending` half and is named for it.
 - Docs: SYSTEM_09 "Disaggregation options" (the possible-values, cap and status paragraphs) states the full value list and ruling 2's accepted limit, and "Caching" names the `_v4` caches; SYSTEM_10 "Editor/render divergence" drops `too_many_values` from the cannot-enumerate statuses; SYSTEM_11 drops the cap from "The Explore page", "Explore query model" and "Replicant machinery"; PROTOCOL_APP_QUERY_RIG.md's control table has ruling 7's row in place of the `exceedsMaxReplicantOptions` row.
@@ -173,8 +187,6 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 ## §5 Out of scope
 
 - A bound on how many series or panes a figure draws. `MAX_ITEMS` (20,000 rows) stays the only bound.
-- `FILTER_SEARCH_THRESHOLD = 0` in `filters.tsx` and the chip-cloud branches it makes unreachable.
-- `ReplicateByOptionsSelect`, which nothing uses.
 - Drawing only the visible rows of a long option list in panther's list components.
 - The HMIS CSV import's limit of 2,000 distinct indicators per file.
 - A value-discovery tool for the copilot (SYSTEM_13 Open items).
