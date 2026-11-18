@@ -58,9 +58,6 @@ export function formatProductsListForAI(
   query: ProductsQueryForAI,
 ): string {
   const products = input.products;
-  if (products.length === 0) {
-    return "No products. A product is a slide deck, a report or a saved visualization, created on the Products page.";
-  }
   const paths = folderPaths(input.folders);
   const packages = new Map(input.readyPackages.map((p) => [p.id, p.label]));
   const scopes = new Map(input.scopes.map((s) => [s.id, s.label]));
@@ -93,6 +90,9 @@ export function formatProductsListForAI(
     AI_RECORD_PAGE_MAX,
     "products",
   );
+  if (products.length === 0) {
+    return "No products. A product is a slide deck, a report or a saved visualization, created on the Products page.";
+  }
   return [
     "PRODUCTS",
     "=".repeat(80),
