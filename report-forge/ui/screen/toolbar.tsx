@@ -1120,6 +1120,31 @@ export function ReportToolbar(p: Props) {
                     <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
                   </Show>
                 </PopoverRow>
+                {
+                  /* Page numbers are on by default; `pagenumbers=none` (a
+                    bulletin with none) takes them away, and this brings them
+                    back. */
+                }
+                <PopoverRow
+                  active={psAttr("pagenumbers") !== "none"}
+                  onClick={() =>
+                    p.onPatchPageSetup({
+                      pagenumbers: psAttr("pagenumbers") === "none"
+                        ? undefined
+                        : "none",
+                    })}
+                >
+                  <span class="rf:flex-1">
+                    {t3({
+                      en: "Page numbers",
+                      fr: "Numéros de page",
+                      pt: "Números de página",
+                    })}
+                  </span>
+                  <Show when={psAttr("pagenumbers") !== "none"}>
+                    <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
+                  </Show>
+                </PopoverRow>
                 <DraftInput
                   label={t3({
                     en: "Rule under the footer (colours)",

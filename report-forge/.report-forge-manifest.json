@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-18T03:57:04.307Z",
-  "sourceCommit": "00ab2c5",
-  "sourceSubject": "Page frame: a tile-and-swatch panel, every style, and a coloured edge",
+  "timestamp": "2026-11-18T04:15:58.898Z",
+  "sourceCommit": "1418445",
+  "sourceSubject": "Page numbers: a toggle under Header and footer",
   "sourceDirty": false,
   "target": "platform"
 }
