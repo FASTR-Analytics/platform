@@ -14,6 +14,7 @@ import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggrega
 import {
   Button,
   getSelectOptionsFromIdLabel,
+  plural,
   SelectSearch,
   StateHolder,
   StateHolderWrapper,
@@ -33,11 +34,6 @@ import { trackDeep } from "@solid-primitives/deep";
 
 // The replicant strip above the editor preview: which value of the replicated
 // dimension the figure shows, under one PackageScope.
-//
-// There is no version-key read any more: the options cache is keyed by
-// `(runId, scopeToken, …)`, so a scope or package change lands on a DIFFERENT
-// entry rather than invalidating this one. Re-reading `p.scope` inside the
-// tracked effect is what makes a mid-edit reattach re-query.
 
 // Replicant picker options with Nigeria admin-area labels cleaned for display
 // (raw id/value untouched). Re-sorts by cleaned label only when cleaning
@@ -140,7 +136,7 @@ function ReplicantOptionsMessage(mp: {
   return (
     <Switch>
       <Match when={mp.status === "too_many_values"}>
-        <div class="text-sm">
+        <div>
           {t3({
             en:
               "Too many replicant values (over 500). Use filter options to narrow down.",
@@ -152,7 +148,7 @@ function ReplicantOptionsMessage(mp: {
         </div>
       </Match>
       <Match when={mp.status === "no_values_available"}>
-        <div class="text-sm">
+        <div>
           {t3({
             en: "No data available with current filter selection.",
             fr:
@@ -162,7 +158,7 @@ function ReplicantOptionsMessage(mp: {
         </div>
       </Match>
       <Match when={mp.status === "error"}>
-        <div class="text-danger text-sm">
+        <div class="text-danger">
           {t3({
             en: "Could not load values.",
             fr: "Impossible de charger les valeurs.",
@@ -217,12 +213,19 @@ export function ReplicateByOptionsSelect(p: ReplicateByOptionsProps) {
                             <span class="font-700">{dimensionLabel()}</span>
                             <span class="text-base-content-muted">
                               {" · "}
-                              {t3({
-                                en: `one chart for each of ${count()}`,
-                                fr:
-                                  `un graphique pour chacune des ${count()} valeurs`,
-                                pt:
-                                  `um gráfico para cada um dos ${count()} valores`,
+                              {plural(options().length, {
+                                one: t3({
+                                  en: "one chart for 1 value",
+                                  fr: "un graphique pour 1 valeur",
+                                  pt: "um gráfico para 1 valor",
+                                }),
+                                other: t3({
+                                  en: `one chart for each of ${count()}`,
+                                  fr:
+                                    `un graphique pour chacune des ${count()} valeurs`,
+                                  pt:
+                                    `um gráfico para cada um dos ${count()} valores`,
+                                }),
                               })}
                             </span>
                           </>
@@ -257,7 +260,7 @@ export function ReplicateByOptionsSelect(p: ReplicateByOptionsProps) {
                         onClick={() => stepTo(index() + 1)}
                       />
                       <Show when={index() >= 0}>
-                        <span class="text-base-content-muted">
+                        <span>
                           {t3({
                             en: `${toNum0(index() + 1)} of ${count()}`,
                             fr: `${toNum0(index() + 1)} sur ${count()}`,

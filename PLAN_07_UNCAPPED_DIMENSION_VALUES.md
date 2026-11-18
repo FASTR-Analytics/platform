@@ -193,5 +193,5 @@ The instruction is "Do the next step of PLAN_07_UNCAPPED_DIMENSION_VALUES.md." B
 
 ## §6 Log
 
-- Step 2 deleted the `replicateBy` memo with `replicantPanel` instead of keeping it: the strip is a keyed `<Show when={getReplicateByProp(tempConfig)}>` (PROTOCOL_UI_SOLIDJS rules 1 and 6: no conditional return), and Solid's `Show` memoises `when` with `===`, so a filter edit that leaves the dimension unchanged does not rebuild the strip without a second memo. The comment on the `Show` says so.
-- Step 2 deleted the `ReplicateByOptionsSelect` re-export from `client/src/components/_shared/figure_editor/mod.ts`, outside the Surface, under §0's leftover rule: no other folder imports it, and `figure_editor.tsx` imports the strip from inside the folder.
+- Step 2 replaced the `replicateBy` memo and `replicantPanel` with `replicantStrip`, `children()` over a `<Show when={getReplicateByProp(tempConfig)} keyed>`: `replicantPanel` returned early when there was no replicant (PROTOCOL_UI_SOLIDJS rules 1 and 6), the keyed `Show` memoises the dimension with `===`, so a filter edit that leaves it unchanged does not rebuild the strip, and `children()` resolves the `Show` so `FrameTop` gets no panel without a replicant.
+- Step 2 deleted the `ReplicateByOptionsSelect` re-export from `client/src/components/_shared/figure_editor/mod.ts`, outside the Surface: no folder imports it, and it had no importer before this step either.

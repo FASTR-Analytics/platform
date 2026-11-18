@@ -42,6 +42,7 @@ import {
   stringifyCsv,
 } from "panther";
 import {
+  children,
   createEffect,
   createMemo,
   createSignal,
@@ -919,6 +920,25 @@ export function VisualizationEditorInner(p: InnerProps) {
     });
   }
 
+  // Resolved here because FrameTop draws a panel for any truthy prop, and an
+  // unresolved Show always is. Keyed on the replicated dimension, so a filter
+  // edit that leaves it unchanged does not rebuild the strip.
+  const replicantStrip = children(() => (
+    <Show when={getReplicateByProp(tempConfig)} keyed>
+      {(replicateBy) => (
+        <ReplicateByOptionsSelect
+          scope={scope()}
+          replicateBy={replicateBy}
+          config={tempConfig}
+          metric={metric}
+          selectedReplicantValue={tempConfig.d.selectedReplicantValue}
+          setSelectedReplicant={(v) =>
+            manuallyUpdateTempConfig("d", "selectedReplicantValue", v)}
+        />
+      )}
+    </Show>
+  ));
+
   return (
     <EditorWrapperForResultsObject>
       <FrameTop
@@ -1044,32 +1064,7 @@ export function VisualizationEditorInner(p: InnerProps) {
             />
           }
         >
-          {
-            /* Keyed on the replicated dimension, so a filter edit that leaves
-              it unchanged does not rebuild the strip. */
-          }
-          <FrameTop
-            panelChildren={
-              <Show when={getReplicateByProp(tempConfig)} keyed>
-                {(replicateBy) => (
-                  <ReplicateByOptionsSelect
-                    scope={scope()}
-                    replicateBy={replicateBy}
-                    config={tempConfig}
-                    metric={metric}
-                    selectedReplicantValue={tempConfig.d
-                      .selectedReplicantValue}
-                    setSelectedReplicant={(v) =>
-                      manuallyUpdateTempConfig(
-                        "d",
-                        "selectedReplicantValue",
-                        v,
-                      )}
-                  />
-                )}
-              </Show>
-            }
-          >
+          <FrameTop panelChildren={replicantStrip()}>
             <div
               class="ui-pad h-full w-full overflow-auto"
               data-cursor-zone="preview-area"
