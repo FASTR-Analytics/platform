@@ -22,7 +22,7 @@ const _RUN_AUTHORING_CONTEXT_CACHE = createReactiveCache<
   { scope: ResolvedPackageScope },
   RunAuthoringContext
 >({
-  name: "run_authoring_context_v4",
+  name: "run_authoring_context_v5",
   uniquenessKeys: (params) => [
     params.scope.runId,
     params.scope.definitionHash,

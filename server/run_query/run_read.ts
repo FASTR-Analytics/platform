@@ -417,14 +417,27 @@ async function readInputRows<T>(
 // own inputs (the mirror tables are no longer written, so they are never
 // read).
 
+const hmisDatasetVersionIdSchema = z.object({
+  version: z.object({ id: z.number() }),
+});
+
 export function getRunDatasetsFromManifest(
   manifest: RunManifest,
 ): RunDataset[] {
-  return manifest.datasets.map((d) => ({
-    datasetType: d.datasetType,
-    info: d.info,
-    dateExported: d.lastUpdated,
-  } as RunDataset));
+  return manifest.datasets.map((d): RunDataset => {
+    if (d.datasetType === "hmis") {
+      return {
+        datasetType: "hmis",
+        versionId: hmisDatasetVersionIdSchema.parse(d.info).version.id,
+      };
+    }
+    if (d.datasetType === "hfa" || d.datasetType === "iceh") {
+      return { datasetType: d.datasetType };
+    }
+    throw new Error(
+      `Run manifest dataset of unknown type "${d.datasetType}"`,
+    );
+  });
 }
 
 export async function getIcehIndicatorsFromManifestInputs(

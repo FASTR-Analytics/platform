@@ -369,12 +369,13 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 
 - `lib/types/run_datasets.ts`
 - `lib/types/run_authoring_context.ts`
+- `lib/types/run_manifest.ts`
 - `lib/ai_tools/build_system_prompt.ts`
 - `server/run_query/run_read.ts`
 - `client/src/state/instance/t2_run_authoring_context.ts`
 - `server/tests/copilot_prompt_test.ts`
 - `SYSTEM_06_ingestion.md`
-- `SYSTEM_08_results_packages.md`
+- `SYSTEM_09_viz_query_cache.md`
 
 **Deliverable.**
 
@@ -383,7 +384,7 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - The client cache name is `run_authoring_context_v5`.
 - Leftovers deleted: `dateExported`, and the `RunDataset` union's `info` members. The `RunDataset*Info` types stay, with the header comment of `run_datasets.ts` saying what each type is for.
 - `copilot_prompt_test.ts`'s dataset fixture is a summary, and the test of the block's dataset lines passes unchanged in what it asserts.
-- Docs. SYSTEM_06, the sentence that names `RunDataset` as the stamps the manifest records and `getRunDatasetsFromManifest` as their reader. SYSTEM_08, where it lists what the authoring context carries.
+- Docs. SYSTEM_06, the sentence that names `RunDataset` as the stamps the manifest records and `getRunDatasetsFromManifest` as their reader. SYSTEM_09, where it says the authoring context's datasets stay whole under a scope.
 
 **Not in this step.** The manifest's own copy of the staging result (step 8).
 

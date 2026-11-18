@@ -1,26 +1,19 @@
 import type { DatasetHmisVersion } from "./dataset_hmis.ts";
 
-// The dataset captures a results package carries: what was exported into the
-// run workspace at generation time, plus the metadata snapshots a reader
-// compares against the live instance to judge staleness. Read from the run
-// manifest (getRunDatasetsFromManifest), never from a database.
+// RunDataset is what a reader of a results package carries of each dataset
+// it captured: the family and, for HMIS, the import version (the authoring
+// context and the package grounding, read from the run manifest by
+// getRunDatasetsFromManifest, never from a database).
+//
+// The RunDataset*Info types are what capture writes into a manifest dataset
+// entry's `info`: what was exported into the run workspace at generation
+// time, plus the metadata snapshots a reader compares against the live
+// instance to judge staleness.
 
 export type RunDataset =
-  | {
-    datasetType: "hmis";
-    info: RunDatasetHmisInfo;
-    dateExported: string;
-  }
-  | {
-    datasetType: "hfa";
-    info: RunDatasetHfaInfo;
-    dateExported: string;
-  }
-  | {
-    datasetType: "iceh";
-    info: RunDatasetIcehInfo;
-    dateExported: string;
-  };
+  | { datasetType: "hmis"; versionId: number }
+  | { datasetType: "hfa" }
+  | { datasetType: "iceh" };
 
 // Capture is always the full dataset. Manifest transform block 9 holds every
 // stored info to exactly these keys.

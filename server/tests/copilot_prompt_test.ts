@@ -247,19 +247,7 @@ function definitionWith(hmisIndicators: string[]): ScopeDefinition {
 
 const DEFINITION = definitionWith(["anc1", "anc4"]);
 
-const HMIS_DATASET: RunDataset = {
-  datasetType: "hmis",
-  info: {
-    version: {
-      id: 3,
-      nRowsTotalImported: 0,
-      nRowsInserted: undefined,
-      nRowsUpdated: undefined,
-      stagingResult: undefined,
-    },
-  },
-  dateExported: "2026-01-01T00:00:00.000Z",
-};
+const HMIS_DATASET: RunDataset = { datasetType: "hmis", versionId: 3 };
 
 Deno.test("the package block names the package, the scope and each family's limits", () => {
   const block = buildPackageBlock({

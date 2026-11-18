@@ -282,7 +282,7 @@ export function buildPackageGroundingSections(
     sections.push("");
     sections.push("**Loaded datasets:**");
     if (hmisDataset && hmisDataset.datasetType === "hmis") {
-      sections.push(`- HMIS data (version ${hmisDataset.info.version.id})`);
+      sections.push(`- HMIS data (version ${hmisDataset.versionId})`);
     }
     if (hfaDataset) {
       sections.push(`- HFA data`);

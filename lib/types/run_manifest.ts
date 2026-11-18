@@ -150,8 +150,8 @@ export const runMetricAvailabilitySchema = z.object({
 export type RunMetricAvailability = z.infer<typeof runMetricAvailabilitySchema>;
 
 // Inputs record per dataset family, captured at finalize. The raw manifest
-// row: `info` is opaque here and typed per family by the RunDataset
-// projection (lib/types/run_datasets.ts) that readers consume.
+// row: `info` is opaque here, written per family as a RunDataset*Info
+// (lib/types/run_datasets.ts), and readers consume its RunDataset summary.
 export const runManifestDatasetSchema = z.object({
   datasetType: z.string(),
   lastUpdated: z.string(),
