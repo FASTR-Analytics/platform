@@ -27,6 +27,7 @@ import {
 } from "./po_config.ts";
 import {
   adminArea2OfStoredScope,
+  bundleHoldsUnnamedIndicatorMetadata,
   type FigureBlockMut,
   getTransformLocalization,
   rawJsonNeedsFigureBlockTransform,
@@ -75,16 +76,22 @@ export async function migrateReports(
     const images = JSON.parse(row.images);
 
     // Already valid? Skip: unless legacy keys (which safeParse silently
-    // strips) still need the embedded-config rename, or the row is still on
+    // strips) still need the embedded-config rename, a figure holds catalog
+    // entries it does not name, or the row is still on
     // the retired markdown format (Block 4). figureInputs drift is
     // covered by reportFiguresSchema: figureBlockSchema validates figureInputs
     // against panther's zFigureInputs (lib/types figureInputsSchema).
+    const currentFigures = reportFiguresSchema.safeParse(figures);
     if (
       reportConfigSchema.safeParse(config).success &&
-      reportFiguresSchema.safeParse(figures).success &&
+      currentFigures.success &&
       reportImagesSchema.safeParse(images).success &&
       !rawJsonNeedsForcedTransform(row.figures) &&
       !rawJsonNeedsFigureBlockTransform(row.figures) &&
+      !Object.values(currentFigures.data).some((block) =>
+        block.bundle !== undefined &&
+        bundleHoldsUnnamedIndicatorMetadata(block.bundle)
+      ) &&
       !storedFormatIsMarkdown(config)
     ) {
       continue;

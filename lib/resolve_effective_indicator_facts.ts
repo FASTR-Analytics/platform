@@ -124,8 +124,9 @@ export function resolveEffectiveIndicatorFacts(args: {
 
 // Render-side twin over a stored FigureBundle: pins (replicant, filterBy) come
 // from the frozen config, disaggregated dimensions are enumerated from the
-// returned rows, and facts come from bundle.indicatorMetadata: the FULL
-// module catalog, so a filter-pinned indicator is still visible.
+// returned rows, and facts come from bundle.indicatorMetadata: the catalog
+// entries the bundle's rows, filter values and selected replicant value name
+// (indicatorMetadataForRead), so a filter-pinned indicator is still visible.
 export function resolveEffectiveIndicatorFactsFromItems(args: {
   metricFormatAs: MetricFormatAs;
   config: PresentationObjectConfig;

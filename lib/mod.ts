@@ -24,6 +24,7 @@ export * from "./special_indicators.ts";
 export * from "./get_disaggregator_display_prop.ts";
 export * from "./get_fetch_config_from_po.ts";
 export * from "./resolve_effective_indicator_facts.ts";
+export * from "./indicator_metadata_for_read.ts";
 export * from "./indicator_value_scale.ts";
 export * from "./traffic_light_rule.ts";
 export * from "./resolve_figure_calendar.ts";

@@ -78,11 +78,14 @@ FigureBundle = {
   resultsValue: ResultsValueForVisualization; // {formatAs, valueProps, valueLabelReplacements?}
                                            // the EXISTING type, verbatim (see gate below)
   indicatorMetadata: IndicatorMetadataDisplay[]; // label replacements + catalog sort + per-indicator
-                                           // formats and CF rules (`thresholds`). Sourced from the
+                                           // formats and CF rules (`thresholds`). The entries of the
                                            // run manifest's indicator catalog
-                                           // (server/runs/indicator_catalog.ts); the traffic-light
-                                           // pair stored bundles carried was converted into
-                                           // `thresholds` by the _figure_block sweep
+                                           // (server/runs/indicator_catalog.ts) the bundle names: an
+                                           // id equal to a row's cell, a filter value or the selected
+                                           // replicant value (indicatorMetadataForRead), in catalog
+                                           // order; the _figure_block sweep trimmed bundles stored
+                                           // with the whole catalog and converted the traffic-light
+                                           // pair they carried into `thresholds`
   dateRange?: PeriodBounds;                // {min,max}: DATE_RANGE caption text + earliest/latest point
   geo?: GeoRef;                            // maps only: {kind:"level"}; stored {kind:"data"} is read-only (see Geo)
   localization: { language; calendar; countryIso3; fiscalYear }; // REQUIRED, frozen, see Localization

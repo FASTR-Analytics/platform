@@ -19,6 +19,7 @@ import {
   type HfaIndicatorAggregation,
   type HfaIndicatorType,
   type IndicatorMetadata,
+  indicatorMetadataForRead,
   type InstalledModuleSummary,
   type InstalledModuleWithConfigSelections,
   type ItemsHolderPresentationObject,
@@ -1059,13 +1060,20 @@ export async function getPresentationObjectItemsFromRun(
     ctx.manifest,
     resultsObjectId,
   );
-  if (
-    res.success && catalogEvaluation !== undefined && res.data.status === "ok"
-  ) {
-    res.data.items = applyCatalogExpressionsToItems(
+  if (res.success && res.data.status === "ok") {
+    if (catalogEvaluation !== undefined) {
+      res.data.items = applyCatalogExpressionsToItems(
+        res.data.items,
+        catalog,
+        catalogEvaluation.ingredientProps,
+      );
+    }
+    // The evaluation above reads the whole catalog, which stays on the
+    // server; the holder carries the entries its rows and filters name.
+    res.data.indicatorMetadata = indicatorMetadataForRead(
+      res.data.indicatorMetadata,
       res.data.items,
-      catalog,
-      catalogEvaluation.ingredientProps,
+      fetchConfig.filters.flatMap((f) => f.values),
     );
   }
   return res;

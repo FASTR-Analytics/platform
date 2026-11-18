@@ -24,6 +24,7 @@ import {
   rawJsonNeedsForcedTransform,
 } from "./po_config.ts";
 import {
+  bundleHoldsUnnamedIndicatorMetadata,
   type FigureBlockMut,
   rawJsonNeedsFigureBlockTransform,
   transformFigureBlock,
@@ -43,11 +44,14 @@ export async function migrateVisualizations(
     const bundle = JSON.parse(row.bundle);
 
     // Already valid? Skip: unless legacy keys (which safeParse silently
-    // strips) still need a transform (the Skip-Gate Gotcha).
+    // strips) still need a transform, or the bundle holds catalog entries it
+    // does not name (the Skip-Gate Gotcha).
+    const current = figureBundleSchema.safeParse(bundle);
     if (
-      figureBundleSchema.safeParse(bundle).success &&
+      current.success &&
       !rawJsonNeedsForcedTransform(row.bundle) &&
-      !rawJsonNeedsFigureBlockTransform(row.bundle)
+      !rawJsonNeedsFigureBlockTransform(row.bundle) &&
+      !bundleHoldsUnnamedIndicatorMetadata(current.data)
     ) {
       continue;
     }
