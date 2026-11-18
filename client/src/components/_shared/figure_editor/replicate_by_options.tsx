@@ -17,7 +17,6 @@ import {
   SelectSearch,
   StateHolder,
   StateHolderWrapper,
-  toNum0,
 } from "panther";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/products/t2_replicant_options";
 import {
@@ -26,7 +25,6 @@ import {
   createSignal,
   Match,
   onCleanup,
-  Show,
   Switch,
 } from "solid-js";
 import { trackDeep } from "@solid-primitives/deep";
@@ -184,7 +182,6 @@ export function ReplicateByOptionsSelect(p: ReplicateByOptionsProps) {
                     p.replicateBy,
                   )
                 );
-                const count = () => toNum0(options().length);
                 const index = () =>
                   options().findIndex((opt) =>
                     opt.value === p.selectedReplicantValue
@@ -225,15 +222,6 @@ export function ReplicateByOptionsSelect(p: ReplicateByOptionsProps) {
                         disabled={index() === options().length - 1}
                         onClick={() => stepTo(index() + 1)}
                       />
-                      <Show when={index() >= 0}>
-                        <span>
-                          {t3({
-                            en: `${toNum0(index() + 1)} of ${count()}`,
-                            fr: `${toNum0(index() + 1)} sur ${count()}`,
-                            pt: `${toNum0(index() + 1)} de ${count()}`,
-                          })}
-                        </span>
-                      </Show>
                     </div>
                   </>
                 );
