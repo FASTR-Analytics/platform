@@ -14,7 +14,6 @@ import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggrega
 import {
   Button,
   getSelectOptionsFromIdLabel,
-  plural,
   SelectSearch,
   StateHolder,
   StateHolderWrapper,
@@ -196,28 +195,7 @@ export function ReplicateByOptionsSelect(p: ReplicateByOptionsProps) {
                   <>
                     <div class="w-96">
                       <SelectSearch
-                        label={
-                          <>
-                            <span class="font-700">{dimensionLabel()}</span>
-                            <span class="text-base-content-muted">
-                              {" · "}
-                              {plural(options().length, {
-                                one: t3({
-                                  en: "one chart for 1 value",
-                                  fr: "un graphique pour 1 valeur",
-                                  pt: "um gráfico para 1 valor",
-                                }),
-                                other: t3({
-                                  en: `one chart for each of ${count()}`,
-                                  fr:
-                                    `un graphique pour chacune des ${count()} valeurs`,
-                                  pt:
-                                    `um gráfico para cada um dos ${count()} valores`,
-                                }),
-                              })}
-                            </span>
-                          </>
-                        }
+                        label={dimensionLabel()}
                         options={options()}
                         value={p.selectedReplicantValue}
                         onChange={p.setSelectedReplicant}
