@@ -35,6 +35,7 @@ import {
   type FastrCoverColorPart,
   fastrCoverColorParts,
   type FastrCoverHead,
+  fastrCoverLogosAlign,
   type FastrCoverPreset,
   type FastrFencePatch,
   fastrFrameGeometry,
@@ -69,7 +70,6 @@ import {
   type JSX,
   Match,
   onCleanup,
-  onMount,
   Show,
   Switch,
 } from "solid-js";
@@ -215,6 +215,9 @@ type Props = {
   // An official cover with no logos row: the picker, its row added to the
   // head of the cover whose fence is on `coverLine` (1-based).
   onAddCoverLogos: (coverLine: number) => void;
+  // A press on an official cover's logos on the page: its Logos menu
+  // opens, once for each new count.
+  coverLogosRequest?: () => number;
   // The File menu: Download is the editor's own; the rest are the host's
   // (they open its dialogs over the editor), so the toolbar only lists them.
   onDownload: () => void;
@@ -2055,8 +2058,8 @@ export function ReportToolbar(p: Props) {
                 </Show>
 
                 {
-                  /* An official cover's head: its ministry lines and its
-                    logos are the cover's settings, not text on the page. */
+                  /* An official cover's logos: set from here, a press on
+                    them on the page opens this menu. */
                 }
                 <Show
                   when={block().name === "cover"
@@ -2065,31 +2068,9 @@ export function ReportToolbar(p: Props) {
                 >
                   {(head) => (
                     <>
-                      <Popover
-                        label={t3({
-                          en: "Ministry lines",
-                          fr: "Lignes du ministère",
-                          pt: "Linhas do ministério",
-                        })}
-                        title={t3({
-                          en: "Ministry lines",
-                          fr: "Lignes du ministère",
-                          pt: "Linhas do ministério",
-                        })}
-                      >
-                        {() => (
-                          <CoverLinesPanel
-                            lines={head().lines}
-                            onLines={(lines) =>
-                              p.api()?.setCoverHeadLines(
-                                head().coverLine,
-                                lines,
-                              )}
-                          />
-                        )}
-                      </Popover>
                       <Show when={p.canInsertImage()}>
                         <Popover
+                          openRequest={() => p.coverLogosRequest?.() ?? 0}
                           label={t3({
                             en: "Logos",
                             fr: "Logos",
@@ -2104,6 +2085,9 @@ export function ReportToolbar(p: Props) {
                           {(close) => (
                             <CoverLogosPanel
                               head={head()}
+                              canAlign={fastrCoverLogosAlign(
+                                attrValue("layout"),
+                              )}
                               onChoose={() => {
                                 close();
                                 const h = head();
@@ -2936,44 +2920,12 @@ function coverThemePaint(part: FastrCoverColorPart): string {
   return part === "date" ? "var(--fm-ink)" : "var(--fm-accent-ground)";
 }
 
-// An official cover's ministry lines, one to a row of the box. Applied as
-// typed (like the text on the page), so nothing waits on a blur or a close
-// to be kept; the box is filled once, when it opens, so a write coming back
-// never moves the caret.
-function CoverLinesPanel(p: {
-  lines: string[];
-  onLines: (lines: string[]) => void;
-}) {
-  let box: HTMLTextAreaElement | undefined;
-  onMount(() => {
-    box?.focus();
-  });
-  return (
-    <div class="rf:flex rf:w-96 rf:flex-col rf:gap-1">
-      <textarea
-        ref={box}
-        class="rf:w-full rf:rounded rf:border rf:px-2 rf:py-1 rf:text-sm"
-        wrap="off"
-        rows={Math.max(4, p.lines.length + 1)}
-        value={p.lines.join("\n")}
-        spellcheck={false}
-        onInput={(e) => p.onLines(e.currentTarget.value.split("\n"))}
-      />
-      <div class="rf:text-base-content-muted rf:text-xs">
-        {t3({
-          en: "One line per row. The first prints bold.",
-          fr: "Une ligne par rangée. La première est en gras.",
-          pt: "Uma linha por fila. A primeira fica a negrito.",
-        })}
-      </div>
-    </div>
-  );
-}
-
 // An official cover's logos: the picker (for the row it has, or a new
-// one), the row's alignment and size, and taking the row away.
+// one), the row's alignment (where the layout leaves it to the row) and
+// size, and taking the row away.
 function CoverLogosPanel(p: {
   head: FastrCoverHead;
+  canAlign: boolean;
   onChoose: () => void;
   onPatch: (patch: FastrFencePatch) => void;
   onRemove: () => void;
@@ -3001,22 +2953,24 @@ function CoverLogosPanel(p: {
       <Show when={attrs()}>
         {(a) => (
           <>
-            <MenuGroupLabel
-              label={t3({ en: "Align", fr: "Alignement", pt: "Alinhamento" })}
-            />
-            <For each={FASTR_LOGO_ALIGNS}>
-              {(align) => (
-                <PopoverRow
-                  active={fastrLogoAlign(a()) === align}
-                  onClick={() =>
-                    p.onPatch({
-                      align: align === "left" ? undefined : align,
-                    })}
-                >
-                  {fastrLogoAlignLabel(align)}
-                </PopoverRow>
-              )}
-            </For>
+            <Show when={p.canAlign}>
+              <MenuGroupLabel
+                label={t3({ en: "Align", fr: "Alignement", pt: "Alinhamento" })}
+              />
+              <For each={FASTR_LOGO_ALIGNS}>
+                {(align) => (
+                  <PopoverRow
+                    active={fastrLogoAlign(a()) === align}
+                    onClick={() =>
+                      p.onPatch({
+                        align: align === "left" ? undefined : align,
+                      })}
+                  >
+                    {fastrLogoAlignLabel(align)}
+                  </PopoverRow>
+                )}
+              </For>
+            </Show>
             <MenuGroupLabel
               label={t3({ en: "Size", fr: "Taille", pt: "Tamanho" })}
             />

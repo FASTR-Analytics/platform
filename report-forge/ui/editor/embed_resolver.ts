@@ -45,6 +45,9 @@ export type EmbedResolver = {
   // A `:::logos` row asks for its picker (double-click, or a click on an
   // empty row).
   onEditLogos?: (fence: FastrOpenFence) => void;
+  // An official cover's logos were pressed: the cover's toolbar sets them
+  // (the caret is already on the cover).
+  onCoverLogosPress?: () => void;
   // An empty photo slot of a page template was pressed: `line` is the
   // slot's 1-based fence line, the photo's token goes on the line under it.
   onAddPhoto?: (line: number) => void;

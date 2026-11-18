@@ -1088,6 +1088,8 @@ ${d}.fm-cover.fm-cover--letterhead > .fm-cover__head {
 ${d}.fm-cover--letterhead > .fm-cover__head > .fm-logos {
   height: var(--fm-logo-h);
   gap: 1.6em;
+  /* The page's width, so its align= places the logos across the page. */
+  align-self: stretch;
 }
 ${d}.fm-cover--letterhead > .fm-cover__head > .fm-logos--empty { width: 12em; }
 ${d}.fm-cover--letterhead > .fm-cover__head > .fm-logos > .fm-logo { height: 100%; }
@@ -2358,9 +2360,8 @@ ${d}.fm-logos--empty {
   cursor: pointer;
 }
 ${d}.fm-logos__empty { font-size: 0.8em; }
-/* On an official cover the slot only shows where the logos go: they are
-   chosen from the cover's toolbar. */
-${d}.fm-cover__head > .fm-logos--empty { cursor: default; }
+/* An official cover's logos open the cover's Logos menu. */
+${d}.fm-cover__head > .fm-logos { cursor: pointer; }
 /* A block the paginator had to split because it is taller than a page: a
    chip laid over the block's top corner, out of the flow, so the block's
    box is print's box and the layout that placed the seam is not moved by

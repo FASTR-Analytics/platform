@@ -28,7 +28,6 @@ import {
   type FastrChartPalette,
   fastrContainerStackUpTo,
   type FastrCoverHead,
-  fastrCoverHeadLinesEdit,
   fastrCoverHeadLogosEdit,
   fastrCoverHeadOf,
   type FastrFencePatch,
@@ -219,10 +218,9 @@ export type ReportEditorApi = {
   // The line is explicit rather than "wherever the cursor is" so the toolbar
   // can tone an OUTER block while the caret sits inside one of its cards.
   setBlockAttrs: (line: number, patch: FastrFencePatch) => void;
-  // An official cover's head, from the cover's toolbar: the cover whose
-  // fence is on `coverLine` (1-based) takes these ministry lines, or this
-  // logos row (a `:::logos{…}` line; undefined removes the row).
-  setCoverHeadLines: (coverLine: number, lines: string[]) => void;
+  // An official cover's logos row, from the cover's toolbar: the cover whose
+  // fence is on `coverLine` (1-based) takes this row (a `:::logos{…}` line;
+  // undefined removes it).
   setCoverHeadLogos: (coverLine: number, fence: string | undefined) => void;
   // Create the `:::report` page-setup header (first line) when the document
   // lacks one — the toolbar's Page setup control targets it from anywhere.
@@ -317,6 +315,8 @@ type Props = {
   onSelectEmbed: (kind: "figure" | "image", id: string) => void;
   // A `:::logos` row asked for its picker.
   onEditLogos?: (fence: FastrOpenFence) => void;
+  // An official cover's logos were pressed (EmbedResolver.onCoverLogosPress).
+  onCoverLogosPress?: () => void;
   // A page template's empty photo slot asked for a photo: the host picks
   // one and hands back its embed token (undefined when the user cancels).
   pickPhoto?: () => Promise<string | undefined>;
@@ -510,6 +510,7 @@ export function ReportBodyEditor(p: Props) {
       p.onSelectEmbed(kind, id);
     },
     onEditLogos: (fence) => p.onEditLogos?.(fence),
+    onCoverLogosPress: () => p.onCoverLogosPress?.(),
     onAddPhoto: (line) => void addPhoto(line),
     onAddFigure: p.pickFigure === undefined
       ? undefined
@@ -1010,12 +1011,6 @@ export function ReportBodyEditor(p: Props) {
     // Still a cover there (a collaborator may have moved it meanwhile).
     const fence = parseContainerFence(lines[0]);
     return fence?.kind === "open" && fence.name === "cover" ? lines : undefined;
-  }
-
-  function setCoverHeadLines(coverLine: number, lines: string[]) {
-    const doc = coverLinesFrom(coverLine);
-    if (doc === undefined) return;
-    applyLinesEdit(coverLine, fastrCoverHeadLinesEdit(doc, 0, lines));
   }
 
   function setCoverHeadLogos(coverLine: number, fence: string | undefined) {
@@ -1753,7 +1748,6 @@ export function ReportBodyEditor(p: Props) {
       setEmbedAttrs,
       getSelection,
       setBlockAttrs,
-      setCoverHeadLines,
       setCoverHeadLogos,
       insertPageSetup,
       toggleInlineMark,

@@ -350,6 +350,29 @@ function templateTakes(attr: string): (container: HTMLElement) => boolean {
   };
 }
 
+// The parts a block draws AFTER its content, in their order (the
+// compiler's trailingHtml: a subtitle, then a cover's issue, then its date).
+const TRAILING_CHROME = ["fm-dek", "fm-cover__issue", "fm-cover__date"];
+
+// A missing attribute's ghost where the attribute would be drawn: a title
+// or kicker first, a trailing part after the content, before any trailing
+// part that comes after it.
+function placeChromeGhost(
+  container: HTMLElement,
+  el: HTMLElement,
+  childCls: string,
+): void {
+  const at = TRAILING_CHROME.indexOf(childCls);
+  if (at < 0) {
+    container.prepend(el);
+    return;
+  }
+  const later = Array.from(container.children).find((c) =>
+    TRAILING_CHROME.slice(at + 1).some((cls) => c.classList.contains(cls))
+  );
+  container.insertBefore(el, later ?? null);
+}
+
 // A cover element drawn as one of the official layouts.
 function isOfficialCoverEl(el: HTMLElement): boolean {
   return FASTR_OFFICIAL_COVER_LAYOUTS.some((l) =>
@@ -669,10 +692,11 @@ class RegionWidget extends WidgetType {
         }
       }
       // Caret on the clicked line. data-line values are region-relative
-      // (the renderer saw only the slice). An official cover's head is part
-      // of the cover's design, set from its toolbar: a press there is on the
-      // cover itself (its fence line).
-      const anchorEl = target.closest(".fm-cover__head")
+      // (the renderer saw only the slice). An official cover's logos are
+      // set from the cover's toolbar: a press on them is on the cover itself
+      // (its fence line).
+      const onCoverLogos = target.closest(".fm-cover__head .fm-logos") !== null;
+      const anchorEl = onCoverLogos
         ? target.closest<HTMLElement>(".fm-cover[data-line]")
         : target.closest<HTMLElement>("[data-line]");
       const rel = anchorEl ? Number(anchorEl.getAttribute("data-line")) : NaN;
@@ -692,6 +716,17 @@ class RegionWidget extends WidgetType {
         scrollIntoView: true,
       });
       view.focus();
+      // ...and opens the cover's Logos menu: after the release (which the
+      // editor answers by taking focus back), once the caret's context has
+      // reached the toolbar.
+      const press = self().resolver.onCoverLogosPress;
+      if (onCoverLogos && press) {
+        dom.ownerDocument.addEventListener(
+          "mouseup",
+          () => setTimeout(press, 0),
+          { once: true },
+        );
+      }
     });
     attachBlockContextMenu(dom, view, () => ({
       startLine: self().startLine,
@@ -939,8 +974,6 @@ class RegionWidget extends WidgetType {
       )
     ) {
       if (textEl.closest(".fm-stat") || textEl.querySelector("img")) continue;
-      // An official cover's head is set from the cover's toolbar.
-      if (textEl.closest(".fm-cover__head")) continue;
       const rel = Number(textEl.getAttribute("data-line"));
       if (!Number.isFinite(rel) || sourceLines[rel] === undefined) continue;
       attachTextEditor(textEl, view, this.startLine, sourceLines, rel);
@@ -1012,7 +1045,7 @@ class RegionWidget extends WidgetType {
         if (!el && ghosts && this.active && !childCls.includes(" > ")) {
           el = document.createElement("div");
           el.className = childCls;
-          container.prepend(el);
+          placeChromeGhost(container, el, childCls);
         }
         if (!el || (el as unknown as { _wired?: boolean })._wired) continue;
         (el as unknown as { _wired?: boolean })._wired = true;
@@ -1595,8 +1628,8 @@ function attachLogoRows(
       if (fence?.name === "logos") resolver.onEditLogos?.(fence);
     };
     const empty = row.querySelector("img.fm-logo") === null;
-    // An official cover's logos are chosen from the cover's toolbar: the row
-    // there opens nothing, and an empty one only shows where they will go.
+    // An official cover's logos are chosen from the cover's toolbar: a
+    // press on the row there opens its Logos menu (the region's handler).
     const inHead = row.closest(".fm-cover__head") !== null;
     // On the press, not dblclick/click: the first press activates the region
     // and rebuilds this DOM, so the release (and a dblclick) land on a new
@@ -1610,13 +1643,11 @@ function attachLogoRows(
     row.classList.add("fm-logos--empty");
     const label = document.createElement("span");
     label.className = "fm-logos__empty";
-    label.textContent = inHead
-      ? t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })
-      : t3({
-        en: "Choose logos",
-        fr: "Choisir des logos",
-        pt: "Escolher logótipos",
-      });
+    label.textContent = t3({
+      en: "Choose logos",
+      fr: "Choisir des logos",
+      pt: "Escolher logótipos",
+    });
     row.append(label);
   }
 }

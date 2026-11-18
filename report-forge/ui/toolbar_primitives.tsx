@@ -7,7 +7,15 @@
 // (screen/toolbar.tsx), and a host may build a matching one for another
 // editor of its own.
 
-import { createSignal, type JSX, onCleanup, Show, splitProps } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  type JSX,
+  on,
+  onCleanup,
+  Show,
+  splitProps,
+} from "solid-js";
 import { Icon } from "./kit/icon.tsx";
 
 // Data attributes a host puts on a primitive it mounts, for whatever it uses
@@ -174,10 +182,14 @@ export function ToolbarPopover(p: {
   /** Greyed and inert (the pill button only), holding its place in the row. */
   disabled?: boolean;
   children: (close: () => void) => JSX.Element;
+  // Opened from outside (a press on what it sets): each new count opens it
+  // under its button.
+  openRequest?: () => number;
 }) {
   const [open, setOpen] = createSignal(false);
   const [anchor, setAnchor] = createSignal({ x: 0, y: 0 });
   let wrap!: HTMLDivElement;
+  let button: HTMLButtonElement | undefined;
 
   function onDocPointerDown(e: PointerEvent) {
     if (!wrap.contains(e.target as Node)) close();
@@ -188,7 +200,10 @@ export function ToolbarPopover(p: {
   }
   function toggle(e: MouseEvent) {
     if (open()) return close();
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    openAt(e.currentTarget as HTMLElement);
+  }
+  function openAt(el: HTMLElement) {
+    const r = el.getBoundingClientRect();
     // Clamp so a right-edge popover never runs off screen.
     setAnchor({
       x: Math.max(8, Math.min(r.left, window.innerWidth - 260)),
@@ -200,6 +215,9 @@ export function ToolbarPopover(p: {
   onCleanup(() =>
     document.removeEventListener("pointerdown", onDocPointerDown, true)
   );
+  createEffect(on(() => p.openRequest?.() ?? 0, (n) => {
+    if (n > 0 && !open() && button) openAt(button);
+  }, { defer: true }));
 
   return (
     <div ref={wrap}>
@@ -213,6 +231,7 @@ export function ToolbarPopover(p: {
               "rf:ui-hoverable-base-300": p.disabled !== true,
               "rf:text-base-content-muted rf:opacity-50": p.disabled === true,
             }}
+            ref={button}
             aria-label={p.title}
             title={p.title}
             {...p.attrs}

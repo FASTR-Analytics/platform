@@ -833,6 +833,10 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     });
   }
 
+  // A press on an official cover's logos opens the cover's Logos menu
+  // (ReportToolbar's coverLogosRequest).
+  const [coverLogosRequest, setCoverLogosRequest] = createSignal(0);
+
   // An official cover with no logos row yet: its head takes a new one.
   async function addCoverLogos(coverLine: number) {
     const host = p.imageHost;
@@ -983,6 +987,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             onInsertLogos={() => void insertLogos()}
             onEditLogos={(fence) => void editLogos(fence)}
             onAddCoverLogos={(line) => void addCoverLogos(line)}
+            coverLogosRequest={coverLogosRequest}
           />
         </HeaderRows>
       </Show>
@@ -1074,6 +1079,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
                   p.onBodyChange(next, programmatic ? "program" : "user")}
                 onSelectEmbed={(kind, id) => setSelectedEmbed({ kind, id })}
                 onEditLogos={(fence) => void editLogos(fence)}
+                onCoverLogosPress={() => setCoverLogosRequest((n) => n + 1)}
                 pickPhoto={p.imageHost === undefined ? undefined : pickPhoto}
                 pickFigure={p.figures?.insert === undefined
                   ? undefined
