@@ -6,9 +6,8 @@ export const AI_VALUE_LIST_MAX = 500;
 
 // Every dimension value list the copilot reads. Checks compare ids, so a value
 // whose label differs is written `id (label)`: a caller that copies the label
-// alone fails again. A list longer than AI_VALUE_LIST_MAX is written as its
-// counts and the values that match one of the `near` strings, the text the
-// copilot sent, by the matcher every searchable list in the app uses.
+// alone fails again. `near` is the text the copilot sent, matched by the
+// matcher every searchable list in the app uses.
 export function formatValueListForAI(
   values: { id: string; label: string }[],
   near: string[],

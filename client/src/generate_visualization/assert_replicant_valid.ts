@@ -46,21 +46,17 @@ export async function assertReplicantValid(
   if (optRes.success && optRes.data.status === "ok") {
     const valid = optRes.data.possibleValues;
     const selected = config.d.selectedReplicantValue;
+    if (selected && valid.some((v) => v.id === selected)) return;
     const validList = formatReplicantValueListForAI(
       valid,
       replicateBy,
       selected,
     );
-    if (!selected) {
-      throw new AIToolFailure(
-        `This figure replicates by "${replicateBy}" and needs a selected replicant value (pass the id). ` +
+    throw new AIToolFailure(
+      selected
+        ? `Invalid replicant value "${selected}" (pass the id, not the label). Valid values: ${validList}`
+        : `This figure replicates by "${replicateBy}" and needs a selected replicant value (pass the id). ` +
           `Valid values: ${validList}`,
-      );
-    }
-    if (!valid.some((v) => v.id === selected)) {
-      throw new AIToolFailure(
-        `Invalid replicant value "${selected}" (pass the id, not the label). Valid values: ${validList}`,
-      );
-    }
+    );
   }
 }
