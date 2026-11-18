@@ -485,11 +485,11 @@ export function getClientToolsForReportEditor(
       name: "get_report_figure",
       description:
         "Get the FULL configuration of one report figure: its metric, type, " +
-        "disaggregations, filters, the active replicant and the AVAILABLE " +
-        "replicant values, display slots, captions, and the metric's available " +
+        "disaggregations, filters, the active replicant and the count of its " +
+        "values, display slots, captions, and the metric's available " +
         "dimensions. Call this before update_report_figure to see what a figure " +
-        "shows and which replicant/filter values are valid. figureId is the id " +
-        "after 'figure:' in get_report_editor.",
+        "shows; get_dimension_values lists the values a replicant or filter " +
+        "takes. figureId is the id after 'figure:' in get_report_editor.",
       inputSchema: z.object({
         figureId: z
           .string()

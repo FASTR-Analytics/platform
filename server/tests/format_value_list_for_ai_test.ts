@@ -25,7 +25,11 @@ Deno.test("a list of exactly AI_INLINE_LIST_MAX values is written whole", () => 
   const text = formatValueListForAI(areas(AI_INLINE_LIST_MAX), [], LOOKUP);
   assertEquals(text.split(", ").length, AI_INLINE_LIST_MAX);
   assert(text.startsWith("area_0 (Area 0), area_1 (Area 1)"));
-  assert(text.endsWith(`area_${AI_INLINE_LIST_MAX - 1} (Area 99)`));
+  assert(
+    text.endsWith(
+      `area_${AI_INLINE_LIST_MAX - 1} (Area ${AI_INLINE_LIST_MAX - 1})`,
+    ),
+  );
   assert(!text.includes("get_dimension_values"));
 });
 

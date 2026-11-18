@@ -202,7 +202,6 @@ const INDICATOR_METRIC = {
 async function indicatorRead(
   items: JsonArrayItem[],
   indicatorMetadata: IndicatorMetadata[],
-  disaggregations: AiMetricQuery["disaggregations"] = ["period_id"],
 ): Promise<string> {
   return await getMetricDataForAI(
     {
@@ -222,7 +221,7 @@ async function indicatorRead(
           },
         }),
     },
-    { metricId: INDICATOR_METRIC.id, disaggregations },
+    { metricId: INDICATOR_METRIC.id, disaggregations: ["period_id"] },
     [INDICATOR_METRIC],
   );
 }

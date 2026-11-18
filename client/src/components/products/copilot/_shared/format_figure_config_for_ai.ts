@@ -161,7 +161,7 @@ export async function formatFigureConfigForAI(
 }
 
 // The replicant's values under the figure's own filters and period, the read
-// the replicant check makes; undefined when the read fails.
+// the replicant check makes.
 async function readReplicantOptions(
   env: ClientAIToolEnv,
   metric: MetricWithStatus,

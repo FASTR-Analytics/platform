@@ -435,8 +435,8 @@ NEW CONVERSATION.
 
 **F11. Figure edits that validate before they commit.** Open slide 2.
 
-- Do: send "Read slide 2 with get_slides. If the figure has a replicant, change it to the second available value with update_figure; otherwise restrict its period to the latest twelve months of its coverage with update_figure. Report the change lines."
-- Ground truth: H3 shows `get_slides` and `update_figure` with `err: false`, the result's change report listing only the fields the call supplied, each `applied` or `no change (the stored config already matched)`, then the `Slide <id>:` line and `Figure <block id>:` with the config that resulted, which shows the new replicant or period. No `get_slides` call follows the `update_figure`: the copilot reports the change lines from the write's result. Screenshot the slide: the figure re-rendered with the new replicant or period.
+- Do: send "Read slide 2 with get_slides. If the figure has a replicant, change it with update_figure to the second value get_dimension_values lists for its metric and replicant dimension; otherwise restrict its period to the latest twelve months of its coverage with update_figure. Report the change lines."
+- Ground truth: H3 shows `get_slides`, then `get_dimension_values` when the figure has a replicant, and `update_figure` with `err: false`, the result's change report listing only the fields the call supplied, each `applied` or `no change (the stored config already matched)`, then the `Slide <id>:` line and `Figure <block id>:` with the config that resulted, which shows the new replicant or period. No `get_slides` call follows the `update_figure`: the copilot reports the change lines from the write's result. Screenshot the slide: the figure re-rendered with the new replicant or period.
 - Do: send "Now set a filter on admin_area_2 to the value 'NOT_A_REAL_AREA' with update_figure."
 - Ground truth: H3 shows `update_figure` with `err: true`, the text listing valid values or saying the dimension is unavailable. Screenshot the slide: identical to the previous screenshot.
 - Ask the copilot: "Did the second edit change anything on the slide?"

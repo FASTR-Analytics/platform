@@ -164,9 +164,9 @@ export async function getMetricDataForAI(
     : [];
 
   // uniqueDisaggregations, not the model's own list: the required options were
-  // merged into the QUERY, so they are real columns of the rows below. Passing
-  // the shorter list left the indicator dimension out of the Dimension Summary
-  // and made the CSV format its ids as values.
+  // merged into the QUERY, so they are real columns of the rows below. The
+  // model's own list would leave the indicator dimension out of the Dimension
+  // Summary and write its ids as value cells.
   return formatItemsAsMarkdown(
     itemsHolder,
     metric,
