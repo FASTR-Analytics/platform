@@ -77,6 +77,22 @@ Deno.test("furniture is read from the report header", () => {
   assertStringIncludes(css, "border: 9px solid #000080;");
   assertStringIncludes(css, "border: 2px solid #0070c0;");
   assert(!css.includes("counter(page)"));
+  // A mat: one broad band from the sheet's very edge, ending clear of the
+  // margin's middle where the running header and footer stand.
+  const mat = fastrFrameGeometry("mat", 68);
+  assertEquals(mat.lines.length, 1);
+  assertEquals(mat.inset + mat.lines[0].at, 0);
+  assert(mat.lines[0].width < 68 / 2, String(mat.lines[0].width));
+  const matCss = buildFastrPagedCss(
+    readFastrDocumentSettings(`:::report{frame=mat framecolor="#00b050"}\n`)
+      .page,
+    { title: "T", pageWord: "Page", ofWord: "of" },
+  );
+  assertStringIncludes(matCss, "inset: 0px;");
+  assertStringIncludes(
+    matCss,
+    `border: ${mat.lines[0].width}px solid #00b050;`,
+  );
   // Nothing set: no furniture at all.
   assertEquals(
     readFastrDocumentSettings("# Plain\n").page.furniture,

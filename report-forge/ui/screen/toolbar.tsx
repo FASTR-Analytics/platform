@@ -21,6 +21,7 @@ import {
   FASTR_BLOCK_SNIPPETS,
   FASTR_COVER_LAYOUTS,
   FASTR_COVER_PRESETS,
+  FASTR_FRAME_STYLES,
   FASTR_INK_ROLES,
   FASTR_LOGO_ALIGNS,
   FASTR_LOGO_SIZES,
@@ -35,6 +36,8 @@ import {
   fastrCoverColorParts,
   type FastrCoverPreset,
   type FastrFencePatch,
+  fastrFrameGeometry,
+  type FastrFrameStyle,
   type FastrInkRole,
   type FastrOpenFence,
   type FastrPageTemplate,
@@ -1139,67 +1142,12 @@ export function ReportToolbar(p: Props) {
                 pt: "Moldura da página",
               })}
             >
-              <div class="rf:bg-base-100 rf:ui-spy-sm rf:shadow-floating rf:flex rf:w-56 rf:flex-col rf:rounded rf:border rf:p-1">
-                <For
-                  each={[
-                    {
-                      value: undefined,
-                      label: t3({ en: "None", fr: "Aucun", pt: "Nenhuma" }),
-                    },
-                    {
-                      value: "line",
-                      label: t3({ en: "Line", fr: "Filet", pt: "Linha" }),
-                    },
-                    {
-                      value: "double",
-                      label: t3({ en: "Double", fr: "Double", pt: "Dupla" }),
-                    },
-                    {
-                      value: "bold",
-                      label: t3({ en: "Bold", fr: "Épais", pt: "Grossa" }),
-                    },
-                  ]}
-                >
-                  {(opt) => (
-                    <PopoverRow
-                      active={psAttr("frame") === opt.value}
-                      onClick={() =>
-                        p.onPatchPageSetup({
-                          frame: opt.value,
-                          ...(opt.value === undefined
-                            ? { framecolor: undefined }
-                            : {}),
-                        })}
-                    >
-                      <span class="rf:flex-1">{opt.label}</span>
-                      <Show when={psAttr("frame") === opt.value}>
-                        <Icon name="check" class="rf:h-3.5 rf:w-3.5" />
-                      </Show>
-                    </PopoverRow>
-                  )}
-                </For>
-                <Show when={psAttr("frame") !== undefined}>
-                  <div class="rf:ui-pad-sm">
-                    <DraftInput
-                      label={t3({
-                        en: "Colour (a tone or a colour)",
-                        fr: "Couleur (un ton ou une couleur)",
-                        pt: "Cor (um tom ou uma cor)",
-                      })}
-                      value={psAttr("framecolor") ?? ""}
-                      placeholder={t3({
-                        en: "accent, ink or #1f3a93",
-                        fr: "accent, ink ou #1f3a93",
-                        pt: "accent, ink ou #1f3a93",
-                      })}
-                      onCommit={(v) =>
-                        p.onPatchPageSetup({
-                          framecolor: v.length > 0 ? v : undefined,
-                        })}
-                    />
-                  </div>
-                </Show>
-              </div>
+              <FramePanel
+                scopeClass={scopeClass}
+                style={psAttr("frame")}
+                colors={psAttr("framecolor")}
+                onPatch={p.onPatchPageSetup}
+              />
             </MenuFlyout>
             {
               /* The figure conventions (fastr_figure_captions.ts): numbered
@@ -2804,6 +2752,221 @@ function CoverColorsPanel(p: {
         </Show>
       </PopoverRow>
       <LiteralColours literal={current()} onLiteral={(c) => set(c)} />
+    </div>
+  );
+}
+
+// The page frame (FastrPageFurniture): its style as tiles that draw it on a
+// small page (the real geometry, scaled), then its colours, the outer line's
+// and, on a frame of two lines, the inner line's, each a theme tone or a fixed
+// colour. `framecolor=` holds them in that order; the accent by default.
+function frameStyleLabel(style: FastrFrameStyle | undefined): string {
+  switch (style) {
+    case undefined:
+      return t3({ en: "None", fr: "Aucun", pt: "Nenhuma" });
+    case "line":
+      return t3({ en: "Line", fr: "Filet", pt: "Linha" });
+    case "double":
+      return t3({ en: "Double", fr: "Double", pt: "Dupla" });
+    case "bold":
+      return t3({ en: "Bold", fr: "Épais", pt: "Grossa" });
+    case "heavy":
+      return t3({ en: "Heavy", fr: "Lourd", pt: "Pesada" });
+    case "mat":
+      return t3({
+        en: "Coloured edge",
+        fr: "Bord coloré",
+        pt: "Margem colorida",
+      });
+  }
+}
+
+function FrameTile(p: {
+  style: FastrFrameStyle | undefined;
+  color: string;
+  innerColor: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  // A sheet of 44 × 60 with a 12px margin, the frame at the geometry's own
+  // proportions.
+  const W = 44;
+  const H = 60;
+  const g = () =>
+    p.style === undefined ? undefined : fastrFrameGeometry(p.style, 12);
+  return (
+    <button
+      type="button"
+      class="rf:ui-focusable rf:flex rf:flex-col rf:items-center rf:gap-1 rf:rounded rf:p-1 rf:text-xs"
+      classList={{
+        "rf:ring-2 rf:ring-primary rf:bg-primary-subtle": p.active,
+        "rf:ui-hoverable-base-100": !p.active,
+      }}
+      title={frameStyleLabel(p.style)}
+      onClick={p.onClick}
+    >
+      <span
+        class="rf:relative rf:block rf:border rf:bg-white"
+        style={{ width: `${W}px`, height: `${H}px` }}
+      >
+        <For each={g()?.lines ?? []}>
+          {(line, i) => (
+            <span
+              class="rf:absolute rf:block"
+              style={{
+                inset: `${Math.max(0, g()!.inset + line.at)}px`,
+                border: `${Math.max(1, Math.round(line.width * 0.6))}px solid ${
+                  i() > 0 ? p.innerColor : p.color
+                }`,
+              }}
+            />
+          )}
+        </For>
+        {/* The text column, so the frame reads as round a page. */}
+        <span
+          class="rf:absolute rf:block rf:bg-base-300"
+          style={{ left: "14px", right: "14px", top: "16px", height: "3px" }}
+        />
+        <span
+          class="rf:absolute rf:block rf:bg-base-200"
+          style={{ left: "14px", right: "14px", top: "23px", bottom: "16px" }}
+        />
+      </span>
+      <span class="rf:max-w-16 rf:truncate">{frameStyleLabel(p.style)}</span>
+    </button>
+  );
+}
+
+function FramePanel(p: {
+  scopeClass: string;
+  style: string | undefined;
+  colors: string | undefined;
+  onPatch: (patch: FastrFencePatch) => void;
+}) {
+  const style = () =>
+    (FASTR_FRAME_STYLES as readonly string[]).includes(p.style ?? "")
+      ? p.style as FastrFrameStyle
+      : undefined;
+  const tokens = () =>
+    (p.colors ?? "").split(/\s+/).filter((t) => t.length > 0);
+  const twoLines = () => {
+    const s = style();
+    return s !== undefined && fastrFrameGeometry(s, 12).lines.length > 1;
+  };
+  const [which, setWhich] = createSignal<0 | 1>(0);
+  const slot = () => (twoLines() ? which() : 0);
+  // A slot's colour for a swatch: its literal, its tone's real ground (the
+  // tile previews take it from the scope's stylesheet), or the accent.
+  const shown = (k: 0 | 1) => {
+    const t = tokens()[k] ?? (k === 1 ? tokens()[0] : undefined);
+    if (t === undefined) return "var(--fm-accent)";
+    const tone = fastrToneOf(t);
+    return tone !== undefined && tone !== "default"
+      ? `var(--fm-${tone}-ground)`
+      : t;
+  };
+  const toneOf = (k: 0 | 1) => {
+    const t = tokens()[k];
+    if (t === undefined) return "default";
+    const tone = fastrToneOf(t);
+    return tone !== undefined ? tone : "literal";
+  };
+  const literalOf = (k: 0 | 1) =>
+    toneOf(k) === "literal" ? tokens()[k] : undefined;
+  function setColor(k: 0 | 1, value: string | undefined) {
+    const next: (string | undefined)[] = [tokens()[0], tokens()[1]];
+    next[k] = value;
+    // The outer slot holds the place of an inner colour: the accent, said.
+    if (next[1] !== undefined && next[0] === undefined) next[0] = "accent";
+    if (!twoLines()) next[1] = undefined;
+    const out = next.filter((c): c is string => c !== undefined);
+    p.onPatch({ framecolor: out.length > 0 ? out.join(" ") : undefined });
+  }
+  const styles: (FastrFrameStyle | undefined)[] = [
+    undefined,
+    ...FASTR_FRAME_STYLES,
+  ];
+  return (
+    <div class="rf:bg-base-100 rf:ui-pad-sm rf:shadow-floating rf:flex rf:w-72 rf:flex-col rf:gap-2 rf:rounded rf:border">
+      <div
+        class={`${p.scopeClass} rf:grid rf:grid-cols-3 rf:gap-1`}
+      >
+        <For each={styles}>
+          {(s) => (
+            <FrameTile
+              style={s}
+              color={shown(0)}
+              innerColor={shown(1)}
+              active={style() === s}
+              onClick={() =>
+                p.onPatch({
+                  frame: s,
+                  ...(s === undefined ? { framecolor: undefined } : {}),
+                })}
+            />
+          )}
+        </For>
+      </div>
+      <Show when={style() !== undefined}>
+        <div class="rf:border-base-300 rf:flex rf:flex-col rf:gap-1 rf:border-t rf:pt-2">
+          <Show
+            when={twoLines()}
+            fallback={
+              <div class="rf:text-base-content-muted rf:text-xs">
+                {t3({ en: "Colour", fr: "Couleur", pt: "Cor" })}
+              </div>
+            }
+          >
+            <div class="rf:flex rf:gap-1">
+              <For
+                each={[
+                  {
+                    k: 0 as const,
+                    label: t3({
+                      en: "Outer line",
+                      fr: "Filet extérieur",
+                      pt: "Linha exterior",
+                    }),
+                  },
+                  {
+                    k: 1 as const,
+                    label: t3({
+                      en: "Inner line",
+                      fr: "Filet intérieur",
+                      pt: "Linha interior",
+                    }),
+                  },
+                ]}
+              >
+                {(opt) => (
+                  <PopoverRow
+                    active={slot() === opt.k}
+                    onClick={() => setWhich(opt.k)}
+                  >
+                    <span class="rf:flex rf:items-center rf:gap-1.5">
+                      <span class={p.scopeClass}>
+                        <span
+                          class="rf:inline-block rf:h-3.5 rf:w-3.5 rf:rounded-full rf:border"
+                          style={{ "background-color": shown(opt.k) }}
+                        />
+                      </span>
+                      <span>{opt.label}</span>
+                    </span>
+                  </PopoverRow>
+                )}
+              </For>
+            </div>
+          </Show>
+          <GroundPanel
+            scopeClass={p.scopeClass}
+            tone={toneOf(slot())}
+            literal={literalOf(slot())}
+            onTone={(tone) =>
+              setColor(slot(), tone === "default" ? undefined : tone)}
+            onLiteral={(c) => setColor(slot(), c)}
+          />
+        </div>
+      </Show>
     </div>
   );
 }

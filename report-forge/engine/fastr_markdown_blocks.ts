@@ -648,8 +648,10 @@ export type FastrPageSetup = {
 //   footerrule   a stripe of one to four colours (literal colours or tone
 //                names) across the foot of the page, the column's width
 //   frame        a border round the page, inset in its margins: line, double
-//                (a heavy line and a hairline inside it), bold, or heavy (a
-//                broad band and a fine line inside it);
+//                (a heavy line and a hairline inside it), bold, heavy (a
+//                broad band and a fine line inside it), or mat (the sheet's
+//                edge a broad band of colour round a white page, a
+//                statistical book's look);
 //                `framecolor=` a tone or a colour, the accent by default; a
 //                second colour (`framecolor="#000080 #0070c0"`) is the
 //                inner line's
@@ -657,7 +659,13 @@ export type FastrPageSetup = {
 // All of it stands in the margins, so no block's box moves and the editor's
 // pages and print's stay the same. A filling cover keeps the frame (it is
 // the sheet's, not the margin's) and drops the rest, as it drops the footer.
-export const FASTR_FRAME_STYLES = ["line", "double", "bold", "heavy"] as const;
+export const FASTR_FRAME_STYLES = [
+  "line",
+  "double",
+  "bold",
+  "heavy",
+  "mat",
+] as const;
 export type FastrFrameStyle = (typeof FASTR_FRAME_STYLES)[number];
 
 export type FastrPageFurniture = {
@@ -728,6 +736,14 @@ export function fastrFrameGeometry(
   marginPx: number,
 ): { inset: number; lines: { at: number; width: number }[] } {
   const inset = Math.round(marginPx * 0.22);
+  // A mat runs from the sheet's edge, a third of the margin in, clear of the
+  // running header and footer, which stand at the margin's middle.
+  if (style === "mat") {
+    return {
+      inset,
+      lines: [{ at: -inset, width: Math.round(marginPx * 0.34) }],
+    };
+  }
   const lines = style === "line"
     ? [{ at: 0, width: 1 }]
     : style === "bold"

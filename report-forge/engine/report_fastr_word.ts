@@ -2082,9 +2082,18 @@ class Builder {
         : frame.style === "heavy"
         ? BorderStyle.THICK_THIN_MEDIUM_GAP
         : BorderStyle.SINGLE,
-      size: frame.style === "line" ? 6 : frame.style === "heavy" ? 48 : 24,
+      // Word's broadest border is 12pt: a mat is that, at the page's edge.
+      size: frame.style === "line"
+        ? 6
+        : frame.style === "heavy"
+        ? 48
+        : frame.style === "mat"
+        ? 96
+        : 24,
       color,
-      space: Math.min(31, Math.round(g.inset * 0.75)),
+      space: frame.style === "mat"
+        ? 0
+        : Math.min(31, Math.round(g.inset * 0.75)),
     };
     return {
       pageBorders: {

@@ -231,8 +231,9 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   in place of the title at the foot (\`footer=none\` keeps the page number
   alone); \`pagenumbers=none\` prints no page number (with \`footer=none\`
   the foot is empty); \`footerrule="#ce1126 #fcd116 #009460"\` a stripe of
-  colours under the footer; \`frame=line|double|bold|heavy\` a border round
-  every page, heavy a broad band with a fine line inside it
+  colours under the footer; \`frame=line|double|bold|heavy|mat\` a border
+  round every page, heavy a broad band with a fine line inside it, mat the
+  sheet's edge a broad band of colour round a white page
   (\`framecolor=\` a tone or a colour, or two: the band's, then the inner
   line's); \`sections=bar\` sets the section headings as filled bars, their
   numbers in a tab with \`numbering=sections\`.

@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-17T07:54:24.744Z",
-  "sourceCommit": "2810fae",
-  "sourceSubject": "Cover colours: the title box, issue number and date each take their own",
+  "timestamp": "2026-11-18T03:57:04.307Z",
+  "sourceCommit": "00ab2c5",
+  "sourceSubject": "Page frame: a tile-and-swatch panel, every style, and a coloured edge",
   "sourceDirty": false,
   "target": "platform"
 }
