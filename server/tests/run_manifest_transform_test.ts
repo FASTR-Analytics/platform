@@ -143,7 +143,6 @@ Deno.test("block 9 renames the pre-1.72 stamps and drops the keys nothing reads"
     datasets: [
       {
         datasetType: "hmis",
-        lastUpdated: "2026-08-26T00:00:00.000Z",
         info: {
           version: HMIS_VERSION,
           windowing: { takeAllIndicators: true },
@@ -158,7 +157,6 @@ Deno.test("block 9 renames the pre-1.72 stamps and drops the keys nothing reads"
       },
       {
         datasetType: "hfa",
-        lastUpdated: "2026-08-26T00:00:00.000Z",
         info: {
           _legacy: true,
           facilityColumnsHash: "ddd",
@@ -167,7 +165,6 @@ Deno.test("block 9 renames the pre-1.72 stamps and drops the keys nothing reads"
       },
       {
         datasetType: "iceh",
-        lastUpdated: "2026-08-26T00:00:00.000Z",
         info: { icehCacheHash: "fff" },
       },
     ],
@@ -223,7 +220,6 @@ Deno.test("a stamp already under its current name is kept, and a package written
     datasets: [
       {
         datasetType: "hmis",
-        lastUpdated: "2026-09-01T00:00:00.000Z",
         info: { ...current, indicatorMappingsVersion: "old" },
       },
     ],
