@@ -127,7 +127,7 @@ The bounds and the one paging helper live in [lib/ai_tools/read_bounds.ts](lib/a
 
 **Data reads.** A read of a metric's data is refused whole over `AI_DATA_ROWS_MAX`, never cut: it writes its header, its row count and the Dimension Summary's counts, then one line that says how to narrow the read and names the lookup, and no rows. A part of the rows would be read as all of them.
 
-**File reads.** A read of a file is a window, never the file: `formatTextWindowForAI` writes whole lines up to `AI_TEXT_WINDOW_MAX_CHARS`, each cut at `AI_TEXT_LINE_MAX_CHARS`, from where the tool's default window starts (a script's first line, a log's last), from `fromLine`, or the lines that match `search`. Each result opens with the file's counts and the lines written, and names the `fromLine` of the next window.
+**File reads.** A read of a file is a window, never the file: `formatTextWindowForAI` writes whole lines up to `AI_TEXT_WINDOW_MAX_CHARS`, each cut at `AI_TEXT_LINE_MAX_CHARS`, from a script's first line or to a log's last when the call gives neither `fromLine` nor `search`, from `fromLine`, or the lines that match `search`. Each result opens with the file's counts and the lines written, and names the `fromLine` of the next window.
 
 ## Gotchas
 

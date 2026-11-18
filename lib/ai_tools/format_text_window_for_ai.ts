@@ -19,11 +19,13 @@ export function formatTextWindowForAI(
   query: TextWindowQuery,
 ): string {
   const lines = text === "" ? [] : text.replace(/\r?\n$/, "").split(/\r?\n/);
-  const counts = `File: ${lineCount(lines.length)}, ${text.length} characters.`;
+  const counts = `File: ${counted(lines.length, "line")}, ${
+    counted(text.length, "character")
+  }.`;
   if (query.fromLine !== undefined && query.fromLine > lines.length) {
     throw new AIToolFailure(
       `fromLine ${query.fromLine} is past the end: the file holds ${
-        lineCount(lines.length)
+        counted(lines.length, "line")
       }.`,
     );
   }
@@ -37,7 +39,7 @@ export function formatTextWindowForAI(
     );
     const matchingFrom = matching.filter((n) => n >= from);
     const matchCount = `${matching.length} of ${
-      lineCount(lines.length)
+      counted(lines.length, "line")
     } match ${search.quoted}${
       from > 1 ? `, ${matchingFrom.length} of them from line ${from}` : ""
     }.`;
@@ -76,8 +78,8 @@ export function formatTextWindowForAI(
   return `${counts} ${written}\n\n${entries.slice(first - 1, last).join("\n")}`;
 }
 
-function lineCount(n: number): string {
-  return n === 1 ? "1 line" : `${n} lines`;
+function counted(n: number, noun: string): string {
+  return n === 1 ? `1 ${noun}` : `${n} ${noun}s`;
 }
 
 function lineRange(first: number, last: number): string {

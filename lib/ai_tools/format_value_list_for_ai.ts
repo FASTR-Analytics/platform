@@ -16,7 +16,7 @@ export type SearchForAI = {
   matches: (text: string) => boolean;
 };
 
-export function searchForAI(terms: string[]): SearchForAI | undefined {
+function searchForAI(terms: string[]): SearchForAI | undefined {
   const queries = terms
     .map((text) => ({ text, tokens: searchTokens(text) }))
     .filter((q) => q.tokens.length > 0);
