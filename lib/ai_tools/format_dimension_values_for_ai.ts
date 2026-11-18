@@ -5,6 +5,7 @@ import type {
   HfaTaxonomyForAI,
   MetricWithStatus,
   ResultsValueInfoForPresentationObject,
+  RunAuthoringContext,
   RunHmisIndicator,
 } from "../types/mod.ts";
 import type { AIToolEnv } from "./env.ts";
@@ -27,8 +28,8 @@ import {
 // What the package states about each indicator of each family, joined to a
 // dimension's values by id.
 export type IndicatorFactsForAI = {
-  hmisIndicators: RunHmisIndicator[];
-  icehIndicators: { id: string; label: string; category: string }[];
+  hmisIndicators: RunAuthoringContext["hmisIndicators"];
+  icehIndicators: RunAuthoringContext["icehIndicators"];
   hfaIndicators: HfaTaxonomyForAI["indicators"];
 };
 
@@ -144,8 +145,6 @@ function countText(
     : `${values}; ${matched} match ${search.quoted}`;
 }
 
-// A dimension in the listing of every dimension: its count, and its values or
-// matches up to the inline cap.
 function dimensionInListing(
   disOpt: string,
   status: DisaggregationPossibleValuesStatus,
@@ -181,7 +180,6 @@ function dimensionInListing(
   return [heading(disOpt, counts, writer, ":"), ...body(matched, writer)];
 }
 
-// One named dimension, in pages of AI_VALUE_PAGE_MAX values.
 function dimensionInPages(
   disOpt: string,
   status: DisaggregationPossibleValuesStatus,
@@ -221,6 +219,13 @@ export function formatDimensionValuesForAI(
   const search = query.search === undefined
     ? undefined
     : searchForAI(query.search);
+  if (query.search !== undefined && search === undefined) {
+    throw new AIToolFailure(
+      `search ${
+        JSON.stringify(query.search)
+      } holds no word to match: give at least one term with a letter or digit.`,
+    );
+  }
   const head = [
     "# DIMENSION VALUES",
     "",

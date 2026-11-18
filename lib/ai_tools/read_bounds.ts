@@ -1,8 +1,7 @@
 import { AIToolFailure } from "@timroberton/panther";
 
-// A list whose length follows the instance's data is written whole into text
-// the copilot did not ask for only up to this many entries; over it the text
-// states the count and names the read that lists it.
+// The most values get_dimension_values writes for one dimension when it lists
+// every dimension; over it the dimension is written as its count.
 export const AI_INLINE_LIST_MAX = 100;
 
 // The most values one call of get_dimension_values writes for a named
@@ -23,7 +22,9 @@ export function pageForAI<T>(
 ): PageForAI<T> {
   if (offset > 0 && offset >= all.length) {
     throw new AIToolFailure(
-      `offset ${offset} is past the end: there are ${all.length} ${noun}, so an offset must be below ${all.length}.`,
+      all.length === 0
+        ? `offset ${offset} is past the end: there are no ${noun}.`
+        : `offset ${offset} is past the end: there are ${all.length} ${noun}, so an offset must be below ${all.length}.`,
     );
   }
   if (all.length === 0) {

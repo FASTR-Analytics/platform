@@ -84,7 +84,7 @@ export const AiDimensionValuesQuerySchema = z.object({
   disOpt: configDStrict.shape.disaggregateBy.element.shape.disOpt
     .optional()
     .describe(
-      "Optional: one dimension of the metric, to list all its values in pages of 500. Omit to list every dimension with its count.",
+      "Optional: one dimension of the metric, to list its values page by page. Omit to list every dimension with its count.",
     ),
   search: z
     .array(z.string())

@@ -5,7 +5,6 @@ import type {
   AiMetricQuery,
   HfaTaxonomyForAI,
   MetricWithStatus,
-  RunHmisIndicator,
 } from "../types/mod.ts";
 import {
   AiDimensionValuesQuerySchema,
@@ -16,22 +15,23 @@ import {
   formatMetricsListForAI,
   type ModuleForAI,
 } from "./format_metrics_list_for_ai.ts";
-import { getDimensionValuesForAI } from "./format_dimension_values_for_ai.ts";
+import {
+  getDimensionValuesForAI,
+  type IndicatorFactsForAI,
+} from "./format_dimension_values_for_ai.ts";
 import { validateAiMetricQuery } from "./content_validators.ts";
 import { AI_INLINE_LIST_MAX, AI_VALUE_PAGE_MAX } from "./read_bounds.ts";
 import type { AIToolEnv } from "./env.ts";
-
-type IcehIndicator = { id: string; label: string; category: string };
 
 export function getSharedToolsForMetrics(
   env: AIToolEnv,
   metrics: MetricWithStatus[],
   modules: ModuleForAI[],
-  hmisIndicators: RunHmisIndicator[],
-  icehIndicators: IcehIndicator[],
+  hmisIndicators: IndicatorFactsForAI["hmisIndicators"],
+  icehIndicators: IndicatorFactsForAI["icehIndicators"],
   hfaTaxonomy: HfaTaxonomyForAI,
 ) {
-  const indicatorFacts = {
+  const indicatorFacts: IndicatorFactsForAI = {
     hmisIndicators,
     icehIndicators,
     hfaIndicators: hfaTaxonomy.indicators,

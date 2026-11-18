@@ -109,7 +109,7 @@ The reference implementations are the deck's tools. `get_slides({ slideIds })` r
 
 ## Bounded reads
 
-A list or a read whose size follows the instance's data (its indicators, areas, facilities, products, a module's files) is bounded wherever the copilot is given it without asking, and is complete only where the copilot asks for it, in bounded pages. A tool's result, description and errors, a view's state and a consumer block all follow this.
+A list or a read whose size follows the instance's data (its indicators, areas, facilities, products, a module's files) is bounded wherever the copilot is given it without asking, and is complete only where the copilot asks for it, in bounded pages. It binds a tool's result, description and errors, a view's state and a consumer block.
 
 The bounds and the one paging helper live in [lib/ai_tools/read_bounds.ts](lib/ai_tools/read_bounds.ts). `pageForAI` takes the entries, the offset and the page size, refuses an offset past the entries, and returns the page with the sentence that says which entries are written, how many there are and the offset of the next page.
 

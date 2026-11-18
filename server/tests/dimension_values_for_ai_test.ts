@@ -430,4 +430,15 @@ Deno.test("an offset at or past the values to write is refused", async () => {
       }),
     "offset 11 is past the end: there are 11 matching values, so an offset must be below 11.",
   );
+  await refusal(
+    () => lookup(dims, { disOpt: "admin_area_3", search: ["kano"], offset: 1 }),
+    "offset 1 is past the end: there are no matching values.",
+  );
+});
+
+Deno.test("a search with no word to match is refused", async () => {
+  await refusal(
+    () => lookup({ admin_area_2: ok(areas(2)) }, { search: ["", "  "] }),
+    `search ["","  "] holds no word to match: give at least one term with a letter or digit.`,
+  );
 });

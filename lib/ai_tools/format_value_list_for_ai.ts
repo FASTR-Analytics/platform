@@ -29,8 +29,8 @@ export function searchForAI(terms: string[]): SearchForAI | undefined {
   };
 }
 
-// Every dimension value list the copilot reads. `near` is the text the
-// copilot sent.
+// The value list in the validator's and the replicant check's errors and in a
+// figure's read-back. `near` is the text the copilot sent.
 export function formatValueListForAI(
   values: { id: string; label: string }[],
   near: string[],
