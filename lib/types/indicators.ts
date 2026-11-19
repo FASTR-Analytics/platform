@@ -863,9 +863,8 @@ export type IndicatorMetadata = {
   // The indicator's own CF rule (HMIS indicators only). The `indicator` CF
   // source resolves it per value through EffectiveIndicatorFacts.ruleForValue.
   thresholds?: ThresholdsRule;
-  // Whether a higher value is better or worse; absent when the family does
-  // not declare it. Declared by HMIS indicators today; any family may
-  // declare it.
+  // Whether a higher value is better or worse; absent when the indicator
+  // declares none. Only HMIS indicators declare one today; any family may.
   direction?: ThresholdDirection;
   // A target value in STORED units (a fraction for a percent); absent when
   // none is set. Declared by HMIS calculated indicators today.
