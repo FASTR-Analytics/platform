@@ -256,7 +256,9 @@ const rowsTable = createTableConfig();
 
 One component covers all of it: optional `heading` with inline `subheading`, `onBack`, `leftChildren`, `tabs`, `centerLeftChildren`, `centerChildren`, right-hand `children`, and a built-in search field via `searchText` / `setSearchText`. Empty slots collapse, so the title gets the full width when nothing else is present.
 
-Every bar is exactly `--ui-heading-bar-height` tall, whatever it holds, with its content centred: a bar holding only a title is as tall as one holding buttons or tabs, and content taller than a form control is clipped. A panel `TabsNavigation` strip at full size is the same height, so a bare tab strip and a heading bar line up. The height is set once per app, never at a call site, through `--ui-heading-bar-pad-y`, the space above and below a form control. The bar's horizontal inset is `ui-pad-x`, the content's, so its heading lines up with the content below.
+Every bar is exactly `--ui-heading-bar-height` tall, whatever it holds, with its content centred: a bar holding only a title is as tall as one holding buttons or tabs, and content taller than a form control is clipped. A panel `TabsNavigation` strip at full size is the same height, so a bare tab strip and a heading bar line up. The height is set once per app, through `--ui-heading-bar-pad-y`, the space above and below a form control. The bar's horizontal inset is `ui-pad-x`, the content's, so its heading lines up with the content below.
+
+`comfortable` is for a bar of controls that is not a main header, such as a search field and buttons over a list: it puts the content's `ui-pad-y` around its controls instead of the header pad-y, at `--ui-heading-bar-comfortable-height`, still one fixed height whatever the bar holds. Main headers, the bars that sit side by side across an app, never take it.
 
 With no heading, back button, `leftChildren` or `tabs`, the centre group (search and its neighbours) starts at the left edge, for pages whose title is already shown by the navigation that opened them.
 

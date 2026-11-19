@@ -25,6 +25,9 @@ type Props<T extends string> = {
   subheading?: string | JSX.Element;
   onBack?: () => void;
   tonal?: boolean;
+  // A bar of controls rather than a main header: ui-pad-y around its
+  // controls instead of the app's tighter header pad-y.
+  comfortable?: boolean;
   leftChildren?: JSX.Element;
   // After the heading. The bar is then the tab strip's rail.
   tabs?: HeadingBarTabs<T>;
@@ -81,14 +84,19 @@ export function HeadingBar<T extends string = string>(p: Props<T>) {
   const tabsDataAttrs = (): DataAttrs =>
     p.tabs ? splitDataAttrs(p.tabs)[0] : {};
 
+  const heightClass = () =>
+    p.comfortable
+      ? "h-[var(--ui-heading-bar-comfortable-height)]"
+      : "h-[var(--ui-heading-bar-height)]";
+
   // The bar's height is fixed, not padding around its content, so every bar
-  // in an app is one height whatever it holds; content taller than a form
+  // of a form is one height whatever it holds; content taller than a form
   // control is clipped. Every slot centres its own content, so the row
   // stretches and tabs can reach the bottom edge.
   return (
     <div
       {...dataAttrs}
-      class={`ui-pad-x ui-gap flex h-[var(--ui-heading-bar-height)] w-full flex-none items-stretch overflow-hidden ${surfaceClass()}`}
+      class={`ui-pad-x ui-gap flex ${heightClass()} w-full flex-none items-stretch overflow-hidden ${surfaceClass()}`}
     >
       <Show when={hasLeft()}>
         <div class="ui-gap flex min-w-0 flex-1 basis-1 items-center">

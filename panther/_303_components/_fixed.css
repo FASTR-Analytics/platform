@@ -340,6 +340,13 @@
     2 * var(--ui-heading-bar-pad-y) + var(--ui-form-height)
   );
 
+  /* A `comfortable` HeadingBar's height: a form control with the content's
+     own ui-pad-y above and below, for a bar of controls that is not a main
+     header. Derived; retune --ui-pad-y, not this. */
+  --ui-heading-bar-comfortable-height: calc(
+    2 * var(--ui-pad-y) + var(--ui-form-height)
+  );
+
   /* ============================================= */
   /* Modal sizing                                  */
   /* ============================================= */
