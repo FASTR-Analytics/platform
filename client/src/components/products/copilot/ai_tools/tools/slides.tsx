@@ -95,13 +95,26 @@ export function getClientToolsForSlides(
         );
         return `${outline}\n${formatDeckSettings(deckConfig)}`;
       },
-      inProgressLabel: "Getting deck state...",
-      completionMessage: () => {
+      inProgressLabel: t3({
+        en: "Getting the slide deck...",
+        fr: "Récupération de la présentation...",
+        pt: "A obter a apresentação...",
+      }),
+      successMessage: () => {
         const view = copilotViewController.current();
-        if (view.id !== "editing_slide_deck") return "Retrieved deck";
-        return `Retrieved deck with ${
-          slidesLabel(view.context.getSlideIds().length)
-        }`;
+        if (view.id !== "editing_slide_deck") {
+          return t3({
+            en: "Retrieved the slide deck",
+            fr: "Présentation récupérée",
+            pt: "Apresentação obtida",
+          });
+        }
+        const slides = slidesLabel(view.context.getSlideIds().length);
+        return t3({
+          en: `Retrieved the slide deck (${slides})`,
+          fr: `Présentation récupérée (${slides})`,
+          pt: `Apresentação obtida (${slides})`,
+        });
       },
     }),
 
@@ -186,11 +199,19 @@ export function getClientToolsForSlides(
           }".`,
         );
       },
-      inProgressLabel: (input) => `Creating ${input.slide.type} slide...`,
-      completionMessage: (input) =>
-        `Created ${input.slide.type} slide: "${
-          getSlideTitle(input.slide as Slide)
-        }"`,
+      inProgressLabel: t3({
+        en: "Creating a slide...",
+        fr: "Création d'une diapositive...",
+        pt: "A criar um diapositivo...",
+      }),
+      successMessage: (input) => {
+        const title = getSlideTitle(input.slide as Slide);
+        return t3({
+          en: `Created a slide: "${title}"`,
+          fr: `Diapositive créée : « ${title} »`,
+          pt: `Diapositivo criado: "${title}"`,
+        });
+      },
     }),
 
     createUpdateSlideTool(env, metrics),
@@ -247,9 +268,19 @@ export function getClientToolsForSlides(
           }". ${slideTargetOutcome(target)}`,
         );
       },
-      inProgressLabel: `Replacing ${slidesLabel(1)}...`,
-      completionMessage: (input) =>
-        `Replaced slide: "${getSlideTitle(input.slide as Slide)}"`,
+      inProgressLabel: t3({
+        en: "Replacing a slide...",
+        fr: "Remplacement d'une diapositive...",
+        pt: "A substituir um diapositivo...",
+      }),
+      successMessage: (input) => {
+        const title = getSlideTitle(input.slide as Slide);
+        return t3({
+          en: `Replaced a slide: "${title}"`,
+          fr: `Diapositive remplacée : « ${title} »`,
+          pt: `Diapositivo substituído: "${title}"`,
+        });
+      },
     }),
 
     createAITool({
@@ -328,10 +359,19 @@ export function getClientToolsForSlides(
           };
         },
       },
-      inProgressLabel: (input) =>
-        `Deleting ${slidesLabel(input.slideIds.length)}...`,
-      completionMessage: (input) =>
-        `Deleted ${slidesLabel(input.slideIds.length)}`,
+      inProgressLabel: (input) => {
+        const slides = slidesLabel(input.slideIds.length);
+        return t3({
+          en: `Proposing to delete ${slides}...`,
+          fr: `Proposition de supprimer ${slides}...`,
+          pt: `A propor eliminar ${slides}...`,
+        });
+      },
+      successMessage: t3({
+        en: "Not proposed: no slide to delete",
+        fr: "Non proposé : aucune diapositive à supprimer",
+        pt: "Não proposto: nenhum diapositivo a eliminar",
+      }),
     }),
 
     createAITool({
@@ -372,10 +412,27 @@ export function getClientToolsForSlides(
           res.data.newSlideIds.join(", ")
         }.`;
       },
-      inProgressLabel: (input) =>
-        `Duplicating ${slidesLabel(input.slideIds.length)}...`,
-      completionMessage: (input) =>
-        `Duplicated ${slidesLabel(input.slideIds.length)}`,
+      inProgressLabel: (input) => {
+        const slides = slidesLabel(input.slideIds.length);
+        return t3({
+          en: `Duplicating ${slides}...`,
+          fr: `Duplication de ${slides}...`,
+          pt: `A duplicar ${slides}...`,
+        });
+      },
+      successMessage: (input) => {
+        const n = input.slideIds.length;
+        const slides = slidesLabel(n);
+        return t3({
+          en: `Duplicated ${slides}`,
+          fr: `${slides} ${
+            plural(n, { one: "dupliquée", other: "dupliquées" })
+          }`,
+          pt: `${slides} ${
+            plural(n, { one: "duplicado", other: "duplicados" })
+          }`,
+        });
+      },
     }),
 
     createAITool({
@@ -449,10 +506,23 @@ export function getClientToolsForSlides(
 
         return `Moved ${input.slideIds.length} slide(s).`;
       },
-      inProgressLabel: (input) =>
-        `Moving ${slidesLabel(input.slideIds.length)}...`,
-      completionMessage: (input) =>
-        `Moved ${slidesLabel(input.slideIds.length)}`,
+      inProgressLabel: (input) => {
+        const slides = slidesLabel(input.slideIds.length);
+        return t3({
+          en: `Moving ${slides}...`,
+          fr: `Déplacement de ${slides}...`,
+          pt: `A mover ${slides}...`,
+        });
+      },
+      successMessage: (input) => {
+        const n = input.slideIds.length;
+        const slides = slidesLabel(n);
+        return t3({
+          en: `Moved ${slides}`,
+          fr: `${slides} ${plural(n, { one: "déplacée", other: "déplacées" })}`,
+          pt: `${slides} ${plural(n, { one: "movido", other: "movidos" })}`,
+        });
+      },
     }),
 
     createUpdateDeckSettingsTool(),

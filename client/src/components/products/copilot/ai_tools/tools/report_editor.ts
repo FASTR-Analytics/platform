@@ -36,6 +36,8 @@ import {
   resolveFigureMetric,
   type ResultsValueInfoForPresentationObject,
   rewriteReportEmbedToken,
+  t3,
+  type TranslatableString,
 } from "lib";
 import { FASTR_MD_SYNTAX_DOC, FASTR_PAGE_MUST_FIX } from "lib";
 import {
@@ -132,6 +134,20 @@ function refusedTextEdit(
   if (edit.unchanged) return { skip: edit.error };
   throw new AIToolFailure(edit.error);
 }
+
+// The chat shows an approval tool's success label only for a {skip}: a
+// report edit that would leave the body as it is, or a draft held unproposed.
+const REPORT_UNCHANGED_LABEL: TranslatableString = {
+  en: "Not proposed: the report would not change",
+  fr: "Non proposé : le rapport ne changerait pas",
+  pt: "Não proposto: o relatório não mudaria",
+};
+
+const DRAFT_HELD_LABEL: TranslatableString = {
+  en: "Not proposed yet: the draft is held",
+  fr: "Pas encore proposé : le brouillon est retenu",
+  pt: "Ainda não proposto: o rascunho fica retido",
+};
 
 // Figures a draft adds: each a metric plus a preset, named by a short key the
 // body embeds as `![caption](figure:<key>)`. rewrite_report swaps each key for
@@ -476,8 +492,16 @@ export function getClientToolsForReportEditor(
           selection: ctx.getSelection(),
         }).text;
       },
-      inProgressLabel: "Reading report editor...",
-      completionMessage: "Read report editor",
+      inProgressLabel: t3({
+        en: "Getting the report editor...",
+        fr: "Récupération de l'éditeur de rapport...",
+        pt: "A obter o editor de relatório...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the report editor",
+        fr: "Éditeur de rapport récupéré",
+        pt: "Editor de relatório obtido",
+      }),
     }),
 
     createAITool({
@@ -514,8 +538,16 @@ export function getClientToolsForReportEditor(
         );
         return [...lines, text].join("\n");
       },
-      inProgressLabel: "Reading figure...",
-      completionMessage: "Read figure",
+      inProgressLabel: t3({
+        en: "Getting a visualization of the report...",
+        fr: "Récupération d'une visualisation du rapport...",
+        pt: "A obter uma visualização do relatório...",
+      }),
+      successMessage: t3({
+        en: "Retrieved a visualization of the report",
+        fr: "Visualisation du rapport récupérée",
+        pt: "Visualização do relatório obtida",
+      }),
     }),
 
     createGetReportFigureImagesTool(),
@@ -681,8 +713,16 @@ export function getClientToolsForReportEditor(
           report.map((l) => `- ${l}`).join("\n")
         }\nThe preview is updated and saved.\nFigure ${input.figureId}:\n${resulting}`;
       },
-      inProgressLabel: "Updating figure...",
-      completionMessage: "Updated figure",
+      inProgressLabel: t3({
+        en: "Updating a visualization of the report...",
+        fr: "Mise à jour d'une visualisation du rapport...",
+        pt: "A atualizar uma visualização do relatório...",
+      }),
+      successMessage: t3({
+        en: "Updated a visualization of the report",
+        fr: "Visualisation du rapport mise à jour",
+        pt: "Visualização do relatório atualizada",
+      }),
     }),
 
     createAITool({
@@ -715,8 +755,16 @@ export function getClientToolsForReportEditor(
       }),
       availableIn: COPILOT_TOOL_VIEWS.get_report_pages,
       kind: "read",
-      inProgressLabel: "Laying the report out as pages...",
-      completionMessage: "Read the page map",
+      inProgressLabel: t3({
+        en: "Getting the report's pages...",
+        fr: "Récupération des pages du rapport...",
+        pt: "A obter as páginas do relatório...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the report's pages",
+        fr: "Pages du rapport récupérées",
+        pt: "Páginas do relatório obtidas",
+      }),
       handler: async (input, view) => {
         // The stored detail carries the config (the theme drives the page
         // metrics); the live editor state carries what the user can see.
@@ -807,8 +855,16 @@ export function getClientToolsForReportEditor(
       }),
       availableIn: COPILOT_TOOL_VIEWS.get_page_template,
       kind: "read",
-      inProgressLabel: "Reading the page templates...",
-      completionMessage: "Read the page templates",
+      inProgressLabel: t3({
+        en: "Getting the page templates...",
+        fr: "Récupération des modèles de page...",
+        pt: "A obter os modelos de página...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the page templates",
+        fr: "Modèles de page récupérés",
+        pt: "Modelos de página obtidos",
+      }),
       handler: (input) =>
         Promise.resolve(
           fastrPageTemplatesLookup([
@@ -869,9 +925,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
           });
         },
       },
-      inProgressLabel: "Writing the draft...",
-      completionMessage: "Proposed rewrite (awaiting accept/reject)",
-      successMessage: "Checked the draft (not proposed yet)",
+      inProgressLabel: t3({
+        en: "Proposing a rewrite of the report...",
+        fr: "Proposition d'une réécriture du rapport...",
+        pt: "A propor uma reescrita do relatório...",
+      }),
+      successMessage: t3(DRAFT_HELD_LABEL),
     }),
 
     createAITool({
@@ -912,9 +971,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
           });
         },
       },
-      inProgressLabel: "Fixing the draft...",
-      completionMessage: "Proposed rewrite (awaiting accept/reject)",
-      successMessage: "Checked the draft (not proposed yet)",
+      inProgressLabel: t3({
+        en: "Proposing the edited draft...",
+        fr: "Proposition du brouillon modifié...",
+        pt: "A propor o rascunho editado...",
+      }),
+      successMessage: t3(DRAFT_HELD_LABEL),
     }),
 
     createAITool({
@@ -963,8 +1025,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
           };
         },
       },
-      inProgressLabel: "Proposing section rewrite...",
-      completionMessage: "Proposed section rewrite (awaiting accept/reject)",
+      inProgressLabel: t3({
+        en: "Proposing a rewrite of a section...",
+        fr: "Proposition d'une réécriture de section...",
+        pt: "A propor uma reescrita de secção...",
+      }),
+      successMessage: t3(REPORT_UNCHANGED_LABEL),
     }),
 
     createAITool({
@@ -1013,8 +1079,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
           };
         },
       },
-      inProgressLabel: "Proposing edit...",
-      completionMessage: "Proposed edit (awaiting accept/reject)",
+      inProgressLabel: t3({
+        en: "Proposing a text edit...",
+        fr: "Proposition d'une modification du texte...",
+        pt: "A propor uma alteração do texto...",
+      }),
+      successMessage: t3(REPORT_UNCHANGED_LABEL),
     }),
 
     createAITool({
@@ -1079,8 +1149,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
           };
         },
       },
-      inProgressLabel: "Preparing figure...",
-      completionMessage: "Proposed figure insert (awaiting accept/reject)",
+      inProgressLabel: t3({
+        en: "Proposing a new visualization...",
+        fr: "Proposition d'une nouvelle visualisation...",
+        pt: "A propor uma nova visualização...",
+      }),
+      successMessage: t3(REPORT_UNCHANGED_LABEL),
     }),
 
     createAITool({
@@ -1208,8 +1282,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
           };
         },
       },
-      inProgressLabel: "Preparing figure...",
-      completionMessage: "Proposed figure replacement (awaiting accept/reject)",
+      inProgressLabel: t3({
+        en: "Proposing a replacement visualization...",
+        fr: "Proposition d'une visualisation de remplacement...",
+        pt: "A propor uma visualização de substituição...",
+      }),
+      successMessage: t3(REPORT_UNCHANGED_LABEL),
     }),
   ];
 }

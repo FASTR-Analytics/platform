@@ -4,6 +4,7 @@ import {
   AI_RECORD_PAGE_MAX,
   COPILOT_TOOL_VIEWS,
   formatProductsListForAI,
+  t3,
 } from "lib";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
@@ -46,8 +47,16 @@ export function getClientToolsForProducts() {
             },
           }, input),
         ),
-      inProgressLabel: () => "Listing products...",
-      completionMessage: () => "Listed products",
+      inProgressLabel: t3({
+        en: "Getting the products...",
+        fr: "Récupération des produits...",
+        pt: "A obter os produtos...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the products",
+        fr: "Produits récupérés",
+        pt: "Produtos obtidos",
+      }),
     }),
   ];
 }

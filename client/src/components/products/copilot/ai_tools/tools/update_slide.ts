@@ -8,6 +8,7 @@ import {
   type MetricWithStatus,
   type PackageScope,
   type Slide,
+  t3,
 } from "lib";
 import { AIToolFailure, createAITool, type LayoutNode } from "panther";
 import { z } from "zod";
@@ -23,7 +24,6 @@ import {
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
 } from "../../_shared/mod.ts";
-import { slidesLabel } from "./tool_labels.ts";
 import {
   buildLayoutFromSpec,
   extractBlocksFromLayout,
@@ -103,8 +103,16 @@ export function createUpdateSlideTool(
         } in slide ${input.slideId}.${removed} ${slideTargetOutcome(target)}`,
       );
     },
-    inProgressLabel: `Updating ${slidesLabel(1)}...`,
-    completionMessage: `Updated ${slidesLabel(1)}`,
+    inProgressLabel: t3({
+      en: "Updating a slide...",
+      fr: "Mise à jour d'une diapositive...",
+      pt: "A atualizar um diapositivo...",
+    }),
+    successMessage: t3({
+      en: "Updated a slide",
+      fr: "Diapositive mise à jour",
+      pt: "Diapositivo atualizado",
+    }),
   });
 }
 

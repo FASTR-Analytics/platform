@@ -8,6 +8,7 @@ import {
   type PeriodBounds,
   periodFilterHasBounds,
   type ResultsValueInfoForPresentationObject,
+  t3,
   validateMetricInputs,
 } from "lib";
 import { AIToolFailure, createAITool, type LayoutNode } from "panther";
@@ -238,7 +239,15 @@ export function createUpdateFigureTool(
         }`,
       );
     },
-    inProgressLabel: "Updating figure...",
-    completionMessage: "Updated figure",
+    inProgressLabel: t3({
+      en: "Updating a slide's visualization...",
+      fr: "Mise à jour de la visualisation d'une diapositive...",
+      pt: "A atualizar a visualização de um diapositivo...",
+    }),
+    successMessage: t3({
+      en: "Updated a slide's visualization",
+      fr: "Visualisation d'une diapositive mise à jour",
+      pt: "Visualização de um diapositivo atualizada",
+    }),
   });
 }

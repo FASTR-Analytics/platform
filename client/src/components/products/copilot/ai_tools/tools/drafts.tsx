@@ -10,6 +10,7 @@ import {
   MAX_CONTENT_BLOCKS,
   type MetricWithStatus,
   type PackageScope,
+  t3,
 } from "lib";
 import {
   assertSplitImageAsset,
@@ -91,9 +92,11 @@ export function getClientToolsForDrafts(
       }) => (
         <DraftSlidePreview view={props.view} slideInput={props.input.slide} />
       ),
-      inProgressLabel: (input) =>
-        `Creating ${input.slide.type} slide preview...`,
-      completionMessage: (input) => `${input.slide.type} slide preview shown`,
+      inProgressLabel: t3({
+        en: "Showing a draft slide...",
+        fr: "Affichage d'une ébauche de diapositive...",
+        pt: "A mostrar um rascunho de diapositivo...",
+      }),
     }),
   ];
 }

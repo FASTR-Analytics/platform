@@ -7,6 +7,7 @@ import {
   type PeriodBounds,
   periodFilterHasBounds,
   type ResultsValueInfoForPresentationObject,
+  t3,
   validateMetricInputs,
 } from "lib";
 import {
@@ -91,8 +92,16 @@ export function getClientToolsForFigureEditor(
           preview.status === "ready" ? preview.dateRange : undefined,
         );
       },
-      inProgressLabel: "Reading the figure editor...",
-      completionMessage: "Read the figure editor",
+      inProgressLabel: t3({
+        en: "Getting the visualization editor...",
+        fr: "Récupération de l'éditeur de visualisation...",
+        pt: "A obter o editor de visualização...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the visualization editor",
+        fr: "Éditeur de visualisation récupéré",
+        pt: "Editor de visualização obtido",
+      }),
     }),
     createGetFigureEditorImageTool(assertFigureEditorStillOpen),
     createAITool({
@@ -224,8 +233,16 @@ export function getClientToolsForFigureEditor(
           figureEditorKeepLineFor(view.id, view.context)
         }\nThe draft's config:\n${draft}`;
       },
-      inProgressLabel: "Updating the figure...",
-      completionMessage: "Updated the figure",
+      inProgressLabel: t3({
+        en: "Updating the visualization...",
+        fr: "Mise à jour de la visualisation...",
+        pt: "A atualizar a visualização...",
+      }),
+      successMessage: t3({
+        en: "Updated the visualization",
+        fr: "Visualisation mise à jour",
+        pt: "Visualização atualizada",
+      }),
     }),
   ];
 }

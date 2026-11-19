@@ -7,6 +7,7 @@ import {
   formatTextWindowForAI,
   type InstalledModuleSummary,
   type MetricWithStatus,
+  t3,
 } from "lib";
 import type { ModuleInternalsEnv } from "../mod.ts";
 import { formatModulesListForAI } from "./format_modules_list_for_ai.ts";
@@ -36,8 +37,16 @@ export function getClientToolsForModules(
       handler: async () => {
         return formatModulesListForAI(modules, metrics);
       },
-      inProgressLabel: "Getting available modules...",
-      completionMessage: "Retrieved the available modules",
+      inProgressLabel: t3({
+        en: "Getting the available modules...",
+        fr: "Récupération des modules disponibles...",
+        pt: "A obter os módulos disponíveis...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the available modules",
+        fr: "Modules disponibles récupérés",
+        pt: "Módulos disponíveis obtidos",
+      }),
       kind: "read",
     }),
   ];
@@ -78,9 +87,17 @@ export function getClientToolsForModuleInternals(env: ModuleInternalsEnv) {
         if (!res.success) throw new AIToolFailure(res.err);
         return formatTextWindowForAI(res.data.script, "start", input);
       },
-      inProgressLabel: "Getting module script...",
-      completionMessage: (input) =>
-        `Retrieved the R script of module ${input.id}`,
+      inProgressLabel: t3({
+        en: "Getting a module's R script...",
+        fr: "Récupération du script R d'un module...",
+        pt: "A obter o script R de um módulo...",
+      }),
+      successMessage: (input) =>
+        t3({
+          en: `Retrieved the R script of module ${input.id}`,
+          fr: `Script R du module ${input.id} récupéré`,
+          pt: `Script R do módulo ${input.id} obtido`,
+        }),
       kind: "read",
     }),
 
@@ -95,8 +112,17 @@ export function getClientToolsForModuleInternals(env: ModuleInternalsEnv) {
         if (!res.success) throw new AIToolFailure(res.err);
         return formatTextWindowForAI(res.data.logs, "end", input);
       },
-      inProgressLabel: "Getting module log...",
-      completionMessage: (input) => `Retrieved the log of module ${input.id}`,
+      inProgressLabel: t3({
+        en: "Getting a module's log...",
+        fr: "Récupération du journal d'un module...",
+        pt: "A obter o registo de um módulo...",
+      }),
+      successMessage: (input) =>
+        t3({
+          en: `Retrieved the log of module ${input.id}`,
+          fr: `Journal du module ${input.id} récupéré`,
+          pt: `Registo do módulo ${input.id} obtido`,
+        }),
       kind: "read",
     }),
 
@@ -111,9 +137,17 @@ export function getClientToolsForModuleInternals(env: ModuleInternalsEnv) {
         if (!res.success) throw new AIToolFailure(res.err);
         return formatModuleSettingsForAI(res.data);
       },
-      inProgressLabel: "Getting module settings...",
-      completionMessage: (input) =>
-        `Retrieved the settings of module ${input.id}`,
+      inProgressLabel: t3({
+        en: "Getting a module's settings...",
+        fr: "Récupération des paramètres d'un module...",
+        pt: "A obter as definições de um módulo...",
+      }),
+      successMessage: (input) =>
+        t3({
+          en: `Retrieved the settings of module ${input.id}`,
+          fr: `Paramètres du module ${input.id} récupérés`,
+          pt: `Definições do módulo ${input.id} obtidas`,
+        }),
       kind: "read",
     }),
   ];

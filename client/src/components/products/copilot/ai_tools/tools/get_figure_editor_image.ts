@@ -8,7 +8,7 @@ import {
   loadFontsWithTimeout,
 } from "panther";
 import { z } from "zod";
-import { COPILOT_TOOL_VIEWS } from "lib";
+import { COPILOT_TOOL_VIEWS, t3 } from "lib";
 import {
   copilotViews,
   type FigureEditorPreview,
@@ -80,7 +80,15 @@ export function createGetFigureEditorImageTool(
         images: [image.image],
       });
     },
-    inProgressLabel: "Looking at the figure...",
-    completionMessage: "Looked at the figure",
+    inProgressLabel: t3({
+      en: "Getting the visualization as an image...",
+      fr: "Récupération de la visualisation en image...",
+      pt: "A obter a visualização como imagem...",
+    }),
+    successMessage: t3({
+      en: "Retrieved the visualization as an image",
+      fr: "Visualisation récupérée en image",
+      pt: "Visualização obtida como imagem",
+    }),
   });
 }

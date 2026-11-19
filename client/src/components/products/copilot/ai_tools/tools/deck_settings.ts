@@ -7,6 +7,7 @@ import {
   LOGO_SECTIONS,
   type LogosConfig,
   type SlideDeckConfig,
+  t3,
 } from "lib";
 import {
   copilotViewController,
@@ -106,7 +107,15 @@ export function createUpdateDeckSettingsTool() {
         fields.join(", ")
       }. Every slide shows it at once, and it is saved.\n\n${settings}`;
     },
-    inProgressLabel: "Updating deck settings...",
-    completionMessage: "Updated deck settings",
+    inProgressLabel: t3({
+      en: "Updating the slide deck settings...",
+      fr: "Mise à jour des paramètres de la présentation...",
+      pt: "A atualizar as definições da apresentação...",
+    }),
+    successMessage: t3({
+      en: "Updated the slide deck settings",
+      fr: "Paramètres de la présentation mis à jour",
+      pt: "Definições da apresentação atualizadas",
+    }),
   });
 }

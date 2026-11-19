@@ -1,6 +1,6 @@
-import { AIToolOutput, createAITool, IMAGE_LIMITS } from "panther";
+import { AIToolOutput, createAITool, IMAGE_LIMITS, plural } from "panther";
 import { z } from "zod";
-import { COPILOT_TOOL_VIEWS } from "lib";
+import { COPILOT_TOOL_VIEWS, t3 } from "lib";
 import { describeSlideOverflow, renderSlideImage } from "../../slide_ai/mod.ts";
 import { describeToolImage, MAX_LOOK_SUBJECTS } from "../../_shared/mod.ts";
 import { slidesLabel } from "./tool_labels.ts";
@@ -54,9 +54,26 @@ export function createGetSlideImagesTool() {
         images: looks.map((l) => l.toolImage.image),
       });
     },
-    inProgressLabel: (input) =>
-      `Looking at ${slidesLabel(new Set(input.slideIds).size)}...`,
-    completionMessage: (input) =>
-      `Looked at ${slidesLabel(new Set(input.slideIds).size)}`,
+    inProgressLabel: (input) => {
+      const slides = slidesLabel(new Set(input.slideIds).size);
+      return t3({
+        en: `Getting ${slides} as images...`,
+        fr: `Récupération de ${slides} en image...`,
+        pt: `A obter ${slides} como imagem...`,
+      });
+    },
+    successMessage: (input) => {
+      const n = new Set(input.slideIds).size;
+      const slides = slidesLabel(n);
+      return t3({
+        en: `Retrieved ${slides} as images`,
+        fr: `${slides} ${
+          plural(n, { one: "récupérée", other: "récupérées" })
+        } en image`,
+        pt: `${slides} ${
+          plural(n, { one: "obtido", other: "obtidos" })
+        } como imagem`,
+      });
+    },
   });
 }

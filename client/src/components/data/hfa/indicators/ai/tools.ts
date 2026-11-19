@@ -718,18 +718,16 @@ export function buildHfaIndicatorTools() {
           offset: input.offset ?? 0,
         });
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Reading HFA indicators...",
-          fr: "Lecture des indicateurs HFA...",
-          pt: "A ler os indicadores HFA...",
-        }),
-      completionMessage: () =>
-        t3({
-          en: "Read HFA indicators",
-          fr: "Indicateurs HFA lus",
-          pt: "Indicadores HFA lidos",
-        }),
+      inProgressLabel: t3({
+        en: "Getting the HFA indicators...",
+        fr: "Récupération des indicateurs HFA...",
+        pt: "A obter os indicadores HFA...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the HFA indicators",
+        fr: "Indicateurs HFA récupérés",
+        pt: "Indicadores HFA obtidos",
+      }),
     }),
 
     createAITool({
@@ -759,30 +757,19 @@ export function buildHfaIndicatorTools() {
         }
         return formatHfaIndicatorDetailsForAI(read, ids);
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Reading HFA indicator details...",
-          fr: "Lecture du détail des indicateurs HFA...",
-          pt: "A ler o detalhe dos indicadores HFA...",
-        }),
-      completionMessage: (input) =>
-        t3({
-          en: `Read ${
-            countIndicators(new Set(input.indicatorIds).size)
-          } in detail`,
-          fr: `${countIndicators(new Set(input.indicatorIds).size)} ${
-            plural(new Set(input.indicatorIds).size, {
-              one: "lu",
-              other: "lus",
-            })
-          } en détail`,
-          pt: `${countIndicators(new Set(input.indicatorIds).size)} ${
-            plural(new Set(input.indicatorIds).size, {
-              one: "lido",
-              other: "lidos",
-            })
-          } em detalhe`,
-        }),
+      inProgressLabel: t3({
+        en: "Getting the details of HFA indicators...",
+        fr: "Récupération du détail d'indicateurs HFA...",
+        pt: "A obter o detalhe de indicadores HFA...",
+      }),
+      successMessage: (input) => {
+        const indicators = countIndicators(new Set(input.indicatorIds).size);
+        return t3({
+          en: `Retrieved the details of ${indicators}`,
+          fr: `Détail de ${indicators} récupéré`,
+          pt: `Detalhe de ${indicators} obtido`,
+        });
+      },
     }),
 
     createAITool({
@@ -834,18 +821,16 @@ export function buildHfaIndicatorTools() {
         ).map(([id]) => id);
         return formatHfaVariableListForAI(read, ids, input.offset ?? 0);
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Reading the HFA survey variables...",
-          fr: "Lecture des variables de l'enquête HFA...",
-          pt: "A ler as variáveis do inquérito HFA...",
-        }),
-      completionMessage: () =>
-        t3({
-          en: "Read the HFA survey variables",
-          fr: "Variables de l'enquête HFA lues",
-          pt: "Variáveis do inquérito HFA lidas",
-        }),
+      inProgressLabel: t3({
+        en: "Getting the HFA survey variables...",
+        fr: "Récupération des variables de l'enquête HFA...",
+        pt: "A obter as variáveis do inquérito HFA...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the HFA survey variables",
+        fr: "Variables de l'enquête HFA récupérées",
+        pt: "Variáveis do inquérito HFA obtidas",
+      }),
     }),
 
     createAITool({
@@ -874,18 +859,22 @@ export function buildHfaIndicatorTools() {
           input.timePoint,
         );
       },
-      inProgressLabel: (input) =>
-        t3({
-          en: `Reading ${[...new Set(input.variableIds)].join(", ")}...`,
-          fr: `Lecture de ${[...new Set(input.variableIds)].join(", ")}...`,
-          pt: `A ler ${[...new Set(input.variableIds)].join(", ")}...`,
-        }),
-      completionMessage: () =>
-        t3({
-          en: "Read HFA variable details",
-          fr: "Détail des variables HFA lu",
-          pt: "Detalhe das variáveis HFA lido",
-        }),
+      inProgressLabel: (input) => {
+        const ids = [...new Set(input.variableIds)].join(", ");
+        return t3({
+          en: `Getting the details of ${ids}...`,
+          fr: `Récupération du détail de ${ids}...`,
+          pt: `A obter o detalhe de ${ids}...`,
+        });
+      },
+      successMessage: (input) => {
+        const ids = [...new Set(input.variableIds)].join(", ");
+        return t3({
+          en: `Retrieved the details of ${ids}`,
+          fr: `Détail de ${ids} récupéré`,
+          pt: `Detalhe de ${ids} obtido`,
+        });
+      },
     }),
 
     createAITool({
@@ -1050,18 +1039,16 @@ export function buildHfaIndicatorTools() {
         },
         presentation: "modal",
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Proposing new HFA indicators...",
-          fr: "Proposition de nouveaux indicateurs HFA...",
-          pt: "A propor novos indicadores HFA...",
-        }),
-      completionMessage: (input) =>
-        t3({
-          en: `Create ${countIndicators(input.indicators.length)}`,
-          fr: `Créer ${countIndicators(input.indicators.length)}`,
-          pt: `Criar ${countIndicators(input.indicators.length)}`,
-        }),
+      inProgressLabel: t3({
+        en: "Proposing new HFA indicators...",
+        fr: "Proposition de nouveaux indicateurs HFA...",
+        pt: "A propor novos indicadores HFA...",
+      }),
+      successMessage: t3({
+        en: "Not proposed: no indicator to create",
+        fr: "Non proposé : aucun indicateur à créer",
+        pt: "Não proposto: nenhum indicador a criar",
+      }),
     }),
 
     createAITool({
@@ -1261,18 +1248,16 @@ export function buildHfaIndicatorTools() {
         },
         presentation: "modal",
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Proposing HFA indicator changes...",
-          fr: "Proposition de modifications d'indicateurs HFA...",
-          pt: "A propor alterações de indicadores HFA...",
-        }),
-      completionMessage: (input) =>
-        t3({
-          en: `Changes for ${countIndicators(input.updates.length)}`,
-          fr: `Modifications pour ${countIndicators(input.updates.length)}`,
-          pt: `Alterações para ${countIndicators(input.updates.length)}`,
-        }),
+      inProgressLabel: t3({
+        en: "Proposing changes to HFA indicators...",
+        fr: "Proposition de modifications d'indicateurs HFA...",
+        pt: "A propor alterações de indicadores HFA...",
+      }),
+      successMessage: t3({
+        en: "Not proposed: the indicators would not change",
+        fr: "Non proposé : les indicateurs ne changeraient pas",
+        pt: "Não proposto: os indicadores não mudariam",
+      }),
     }),
 
     createAITool({
@@ -1380,18 +1365,16 @@ export function buildHfaIndicatorTools() {
         },
         presentation: "modal",
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Proposing deletion...",
-          fr: "Proposition de suppression...",
-          pt: "A propor a eliminação...",
-        }),
-      completionMessage: (input) =>
-        t3({
-          en: `Delete ${countIndicators(new Set(input.indicatorIds).size)}`,
-          fr: `Supprimer ${countIndicators(new Set(input.indicatorIds).size)}`,
-          pt: `Eliminar ${countIndicators(new Set(input.indicatorIds).size)}`,
-        }),
+      inProgressLabel: t3({
+        en: "Proposing to delete HFA indicators...",
+        fr: "Proposition de supprimer des indicateurs HFA...",
+        pt: "A propor eliminar indicadores HFA...",
+      }),
+      successMessage: t3({
+        en: "Not proposed: no indicator to delete",
+        fr: "Non proposé : aucun indicateur à supprimer",
+        pt: "Não proposto: nenhum indicador a eliminar",
+      }),
     }),
   ];
 }

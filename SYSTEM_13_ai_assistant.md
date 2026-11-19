@@ -24,6 +24,7 @@ globs:
   - server/tests/copilot_catalogue_test.ts
   - server/tests/copilot_look_sources_test.ts
   - server/tests/copilot_prompt_test.ts
+  - server/tests/copilot_tool_labels_test.ts
   - server/tests/dimension_values_for_ai_test.ts
   - server/tests/format_deck_settings_for_ai_test.ts
   - server/tests/format_hfa_indicators_for_ai_test.ts

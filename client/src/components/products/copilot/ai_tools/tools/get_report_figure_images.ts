@@ -6,9 +6,10 @@ import {
   getFigureAsCanvas,
   IMAGE_LIMITS,
   loadFontsWithTimeout,
+  plural,
 } from "panther";
 import { z } from "zod";
-import { COPILOT_TOOL_VIEWS } from "lib";
+import { COPILOT_TOOL_VIEWS, t3 } from "lib";
 import { awaitFigureBoundaries } from "~/generate_visualization/mod";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import {
@@ -17,7 +18,7 @@ import {
   MAX_LOOK_SUBJECTS,
   type ToolImage,
 } from "../../_shared/mod.ts";
-import { figuresLabel } from "./tool_labels.ts";
+import { visualizationsLabel } from "./tool_labels.ts";
 import { describeFigureUnavailableForAI } from "./figure_unavailable_for_ai.ts";
 import { liveBundleOrRefuse } from "./report_editor.ts";
 
@@ -80,9 +81,26 @@ export function createGetReportFigureImagesTool() {
         images: images.map((i) => i.image),
       });
     },
-    inProgressLabel: (input) =>
-      `Looking at ${figuresLabel(new Set(input.figureIds).size)}...`,
-    completionMessage: (input) =>
-      `Looked at ${figuresLabel(new Set(input.figureIds).size)}`,
+    inProgressLabel: (input) => {
+      const visualizations = visualizationsLabel(new Set(input.figureIds).size);
+      return t3({
+        en: `Getting ${visualizations} as images...`,
+        fr: `Récupération de ${visualizations} en image...`,
+        pt: `A obter ${visualizations} como imagem...`,
+      });
+    },
+    successMessage: (input) => {
+      const n = new Set(input.figureIds).size;
+      const visualizations = visualizationsLabel(n);
+      return t3({
+        en: `Retrieved ${visualizations} as images`,
+        fr: `${visualizations} ${
+          plural(n, { one: "récupérée", other: "récupérées" })
+        } en image`,
+        pt: `${visualizations} ${
+          plural(n, { one: "obtida", other: "obtidas" })
+        } como imagem`,
+      });
+    },
   });
 }

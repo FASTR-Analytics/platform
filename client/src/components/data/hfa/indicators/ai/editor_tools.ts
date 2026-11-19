@@ -234,18 +234,16 @@ export function getClientToolsForHfaIndicatorEditor() {
           formatHfaIndicatorDetailsForAI(input, [indicatorId]),
         ].join("\n");
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Reading the indicator editor...",
-          fr: "Lecture de l'éditeur d'indicateur...",
-          pt: "A ler o editor de indicador...",
-        }),
-      completionMessage: () =>
-        t3({
-          en: "Read the indicator editor",
-          fr: "Éditeur d'indicateur lu",
-          pt: "Editor de indicador lido",
-        }),
+      inProgressLabel: t3({
+        en: "Getting the indicator editor...",
+        fr: "Récupération de l'éditeur d'indicateur...",
+        pt: "A obter o editor de indicador...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the indicator editor",
+        fr: "Éditeur d'indicateur récupéré",
+        pt: "Editor de indicador obtido",
+      }),
     }),
     createAITool({
       viewRegistry: copilotViews,
@@ -281,18 +279,16 @@ export function getClientToolsForHfaIndicatorEditor() {
           ]),
         ].join("\n");
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Updating the indicator editor...",
-          fr: "Mise à jour de l'éditeur d'indicateur...",
-          pt: "A atualizar o editor de indicador...",
-        }),
-      completionMessage: () =>
-        t3({
-          en: "Updated the indicator editor",
-          fr: "Éditeur d'indicateur mis à jour",
-          pt: "Editor de indicador atualizado",
-        }),
+      inProgressLabel: t3({
+        en: "Updating the indicator editor...",
+        fr: "Mise à jour de l'éditeur d'indicateur...",
+        pt: "A atualizar o editor de indicador...",
+      }),
+      successMessage: t3({
+        en: "Updated the indicator editor",
+        fr: "Éditeur d'indicateur mis à jour",
+        pt: "Editor de indicador atualizado",
+      }),
     }),
   ];
 }

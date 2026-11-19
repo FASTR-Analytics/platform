@@ -1,6 +1,6 @@
-import { createAITool } from "panther";
+import { createAITool, plural } from "panther";
 import { z } from "zod";
-import { COPILOT_TOOL_VIEWS, type MetricWithStatus } from "lib";
+import { COPILOT_TOOL_VIEWS, type MetricWithStatus, t3 } from "lib";
 import { simplifySlideForAI } from "../../slide_ai/mod.ts";
 import { slidesLabel } from "./tool_labels.ts";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
@@ -45,9 +45,22 @@ export function createGetSlidesTool(
         }),
       );
     },
-    inProgressLabel: (input) =>
-      `Getting ${slidesLabel(new Set(input.slideIds).size)}...`,
-    completionMessage: (input) =>
-      `Retrieved ${slidesLabel(new Set(input.slideIds).size)}`,
+    inProgressLabel: (input) => {
+      const slides = slidesLabel(new Set(input.slideIds).size);
+      return t3({
+        en: `Getting ${slides}...`,
+        fr: `Récupération de ${slides}...`,
+        pt: `A obter ${slides}...`,
+      });
+    },
+    successMessage: (input) => {
+      const n = new Set(input.slideIds).size;
+      const slides = slidesLabel(n);
+      return t3({
+        en: `Retrieved ${slides}`,
+        fr: `${slides} ${plural(n, { one: "récupérée", other: "récupérées" })}`,
+        pt: `${slides} ${plural(n, { one: "obtido", other: "obtidos" })}`,
+      });
+    },
   });
 }

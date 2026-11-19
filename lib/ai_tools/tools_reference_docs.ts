@@ -1,5 +1,6 @@
 import { AIToolFailure, createAITool } from "@timroberton/panther";
 import { z } from "zod";
+import { t3 } from "../translate/mod.ts";
 import type { Language } from "../translate/types.ts";
 import type { DatasetType } from "../types/datasets.ts";
 import type { ServerActionTransport } from "../server_actions/transport.ts";
@@ -222,8 +223,16 @@ export function getSharedToolsForReferenceDocs(
           await readHubIndex(instance.instanceLanguage),
         );
       },
-      inProgressLabel: "Listing reference documents...",
-      completionMessage: "Listed reference documents",
+      inProgressLabel: t3({
+        en: "Getting the reference documents...",
+        fr: "Récupération des documents de référence...",
+        pt: "A obter os documentos de referência...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the reference documents",
+        fr: "Documents de référence récupérés",
+        pt: "Documentos de referência obtidos",
+      }),
       kind: "read",
       headless: true,
     }),
@@ -242,8 +251,18 @@ export function getSharedToolsForReferenceDocs(
           ? await readHubDoc(input.id)
           : await readAppDoc(entry, surface.transport);
       },
-      inProgressLabel: (input) => `Reading "${docLabel(input.id)}"...`,
-      completionMessage: (input) => `Read "${docLabel(input.id)}"`,
+      inProgressLabel: (input) =>
+        t3({
+          en: `Getting "${docLabel(input.id)}"...`,
+          fr: `Récupération de « ${docLabel(input.id)} »...`,
+          pt: `A obter "${docLabel(input.id)}"...`,
+        }),
+      successMessage: (input) =>
+        t3({
+          en: `Retrieved "${docLabel(input.id)}"`,
+          fr: `« ${docLabel(input.id)} » récupéré`,
+          pt: `"${docLabel(input.id)}" obtido`,
+        }),
       kind: "read",
       headless: true,
     }),
