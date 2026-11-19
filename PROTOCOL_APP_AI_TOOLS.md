@@ -130,7 +130,7 @@ The bounds and the one paging helper live in [lib/ai_tools/read_bounds.ts](lib/a
 
 **File reads.** A read of a file is a window, never the file: `formatTextWindowForAI` writes whole lines up to `AI_TEXT_WINDOW_MAX_CHARS`, each cut at `AI_TEXT_LINE_MAX_CHARS`, from a script's first line or to a log's last when the call gives neither `fromLine` nor `search`, from `fromLine`, or the lines that match `search`. Each result opens with the file's counts and the lines written, and names the `fromLine` of the next window.
 
-**Record lists.** A list of one-line records pages: it takes `offset` and writes `AI_RECORD_PAGE_MAX` records a call through `pageForAI`, after its filters and its search. Its count line states how many records match, how many exist, which the page writes and the offset of the next page. A block every page would repeat, such as `get_hfa_indicators`' taxonomy, is written on the first page alone.
+**Record lists.** A list of one-line records pages: it takes `offset` and writes `AI_RECORD_PAGE_MAX` records a call through `pageForAI`, after its filters and its search. Its count line states how many records match, how many exist, which the page writes and the offset of the next page. A block every page would repeat, such as `get_hfa_indicators`' taxonomy, is written on the first page alone. `get_deck`'s outline and `get_image_assets` do not page: on 2026-11-18 the longest deck on nigeria, ethiopia, ghana and sierraleone held 156 slides and no instance held more than 13 image assets. `get_reference_docs` follows no instance's data.
 
 ## Gotchas
 
