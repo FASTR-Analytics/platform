@@ -255,9 +255,11 @@ export const PACKAGE_INDICATOR_TYPES: readonly PackageIndicatorType[] = [
 // label). A figure whose CF source is `indicator` colours each value
 // by its own indicator's rule; null means the indicator is never coloured.
 // `direction` is THE direction of the indicator: whether a higher value is
-// better or worse, higher by default. The rule's own `direction` key is
-// written from it on every save (the server overwrites whatever a client
-// posts), so the two cannot disagree. `target` is a
+// better or worse, or null when the indicator declares none, which is where
+// a new one starts. An indicator with a rule declares one, since a rule's
+// bands have a good side, and the rule's own `direction` key is written from
+// it on every save (the server overwrites whatever a client posts), so the
+// two cannot disagree. `target` is a
 // number in STORED units, on a calculated indicator only, like the rule; null
 // means none. `expected_low_counts` marks a count whose facility-month
 // values are expected to be small, for the adjustment modules; always false
@@ -273,10 +275,21 @@ export type HmisIndicator = {
   include_in_analysis: boolean;
   format_as: IndicatorFormat;
   thresholds: ThresholdsRule | null;
-  direction: ThresholdDirection;
+  direction: ThresholdDirection | null;
   target: number | null;
   expected_low_counts: boolean;
   sort_order: number;
+};
+
+// The refusal of a rule on an indicator that declares no direction, from the
+// save route and, before it posts, the indicator editor.
+export const INDICATOR_RULE_NEEDS_DIRECTION: TranslatableString = {
+  en:
+    'A conditional-formatting rule needs a direction. Set Direction to "Higher is better" or "Lower is better".',
+  fr:
+    "Une règle de mise en forme conditionnelle a besoin d'une direction. Choisissez « Plus élevé = meilleur » ou « Plus bas = meilleur » pour Direction.",
+  pt:
+    'Uma regra de formatação condicional precisa de uma direção. Defina Direção como "Mais alto é melhor" ou "Mais baixo é melhor".',
 };
 
 // ============================================================================

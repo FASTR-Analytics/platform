@@ -305,7 +305,8 @@ export function buildPackageGroundingSections(
         lineShape: HMIS_INDICATOR_LINE_SHAPE,
         disOpt: "indicator_common_id",
         lookupFacts: "format, direction, thresholds, target and formula",
-        rest: " Read every value against its declared direction.",
+        rest:
+          " Read every value against its declared direction, where its indicator declares one.",
       }),
     );
   }
@@ -569,9 +570,9 @@ ${principles}
 
 Before writing any interpretation, settle which way is good for the indicator.
 
-**Use the declared direction first.** Every HMIS indicator declares "higher is better" or "lower is better", with its thresholds and target where it has them. The declaration is written in three places: the results package's list of HMIS indicators, when the package has few enough to list there; get_metric_data's Dimension Summary; and get_dimension_values, beside each indicator_common_id value. That declaration is the instance's own reading of the indicator and overrides any guess from the name.
+**Use the declared direction first.** An HMIS indicator declares "higher is better" or "lower is better", with its thresholds and target where it has them, or declares no direction. A declaration is written in three places: the results package's list of HMIS indicators, when the package has few enough to list there; get_metric_data's Dimension Summary; and get_dimension_values, beside each indicator_common_id value. An indicator whose line states no direction declares none. A declaration is the instance's own reading of the indicator and overrides any guess from the name.
 
-**Only where nothing is declared** (HFA and ICEH indicators, module metrics such as outlier, completeness or dropout rates), infer the direction from what the indicator measures:
+**Only where nothing is declared** (an HMIS indicator that declares no direction, HFA and ICEH indicators, module metrics such as outlier, completeness or dropout rates), infer the direction from what the indicator measures:
 - Service delivery and coverage (visits, deliveries, immunizations, family planning, skilled birth attendance): higher is better. Expected values: "surplus" = positive, "disruption" = concern.
 - Mortality and adverse outcomes (maternal deaths, neonatal deaths, stillbirths) and quality failures (dropout, outlier, stockout rates): lower is better.
 

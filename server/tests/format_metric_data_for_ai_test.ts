@@ -5,7 +5,8 @@
 // the status it gives when a query returns too many items; the row ceiling,
 // over which a read writes its counts and no rows; and an indicator read's
 // format, stated once in the header when its rows share one and in a format
-// column when they do not, never in the Dimension Summary.
+// column when they do not, never in the Dimension Summary, which states an
+// indicator's direction only where it declares one.
 //
 //   deno test -A --no-check server/tests/format_metric_data_for_ai_test.ts
 
@@ -333,6 +334,24 @@ Deno.test("an indicator read whose rows hold two formats writes a format column 
   const summary = text.split("## Dimension Summary")[1].split("## Data")[0];
   assert(!summary.includes("percent"), summary);
   assert(!summary.includes("rate_per_10k"), summary);
+});
+
+Deno.test("the Dimension Summary states no direction for an indicator that declares none", async () => {
+  const text = await indicatorRead(PERCENT_ROWS, [
+    { id: "anc1", label: "ANC 1", format_as: "percent" },
+    {
+      id: "anc4",
+      label: "ANC 4",
+      format_as: "percent",
+      direction: "lower-is-better",
+    },
+  ]);
+  const summary = text.split("## Dimension Summary")[1].split("## Data")[0];
+  assert(
+    summary.includes("anc1 (ANC 1), anc4 (ANC 4 — lower is better)"),
+    summary,
+  );
+  assertEquals(summary.split("is better").length, 2, summary);
 });
 
 Deno.test("a dimension of more than 20 values writes its count and no id outside the CSV", async () => {

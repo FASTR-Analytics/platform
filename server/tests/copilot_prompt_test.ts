@@ -5,7 +5,9 @@
 // FASTR brief rides rewrite_report's description alone; the package block
 // names the package, the scope and each family's limits; and its indicator
 // lists and scope limits are written whole up to the inline cap and as a
-// count that names get_dimension_values over it.
+// count that names get_dimension_values over it; an HMIS indicator's line
+// states a direction only where it declares one, and the base instructions
+// say so.
 //
 //   deno test -A --no-check server/tests/copilot_prompt_test.ts
 
@@ -362,7 +364,7 @@ Deno.test("the package block lists every HMIS indicator up to the inline cap", (
   );
   assertStringIncludes(
     block,
-    "Read every value against its declared direction.",
+    "Read every value against its declared direction, where its indicator declares one.",
   );
   for (let i = 0; i < AI_INLINE_LIST_MAX; i++) {
     assertStringIncludes(
@@ -377,10 +379,29 @@ Deno.test("over the inline cap the package block writes the HMIS count and names
   const block = blockWith({ hmisIndicators: hmisIndicators(n) });
   assertStringIncludes(
     block,
-    `**HMIS indicators (${n}):** more than ${AI_INLINE_LIST_MAX}, too many to list here. get_dimension_values with a metric's id and disOpt "indicator_common_id" lists the ones the metric holds, each with its format, direction, thresholds, target and formula, and its search finds them by name. Read every value against its declared direction.`,
+    `**HMIS indicators (${n}):** more than ${AI_INLINE_LIST_MAX}, too many to list here. get_dimension_values with a metric's id and disOpt "indicator_common_id" lists the ones the metric holds, each with its format, direction, thresholds, target and formula, and its search finds them by name. Read every value against its declared direction, where its indicator declares one.`,
   );
   assert(!block.includes("hmis_0"));
   assert(!block.includes("\n- hmis_"));
+});
+
+Deno.test("the HMIS line of an indicator that declares no direction states none", () => {
+  const block = blockWith({
+    hmisIndicators: [
+      { id: "anc1", label: "ANC 1", format_as: "number" },
+      {
+        id: "mmr",
+        label: "Maternal deaths",
+        format_as: "number",
+        direction: "lower-is-better",
+      },
+    ],
+  });
+  assertStringIncludes(block, "\n- anc1: ANC 1 [number]\n");
+  assertStringIncludes(
+    block,
+    "\n- mmr: Maternal deaths [number; lower is better]",
+  );
 });
 
 Deno.test("the package block lists every ICEH indicator up to the inline cap", () => {
@@ -419,10 +440,15 @@ Deno.test("a scope limit over the inline cap is written as its count and names t
   assert(!counted.includes("ind_0"));
 });
 
-Deno.test("the base instructions say where an HMIS indicator's direction is written", () => {
+Deno.test("the base instructions say where an HMIS indicator's direction is written, and to infer one it does not declare", () => {
+  const prompt = buildSystemPrompt(PARTS);
   assertStringIncludes(
-    buildSystemPrompt(PARTS),
-    `**Use the declared direction first.** Every HMIS indicator declares "higher is better" or "lower is better", with its thresholds and target where it has them. The declaration is written in three places: the results package's list of HMIS indicators, when the package has few enough to list there; get_metric_data's Dimension Summary; and get_dimension_values, beside each indicator_common_id value. That declaration is the instance's own reading of the indicator and overrides any guess from the name.`,
+    prompt,
+    `**Use the declared direction first.** An HMIS indicator declares "higher is better" or "lower is better", with its thresholds and target where it has them, or declares no direction. A declaration is written in three places: the results package's list of HMIS indicators, when the package has few enough to list there; get_metric_data's Dimension Summary; and get_dimension_values, beside each indicator_common_id value. An indicator whose line states no direction declares none. A declaration is the instance's own reading of the indicator and overrides any guess from the name.`,
+  );
+  assertStringIncludes(
+    prompt,
+    `**Only where nothing is declared** (an HMIS indicator that declares no direction, HFA and ICEH indicators, module metrics such as outlier, completeness or dropout rates), infer the direction from what the indicator measures:`,
   );
 });
 

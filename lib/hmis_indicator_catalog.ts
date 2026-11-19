@@ -60,7 +60,7 @@ export type HmisIndicatorCatalogRow = {
   slot_map: Record<string, string> | null;
   format_as: IndicatorFormat;
   thresholds: ThresholdsRule | null;
-  direction: ThresholdDirection;
+  direction: ThresholdDirection | null;
   target: number | null;
   expected_low_counts: boolean;
   sort_order: number;

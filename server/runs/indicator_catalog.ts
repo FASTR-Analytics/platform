@@ -138,6 +138,8 @@ const indicatorRowV1 = z.object({
 // mirror written before they existed and are never backfilled: the input
 // stage (input_transform.ts) only renames values a row already carries, so
 // this schema names the current vocabulary and those three stay optional.
+// `direction` is null for an indicator that declares none, as `target` is
+// for one with no target; neither reaches the catalog as a key.
 const indicatorRowV2 = z.object({
   indicator_common_id: z.string(),
   indicator_common_label: z.string(),
@@ -146,7 +148,8 @@ const indicatorRowV2 = z.object({
   slot_map: z.record(z.string(), z.string()).nullable(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]),
   thresholds: thresholdsRuleSchema.nullable(),
-  direction: z.enum(["higher-is-better", "lower-is-better"]).optional(),
+  direction: z.enum(["higher-is-better", "lower-is-better"]).nullable()
+    .optional(),
   target: z.number().nullable().optional(),
   expected_low_counts: z.boolean().optional(),
   sort_order: z.number(),
@@ -275,7 +278,7 @@ export async function buildRunHmisIndicators(
         id: row.indicator_common_id,
         label: row.indicator_common_label,
         format_as: row.format_as,
-        ...(row.direction === undefined ? {} : { direction: row.direction }),
+        ...(row.direction == null ? {} : { direction: row.direction }),
         ...(row.target == null ? {} : { target: row.target }),
         ...(row.thresholds === null ? {} : { thresholds: row.thresholds }),
         ...(row.type === "calculated" && row.expression !== null
@@ -387,7 +390,7 @@ async function deriveHmisCatalog(
         label: row.indicator_common_label,
         format_as: row.format_as,
         ...(row.thresholds === null ? {} : { thresholds: row.thresholds }),
-        ...(row.direction === undefined ? {} : { direction: row.direction }),
+        ...(row.direction == null ? {} : { direction: row.direction }),
         ...(row.target == null ? {} : { target: row.target }),
         sort_order: row.sort_order,
         type: row.type,

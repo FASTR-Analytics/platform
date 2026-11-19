@@ -26,7 +26,7 @@ const indicatorItemSchema = z.object({
   include_in_analysis: z.boolean(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]),
   thresholds: thresholdsRuleSchema.nullable(),
-  direction: z.enum(["higher-is-better", "lower-is-better"]),
+  direction: z.enum(["higher-is-better", "lower-is-better"]).nullable(),
   target: z.number().nullable(),
   expected_low_counts: z.boolean(),
 });

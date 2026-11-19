@@ -474,7 +474,9 @@ CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ow
 -- still stored, and it is still usable as a member or in a formula.
 -- `thresholds` is a calculated indicator's own conditional-formatting rule as
 -- JSON text (lib thresholdsRuleSchema), NULL when it has none and always
--- NULL on a count, which is also always formatted as a number. `dhis2_label`
+-- NULL on a count, which is also always formatted as a number. `direction`
+-- is NULL when the indicator declares none; a row with a rule declares one,
+-- since a rule's bands have a good side. `dhis2_label`
 -- is what DHIS2 calls a DHIS2 element's element or operand, read from live
 -- metadata when the picker creates it and never edited; NULL on every other
 -- type (the CHECK), on an element created by typing a UID, and on an
@@ -496,7 +498,7 @@ CREATE TABLE indicators (
     CONSTRAINT indicators_format_as_check
     CHECK (format_as IN ('percent', 'number', 'rate_per_10k')),
   thresholds text,  -- JSON: ThresholdsRule (nullable)
-  direction text NOT NULL DEFAULT 'higher-is-better'
+  direction text
     CONSTRAINT indicators_direction_check
     CHECK (direction IN ('higher-is-better', 'lower-is-better')),
   target double precision,
@@ -525,6 +527,7 @@ CREATE TABLE indicators (
   CONSTRAINT indicators_count_format_check CHECK (NOT is_count OR format_as = 'number'),
   CONSTRAINT indicators_count_thresholds_check CHECK (NOT is_count OR thresholds IS NULL),
   CONSTRAINT indicators_count_target_check CHECK (NOT is_count OR target IS NULL),
+  CONSTRAINT indicators_rule_direction_check CHECK (thresholds IS NULL OR direction IS NOT NULL),
   CONSTRAINT indicators_calculated_low_counts_check CHECK (is_count OR NOT expected_low_counts),
   -- Required by the composite FK in indicator_sum_members; redundant with the PK otherwise.
   CONSTRAINT indicators_common_id_has_rows_key UNIQUE (indicator_common_id, has_rows)

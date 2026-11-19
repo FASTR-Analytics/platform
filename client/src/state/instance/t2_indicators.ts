@@ -17,7 +17,7 @@ const _INDICATORS_CACHE = createReactiveCache<
   // The name is the client's cache-prefix lever: the version hash cannot
   // invalidate a pure shape change, so a changed payload shape bumps the
   // name, exactly as a server Valkey prefix would.
-  name: "instance_indicators_v7",
+  name: "instance_indicators_v8",
   uniquenessKeys: () => ["indicators"],
   versionKey: (params) => params.indicatorsVersion,
 });
