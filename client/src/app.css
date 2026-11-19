@@ -45,10 +45,10 @@
     var(--color-base-content)
   );
 
-  /* The app's header height: 0.75rem above and below a form control makes
-     every main bar 59.5px, roomier than the kit's 51.5px for the buttons
+  /* The app's header height: 0.7rem above and below a form control makes
+     every main bar 57.9px, roomier than the kit's 51.5px for the buttons
      the full-page views carry. */
-  --ui-heading-bar-pad-y: 0.75rem;
+  --ui-heading-bar-pad-y: 0.7rem;
 }
 
 :root {
