@@ -519,12 +519,18 @@ export function VisualizationProductEditor(p: Props) {
       <Button
         id="visualization-history-button"
         outline
+        onBackground="base-300"
         iconName="rotate"
         onClick={() => void openHistory()}
       >
         {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
       </Button>
-      <Button iconName="moreVertical" outline onClick={openMenu} />
+      <Button
+        iconName="moreVertical"
+        outline
+        onBackground="base-300"
+        onClick={openMenu}
+      />
     </div>
   );
   const chrome = {

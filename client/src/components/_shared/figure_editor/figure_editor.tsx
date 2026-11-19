@@ -34,6 +34,7 @@ import {
   FrameTop,
   getEditorWrapper,
   getFigureAsCanvas,
+  HeadingBar,
   openAlert,
   openComponent,
   saveAs,
@@ -943,59 +944,67 @@ export function VisualizationEditorInner(p: InnerProps) {
     <EditorWrapperForResultsObject>
       <FrameTop
         panelChildren={
-          <div
-            class="ui-pad ui-gap flex items-center border-b"
+          <HeadingBar
+            tonal
             data-cursor-zone="header"
             data-tour="viz-editor-header"
-          >
-            <div class="ui-gap-sm flex items-center">
-              <Show
-                when={isCollabLive()}
-                fallback={
-                  <Show
-                    when={needsSave() && !p.viewOnly}
-                    fallback={
-                      <Button iconName="chevronLeft" onClick={cancel} />
-                    }
-                  >
-                    <Button
-                      intent="success"
-                      onClick={() => p.onClose({
-                        updated: { config: getConfigForSave() },
-                      })}
-                      iconName="check"
+            leftChildren={
+              <div class="ui-gap-sm flex items-center">
+                <Show
+                  when={isCollabLive()}
+                  fallback={
+                    <Show
+                      when={needsSave() && !p.viewOnly}
+                      fallback={
+                        <Button iconName="chevronLeft" onClick={cancel} />
+                      }
                     >
-                      {t3({ en: "Apply", fr: "Appliquer", pt: "Aplicar" })}
-                    </Button>
-                    <Button outline onClick={cancel} iconName="x">
-                      {t3(TC.cancel)}
-                    </Button>
-                  </Show>
-                }
-              >
-                {
-                  /* Live co-editing: edits already streamed into the host doc.
+                      <Button
+                        intent="success"
+                        onClick={() =>
+                          p.onClose({
+                            updated: { config: getConfigForSave() },
+                          })}
+                        iconName="check"
+                      >
+                        {t3({ en: "Apply", fr: "Appliquer", pt: "Aplicar" })}
+                      </Button>
+                      <Button
+                        outline
+                        onBackground="base-300"
+                        onClick={cancel}
+                        iconName="x"
+                      >
+                        {t3(TC.cancel)}
+                      </Button>
+                    </Show>
+                  }
+                >
+                  {
+                    /* Live co-editing: edits already streamed into the host doc.
                     Back commits and lets the host do a final coherent rebuild
                     (fresh items for the final config). No Cancel: streamed
                     edits can't be discarded (use per-user undo). */
-                }
-                <Button
-                  iconName="chevronLeft"
-                  onClick={() =>
-                    p.onClose({
-                      updated: { config: getConfigForSave() },
-                    })}
-                />
-              </Show>
-            </div>
-            <div class="ui-text-heading flex flex-1 items-center truncate">
+                  }
+                  <Button
+                    iconName="chevronLeft"
+                    onClick={() =>
+                      p.onClose({
+                        updated: { config: getConfigForSave() },
+                      })}
+                  />
+                </Show>
+              </div>
+            }
+            heading={
               <Show
                 when={p.productChrome}
                 fallback={<span class="font-400">{label()}</span>}
               >
                 {p.productChrome?.title}
               </Show>
-            </div>
+            }
+          >
             <div class="ui-gap-sm flex items-center">
               {p.productChrome?.actions}
               <Show when={isCollabLive()}>
@@ -1027,8 +1036,18 @@ export function VisualizationEditorInner(p: InnerProps) {
                     {t3({ en: "Live", fr: "En direct", pt: "Em direto" })}
                   </span>
                 </Show>
-                <Button onClick={undo} iconName="undo" outline />
-                <Button onClick={redo} iconName="redo" outline />
+                <Button
+                  onClick={undo}
+                  iconName="undo"
+                  outline
+                  onBackground="base-300"
+                />
+                <Button
+                  onClick={redo}
+                  iconName="redo"
+                  outline
+                  onBackground="base-300"
+                />
               </Show>
               <Button onClick={download} iconName="download">
                 {t3(TC.download)}
@@ -1038,10 +1057,11 @@ export function VisualizationEditorInner(p: InnerProps) {
                   setEditorHeight(editorHeight() === "flex" ? "ideal" : "flex")}
                 iconName={editorHeight() === "flex" ? "maximize" : "minimize"}
                 outline
+                onBackground="base-300"
               >
               </Button>
             </div>
-          </div>
+          </HeadingBar>
         }
       >
         <FrameLeftResizable
