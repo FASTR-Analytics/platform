@@ -11,6 +11,7 @@ import type {
   RenderContext,
 } from "../../deps.ts";
 import type { YAxisWidthInfoBase } from "../../types.ts";
+import { computeSlotExtent } from "../slot_layout.ts";
 import type { XTextAxisMeasuredInfo } from "./types.ts";
 
 export function measureXTextAxis(
@@ -42,10 +43,12 @@ export function measureXTextAxis(
   const xAxisW = innerRcd.w() - yAxisWidthIncludingStroke;
 
   const innerWidthFor = (n: number) =>
-    sx.tickPosition === "center"
-      ? uniformSubChartWidth / Math.max(1, n)
-      : (uniformSubChartWidth - gridStyle.gridLineStrokeWidth * (n + 1)) /
-        Math.max(1, n);
+    computeSlotExtent(
+      uniformSubChartWidth,
+      n,
+      sx.tickPosition === "center",
+      gridStyle.gridLineStrokeWidth,
+    );
 
   const layoutMembers = visibleIndicatorMembers ?? indicatorMembers;
   const slotExtent = slotExtentOverride ??
@@ -91,7 +94,6 @@ export function measureXTextAxis(
   }));
 
   return {
-    uniformSubChartWidth,
     slotExtent,
     verticalTickLabelMaxHeight,
     xAxisRcd,

@@ -57,8 +57,8 @@ export function TabsNavigation<T extends string = string, M = never>(
   const isInset = () => p.inset === true && isVertical();
   const isSmall = () => p.size === "sm";
   const hasPadX = () => p.noPad !== true;
-  // A panel strip at full size is a compact header: its height is the
-  // shared token and the tabs stretch to fill it instead of padding.
+  // A panel strip at full size is a header: its height is the heading bar's
+  // token and the tabs stretch to fill it instead of padding.
   const isPanelHeader = () => hasPadX() && !isSmall();
 
   const isActive = (id: T) => id === p.value;
@@ -121,9 +121,7 @@ export function TabsNavigation<T extends string = string, M = never>(
       ? `w-full ${railOnRow() ? "" : "border-b"} ${
         hasPadX() ? "ui-pad-x" : ""
       } ${
-        isPanelHeader()
-          ? "flex flex-col min-h-[var(--ui-heading-bar-compact-height)]"
-          : ""
+        isPanelHeader() ? "flex flex-col h-[var(--ui-heading-bar-height)]" : ""
       }`
       : "bg-base-100 flex w-full flex-col h-full";
 

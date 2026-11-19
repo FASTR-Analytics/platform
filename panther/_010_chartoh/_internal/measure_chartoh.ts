@@ -54,24 +54,29 @@ export function measureChartOH(
       lane: transformedData.lane,
       series: transformedData.series,
       indicator: transformedData.indicator,
+    },
+    masks: {
       visibleIndicatorsByPane: transformedData.visibleIndicatorsByPane,
       visibleTiersByPane: transformedData.visibleTiersByPane,
       visibleIndicatorsByPaneTierOrLane:
         transformedData.visibleIndicatorsByPaneTier,
       proportionalPanes: transformedData.proportionalPanes,
     },
-    xAxisConfig: {
-      type: "value",
-      axisStyle: mergedStyle.xValueAxis,
-      axisData: transformedData.valueAxisLimits,
-      axisLabel: transformedData.xValueAxisLabel,
+    axes: {
+      kind: "category-and-value",
+      orientation: "horizontal",
+      x: {
+        type: "value",
+        axisStyle: mergedStyle.xValueAxis,
+        axisData: transformedData.valueAxisLimits,
+        axisLabel: transformedData.xValueAxisLabel,
+      },
+      y: {
+        type: "text",
+        indicatorMembers: transformedData.indicator.members,
+        axisStyle: mergedStyle.yTextAxis,
+      },
     },
-    yAxisConfig: {
-      type: "text",
-      indicatorMembers: transformedData.indicator.members,
-      axisStyle: mergedStyle.yTextAxis,
-    },
-    orientation: "horizontal",
     paneGrid,
   };
 

@@ -166,7 +166,7 @@ const catalogTable = createTableConfig();
 
 // ❌ DON'T: a padding div between the container and its content; the loading
 // and error states render outside it and do not line up with the table
-<FrameTop panelChildren={<HeadingBar compact heading="Ops catalog" />}>
+<FrameTop panelChildren={<HeadingBar heading="Ops catalog" />}>
   <StateHolderWrapper state={entries.state()}>
     {(list) => (
       <div class="ui-pad">
@@ -183,7 +183,7 @@ const catalogTable = createTableConfig();
 
 // ✅ DO: the slot carries the inset; all three states get it, and the table
 // is the slot's direct child, so it scrolls inside itself with its header stuck
-<FrameTop pad="md" panelChildren={<HeadingBar compact heading="Ops catalog" />}>
+<FrameTop pad="md" panelChildren={<HeadingBar heading="Ops catalog" />}>
   <StateHolderWrapper state={entries.state()}>
     {(list) => (
       <Table
@@ -198,7 +198,7 @@ const catalogTable = createTableConfig();
 
 // ✅ DO: a raw element for what the slot cannot say: an x-only inset around a
 // sticky toolbar, which needs its own scroller to stick at the top edge
-<FrameTop panelChildren={<HeadingBar compact heading="Rows" />}>
+<FrameTop panelChildren={<HeadingBar heading="Rows" />}>
   <div class="ui-pad-x h-full w-full overflow-auto">
     <div class="sticky top-0 bg-base-100">{toolbar}</div>
     {rows}
@@ -256,18 +256,15 @@ const rowsTable = createTableConfig();
 
 One component covers all of it: optional `heading` with inline `subheading`, `onBack`, `leftChildren`, `tabs`, `centerLeftChildren`, `centerChildren`, right-hand `children`, and a built-in search field via `searchText` / `setSearchText`. Empty slots collapse, so the title gets the full width when nothing else is present.
 
-There are two header forms, each with one height, chosen by the call site:
-
-- **Standard** (default): padding around a control-height floor, so a bar holding only a title is exactly as tall as one holding buttons.
-- **`compact`**: exactly `--ui-heading-bar-compact-height` tall, content centred in it, whatever size its controls are (pair it with `size="sm"` controls). A panel `TabsNavigation` strip at full size is the same height, so a bare tab strip and a compact bar line up.
+Every bar is exactly `--ui-heading-bar-height` tall, whatever it holds, with its content centred: a bar holding only a title is as tall as one holding buttons or tabs, and content taller than a form control is clipped. A panel `TabsNavigation` strip at full size is the same height, so a bare tab strip and a heading bar line up. The height is set once per app, never at a call site, through `--ui-heading-bar-pad-y`, the space above and below a form control. The bar's horizontal inset is `ui-pad-x`, the content's, so its heading lines up with the content below.
 
 With no heading, back button, `leftChildren` or `tabs`, the centre group (search and its neighbours) starts at the left edge, for pages whose title is already shown by the navigation that opened them.
 
-`tabs` (`{ items, value, onChange }`) puts a tab strip in the bar after the heading, with the bar's bottom edge as its rail. It needs `compact` (the type rejects it otherwise), so a header holding both tabs and controls is one bar, not a `HeadingBar` over a `TabsNavigation`. A header that is only tabs stays a bare `TabsNavigation`.
+`tabs` (`{ items, value, onChange }`) puts a tab strip in the bar after the heading, with the bar's bottom edge as its rail, so a header holding both tabs and controls is one bar, not a `HeadingBar` over a `TabsNavigation`. A header that is only tabs stays a bare `TabsNavigation`.
 
 `tonal` is the only surface control, and it also decides the divider:
 
-- **omitted** → flush: no background, draws `border-b`.
+- **omitted** → flush: no background, draws a bottom line.
 - **`tonal`** → the kit's one header surface, no divider. The tone change _is_ the divider.
 
 There is deliberately no way to pick _which_ tonal colour at a call site. The surface is `--ui-heading-bar-tonal-bg` / `-content`, retuned once per app, so "what does a tonal header look like?" has a single answer. The content colour is the bar's text colour, and the `heading` wears it too.

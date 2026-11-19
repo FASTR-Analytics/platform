@@ -91,11 +91,10 @@ export function measurePie(
       // seriesColorFunc the slices use.
       series: transformedData.series,
     },
-    // No axes: content-primitive generation is skipped for none x none, so
-    // the shared path never touches pie's values — the figure draws its own.
-    xAxisConfig: { type: "none" },
-    yAxisConfig: { type: "none" },
-    orientation: "vertical",
+    // No axes: the chart core generates no content for a chart with no
+    // axes, so the shared path never touches pie's values — the figure draws
+    // its own.
+    axes: { kind: "none" },
     paneGrid,
   };
 

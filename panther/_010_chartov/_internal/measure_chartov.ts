@@ -54,24 +54,29 @@ export function measureChartOV(
       lane: transformedData.lane,
       series: transformedData.series,
       indicator: transformedData.indicator,
+    },
+    masks: {
       visibleIndicatorsByPane: transformedData.visibleIndicatorsByPane,
       visibleLanesByPane: transformedData.visibleLanesByPane,
       visibleIndicatorsByPaneTierOrLane:
         transformedData.visibleIndicatorsByPaneLane,
       proportionalPanes: transformedData.proportionalPanes,
     },
-    xAxisConfig: {
-      type: "text",
-      indicatorMembers: transformedData.indicator.members,
-      axisStyle: mergedStyle.xTextAxis,
+    axes: {
+      kind: "category-and-value",
+      orientation: "vertical",
+      x: {
+        type: "text",
+        indicatorMembers: transformedData.indicator.members,
+        axisStyle: mergedStyle.xTextAxis,
+      },
+      y: {
+        type: "value",
+        axisStyle: mergedStyle.yValueAxis,
+        axisData: transformedData.valueAxisLimits,
+        axisLabel: transformedData.yValueAxisLabel,
+      },
     },
-    yAxisConfig: {
-      type: "value",
-      axisStyle: mergedStyle.yValueAxis,
-      axisData: transformedData.valueAxisLimits,
-      axisLabel: transformedData.yValueAxisLabel,
-    },
-    orientation: "vertical",
     paneGrid,
   };
 

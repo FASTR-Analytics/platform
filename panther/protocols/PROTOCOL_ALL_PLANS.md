@@ -16,6 +16,7 @@ A plan is a contract between contexts that share no memory. The whole instructio
 - **§2 The model.** The end state in the plan's own vocabulary.
 - **§3 Rulings.** Numbered, decided. A ruling the author derived rather than heard is marked _(proposed)_ and stands unless overruled before `Do 1`. A plan that ships something states what and when as a ruling.
 - **§4 Steps.** One section per step, with five parts in this order: **Surface**, every file the step may touch, which is what the review diffs against; **Deliverable**, what must be true in the code when the step is done; **Not in this step**, the neighbouring work a reader would expect here; **Gates**, on top of the floor; **Ends with**, one commit or several, each green.
+- **Step 0, ground.** A plan that waits in the queue is written against code that will have changed by the time it starts. So its steps carry no Surface, each saying `written in step 0`, and its first step is step 0, which reads the code as it then is and writes each step's Surface. It also corrects in place any file, line or claim about the code it finds wrong, and changes nothing else: where the code no longer admits a ruling or a Deliverable, it stops with the question for Tim. Its own Surface is the plan file, its Deliverable is the Surfaces, its gate is that a reviewer who derives a step's Surface from the step's Deliverable and the code finds no file missing and none surplus, and it ends with one commit.
 - **§5 Out of scope.** Named, so it is not reopened.
 - **§6 Log.** Departures. Numbering is a convention; §0 names the log's section.
 
@@ -41,7 +42,7 @@ Unless Tim says otherwise, a plan is done from start to finish by one agent, whi
 
 ## What an agent may change in the plan
 
-The **Next step** line, the log, and a fact shown wrong (a line number, a moved file, a claim about the code), corrected in place, the commit subject saying so. A Surface is a fact of this kind: a file the step's change reaches that the Surface does not list (a caller, an import or export, a manifest, a test or a doc line of what the step changes, or a leftover the change makes unused) is added to the Surface in the commit that touches it, without asking. A file the change does not reach stays out: work another step or "Not in this step" names, a cleanup nearby, a typecheck error from other work. A ruling or a Deliverable changes only on Tim's word.
+The **Next step** line, the log, in step 0 every step's Surface, and a fact shown wrong (a line number, a moved file, a claim about the code), corrected in place, the commit subject saying so. A Surface is a fact of this kind: a file the step's change reaches that the Surface does not list (a caller, an import or export, a manifest, a test or a doc line of what the step changes, or a leftover the change makes unused) is added to the Surface in the commit that touches it, without asking. A file the change does not reach stays out: work another step or "Not in this step" names, a cleanup nearby, a typecheck error from other work. A ruling or a Deliverable changes only on Tim's word.
 
 ## The log
 

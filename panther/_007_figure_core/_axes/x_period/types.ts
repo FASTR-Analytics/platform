@@ -16,7 +16,6 @@ export type PeriodAxisType =
   | "year-centered";
 
 export type XPeriodAxisMeasuredInfo = {
-  uniformSubChartWidth: number;
   slotExtent: number;
   xAxisRcd: RectCoordsDims;
   periodAxisSmallTickH: number | "none";

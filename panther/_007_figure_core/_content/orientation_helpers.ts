@@ -68,6 +68,13 @@ export function catExtentOfRect(
   return orientation === "horizontal" ? rect.h() : rect.w();
 }
 
+export function valueAxisExtentOfRect(
+  rect: RectCoordsDims,
+  orientation: Orientation,
+): number {
+  return orientation === "horizontal" ? rect.w() : rect.h();
+}
+
 // Center of a rect along the category axis.
 export function catCenterOfRect(
   rect: RectCoordsDims,

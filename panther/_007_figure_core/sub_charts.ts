@@ -1,0 +1,256 @@
+// Copyright 2023-2026, Tim Roberton. MIT license.
+//
+// ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
+// ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
+
+import { getValueAxisValueRange } from "./_axes/measure_y_axis.ts";
+import { getXValueAxisValueRange } from "./_axes/measure_x_axis.ts";
+import { computeSlotExtent } from "./_axes/slot_layout.ts";
+import type { ContentGenerationContext } from "./_content/content_generation_types.ts";
+import { measureDataLabelEndClearance } from "./_content/measure_data_label_clearance.ts";
+import { valueAxisExtentOfRect } from "./_content/orientation_helpers.ts";
+import type { RenderContext } from "./deps.ts";
+import { getDimensionMembers, RectCoordsDims } from "./deps.ts";
+import type { ChartItemDataDimensions } from "./chart_items.ts";
+import type {
+  MeasuredAxes,
+  MeasurePaneConfig,
+  PaneTierOrLaneLayout,
+} from "./measure_types.ts";
+import {
+  clampOverhangClearance,
+  type OverhangClearance,
+  type ValueRange,
+} from "./types.ts";
+
+export type SubChart =
+  | {
+    kind: "category-and-value";
+    i_pane: number;
+    i_tier: number;
+    i_lane: number;
+    tierOrdinal: number;
+    laneOrdinal: number;
+    rcd: RectCoordsDims;
+    nValues: number;
+    nSlots: number;
+    slotOrder: number[];
+    positionOrdinals: (number | undefined)[];
+    slotExtent: number;
+    isCentered: boolean;
+    valueRange: ValueRange;
+    valueClearance: OverhangClearance;
+  }
+  | {
+    kind: "none";
+    i_pane: number;
+    i_tier: number;
+    i_lane: number;
+    tierOrdinal: number;
+    laneOrdinal: number;
+    rcd: RectCoordsDims;
+  };
+
+type ChartValueTensors = {
+  values: (number | undefined)[][][][][];
+  uncertaintyValues?: {
+    ub: (number | undefined)[][][][][];
+    lb: (number | undefined)[][][][][];
+  };
+};
+
+export function chartValueTensors<TData>(
+  config: MeasurePaneConfig<TData>,
+): ChartValueTensors {
+  return config.chart.transformedData as TData & ChartValueTensors;
+}
+
+export function subChartInfoFor<TData>(
+  config: MeasurePaneConfig<TData>,
+  i_tier: number,
+  i_lane: number,
+): ContentGenerationContext["subChartInfo"] {
+  const i_pane = config.i_pane;
+  const { pane, tier, lane, series } = config.chart.dataDimensions;
+  const paneMembers = getDimensionMembers(pane);
+  const tierMembers = getDimensionMembers(tier);
+  const laneMembers = getDimensionMembers(lane);
+  return {
+    nSerieses: getDimensionMembers(series).length,
+    seriesValueArrays: chartValueTensors(config).values[i_pane][i_tier][i_lane],
+    i_pane,
+    nPanes: paneMembers.length,
+    paneMember: paneMembers[i_pane],
+    i_tier,
+    nTiers: tierMembers.length,
+    tierMember: tierMembers[i_tier],
+    i_lane,
+    nLanes: laneMembers.length,
+    laneMember: laneMembers[i_lane],
+  };
+}
+
+function buildPositionOrdinals(
+  slotOrder: number[],
+  nValues: number,
+): (number | undefined)[] {
+  const ordinals: (number | undefined)[] = Array.from(
+    { length: nValues },
+    () => undefined,
+  );
+  slotOrder.forEach((i_value, ordinal) => {
+    ordinals[i_value] = ordinal;
+  });
+  return ordinals;
+}
+
+export function buildSubCharts<TData>(
+  rc: RenderContext,
+  config: MeasurePaneConfig<TData>,
+  measured: {
+    axes: MeasuredAxes;
+    yAxisRcd: RectCoordsDims;
+    uniformSubChartHeight: number;
+    uniformSubChartWidth: number;
+    tierHeaderAndLabelGapHeight: number;
+    tierOrLaneLayout?: PaneTierOrLaneLayout;
+  },
+  itemDataDimensions: ChartItemDataDimensions,
+): SubChart[] {
+  const i_pane = config.i_pane;
+  const { mergedStyle, dataDimensions, masks } = config.chart;
+  const { axes, tierOrLaneLayout } = measured;
+  const tierLayout = tierOrLaneLayout?.tierOrLaneDimension === "tier"
+    ? tierOrLaneLayout
+    : undefined;
+  const laneLayout = tierOrLaneLayout?.tierOrLaneDimension === "lane"
+    ? tierOrLaneLayout
+    : undefined;
+  const tierMembers = getDimensionMembers(dataDimensions.tier);
+  const laneMembers = getDimensionMembers(dataDimensions.lane);
+  const tierIndices = tierLayout?.tierOrLaneIndices ??
+    masks?.visibleTiersByPane?.[i_pane] ?? tierMembers.map((_, i) => i);
+  const laneIndices = laneLayout?.tierOrLaneIndices ??
+    masks?.visibleLanesByPane?.[i_pane] ?? laneMembers.map((_, i) => i);
+
+  const geometry: Extract<SubChart, { kind: "none" }>[] = [];
+  let y = measured.yAxisRcd.y() + mergedStyle.tiers.paddingTop +
+    measured.tierHeaderAndLabelGapHeight;
+  tierIndices.forEach((i_tier, tierOrdinal) => {
+    const h = tierLayout?.tierOrLaneExtents[tierOrdinal] ??
+      measured.uniformSubChartHeight;
+    let x = measured.yAxisRcd.rightX() + mergedStyle.lanes.paddingLeft;
+    laneIndices.forEach((i_lane, laneOrdinal) => {
+      const w = laneLayout?.tierOrLaneExtents[laneOrdinal] ??
+        measured.uniformSubChartWidth;
+      geometry.push({
+        kind: "none",
+        i_pane,
+        i_tier,
+        i_lane,
+        tierOrdinal,
+        laneOrdinal,
+        rcd: new RectCoordsDims({ x, y, w, h }),
+      });
+      x += w + mergedStyle.lanes.gapX;
+    });
+    y += h + mergedStyle.tiers.gapY + measured.tierHeaderAndLabelGapHeight;
+  });
+
+  if (axes.kind === "none") {
+    return geometry;
+  }
+
+  const gsw = mergedStyle.grid.gridLineStrokeWidth;
+  const nValues = axes.orientation === "horizontal"
+    ? axes.y.info.nIndicators
+    : axes.x.type === "text"
+    ? axes.x.config.indicatorMembers.length
+    : axes.x.config.nTimePoints;
+  const isCentered = axes.orientation === "horizontal"
+    ? axes.y.config.axisStyle.tickPosition === "center"
+    : axes.x.type === "text"
+    ? axes.x.config.axisStyle.tickPosition === "center"
+    : axes.x.info.periodAxisType === "year-centered";
+  const visibleIndicators = masks?.visibleIndicatorsByPane?.[i_pane];
+  const clearanceGroupOf = (subChart: { i_tier: number; i_lane: number }) =>
+    axes.orientation === "horizontal" ? subChart.i_lane : subChart.i_tier;
+
+  const overhang = axes.orientation === "horizontal"
+    ? axes.x.config.axisStyle.tickLabelAlignment === "inset"
+      ? 0
+      : Math.max(0, (axes.x.info.xValueAxisHeightInfo.maxTickLabelW - gsw) / 2)
+    : axes.y.config.axisStyle.tickLabelAlignment === "inset"
+    ? 0
+    : Math.max(0, axes.y.info.halfYAxisTickLabelH - gsw / 2);
+  const startClearanceOf = (i_tier: number, i_lane: number) =>
+    axes.orientation === "horizontal"
+      ? i_lane === 0
+        ? Math.max(0, overhang - axes.y.info.widthIncludingYAxisStrokeWidth)
+        : overhang
+      : i_tier === tierMembers.length - 1
+      ? Math.max(0, overhang - axes.x.info.xAxisRcd.h())
+      : overhang;
+
+  const unclamped = geometry.map(
+    (g): Extract<SubChart, { kind: "category-and-value" }> => {
+      const slotOrder = tierLayout?.visibleIndicators[g.tierOrdinal] ??
+        laneLayout?.visibleIndicators[g.laneOrdinal] ??
+        visibleIndicators ??
+        Array.from({ length: nValues }, (_, i) => i);
+      return {
+        ...g,
+        kind: "category-and-value",
+        nValues,
+        nSlots: slotOrder.length,
+        slotOrder,
+        positionOrdinals: buildPositionOrdinals(slotOrder, nValues),
+        slotExtent: axes.orientation === "horizontal"
+          ? computeSlotExtent(g.rcd.h(), slotOrder.length, isCentered, gsw)
+          : axes.x.info.slotExtent,
+        isCentered,
+        valueRange: axes.orientation === "horizontal"
+          ? getXValueAxisValueRange(axes.x, g.i_lane)
+          : getValueAxisValueRange(axes.y, g.i_tier),
+        valueClearance: {
+          start: startClearanceOf(g.i_tier, g.i_lane),
+          end: overhang,
+        },
+      };
+    },
+  );
+
+  const endClearances = new Map<number, number>();
+  for (const subChart of unclamped) {
+    const group = clearanceGroupOf(subChart);
+    const subChartInfo = subChartInfoFor(
+      config,
+      subChart.i_tier,
+      subChart.i_lane,
+    );
+    endClearances.set(
+      group,
+      Math.max(
+        endClearances.get(group) ?? subChart.valueClearance.end,
+        measureDataLabelEndClearance(rc, subChart, {
+          orientation: axes.orientation,
+          contentStyle: mergedStyle.content,
+          dataLabelsTextStyle: mergedStyle.text.dataLabels,
+          subChartInfo,
+          itemDataDimensions,
+        }),
+      ),
+    );
+  }
+  return unclamped.map((subChart) => ({
+    ...subChart,
+    valueClearance: clampOverhangClearance(
+      {
+        start: subChart.valueClearance.start,
+        end: endClearances.get(clearanceGroupOf(subChart)) ??
+          subChart.valueClearance.end,
+      },
+      valueAxisExtentOfRect(subChart.rcd, axes.orientation),
+    ),
+  }));
+}

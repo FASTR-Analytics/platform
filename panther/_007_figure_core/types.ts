@@ -11,8 +11,6 @@ import type {
 } from "./deps.ts";
 import type { LegendEntry } from "./_legend/types.ts";
 import type { LegendInput } from "./_legend/scale_legend_types.ts";
-import type { YTextAxisWidthInfo } from "./_axes/y_text/types.ts";
-export type { YTextAxisWidthInfo };
 
 export type JsonArrayItem = {
   [key: string]: string | number | undefined | null;
@@ -87,12 +85,6 @@ export type YValueAxisWidthInfo = YAxisWidthInfoBase & {
   tierHeaderAndLabelGapWidth: number;
   tickLabelFormatter: (v: number) => string;
 };
-
-export type YNoneAxisWidthInfo = YAxisWidthInfoBase;
-export type YAxisWidthInfo =
-  | YValueAxisWidthInfo
-  | YTextAxisWidthInfo
-  | YNoneAxisWidthInfo;
 
 export type ValueRange = { valueMin: number; valueMax: number };
 

@@ -14,6 +14,5 @@ export type XValueAxisHeightInfo = XAxisHeightInfoBase & {
 
 export type XValueAxisMeasuredInfo = {
   xAxisRcd: RectCoordsDims;
-  uniformSubChartWidth: number;
   xValueAxisHeightInfo: XValueAxisHeightInfo;
 };

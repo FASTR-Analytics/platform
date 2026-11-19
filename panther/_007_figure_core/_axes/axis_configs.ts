@@ -34,8 +34,7 @@ export type XAxisConfig =
     axisStyle: MergedXValueAxisStyle;
     axisData: ChartValueAxisLimits;
     axisLabel?: string;
-  }
-  | { type: "none" };
+  };
 
 export type YAxisConfig =
   | {
@@ -48,5 +47,27 @@ export type YAxisConfig =
     type: "text";
     indicatorMembers: DimensionMember[];
     axisStyle: MergedYTextAxisStyle;
+  };
+
+export type XCategoryAxisConfig = Extract<
+  XAxisConfig,
+  { type: "text" | "period" }
+>;
+export type XValueAxisConfig = Extract<XAxisConfig, { type: "value" }>;
+export type YCategoryAxisConfig = Extract<YAxisConfig, { type: "text" }>;
+export type YValueAxisConfig = Extract<YAxisConfig, { type: "value" }>;
+
+export type ChartAxesConfig =
+  | {
+    kind: "category-and-value";
+    orientation: "vertical";
+    x: XCategoryAxisConfig;
+    y: YValueAxisConfig;
   }
-  | { type: "none" };
+  | {
+    kind: "category-and-value";
+    orientation: "horizontal";
+    x: XValueAxisConfig;
+    y: YCategoryAxisConfig;
+  }
+  | { kind: "none" };

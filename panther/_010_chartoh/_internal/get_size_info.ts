@@ -6,6 +6,7 @@
 import {
   calculateMinSubChartWidth,
   type ChartComponentSizes,
+  computeTotalGridLineStrokeWidth,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
   estimateMinYTextAxisWidth,
@@ -108,9 +109,13 @@ export function getChartOHComponentSizes(
       ms.yTextAxis.tickPosition === "center",
       gridLineStrokeWidth,
     ) / Math.max(1, nTiers)
-    : ms.yTextAxis.tickPosition === "center"
-    ? nSlots * maxTickLabelH
-    : nSlots * maxTickLabelH + gridLineStrokeWidth * (nSlots + 1);
+    : nSlots * maxTickLabelH +
+      computeTotalGridLineStrokeWidth(
+        nSlots,
+        1,
+        ms.yTextAxis.tickPosition === "center",
+        gridLineStrokeWidth,
+      );
 
   const resolvedLegendLabels = resolveDefaultLegend(
     inputs.legend,

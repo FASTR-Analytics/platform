@@ -14,6 +14,7 @@ import {
 import type { FigureInputsBase } from "./types.ts";
 import type { LegendInput } from "./_legend/scale_legend_types.ts";
 import type { PaneLayout } from "./measure_types.ts";
+import { computeTotalGridLineStrokeWidth } from "./_axes/slot_layout.ts";
 import {
   buildFitReport,
   computeFloorScale,
@@ -66,9 +67,12 @@ export function maxProportionalPaneCategoryAxisExtent(
       b.length
     );
     const nSlots = counts.reduce((a, b) => a + b, 0);
-    const strokes = centered
-      ? 0
-      : gridLineStrokeWidth * (nSlots + counts.length);
+    const strokes = computeTotalGridLineStrokeWidth(
+      nSlots,
+      counts.length,
+      centered,
+      gridLineStrokeWidth,
+    );
     max = Math.max(max, nSlots * slotExtent + strokes);
   }
   return max;
@@ -714,9 +718,12 @@ function computeChartIdealHeightProportionalPanes(
       // negative free extents; treat as 0 so overhead is recovered.
       freeTotal += Math.max(0, l.uniformSubChartHeight * nTiersOrLanes);
       nSlots += slots;
-      strokesTotal += centered
-        ? 0
-        : gridLineStrokeWidth * (slots + nTiersOrLanes);
+      strokesTotal += computeTotalGridLineStrokeWidth(
+        slots,
+        nTiersOrLanes,
+        centered,
+        gridLineStrokeWidth,
+      );
     }
     const overhead = currentH - freeTotal;
     const nextH = overhead + targetSlotExtent * nSlots + strokesTotal;
@@ -746,7 +753,7 @@ function calculateChartMinWidthProportionalPanes(
     const slots = l.nProportionalSlots ?? 0;
     const nTiersOrLanes = l.nProportionalTiersOrLanes ?? 0;
     total += slots * minSlotExtent +
-      (centered ? 0 : gsw * (slots + nTiersOrLanes)) +
+      computeTotalGridLineStrokeWidth(slots, nTiersOrLanes, centered, gsw) +
       Math.max(0, nTiersOrLanes - 1) * lanes.gapX +
       lanes.paddingLeft + lanes.paddingRight +
       l.yAxisWidth;

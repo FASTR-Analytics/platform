@@ -4,10 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  DimensionMember,
   MergedContentStyle,
   Primitive,
-  RectCoordsDims,
   RenderContext,
   TextInfoUnkeyed,
 } from "../deps.ts";
@@ -21,81 +19,38 @@ import { generateLinePrimitives } from "./generate_line_primitives.ts";
 import { generatePointPrimitives } from "./generate_point_primitives.ts";
 import { resolveDataLabelOwnership } from "./resolve_data_label_ownership.ts";
 import type { ChartItemDataDimensions } from "../chart_items.ts";
-import type { OverhangClearance, ValueRange } from "../types.ts";
-
-export type ContentPrimitiveGenerationParams = {
-  rc: RenderContext;
-  subChartRcd: RectCoordsDims;
-  subChartInfo: {
-    nSerieses: number;
-    seriesValueArrays: (number | undefined)[][];
-    i_pane: number;
-    nPanes: number;
-    paneMember: DimensionMember | undefined;
-    i_tier: number;
-    nTiers: number;
-    tierMember: DimensionMember | undefined;
-    i_lane: number;
-    nLanes: number;
-    laneMember: DimensionMember | undefined;
-  };
-  seriesValues: (number | undefined)[][];
-  valueRange: ValueRange;
-  valueClearance: OverhangClearance;
-  isCentered: boolean;
-  slotExtent: number;
-  gridLineStrokeWidth: number;
-  nValues: number;
-  orientation: "vertical" | "horizontal";
-  itemDataDimensions: ChartItemDataDimensions;
-  contentStyle: MergedContentStyle;
-  dataLabelsTextStyle: TextInfoUnkeyed;
-  uncertaintyUbSeriesValues?: (number | undefined)[][];
-  uncertaintyLbSeriesValues?: (number | undefined)[][];
-  // This unit's slot order: the global indicator index at each slot.
-  slotOrder: number[];
-};
-
-// The inverse of slotOrder: global storage index → position ordinal, undefined
-// for an indicator this unit does not show.
-function buildPositionOrdinals(
-  slotOrder: number[],
-  nValues: number,
-): (number | undefined)[] {
-  const ordinals: (number | undefined)[] = Array.from(
-    { length: nValues },
-    () => undefined,
-  );
-  slotOrder.forEach((globalIdx, ordinal) => {
-    ordinals[globalIdx] = ordinal;
-  });
-  return ordinals;
-}
+import type { SubChart } from "../sub_charts.ts";
 
 export function generateContentPrimitives(
-  params: ContentPrimitiveGenerationParams,
+  rc: RenderContext,
+  subChart: Extract<SubChart, { kind: "category-and-value" }>,
+  p: {
+    subChartInfo: ContentGenerationContext["subChartInfo"];
+    seriesValues: (number | undefined)[][];
+    uncertaintyUbSeriesValues?: (number | undefined)[][];
+    uncertaintyLbSeriesValues?: (number | undefined)[][];
+    orientation: "vertical" | "horizontal";
+    itemDataDimensions: ChartItemDataDimensions;
+    contentStyle: MergedContentStyle;
+    dataLabelsTextStyle: TextInfoUnkeyed;
+    gridLineStrokeWidth: number;
+  },
 ): Primitive[] {
   const {
-    rc,
-    subChartRcd,
-    subChartInfo,
-    seriesValues,
+    rcd,
     valueRange,
     valueClearance,
     isCentered,
     slotExtent,
-    gridLineStrokeWidth,
     nValues,
-    orientation,
-    contentStyle: s,
     slotOrder,
-  } = params;
-
-  const positionOrdinals = buildPositionOrdinals(slotOrder, nValues);
+    positionOrdinals,
+  } = subChart;
+  const { seriesValues, gridLineStrokeWidth, orientation } = p;
 
   const mapped = calculateMappedCoordinates(
     seriesValues,
-    subChartRcd,
+    rcd,
     slotExtent,
     isCentered,
     gridLineStrokeWidth,
@@ -107,10 +62,10 @@ export function generateContentPrimitives(
 
   const nSerieses = mapped.length;
 
-  const mappedUncertaintyUb = params.uncertaintyUbSeriesValues
+  const mappedUncertaintyUb = p.uncertaintyUbSeriesValues
     ? calculateMappedCoordinates(
-      params.uncertaintyUbSeriesValues,
-      subChartRcd,
+      p.uncertaintyUbSeriesValues,
+      rcd,
       slotExtent,
       isCentered,
       gridLineStrokeWidth,
@@ -121,10 +76,10 @@ export function generateContentPrimitives(
     )
     : undefined;
 
-  const mappedUncertaintyLb = params.uncertaintyLbSeriesValues
+  const mappedUncertaintyLb = p.uncertaintyLbSeriesValues
     ? calculateMappedCoordinates(
-      params.uncertaintyLbSeriesValues,
-      subChartRcd,
+      p.uncertaintyLbSeriesValues,
+      rcd,
       slotExtent,
       isCentered,
       gridLineStrokeWidth,
@@ -137,17 +92,17 @@ export function generateContentPrimitives(
 
   const ctx: ContentGenerationContext = {
     rc,
-    subChartRcd,
-    subChartInfo,
+    subChartRcd: rcd,
+    subChartInfo: p.subChartInfo,
     nValues,
     slotOrder,
     nSerieses,
     orientation,
     slotExtent,
     gridLineStrokeWidth,
-    itemDataDimensions: params.itemDataDimensions,
-    contentStyle: s,
-    dataLabelsTextStyle: params.dataLabelsTextStyle,
+    itemDataDimensions: p.itemDataDimensions,
+    contentStyle: p.contentStyle,
+    dataLabelsTextStyle: p.dataLabelsTextStyle,
     valueRange,
     valueClearance,
     mappedUncertaintyUb,

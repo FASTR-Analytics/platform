@@ -20,53 +20,36 @@ type HeadingBarTabs<T extends string> = {
   onChange: (value: T) => void;
 } & DataAttrs;
 
-type Props<T extends string> =
-  & {
-    heading?: string | JSX.Element;
-    subheading?: string | JSX.Element;
-    onBack?: () => void;
-    tonal?: boolean;
-    leftChildren?: JSX.Element;
-    // Sits in the centre group, before the search field.
-    centerLeftChildren?: JSX.Element;
-    centerChildren?: JSX.Element;
-    children?: JSX.Element;
-    searchText?: string;
-    setSearchText?: (v: string) => void;
-  }
-  & DataAttrs
-  & HeadingBarForm<T>;
-
-// Tabs must reach the bar's bottom edge, which only a compact bar allows, so
-// the type admits tabs only alongside compact.
-type HeadingBarForm<T extends string> =
-  | {
-    compact: true;
-    // After the heading. The bar is then the tab strip's rail.
-    tabs?: HeadingBarTabs<T>;
-  }
-  | { compact?: false; tabs?: undefined };
+type Props<T extends string> = {
+  heading?: string | JSX.Element;
+  subheading?: string | JSX.Element;
+  onBack?: () => void;
+  tonal?: boolean;
+  leftChildren?: JSX.Element;
+  // After the heading. The bar is then the tab strip's rail.
+  tabs?: HeadingBarTabs<T>;
+  // Sits in the centre group, before the search field.
+  centerLeftChildren?: JSX.Element;
+  centerChildren?: JSX.Element;
+  children?: JSX.Element;
+  searchText?: string;
+  setSearchText?: (v: string) => void;
+} & DataAttrs;
 
 export function HeadingBar<T extends string = string>(p: Props<T>) {
   const [dataAttrs] = splitDataAttrs(p);
-  // The two header forms: a standard bar pads around a control-height floor;
-  // a compact bar is --ui-heading-bar-compact-height tall with its content
-  // centred.
-  const isCompact = () => p.compact === true;
   // A tonal bar has a surface of its own, and that surface change IS the
   // divider. A flush bar sits on the same surface as its content, so it draws
   // one. The tonal surface is a kit-owned token, not a per-call-site choice —
   // there is exactly one tonal header in an app.
-  // A compact bar's divider is an inset shadow rather than a border: it adds
-  // no height to the fixed token, and tabs run to the bar's bottom edge and
-  // paint their underlines over it, which a border (outside the overflow
-  // clip) would not allow.
+  // The flush divider is an inset shadow rather than a border: it adds no
+  // height to the bar, and tabs run to the bar's bottom edge and paint their
+  // underlines over it, which a border (outside the overflow clip) would not
+  // allow.
   const surfaceClass = () =>
     p.tonal
       ? "ui-heading-bar-tonal"
-      : isCompact()
-      ? "shadow-[inset_0_-1px_0_0_var(--color-border)]"
-      : "border-b";
+      : "shadow-[inset_0_-1px_0_0_var(--color-border)]";
   // Slots collapse on prop PRESENCE, not on rendered content: several consumers
   // pass children that are a <Show> and render nothing under some app state,
   // and keying on output would slide the centred search field sideways as that
@@ -98,117 +81,106 @@ export function HeadingBar<T extends string = string>(p: Props<T>) {
   const tabsDataAttrs = (): DataAttrs =>
     p.tabs ? splitDataAttrs(p.tabs)[0] : {};
 
-  // A standard bar's floor is a form control's height, so a bar holding only a
-  // title is as tall as one holding buttons. It cannot sit on the root, which
-  // carries ui-pad over box-sizing: border-box. Every slot centres its own
-  // content, so the row stretches and tabs can reach the bottom edge.
+  // The bar's height is fixed, not padding around its content, so every bar
+  // in an app is one height whatever it holds; content taller than a form
+  // control is clipped. Every slot centres its own content, so the row
+  // stretches and tabs can reach the bottom edge.
   return (
     <div
       {...dataAttrs}
-      class={`${
-        isCompact() ? "ui-pad-x" : "ui-pad"
-      } w-full flex-none overflow-hidden ${surfaceClass()}`}
+      class={`ui-pad-x ui-gap flex h-[var(--ui-heading-bar-height)] w-full flex-none items-stretch overflow-hidden ${surfaceClass()}`}
     >
-      <div
-        class={`ui-gap flex w-full items-stretch ${
-          isCompact()
-            ? "min-h-[var(--ui-heading-bar-compact-height)]"
-            : "min-h-[var(--ui-form-height)]"
-        }`}
-      >
-        <Show when={hasLeft()}>
-          <div class="ui-gap flex min-w-0 flex-1 basis-1 items-center">
-            <Show when={p.onBack !== undefined}>
-              <Button iconName="chevronLeft" onClick={handleBack} />
-            </Show>
-            <Show when={p.leftChildren} keyed>
-              {(keyedLeftChildren) => {
-                return <div class="flex-none">{keyedLeftChildren}</div>;
-              }}
-            </Show>
-            <Show when={p.heading !== undefined}>
-              <div
-                class={`ui-text-heading truncate ${
-                  p.tonal
-                    ? "text-[color:var(--ui-heading-bar-tonal-content)]"
-                    : ""
-                }`}
-              >
-                {p.heading}
-                <Show when={p.subheading}>
-                  <span class="text-base-content-muted font-400 ml-4 text-sm">
-                    {p.subheading}
-                  </span>
-                </Show>
-              </div>
-            </Show>
-            <Show when={p.tabs}>
-              <div
-                {...tabsDataAttrs()}
-                class="ui-gap-lg flex flex-none self-stretch"
-                role="tablist"
-              >
-                <For each={p.tabs!.items}>
-                  {(item) => (
-                    <button
-                      type="button"
-                      role="tab"
-                      class={horizontalTabClasses(item.id === p.tabs!.value)}
-                      aria-selected={item.id === p.tabs!.value}
-                      onClick={() => p.tabs!.onChange(item.id)}
-                    >
-                      <TabLabel item={item} text={tabLabelString(item)} />
-                    </button>
-                  )}
-                </For>
-              </div>
-            </Show>
-          </div>
-        </Show>
-        <Show when={hasCenter()}>
-          <div
-            class={`ui-gap-sm flex flex-1 items-center ${
-              hasLeft() ? "justify-center" : "justify-start"
-            }`}
-          >
-            <Show when={p.centerLeftChildren} keyed>
-              {(keyedCenterLeftChildren) => (
-                <div class="flex-none">{keyedCenterLeftChildren}</div>
-              )}
-            </Show>
-            <Show when={p.setSearchText}>
-              <div class="ui-gap-sm flex min-w-48 max-w-72 flex-1 items-center">
-                <Input
-                  onChange={p.setSearchText}
-                  value={p.searchText ?? ""}
-                  size={isCompact() ? "sm" : undefined}
-                  fullWidth
-                  searchIcon
-                  clearable
-                />
-              </div>
-            </Show>
-            <Show when={p.centerChildren} keyed>
-              {(keyedCenterChildren) => (
-                <div class="flex-none">{keyedCenterChildren}</div>
-              )}
-            </Show>
-          </div>
-        </Show>
-        <Show when={p.children} keyed>
-          {(keyedRightChildren) => {
-            return (
-              <div
-                class={`ml-auto flex items-center justify-end ${
-                  hasCenter() && hasLeft() ? "flex-1 basis-1" : "flex-none"
-                }`}
-              >
-                <div class="flex-none">{keyedRightChildren}</div>
-              </div>
-            );
-          }}
-        </Show>
-      </div>
+      <Show when={hasLeft()}>
+        <div class="ui-gap flex min-w-0 flex-1 basis-1 items-center">
+          <Show when={p.onBack !== undefined}>
+            <Button iconName="chevronLeft" onClick={handleBack} />
+          </Show>
+          <Show when={p.leftChildren} keyed>
+            {(keyedLeftChildren) => {
+              return <div class="flex-none">{keyedLeftChildren}</div>;
+            }}
+          </Show>
+          <Show when={p.heading !== undefined}>
+            <div
+              class={`ui-text-heading truncate ${
+                p.tonal
+                  ? "text-[color:var(--ui-heading-bar-tonal-content)]"
+                  : ""
+              }`}
+            >
+              {p.heading}
+              <Show when={p.subheading}>
+                <span class="text-base-content-muted font-400 ml-4 text-sm">
+                  {p.subheading}
+                </span>
+              </Show>
+            </div>
+          </Show>
+          <Show when={p.tabs}>
+            <div
+              {...tabsDataAttrs()}
+              class="ui-gap-lg flex flex-none self-stretch"
+              role="tablist"
+            >
+              <For each={p.tabs!.items}>
+                {(item) => (
+                  <button
+                    type="button"
+                    role="tab"
+                    class={horizontalTabClasses(item.id === p.tabs!.value)}
+                    aria-selected={item.id === p.tabs!.value}
+                    onClick={() => p.tabs!.onChange(item.id)}
+                  >
+                    <TabLabel item={item} text={tabLabelString(item)} />
+                  </button>
+                )}
+              </For>
+            </div>
+          </Show>
+        </div>
+      </Show>
+      <Show when={hasCenter()}>
+        <div
+          class={`ui-gap-sm flex flex-1 items-center ${
+            hasLeft() ? "justify-center" : "justify-start"
+          }`}
+        >
+          <Show when={p.centerLeftChildren} keyed>
+            {(keyedCenterLeftChildren) => (
+              <div class="flex-none">{keyedCenterLeftChildren}</div>
+            )}
+          </Show>
+          <Show when={p.setSearchText}>
+            <div class="ui-gap-sm flex min-w-48 max-w-72 flex-1 items-center">
+              <Input
+                onChange={p.setSearchText}
+                value={p.searchText ?? ""}
+                fullWidth
+                searchIcon
+                clearable
+              />
+            </div>
+          </Show>
+          <Show when={p.centerChildren} keyed>
+            {(keyedCenterChildren) => (
+              <div class="flex-none">{keyedCenterChildren}</div>
+            )}
+          </Show>
+        </div>
+      </Show>
+      <Show when={p.children} keyed>
+        {(keyedRightChildren) => {
+          return (
+            <div
+              class={`ml-auto flex items-center justify-end ${
+                hasCenter() && hasLeft() ? "flex-1 basis-1" : "flex-none"
+              }`}
+            >
+              <div class="flex-none">{keyedRightChildren}</div>
+            </div>
+          );
+        }}
+      </Show>
     </div>
   );
 }

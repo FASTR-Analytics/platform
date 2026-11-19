@@ -95,6 +95,8 @@ This pane/tier/lane system is what distinguishes Charts from other Figures.
 
 ### Chart Measurement
 
+The stages: `measureChart` → `resolvePaneGridLayout` → `measurePane` → `buildSubCharts` → `generatePaneContentPrimitives`.
+
 ```typescript
 measureChart<TInputs, TData, TStyle>(
   rc: RenderContext,
@@ -130,15 +132,22 @@ renderFigurePrimitives(
 ### Axes (Measurement Only)
 
 ```typescript
+// A measured axis: its type, config and measured info under one tag
+type MeasuredXAxis =
+  | { type: "text"; config; info: XTextAxisMeasuredInfo }
+  | { type: "period"; config; info: XPeriodAxisMeasuredInfo }
+  | { type: "value"; config; info: XValueAxisMeasuredInfo };
+type MeasuredYAxis =
+  | { type: "value"; config; info: YValueAxisWidthInfo }
+  | { type: "text"; config; info: YTextAxisWidthInfo };
+
 // X-axis measurement
-measureXAxis(...): MeasuredXAxis
+measureXCategoryAxis(...): Extract<MeasuredXAxis, { type: "text" | "period" }>
+measureXValueAxis(...): Extract<MeasuredXAxis, { type: "value" }>
 
 // Y-axis measurement
-measureYValueAxis(...): MeasuredYValueAxis
-
-// Axis types
-type XAxisType = "period" | "text" | "scale";
-type YAxisType = "scale";
+measureYCategoryAxis(...): Extract<MeasuredYAxis, { type: "text" }>
+measureYValueAxis(...): Extract<MeasuredYAxis, { type: "value" }>
 ```
 
 Note: Axis rendering is now handled via primitives (no direct rendering functions).
@@ -226,4 +235,6 @@ Surrounds measurement and primitive generation (figure texts + legend).
 
 - `render_primitives.ts` - Primitive rendering dispatcher
 - `measure_chart.ts` / `measure_pane.ts` - Chart/pane measurement
+- `pane_grid_layout.ts` - Each pane's place in the pane grid, the pane headers, and the proportional panes solve
+- `sub_charts.ts` - Each sub-chart's record: its rect, its slots, its value range and its value clearance
 - `common_data_transform.ts` - Data transformation utilities

@@ -74,9 +74,7 @@ export function measureMap(
       tier: transformedData.tier,
       lane: transformedData.lane,
     },
-    xAxisConfig: { type: "none" },
-    yAxisConfig: { type: "none" },
-    orientation: "vertical",
+    axes: { kind: "none" },
     resolvedLegend: isAutoScaleLegendConfig(inputs.legend)
       ? resolveAutoScaleLegend(
         inputs.legend,
