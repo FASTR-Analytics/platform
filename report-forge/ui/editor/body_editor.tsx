@@ -83,12 +83,14 @@ import type {
 } from "./embed_resolver.ts";
 import type { FigureInkTheme } from "../figure_ink.ts";
 import {
+  blocksIdleField,
   type EditorPagination,
   FM_LIVE_SCOPE_CLASS,
   livePreviewExtensions,
   paginationField,
   redrawImages as redrawImagesEffect,
   refreshEmbedSizes as refreshEmbedSizesEffect,
+  setBlocksIdle,
   setLayoutHints as setLayoutHintsEffect,
   setPagination as setPaginationEffect,
   stretchField,
@@ -1343,21 +1345,37 @@ export function ReportBodyEditor(p: Props) {
         .map((f) => `${f.name}${f.line}${JSON.stringify(f.attrs)}`)
         .join(">")
     }`;
-    if (key === ctxKey) return;
-    ctxKey = key;
-    const ctx: ReportBlockContext = {
-      stack: ctxStack,
-      fenceHere,
-      line: line.number,
-      hasSelection: !sel.empty,
-      marks,
-      fontSizePt: measureFontSizePt(pos),
-      table,
-      embed: isFastrEmbedLine(line.text),
-      align,
-      template,
-      coverLogos,
-    };
+    // Every block left (a press beside the page): the toolbar shows none.
+    const idle = state.field(blocksIdleField, false);
+    if (`${idle}|${key}` === ctxKey) return;
+    ctxKey = `${idle}|${key}`;
+    const ctx: ReportBlockContext = idle
+      ? {
+        stack: [],
+        fenceHere: undefined,
+        line: line.number,
+        hasSelection: false,
+        marks,
+        fontSizePt: undefined,
+        table: undefined,
+        embed: false,
+        align: undefined,
+        template: undefined,
+        coverLogos: undefined,
+      }
+      : {
+        stack: ctxStack,
+        fenceHere,
+        line: line.number,
+        hasSelection: !sel.empty,
+        marks,
+        fontSizePt: measureFontSizePt(pos),
+        table,
+        embed: isFastrEmbedLine(line.text),
+        align,
+        template,
+        coverLogos,
+      };
     // Out of the CodeMirror update. A synchronous signal write here re-renders
     // the toolbar mid-update, and anything in that render that touches the
     // view throws "Calls to EditorView.update are not allowed while an update
@@ -1870,6 +1888,38 @@ export function ReportBodyEditor(p: Props) {
     });
   }
   createEffect(on(() => p.body, followHostBody, { defer: true }));
+
+  // A press beside the page (left or right of the sheet, in the pane) leaves
+  // whatever block the caret was in: its ring and editing slots go, the
+  // toolbar shows no block, until the next press in the document. Heard in
+  // the capture phase, before CodeMirror would put the caret back in the
+  // block nearest the press. Not on the pane's scrollbar.
+  function onPressBeside(e: MouseEvent) {
+    if (e.button !== 0 || view === undefined) return;
+    if (!(p.livePreview?.() ?? true)) return;
+    const scroller = view.scrollDOM.getBoundingClientRect();
+    if (
+      e.clientX >= scroller.left + view.scrollDOM.clientWidth &&
+      e.clientX <= scroller.right
+    ) return;
+    const content = view.contentDOM.getBoundingClientRect();
+    const sheetPx = parseFloat(
+      getComputedStyle(view.dom).getPropertyValue("--fm-sheet"),
+    );
+    const width = Number.isFinite(sheetPx) && sheetPx > 0
+      ? sheetPx
+      : content.width;
+    const left = content.left + (content.width - width) / 2;
+    if (e.clientX >= left && e.clientX <= left + width) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (view.state.field(blocksIdleField, false)) return;
+    view.dispatch({ effects: setBlocksIdle.of(true) });
+    view.contentDOM.blur();
+    emitContext(view.state, false);
+  }
+  onMount(() => parent.addEventListener("mousedown", onPressBeside, true));
+  onCleanup(() => parent.removeEventListener("mousedown", onPressBeside, true));
 
   // Re-evaluate centering when the mode (centered) or pad prop changes; the
   // ResizeObserver handles width changes.

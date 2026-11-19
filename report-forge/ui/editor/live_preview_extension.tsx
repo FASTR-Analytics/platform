@@ -562,6 +562,18 @@ function regionRanges(state: EditorState): RegionRange[] {
   );
 }
 
+// Every block at rest: a press beside the page leaves whatever block the
+// caret was in (body_editor's leaveBlocks), so none shows its active ring
+// or its editing slots; the next selection the user sets wakes them.
+export const setBlocksIdle = StateEffect.define<boolean>();
+export const blocksIdleField = StateField.define<boolean>({
+  create: () => false,
+  update(value, tr) {
+    for (const e of tr.effects) if (e.is(setBlocksIdle)) return e.value;
+    return tr.selection ? false : value;
+  },
+});
+
 function selectionTouches(
   state: EditorState,
   from: number,
@@ -3992,7 +4004,8 @@ function buildLiveState(
     // painted with the innermost block's ground. The fence and leaf lines are
     // recorded as PROTECTED: a transaction filter refuses user edits that
     // touch them, so the attrs are reachable only through the toolbar.
-    const touched = selectionTouches(state, r.from, r.to);
+    const touched = !state.field(blocksIdleField, false) &&
+      selectionTouches(state, r.from, r.to);
     // No region reveals its source any more: every block edits IN PLACE in
     // its rendered form (paragraph/cell/label editors below), so the caret
     // inside a region shows as the widget's active ring. Live preview off remains
@@ -4121,6 +4134,9 @@ export function liveRegionExtensions(resolver: EmbedResolver): Extension[] {
           tr.annotation(islandCommit) === true,
         );
       }
+      if (tr.effects.some((e) => e.is(setBlocksIdle))) {
+        return buildLiveState(tr.state, resolver, value.ranges, value);
+      }
       if (tr.selection) {
         return buildLiveState(tr.state, resolver, value.ranges, value);
       }
@@ -4242,7 +4258,7 @@ export function liveRegionExtensions(resolver: EmbedResolver): Extension[] {
     },
   }]));
 
-  return [field, guard, boxLayer, enterBeside];
+  return [blocksIdleField, field, guard, boxLayer, enterBeside];
 }
 
 // ── Surface lines (heading scale) ────────────────────────────────────────────

@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-19T03:31:30.853Z",
-  "sourceCommit": "7fc261d",
-  "sourceSubject": "Cover logo slots say \"Logo\" and keep to the layout's slot",
+  "timestamp": "2026-11-19T04:06:00.699Z",
+  "sourceCommit": "f6f6f9f",
+  "sourceSubject": "A press beside the page leaves the block the caret was in",
   "sourceDirty": false,
   "target": "platform"
 }
