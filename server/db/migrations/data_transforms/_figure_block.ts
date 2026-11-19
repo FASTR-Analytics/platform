@@ -401,8 +401,7 @@ export function transformFigureBlock(block: FigureBlockMut): void {
 
   // Block: a bundle holds the catalog entries it names, not its module's
   // whole catalog. Last, so it reads the bundle the blocks above brought
-  // current; one the schema still rejects is left to the sweep's final
-  // parse.
+  // current; one the schema still rejects is left to the sweep's final parse.
   if (bundle) {
     const current = figureBundleSchema.safeParse(bundle);
     if (current.success) {
