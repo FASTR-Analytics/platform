@@ -306,7 +306,7 @@ function PackageExplorer(p: {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar compact tabs={tabs()}>
+        <HeadingBar tabs={tabs()}>
           {p.controls}
         </HeadingBar>
       }
