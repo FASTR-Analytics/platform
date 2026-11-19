@@ -1200,12 +1200,15 @@ export const FASTR_OFFICIAL_COVER_LAYOUTS: readonly FastrCoverLayout[] = [
   "seal",
   "banner",
 ];
-// Whether a logos row's align= places its logos at the head of this
-// official cover: the letterhead's row runs across the page; the others
-// compose the logos themselves (one each side of the lines, or centred
-// over them), so align= has nothing to place there.
+// Whether a logos row's align= places its logos on a cover of this layout.
+// Not where the layout places them itself: a bulletin and a banner put one
+// each side of the ministry lines, a seal centres them, and a centred or
+// framed cover sets everything on its axis (the row is only as wide as its
+// logos). Elsewhere the row runs across the cover. The toolbar offers align
+// only where it does something.
+const COVER_LOGOS_PLACED = ["bulletin", "banner", "seal", "centered", "frame"];
 export function fastrCoverLogosAlign(layout: unknown): boolean {
-  return layout === "letterhead";
+  return !(typeof layout === "string" && COVER_LOGOS_PLACED.includes(layout));
 }
 export function isFastrOfficialCover(layout: unknown): boolean {
   return typeof layout === "string" &&

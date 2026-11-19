@@ -172,7 +172,8 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   is there. Both are optional: an official cover stands with no logos and
   no lines. Its \`size=\` sizes the logos on every layout; its \`align=\`
   places them on a letterhead only (a bulletin and a banner put one each
-  side of the lines, a seal centres them). Its own colours, when they are not the theme's accent:
+  side of the lines, a seal centres them; a centered or frame cover centres
+  logos too). Its own colours, when they are not the theme's accent:
   \`boxcolor=#9bbb59\` a bulletin's title box or a banner's band,
   \`issuecolor=#548235\` the issue number (its strip, or its text on a
   letterhead or a seal; unset, the box's colour), \`datecolor=\` the date.

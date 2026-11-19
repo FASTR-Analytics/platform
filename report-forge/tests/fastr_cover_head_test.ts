@@ -62,10 +62,16 @@ Deno.test("the logos row is replaced, removed, or added at the head's top", () =
   assertEquals(swapped.length, added.length);
 });
 
-Deno.test("only a letterhead's logos take align=, across the page", () => {
+Deno.test("a cover's logos take align= only where the layout leaves it to them", () => {
   assertEquals(
     ["bulletin", "letterhead", "seal", "banner"].map(fastrCoverLogosAlign),
     [false, true, false, false],
+  );
+  assertEquals(
+    ["classic", "centered", "frame", "split", undefined].map(
+      fastrCoverLogosAlign,
+    ),
+    [true, false, false, true, true],
   );
   const css = buildFastrReportCss("default", undefined, "", {});
   const rule = css.slice(

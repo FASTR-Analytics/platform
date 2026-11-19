@@ -450,6 +450,19 @@ export function ReportToolbar(p: Props) {
 
   // The page template the caret is in, from anywhere inside it (a slot, a
   // stat in a slot): its layout is switchable from the whole page.
+  // The block's choices, less one that does nothing where the block is: a
+  // logos row's align inside a cover whose layout places its logos itself
+  // (fastrCoverLogosAlign).
+  function liveChoiceControls(name: FastrBlockName): ChoiceControl[] {
+    const controls = choiceControlsFor(name);
+    if (name !== "logos") return controls;
+    const cover = p.context()?.stack.findLast((f) => f.name === "cover");
+    if (cover === undefined || fastrCoverLogosAlign(cover.attrs["layout"])) {
+      return controls;
+    }
+    return controls.filter((c) => c.attr !== "align");
+  }
+
   const pageFence = createMemo<FastrOpenFence | undefined>(() => {
     const ctx = p.context();
     if (ctx?.fenceHere?.name === "page") return ctx.fenceHere;
@@ -1936,7 +1949,7 @@ export function ReportToolbar(p: Props) {
 
                 <Show when={targetName()}>
                   {(name) => (
-                    <For each={choiceControlsFor(name())}>
+                    <For each={liveChoiceControls(name())}>
                       {(control) => (
                         <Popover
                           label={`${control.label}: ${
