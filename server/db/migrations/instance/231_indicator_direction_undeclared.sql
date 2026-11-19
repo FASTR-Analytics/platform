@@ -1,4 +1,3 @@
--- ============================================================================
 -- An HMIS indicator may declare no direction.
 --
 -- `direction` NULL means undeclared: nobody chose whether a higher value is
@@ -21,7 +20,6 @@
 -- Replay (./validate_migrations, a fresh database): the column and the
 -- constraint exist as _main_database.sql declares them, and the UPDATE
 -- matches no row.
--- ============================================================================
 
 ALTER TABLE indicators ALTER COLUMN direction DROP DEFAULT;
 ALTER TABLE indicators ALTER COLUMN direction DROP NOT NULL;
