@@ -34,7 +34,6 @@ import {
   FrameTop,
   getEditorWrapper,
   getFigureAsCanvas,
-  HeadingBar,
   openAlert,
   openComponent,
   saveAs,
@@ -75,6 +74,7 @@ import { VizEditorCursors } from "./viz_editor_cursors";
 import { ReplicateByOptionsSelect } from "./replicate_by_options";
 import { DownloadPresentationObject } from "./download_presentation_object";
 import { ViewResultsObject } from "./view_results_object";
+import { FigureEditorHeader } from "./editor_header";
 import {
   awaitFigureBoundaries,
   buildFigureInputs,
@@ -940,130 +940,121 @@ export function VisualizationEditorInner(p: InnerProps) {
     </Show>
   ));
 
-  return (
-    <EditorWrapperForResultsObject>
-      <FrameTop
-        panelChildren={
-          <HeadingBar
-            tonal
-            data-cursor-zone="header"
-            data-tour="viz-editor-header"
-            leftChildren={
-              <div class="ui-gap-sm flex items-center">
-                <Show
-                  when={isCollabLive()}
-                  fallback={
-                    <Show
-                      when={needsSave() && !p.viewOnly}
-                      fallback={
-                        <Button iconName="chevronLeft" onClick={cancel} />
-                      }
-                    >
-                      <Button
-                        intent="success"
-                        onClick={() =>
-                          p.onClose({
-                            updated: { config: getConfigForSave() },
-                          })}
-                        iconName="check"
-                      >
-                        {t3({ en: "Apply", fr: "Appliquer", pt: "Aplicar" })}
-                      </Button>
-                      <Button
-                        outline
-                        onBackground="base-300"
-                        onClick={cancel}
-                        iconName="x"
-                      >
-                        {t3(TC.cancel)}
-                      </Button>
-                    </Show>
-                  }
-                >
-                  {
-                    /* Live co-editing: edits already streamed into the host doc.
-                    Back commits and lets the host do a final coherent rebuild
-                    (fresh items for the final config). No Cancel: streamed
-                    edits can't be discarded (use per-user undo). */
-                  }
-                  <Button
-                    iconName="chevronLeft"
-                    onClick={() =>
-                      p.onClose({
-                        updated: { config: getConfigForSave() },
-                      })}
-                  />
-                </Show>
-              </div>
-            }
-            heading={
-              <Show
-                when={p.productChrome}
-                fallback={<span class="font-400">{label()}</span>}
-              >
-                {p.productChrome?.title}
-              </Show>
-            }
+  const headerLeft = (
+    <div class="ui-gap-sm flex items-center">
+      <Show
+        when={isCollabLive()}
+        fallback={
+          <Show
+            when={needsSave() && !p.viewOnly}
+            fallback={<Button iconName="chevronLeft" onClick={cancel} />}
           >
-            <div class="ui-gap-sm flex items-center">
-              {p.productChrome?.actions}
-              <Show when={isCollabLive()}>
-                <Show
-                  when={!saveFailing()}
-                  fallback={
-                    <div class="ui-text-caption mr-1 flex items-center gap-1.5">
-                      <div class="bg-danger h-1.5 w-1.5 flex-none rounded-full" />
-                      <span>
-                        {t3({
-                          en: "Not saving — retrying…",
-                          fr: "Non enregistré — nouvel essai…",
-                          pt: "Não está a guardar — a tentar novamente…",
-                        })}
-                      </span>
-                    </div>
-                  }
-                >
-                  <span
-                    class="text-base-content-muted mr-1 text-xs"
-                    title={t3({
-                      en: "Changes are saved automatically and shared live",
-                      fr:
-                        "Les modifications sont enregistrées automatiquement et partagées en direct",
-                      pt:
-                        "As alterações são guardadas automaticamente e partilhadas em direto",
-                    })}
-                  >
-                    {t3({ en: "Live", fr: "En direct", pt: "Em direto" })}
-                  </span>
-                </Show>
-                <Button
-                  onClick={undo}
-                  iconName="undo"
-                  outline
-                  onBackground="base-300"
-                />
-                <Button
-                  onClick={redo}
-                  iconName="redo"
-                  outline
-                  onBackground="base-300"
-                />
-              </Show>
-              <Button onClick={download} iconName="download">
-                {t3(TC.download)}
-              </Button>
-              <Button
-                onClick={() =>
-                  setEditorHeight(editorHeight() === "flex" ? "ideal" : "flex")}
-                iconName={editorHeight() === "flex" ? "maximize" : "minimize"}
-                outline
-                onBackground="base-300"
-              >
-              </Button>
-            </div>
-          </HeadingBar>
+            <Button
+              intent="success"
+              onClick={() =>
+                p.onClose({
+                  updated: { config: getConfigForSave() },
+                })}
+              iconName="check"
+            >
+              {t3({ en: "Apply", fr: "Appliquer", pt: "Aplicar" })}
+            </Button>
+            <Button
+              outline
+              onBackground="base-300"
+              onClick={cancel}
+              iconName="x"
+            >
+              {t3(TC.cancel)}
+            </Button>
+          </Show>
         }
       >
+        {
+          /* Live co-editing: edits already streamed into the host doc.
+          Back commits and lets the host do a final coherent rebuild
+          (fresh items for the final config). No Cancel: streamed
+          edits can't be discarded (use per-user undo). */
+        }
+        <Button
+          iconName="chevronLeft"
+          onClick={() =>
+            p.onClose({
+              updated: { config: getConfigForSave() },
+            })}
+        />
+      </Show>
+    </div>
+  );
+  const headerControls = (
+    <>
+      <Show when={isCollabLive()}>
+        <Show
+          when={!saveFailing()}
+          fallback={
+            <div class="ui-text-caption mr-1 flex items-center gap-1.5">
+              <div class="bg-danger h-1.5 w-1.5 flex-none rounded-full" />
+              <span>
+                {t3({
+                  en: "Not saving — retrying…",
+                  fr: "Non enregistré — nouvel essai…",
+                  pt: "Não está a guardar — a tentar novamente…",
+                })}
+              </span>
+            </div>
+          }
+        >
+          <span
+            class="text-base-content-muted mr-1 text-xs"
+            title={t3({
+              en: "Changes are saved automatically and shared live",
+              fr:
+                "Les modifications sont enregistrées automatiquement et partagées en direct",
+              pt:
+                "As alterações são guardadas automaticamente e partilhadas em direto",
+            })}
+          >
+            {t3({ en: "Live", fr: "En direct", pt: "Em direto" })}
+          </span>
+        </Show>
+        <Button
+          onClick={undo}
+          iconName="undo"
+          outline
+          onBackground="base-300"
+        />
+        <Button
+          onClick={redo}
+          iconName="redo"
+          outline
+          onBackground="base-300"
+        />
+      </Show>
+      <Button onClick={download} iconName="download">
+        {t3(TC.download)}
+      </Button>
+      <Button
+        onClick={() =>
+          setEditorHeight(editorHeight() === "flex" ? "ideal" : "flex")}
+        iconName={editorHeight() === "flex" ? "maximize" : "minimize"}
+        outline
+        onBackground="base-300"
+      >
+      </Button>
+    </>
+  );
+  const header = (
+    <FigureEditorHeader
+      left={headerLeft}
+      label={label()}
+      productChrome={p.productChrome}
+      controls={headerControls}
+    />
+  );
+
+  return (
+    <EditorWrapperForResultsObject>
+      <FrameTop panelChildren={header}>
         <FrameLeftResizable
           startingWidth={384}
           minWidth={300}

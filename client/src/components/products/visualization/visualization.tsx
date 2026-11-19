@@ -26,6 +26,7 @@ import {
   StateHolderWrapper,
 } from "panther";
 import {
+  children,
   createEffect,
   createMemo,
   createSignal,
@@ -49,7 +50,9 @@ import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_
 import { getVisualizationDetailFromCacheOrFetch } from "~/state/products/t2_visualization_detail";
 import { resolveFigureBundleInteractively } from "~/generate_visualization/mod";
 import {
+  FigureEditorHeader,
   VisualizationEditor,
+  type VizEditorProductChrome,
   type VizFigureCollabBinding,
 } from "~/components/_shared/figure_editor/mod.ts";
 import {
@@ -500,57 +503,53 @@ export function VisualizationProductEditor(p: Props) {
     });
   }
 
-  // The header pieces are built ONCE and passed by reference (see the report
-  // editor: FrameTop reads its panel twice, and an inline piece would be
-  // built twice).
   // pl-1: the title's rename hover reaches 4px left of its text.
-  const chromeTitle = (
-    <div class="flex min-w-0 items-center pl-1">
-      <ProductTitle productId={p.productId} label={label()} />
-    </div>
-  );
-  const chromeActions = (
-    <div class="ui-gap-sm flex items-center">
-      <PackageScopeChip
-        product={product()}
-        onClick={canEdit() ? () => void openPackageScope() : undefined}
-      />
-      <PresenceAvatars peers={peersInProduct(p.productId)} size="sm" />
-      <Button
-        id="visualization-history-button"
-        outline
-        onBackground="base-300"
-        iconName="rotate"
-        onClick={() => void openHistory()}
-      >
-        {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
-      </Button>
-      <Button
-        iconName="moreVertical"
-        outline
-        onBackground="base-300"
-        onClick={openMenu}
-      />
-    </div>
-  );
-  const chrome = {
-    title: chromeTitle,
-    actions: chromeActions,
+  const chrome: VizEditorProductChrome = {
+    title: () => (
+      <div class="flex min-w-0 items-center pl-1">
+        <ProductTitle productId={p.productId} label={label()} />
+      </div>
+    ),
+    actions: () => (
+      <div class="ui-gap-sm flex items-center">
+        <PackageScopeChip
+          product={product()}
+          onClick={canEdit() ? () => void openPackageScope() : undefined}
+        />
+        <PresenceAvatars peers={peersInProduct(p.productId)} size="sm" />
+        <Button
+          id="visualization-history-button"
+          outline
+          onBackground="base-300"
+          iconName="rotate"
+          onClick={() => void openHistory()}
+        >
+          {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
+        </Button>
+        <Button
+          iconName="moreVertical"
+          outline
+          onBackground="base-300"
+          onClick={openMenu}
+        />
+      </div>
+    ),
     changeMetric: () => void changeMetric(),
   };
 
-  const loadingHeader = (
-    <HeadingBar
-      tonal
-      leftChildren={
-        <Button
-          iconName="chevronLeft"
-          onClick={() => p.close(undefined)}
-        />
-      }
-      heading={<span class="font-400 truncate pl-1">{label()}</span>}
-    />
-  );
+  // The editor's header while the visualization loads, without the editor's
+  // own controls, so the bar does not change when the editor comes in. Built
+  // inside the Show, so it is disposed once the editor is in, and resolved,
+  // because FrameTop reads its panel twice.
+  const loadingPanel = children(() => (
+    <Show when={!editorInputs()}>
+      <FigureEditorHeader
+        onBack={() => p.close(undefined)}
+        label={label()}
+        productChrome={chrome}
+      />
+    </Show>
+  ));
 
   return (
     <InnerEditorWrapper>
@@ -558,7 +557,7 @@ export function VisualizationProductEditor(p: Props) {
         when={editorInputs()}
         keyed
         fallback={
-          <FrameTop panelChildren={loadingHeader}>
+          <FrameTop panelChildren={loadingPanel()}>
             <StateHolderWrapper state={loadState()} loadingAndErrorPad="md">
               {() => (
                 <div class="ui-pad text-base-content-muted text-sm">
