@@ -37,6 +37,7 @@ export function getClientToolsForModules(
         return formatModulesListForAI(modules, metrics);
       },
       inProgressLabel: "Getting available modules...",
+      completionMessage: "Retrieved the available modules",
       kind: "read",
     }),
   ];
@@ -78,6 +79,8 @@ export function getClientToolsForModuleInternals(env: ModuleInternalsEnv) {
         return formatTextWindowForAI(res.data.script, "start", input);
       },
       inProgressLabel: "Getting module script...",
+      completionMessage: (input) =>
+        `Retrieved the R script of module ${input.id}`,
       kind: "read",
     }),
 
@@ -93,6 +96,7 @@ export function getClientToolsForModuleInternals(env: ModuleInternalsEnv) {
         return formatTextWindowForAI(res.data.logs, "end", input);
       },
       inProgressLabel: "Getting module log...",
+      completionMessage: (input) => `Retrieved the log of module ${input.id}`,
       kind: "read",
     }),
 
@@ -108,6 +112,8 @@ export function getClientToolsForModuleInternals(env: ModuleInternalsEnv) {
         return formatModuleSettingsForAI(res.data);
       },
       inProgressLabel: "Getting module settings...",
+      completionMessage: (input) =>
+        `Retrieved the settings of module ${input.id}`,
       kind: "read",
     }),
   ];
