@@ -1703,17 +1703,7 @@ function attachCoverLogoGhosts(
         : "fm-logos fm-logos--empty fm-logos--ghost";
       const label = document.createElement("span");
       label.className = "fm-logos__empty";
-      label.textContent = position === "bottom"
-        ? t3({
-          en: "+ Logos at the bottom",
-          fr: "+ Logos en bas",
-          pt: "+ Logótipos em baixo",
-        })
-        : t3({
-          en: "+ Logos at the top",
-          fr: "+ Logos en haut",
-          pt: "+ Logótipos em cima",
-        });
+      label.textContent = t3({ en: "Logo", fr: "Logo", pt: "Logótipo" });
       ghost.append(label);
       ghost.addEventListener("mousedown", (e) => {
         if (e.button !== 0) return;
@@ -1730,8 +1720,10 @@ function attachCoverLogoGhosts(
         head.prepend(ghost);
         continue;
       }
-      const title = cover.querySelector(":scope > h1");
-      cover.insertBefore(ghost, title ?? cover.firstChild);
+      // Where a new top row goes (fastrCoverLogosEdit): the cover's first
+      // line, under its kicker.
+      const kicker = cover.querySelector(":scope > .fm-kicker");
+      cover.insertBefore(ghost, kicker?.nextSibling ?? cover.firstChild);
     }
   }
 }

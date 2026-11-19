@@ -2390,7 +2390,13 @@ ${d}.fm-logos--empty {
   font-family: var(--fm-font-body);
   cursor: pointer;
 }
-${d}.fm-logos__empty { font-size: 0.8em; }
+${d}.fm-logos__empty {
+  font-size: 0.8em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* A cover's logos open the cover's Logos menu. An empty row there shows
    its slot only while the cover is being edited (the widget marks it
    quiet otherwise: print's box, nothing drawn), and an active cover's empty
@@ -2398,7 +2404,15 @@ ${d}.fm-logos__empty { font-size: 0.8em; }
 ${d}.fm-cover .fm-logos { cursor: pointer; }
 ${d}.fm-logos--quiet { border-color: transparent; }
 ${d}.fm-cover__head > .fm-logos--quiet { visibility: hidden; }
-${d}.fm-logos--ghost { min-width: 12em; }
+/* Outside a head a ghost needs a width of its own; in a head it takes the
+   layout's slot (a bulletin's side of the lines, a letterhead's row). */
+${d}.fm-cover > .fm-logos--ghost:not(.fm-logos--at-bottom) { min-width: 12em; }
+/* On a banner's band, in the band's own ink. */
+${d}.fm-cover--banner > .fm-cover__head > .fm-logos--empty:not(.fm-logos--quiet) {
+  color: inherit;
+  border-color: currentColor;
+  opacity: 0.75;
+}
 /* A block the paginator had to split because it is taller than a page: a
    chip laid over the block's top corner, out of the flow, so the block's
    box is print's box and the layout that placed the seam is not moved by
