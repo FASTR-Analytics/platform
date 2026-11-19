@@ -1,3 +1,6 @@
+[2.14.1] [user] [changed] - Chart editor header appears immediately while loading
+[2.14.1] [user] [fixed] - Back button now works during chart editor loading errors
+[2.14.1] [admin] [changed] - Chart editor header now appears immediately while loading
 [2.14.0] [user] [changed] - Replicant picker moved from side panel to a strip above the preview with previous/next buttons
 [2.14.0] [user] [changed] - Filter option selectors now always use a searchable dropdown instead of sometimes showing clickable chips
 [2.14.0] [user] [changed] - Pinned dimension selectors in the Explore toolbar now use a searchable dropdown
