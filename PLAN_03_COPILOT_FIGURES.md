@@ -6,7 +6,7 @@ This plan covers how the copilot creates, edits and reads a figure, and what che
 
 **Next step: Do 1.**
 
-Branch: `main`. Repos: this one. Step 1 decides whether `wb-fastr-modules` and `timroberton-panther` gain steps. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Validate-before-commit", "Tool input schemas", "The slide_ai conversion layer" and Open items "Surface gaps", [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md) "The insert-figure wizard", "lib config semantics" and "Explore query model", [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) on special modes, [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md), and in the modules repo `DOC_VIZPRESET_STANDARDS.md`. Start when (proposed, ruling 5; Tim has not ruled): step 1 at any time, since it writes no file in this repo but this one. Every later step: `test ! -e PLAN_COPILOT_TOOL_LIMIT.md && test ! -e PLAN_02_COPILOT_SURFACE_GAPS.md && echo ok` prints `ok` on `main`.
+Branch: `main`. Repos: this one. Step 1 decides whether `wb-fastr-modules` and `timroberton-panther` gain steps. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Validate-before-commit", "Tool input schemas", "The slide_ai conversion layer" and Open items "Surface gaps", [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md) "The insert-figure wizard", "lib config semantics" and "Explore query model", [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) on special modes, [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md), and in the modules repo `DOC_VIZPRESET_STANDARDS.md`. Start when (proposed, ruling 5; Tim has not ruled): step 1 at any time, since it writes no file in this repo but this one. Every later step: `test ! -e PLAN_COPILOT_TOOL_LIMIT.md && test ! -e PLAN_02_COPILOT_SURFACE_GAPS.md && echo ok` prints `ok` on `main`, and (ruling 8) `test ! -e /Users/timroberton/projects/panther/timroberton-panther/PLAN_24_CLOSED_TOOL_INPUTS.md && echo ok` prints `ok`.
 
 ## §0 How to work this plan
 
@@ -105,7 +105,7 @@ A heading's mark covers everything under it. A line's own mark overrides its hea
 
 - Creating: `AiFigureFromMetricSchema` ([ai_input.ts:84](lib/types/ai_input.ts#L84)), applied by hand-written code in [build_config_from_preset.ts:64-108](client/src/components/products/copilot/slide_ai/build_config_from_preset.ts#L64-L108). The preset id is required.
 - Editing: `AiFigureConfigPatchSchema` for `update_figure` and `update_report_figure`, and `AiVizConfigUpdateSchema` ([ai_input.ts:207](lib/types/ai_input.ts#L207)) for `update_figure_editor`, which adds the type and the time grouping. A filter on a dimension the metric's results lack is refused ([content_validators.ts:171-181](lib/ai_tools/content_validators.ts#L171-L181)). The three tools each hold their own copy of the same sequence of calls (`update_figure.ts`, `figure_editor.ts`, `report_editor.ts`).
-- The create schema is a `z.object`, which strips a key it does not know, and PROTOCOL_APP_AI_TOOLS.md bans `z.strictObject`. So a create call that uses the edit name `selectedReplicantValue` loses that key (read, not run). [VIEW: writing agent, not run] What follows depends on the preset: 17 presets carry a replicant value of their own, which would then be used; 12 store an empty one, and the strict check would then throw ([assert_replicant_valid.ts:56-60](client/src/generate_visualization/assert_replicant_valid.ts#L56-L60)).
+- The create schema is a `z.object`, which strips a key it does not know, and PROTOCOL_APP_AI_TOOLS.md bans `z.strictObject` (a ban Tim withdrew on 2026-11-19: ruling 8). So a create call that uses the edit name `selectedReplicantValue` loses that key. [CHECKED 2026-11-19, run] `AiFigureFromMetricSchema` accepts that input and returns it without the key, and the same schema closed refuses it with `Unrecognized key: "selectedReplicantValue"`. [VIEW: writing agent, not run] What follows depends on the preset: 17 presets carry a replicant value of their own, which would then be used; 12 store an empty one, and the strict check would then throw ([assert_replicant_valid.ts:56-60](client/src/generate_visualization/assert_replicant_valid.ts#L56-L60)).
 - `client/public/info/iceh.md:138` teaches the model `selectedReplicant`. `client/public/info/iceh-equity-profile.md` teaches `selectedReplicant`, `chartTitle` and `filters` (lines 53 to 104).
 - The create schema is used by three slide tools, the draft slide tool and four report tools (`rewrite_report`, `get_report_pages`, `insert_figure`, `replace_figure`; the first two through `resolveNewFigures`, [report_editor.ts:741](client/src/components/products/copilot/ai_tools/tools/report_editor.ts#L741), [:849](client/src/components/products/copilot/ai_tools/tools/report_editor.ts#L849)).
 - `get_metric_data`'s query (`AiMetricQuerySchema`, [ai_input.ts:24-60](lib/types/ai_input.ts#L24-L60)) uses the create names `filters`, `startDate`, `endDate` and `valuesFilter`, and one name of its own, `disaggregations` (dimension names with no slots). It is shared with the `/mcp` surface.
@@ -294,7 +294,7 @@ Each entry: who raised it and where it stands ([ACCOUNT]), and what was said for
 **K. `get_metric_data` takes the same names as a figure for the same things.** Raised by the writing agent. [REPORTED] Review agent 3 recommended the same.
 
 - For: the model could copy its query into a figure.
-- Against: [VIEW: writing agent, not run] an MCP client with a cached tool list would send the old names, the schema would strip them, and the query would run unfiltered with no error unless the old names were refused explicitly.
+- Against: [VIEW: writing agent, not run] an MCP client with a cached tool list would send the old names, the schema would strip them, and the query would run unfiltered with no error unless the old names were refused explicitly. Under ruling 8 the closed schema refuses them by name.
 - Stands: [ACCOUNT] Tim was asked twice and has not answered.
 
 **L. Remove the preset's `allowedFilters` gate at creation.** Part of D and E.
@@ -337,7 +337,7 @@ None is designed, and none has been run against either set.
 - A special chart style is on only for a metric that may use it and a figure with the data shape it assumes.
 - No two dimensions share a slot unless one is filtered to a single value, whatever the data of the day holds.
 - Every required dimension is placed, and a type is offered only where the metric allows it (a timeseries needs a period column).
-- A key the schema does not know is refused, not dropped.
+- A key the schema does not know is refused, not dropped. (Ruled since, as ruling 8: the schema itself refuses it.)
 - The data the model reads back for a figure is queried as the figure queries it.
 - A figure's result states the period shown and the dimensions pooled.
 
@@ -370,6 +370,7 @@ None is designed, and none has been run against either set.
 5. **This plan's code runs last**, after PLAN_COPILOT_TOOL_LIMIT.md and PLAN_02_COPILOT_SURFACE_GAPS.md are gone, and step 1 runs at any time. The writing agent's reasons: the Surfaces of the three plans name the same tool files, and PLAN_02's ruling 1 says it changes no figure. _(proposed)_
 6. **One set of names for creating and editing a figure.** Tim: "i agree with one-vocabulary", said of idea D before the stress test. Treated here as a ruling; Tim to confirm. What the names and the shape are is step 1's to test.
 7. **Nothing ships in this plan.** _(proposed)_
+8. **Every tool input is closed.** Ruled (Tim, 2026-11-19). Every object in a tool input is `z.strictObject` at every level, panther's `createAITool` refuses an open one, and the API's `strict: true` is still never sent. The work is panther's `PLAN_24_CLOSED_TOOL_INPUTS.md` (`/Users/timroberton/projects/panther/timroberton-panther/`), which holds the evidence and closes every tool schema in this app. It runs before this plan's code steps. Step 1 designs the statement closed, so a setting written for another figure type is refused by name. "Never `z.strictObject()`" in PROTOCOL_APP_AI_TOOLS.md is withdrawn, and that plan rewrites it.
 
 ## §4 Steps
 
