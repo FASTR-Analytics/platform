@@ -102,9 +102,8 @@ export function generateAreaPrimitives(
       const areas: { coords: Coordinates[] }[] = [];
       let currentCoords: Coordinates[] = [];
 
-      for (let i_value = 0; i_value < areaData.coords.length; i_value++) {
-        const mappedValueThisSeries =
-          mapped[i_series][areaData.valueIndices[i_value]];
+      for (const i_value of ctx.slotOrder) {
+        const mappedValueThisSeries = mapped[i_series][i_value];
         if (mappedValueThisSeries === undefined) {
           if (!s.areas.joinAcrossGaps && currentCoords.length > 0) {
             areas.push({ coords: currentCoords });
@@ -132,13 +131,13 @@ export function generateAreaPrimitives(
               ctx.orientation,
               ctx.valueClearance.start,
             );
-          } else if (otherSeries[areaData.valueIndices[i_value]]) {
-            mirrorCoords = otherSeries[areaData.valueIndices[i_value]]!.coords;
+          } else if (otherSeries[i_value]) {
+            mirrorCoords = otherSeries[i_value]!.coords;
           }
         } else if (areaStyle.to === "previous-series-or-skip") {
           const otherSeries = mapped[i_series - 1];
-          if (otherSeries?.[areaData.valueIndices[i_value]]) {
-            mirrorCoords = otherSeries[areaData.valueIndices[i_value]]!.coords;
+          if (otherSeries?.[i_value]) {
+            mirrorCoords = otherSeries[i_value]!.coords;
           }
         } else {
           throw new Error("Should not be possible");
