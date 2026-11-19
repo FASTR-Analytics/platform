@@ -114,8 +114,8 @@ function storedBundle(
   });
 }
 
-// A figure replicated by indicator, showing one area's row: the selected
-// indicator has no column in the rows.
+// A figure replicated by indicator whose rows omit the indicator column, so
+// only the selected replicant value names its entry.
 const REPLICATED = storedBundle(
   {
     disaggregateBy: [

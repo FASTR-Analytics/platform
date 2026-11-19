@@ -215,3 +215,4 @@ A read-only repo-root script ran the exact reshape + round-trip against every in
 - The `mod.ts` barrels are incomplete: `instance/mod.ts` omits three siblings (named in the Conventions section above), whose callers deep-import them.
 - Standardize the PascalCase DB-function stragglers to camelCase.
 - Lint ideas (from the absorbed doc): flag `.unsafe()` call sites for trusted-input review; flag DB functions that throw or return non-envelope shapes; barrel-completeness check (`mod.ts` re-exports every sibling).
+- `server/db/migrations/data_transforms/slide_config.ts:87-115`: `collectFigureInputs` and `getFigureInputsInConfig`, with their comment, have had no caller since the bundle conversion replaced figureInputs. Delete them.

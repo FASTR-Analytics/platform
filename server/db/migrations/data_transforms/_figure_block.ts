@@ -238,12 +238,11 @@ export function rawJsonNeedsFigureBlockTransform(raw: string): boolean {
 
 // The entries of a stored bundle's catalog that its rows, its filter values
 // and its selected replicant value name.
-function namedIndicatorMetadata<T extends { id: string }>(
-  indicatorMetadata: readonly T[],
-  bundle: Pick<FigureBundle, "items" | "config">,
-): T[] {
+function namedIndicatorMetadata(
+  bundle: FigureBundle,
+): FigureBundle["indicatorMetadata"] {
   const { filterBy, selectedReplicantValue } = bundle.config.d;
-  return indicatorMetadataForRead(indicatorMetadata, bundle.items, [
+  return indicatorMetadataForRead(bundle.indicatorMetadata, bundle.items, [
     ...filterBy.flatMap((f) => f.values),
     ...(selectedReplicantValue === undefined ? [] : [selectedReplicantValue]),
   ]);
@@ -255,7 +254,7 @@ function namedIndicatorMetadata<T extends { id: string }>(
 export function bundleHoldsUnnamedIndicatorMetadata(
   bundle: FigureBundle,
 ): boolean {
-  return namedIndicatorMetadata(bundle.indicatorMetadata, bundle).length <
+  return namedIndicatorMetadata(bundle).length <
     bundle.indicatorMetadata.length;
 }
 
@@ -403,15 +402,11 @@ export function transformFigureBlock(block: FigureBlockMut): void {
   // Block: a bundle holds the catalog entries it names, not its module's
   // whole catalog. Last, so it reads the bundle the blocks above brought
   // current; one the schema still rejects is left to the sweep's final
-  // parse. It filters the stored entries, so a bundle that names every entry
-  // it holds is left as it was.
+  // parse.
   if (bundle) {
     const current = figureBundleSchema.safeParse(bundle);
     if (current.success) {
-      bundle.indicatorMetadata = namedIndicatorMetadata(
-        bundle.indicatorMetadata as { id: string }[],
-        current.data,
-      );
+      bundle.indicatorMetadata = namedIndicatorMetadata(current.data);
     }
   }
 }

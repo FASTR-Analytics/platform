@@ -77,10 +77,10 @@ export async function migrateReports(
 
     // Already valid? Skip: unless legacy keys (which safeParse silently
     // strips) still need the embedded-config rename, a figure holds catalog
-    // entries it does not name, or the row is still on
-    // the retired markdown format (Block 4). figureInputs drift is
-    // covered by reportFiguresSchema: figureBlockSchema validates figureInputs
-    // against panther's zFigureInputs (lib/types figureInputsSchema).
+    // entries it does not name, or the row is still on the retired markdown
+    // format (Block 4). figureInputs drift is covered by reportFiguresSchema:
+    // figureBlockSchema validates figureInputs against panther's zFigureInputs
+    // (lib/types figureInputsSchema).
     const currentFigures = reportFiguresSchema.safeParse(figures);
     if (
       reportConfigSchema.safeParse(config).success &&

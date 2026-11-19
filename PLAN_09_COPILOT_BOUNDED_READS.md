@@ -475,7 +475,6 @@ Outside a conditional-formatting rule, which carries its own `direction` key wri
 - `lib/mod.ts`
 - `lib/resolve_effective_indicator_facts.ts`
 - `lib/types/instance.ts`
-- `server/server_only_funcs_presentation_objects/presentation_object_items_core.ts`
 - `server/run_query/run_read.ts`
 - `server/routes/caches/visualizations.ts`
 - `server/db/migrations/data_transforms/_figure_block.ts`
