@@ -23,6 +23,8 @@
 import MarkdownIt from "markdown-it";
 import {
   containerHtmlFor,
+  FASTR_COVER_FOOT_ATTR,
+  FASTR_LOGO_SIDES_ATTR,
   FASTR_TOC_DEFAULT_DEPTH,
   type FastrContainerAttrs,
   fastrCoverAccentsOf,
@@ -39,6 +41,7 @@ import {
   fastrTocSlug,
   fastrToneOf,
   figureWidthClass,
+  isFastrBottomLogos,
   isFastrLeafBlock,
   isFastrOfficialCover,
   parseContainerAttrs,
@@ -609,6 +612,30 @@ export function createFastrMarkdownIt(): MarkdownIt {
   // each layout composes (a logo each side of the lines, a row over them, a
   // band). Blank lines between them stay inside. A banner's `boxcolor=`
   // colours its band. Nothing else on the cover moves.
+  // A cover with a bottom logos row among its own children says so
+  // (FASTR_COVER_FOOT_ATTR): the stylesheet gives the row the cover's foot.
+  md.core.ruler.push("fm_cover_foot", (state) => {
+    const toks = state.tokens;
+    for (let i = 0; i < toks.length; i++) {
+      const open = toks[i];
+      const meta = open.meta as ContainerMeta | undefined;
+      if (open.type !== "fm_container_open" || meta?.name !== "cover") continue;
+      for (let j = i + 1; j < toks.length; j++) {
+        const t = toks[j];
+        if (t.type === "fm_container_close" && t.level === open.level) break;
+        const m = t.meta as ContainerMeta | undefined;
+        if (
+          t.type === "fm_container_open" && t.level === open.level + 1 &&
+          m?.name === "logos" && isFastrBottomLogos(m.attrs)
+        ) {
+          meta.attrs[FASTR_COVER_FOOT_ATTR] = true;
+          break;
+        }
+      }
+    }
+    return true;
+  });
+
   md.core.ruler.push("fm_cover_head", (state) => {
     const toks = state.tokens;
     for (let i = 0; i < toks.length; i++) {
@@ -631,8 +658,14 @@ export function createFastrMarkdownIt(): MarkdownIt {
         const m = t.meta as ContainerMeta | undefined;
         if (
           t.type === "fm_container_open" && m?.name === "logos" &&
-          toks[j + 1]?.type === "fm_container_close"
+          toks[j + 1]?.type === "fm_container_close" &&
+          !isFastrBottomLogos(m.attrs)
         ) {
+          // A bulletin's and a banner's logos stand either side of the lines.
+          if (
+            meta.attrs["layout"] === "bulletin" ||
+            meta.attrs["layout"] === "banner"
+          ) m.attrs[FASTR_LOGO_SIDES_ATTR] = true;
           j += 2;
           runEnd = j;
           continue;

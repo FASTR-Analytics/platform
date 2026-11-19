@@ -15,7 +15,9 @@ import {
   buildFastrEditorSurfaceCss,
   buildFastrReportCss,
   buildReportEmbedToken,
+  coverLogosSnippet,
   fastrChartPalette,
+  type FastrCoverLogoPosition,
   fastrDocumentOutline,
   type FastrFencePatch,
   type FastrFigureWidth,
@@ -837,8 +839,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // (ReportToolbar's coverLogosRequest).
   const [coverLogosRequest, setCoverLogosRequest] = createSignal(0);
 
-  // An official cover with no logos row yet: its head takes a new one.
-  async function addCoverLogos(coverLine: number) {
+  // A cover with no logos at `position` yet: a new row there.
+  async function addCoverLogos(
+    coverLine: number,
+    position: FastrCoverLogoPosition,
+  ) {
     const host = p.imageHost;
     if (!host || !canEdit()) return;
     const picked = await openModal({
@@ -847,7 +852,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     });
     if (!picked || picked.files.length === 0) return;
     const ids = await registerLogos(picked.files);
-    editorApi?.setCoverHeadLogos(coverLine, logosSnippet(ids, picked.size));
+    editorApi?.setCoverLogos(
+      coverLine,
+      position,
+      coverLogosSnippet(ids, picked.size, position),
+    );
   }
 
   // By id, not by the selection: a caption typed just before a click away
@@ -986,7 +995,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             onInsertImage={() => void insertImage()}
             onInsertLogos={() => void insertLogos()}
             onEditLogos={(fence) => void editLogos(fence)}
-            onAddCoverLogos={(line) => void addCoverLogos(line)}
+            onAddCoverLogos={(line, position) =>
+              void addCoverLogos(line, position)}
             coverLogosRequest={coverLogosRequest}
           />
         </HeaderRows>
@@ -1080,6 +1090,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
                 onSelectEmbed={(kind, id) => setSelectedEmbed({ kind, id })}
                 onEditLogos={(fence) => void editLogos(fence)}
                 onCoverLogosPress={() => setCoverLogosRequest((n) => n + 1)}
+                onAddCoverLogos={(line, position) =>
+                  void addCoverLogos(line, position)}
                 pickPhoto={p.imageHost === undefined ? undefined : pickPhoto}
                 pickFigure={p.figures?.insert === undefined
                   ? undefined

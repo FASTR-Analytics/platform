@@ -1288,6 +1288,12 @@ export function fastrLogoImageIds(attrs: FastrContainerAttrs): string[] {
   return fastrLogoSources(attrs).map((t) => t.slice("image:".length));
 }
 
+// Set (never written) by the compiler on the logos row of a bulletin's or a
+// banner's head: its logos are split either side of the ministry lines.
+export const FASTR_LOGO_SIDES_ATTR = "_fm_sides";
+// Set (never written) by the compiler on a cover with a bottom logos row.
+export const FASTR_COVER_FOOT_ATTR = "_fm_foot";
+
 export function fastrLogoAlign(attrs: FastrContainerAttrs): FastrLogoAlign {
   return oneOf(attrs, "align", FASTR_LOGO_ALIGNS, "left") as FastrLogoAlign;
 }
@@ -1348,7 +1354,7 @@ export function fastrCoverHeadOf(
     if (fence !== undefined) {
       if (
         fence.kind === "open" && fence.name === "logos" &&
-        head.logosLine === undefined
+        head.logosLine === undefined && !isFastrBottomLogos(fence.attrs)
       ) {
         head.logosLine = i;
         head.logos = fence.attrs;
@@ -1372,19 +1378,96 @@ export function fastrCoverHeadOf(
 // that replace it.
 export type FastrLinesEdit = { from: number; to: number; insert: string[] };
 
-// The head's logos row set to `fence` (a `:::logos{…}` line), or removed.
-// A new row leads the head.
-export function fastrCoverHeadLogosEdit(
+// ── A cover's logos, by position ──────────────────────────────────────────
+// A cover's logos stand at its TOP (the logos row leading it: on an official
+// cover its head, where the layout places them) or at its BOTTOM (a row with
+// `at=bottom`, across the foot of the cover, its own align and size). Each
+// position holds one row. The cover's toolbar sets them.
+export const FASTR_COVER_LOGO_POSITIONS = ["top", "bottom"] as const;
+export type FastrCoverLogoPosition =
+  (typeof FASTR_COVER_LOGO_POSITIONS)[number];
+
+export function isFastrBottomLogos(attrs: FastrContainerAttrs): boolean {
+  return attrs["at"] === "bottom";
+}
+
+export type FastrCoverLogoRow = {
+  // 0-based document line of the row's fence.
+  line: number;
+  attrs: FastrContainerAttrs;
+};
+
+export type FastrCoverLogos = {
+  top: FastrCoverLogoRow | undefined;
+  bottom: FastrCoverLogoRow | undefined;
+  // The cover's closing fence (0-based), when it has one.
+  end: number | undefined;
+};
+
+export function fastrCoverLogosOf(
   docLines: readonly string[],
   coverLine: number,
+): FastrCoverLogos {
+  const head = fastrCoverHeadOf(docLines, coverLine);
+  const out: FastrCoverLogos = {
+    top: head.logosLine === undefined || head.logos === undefined
+      ? undefined
+      : { line: head.logosLine, attrs: head.logos },
+    bottom: undefined,
+    end: undefined,
+  };
+  // The cover's own children: a container inside it is skipped whole.
+  let depth = 0;
+  for (let i = coverLine + 1; i < docLines.length; i++) {
+    const fence = parseContainerFence(docLines[i].trim());
+    if (fence === undefined) continue;
+    if (fence.kind === "close") {
+      if (depth === 0) {
+        out.end = i;
+        break;
+      }
+      depth--;
+      continue;
+    }
+    if (isFastrLeafBlock(fence.name)) {
+      if (
+        depth === 0 && fence.name === "logos" && out.bottom === undefined &&
+        isFastrBottomLogos(fence.attrs)
+      ) out.bottom = { line: i, attrs: fence.attrs };
+      continue;
+    }
+    depth++;
+  }
+  return out;
+}
+
+// The cover's row at `position` set to `fence` (a `:::logos{…}` line), or
+// removed. A new top row leads the cover; a new bottom row closes it.
+export function fastrCoverLogosEdit(
+  docLines: readonly string[],
+  coverLine: number,
+  position: FastrCoverLogoPosition,
   fence: string | undefined,
 ): FastrLinesEdit {
-  const head = fastrCoverHeadOf(docLines, coverLine);
+  const logos = fastrCoverLogosOf(docLines, coverLine);
   const insert = fence === undefined ? [] : [fence];
-  if (head.logosLine !== undefined) {
-    return { from: head.logosLine, to: head.logosLine + 1, insert };
-  }
-  return { from: coverLine + 1, to: coverLine + 1, insert };
+  const row = logos[position];
+  if (row !== undefined) return { from: row.line, to: row.line + 1, insert };
+  const at = position === "top"
+    ? coverLine + 1
+    : (logos.end ?? docLines.length);
+  return { from: at, to: at, insert };
+}
+
+// A cover's logos row at `position`: logosSnippet, with `at=bottom` for the
+// bottom.
+export function coverLogosSnippet(
+  imageIds: readonly string[],
+  size: FastrLogoSize | undefined,
+  position: FastrCoverLogoPosition,
+): string {
+  const fence = logosSnippet(imageIds, size);
+  return position === "bottom" ? fence.replace(/\}$/, " at=bottom}") : fence;
 }
 
 // Per-block markup, BEFORE the shared surface attributes are folded in.
@@ -1529,6 +1612,12 @@ function blockShapeFor(
             ? "fm-band fm-cover"
             : `fm-band fm-cover fm-cover--${layout}`,
           fill === "page" ? "fm-cover--fill" : "",
+          // Logos at its foot (the stylesheet's fm-logos--at-bottom), under
+          // a date when it draws one.
+          attrs[FASTR_COVER_FOOT_ATTR] === true ? "fm-cover--foot" : "",
+          isFastrOfficialCover(layout) && attrText(attrs, "date") !== undefined
+            ? "fm-cover--dated"
+            : "",
         ].filter((c) => c.length > 0).join(" "),
         leadingHtml: titleHtml("fm-kicker", attrText(attrs, "kicker")),
         trailingHtml: titleHtml("fm-dek", attrText(attrs, "sub")) + bulletin,
@@ -1625,15 +1714,27 @@ function blockShapeFor(
       const align = fastrLogoAlign(attrs);
       const size = fastrLogoSize(attrs);
       const logos = fastrLogoSources(attrs);
+      const img = (src: string) =>
+        `<img class="fm-logo" src="${escapeReportHtml(src)}" alt="">`;
+      // On a bulletin's or banner's head (FASTR_LOGO_SIDES_ATTR, set by the
+      // compiler) the logos stand either side of the lines: the first half
+      // (the odd one included) left, the rest right.
+      const half = Math.ceil(logos.length / 2);
+      const sided = attrs[FASTR_LOGO_SIDES_ATTR] === true && logos.length > 1;
       return {
         tag: "div",
         className: [
           `fm-logos fm-logos--${align} fm-logos--${size}`,
           logos.length === 0 ? "fm-logos--empty" : "",
+          isFastrBottomLogos(attrs) ? "fm-logos--at-bottom" : "",
         ].filter((c) => c.length > 0).join(" "),
-        leadingHtml: logos.map((src) =>
-          `<img class="fm-logo" src="${escapeReportHtml(src)}" alt="">`
-        ).join(""),
+        leadingHtml: sided
+          ? `<span class="fm-logos__side fm-logos__side--start">${
+            logos.slice(0, half).map(img).join("")
+          }</span><span class="fm-logos__side fm-logos__side--end">${
+            logos.slice(half).map(img).join("")
+          }</span>`
+          : logos.map(img).join(""),
         trailingHtml: "",
       };
     }

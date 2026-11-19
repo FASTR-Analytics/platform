@@ -7,7 +7,10 @@
 // draws: the host supplies the component, the editor supplies the box).
 
 import type { Component } from "solid-js";
-import type { FastrOpenFence } from "../../engine/fastr_markdown_blocks.ts";
+import type {
+  FastrCoverLogoPosition,
+  FastrOpenFence,
+} from "../../engine/fastr_markdown_blocks.ts";
 import type { FastrChartPalette } from "../../engine/report_fastr_themes.ts";
 import type { FigureInkTheme } from "../figure_ink.ts";
 
@@ -45,9 +48,15 @@ export type EmbedResolver = {
   // A `:::logos` row asks for its picker (double-click, or a click on an
   // empty row).
   onEditLogos?: (fence: FastrOpenFence) => void;
-  // An official cover's logos were pressed: the cover's toolbar sets them
-  // (the caret is already on the cover).
+  // A cover's logos were pressed: the cover's toolbar sets them (the caret
+  // is already on the cover).
   onCoverLogosPress?: () => void;
+  // An active cover's empty logo position (its ghost slot) was pressed:
+  // `coverLine` is the cover's 1-based fence line.
+  onAddCoverLogos?: (
+    coverLine: number,
+    position: FastrCoverLogoPosition,
+  ) => void;
   // An empty photo slot of a page template was pressed: `line` is the
   // slot's 1-based fence line, the photo's token goes on the line under it.
   onAddPhoto?: (line: number) => void;

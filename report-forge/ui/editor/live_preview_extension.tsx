@@ -72,6 +72,7 @@ import {
   deleteFastrBlockEdit,
   FASTR_ALIGN_SUFFIX_RE,
   FASTR_BLOCK_NAMES,
+  FASTR_COVER_LOGO_POSITIONS,
   FASTR_FIGURE_PAGE_CEILING,
   FASTR_FIGURE_RESERVE_SLACK_PX,
   FASTR_FIGURE_RESERVE_VAR,
@@ -81,6 +82,7 @@ import {
   fastrAlignSuffixOf,
   fastrBlockFillsPage,
   type FastrBlockName,
+  fastrCoverLogosOf,
   fastrDocumentOutline,
   fastrFigureContextAt,
   fastrFigureContextKey,
@@ -692,10 +694,10 @@ class RegionWidget extends WidgetType {
         }
       }
       // Caret on the clicked line. data-line values are region-relative
-      // (the renderer saw only the slice). An official cover's logos are
+      // (the renderer saw only the slice). A cover's logos are
       // set from the cover's toolbar: a press on them is on the cover itself
       // (its fence line).
-      const onCoverLogos = target.closest(".fm-cover__head .fm-logos") !== null;
+      const onCoverLogos = target.closest(".fm-cover .fm-logos") !== null;
       const anchorEl = onCoverLogos
         ? target.closest<HTMLElement>(".fm-cover[data-line]")
         : target.closest<HTMLElement>("[data-line]");
@@ -810,7 +812,21 @@ class RegionWidget extends WidgetType {
       return img ? this.resolver.assetUrl(img.imgFile) : undefined;
     });
 
-    attachLogoRows(dom, view, this.resolver, (rel) => this.startLine + rel + 1);
+    attachLogoRows(
+      dom,
+      view,
+      this.resolver,
+      (rel) => this.startLine + rel + 1,
+      this.active,
+    );
+    if (this.active) {
+      attachCoverLogoGhosts(
+        dom,
+        this.resolver,
+        this.startLine,
+        this.source.split("\n"),
+      );
+    }
     attachPhotoSlots(dom, this.resolver, (rel) => this.startLine + rel + 1);
     attachSlotTextGhosts(dom, view, this.startLine, this.source);
     const chrome = attachTemplateChrome({
@@ -1600,6 +1616,8 @@ function attachLogoRows(
   view: EditorView,
   resolver: EmbedResolver,
   lineOf: (rel: number) => number,
+  // The region holds the caret: a cover's empty rows show their slot.
+  active: boolean,
 ): void {
   for (
     const row of Array.from(
@@ -1628,19 +1646,25 @@ function attachLogoRows(
       if (fence?.name === "logos") resolver.onEditLogos?.(fence);
     };
     const empty = row.querySelector("img.fm-logo") === null;
-    // An official cover's logos are chosen from the cover's toolbar: a
-    // press on the row there opens its Logos menu (the region's handler).
-    const inHead = row.closest(".fm-cover__head") !== null;
+    // A cover's logos are chosen from the cover's toolbar: a press on a row
+    // there opens its Logos menu (the region's handler).
+    const inCover = row.closest(".fm-cover") !== null;
     // On the press, not dblclick/click: the first press activates the region
     // and rebuilds this DOM, so the release (and a dblclick) land on a new
     // element. A press always lands on the row that is there.
-    if (!inHead) {
+    if (!inCover) {
       row.addEventListener("mousedown", (e) => {
         if (e.button === 0 && (empty || e.detail >= 2)) open();
       });
     }
     if (!empty) continue;
     row.classList.add("fm-logos--empty");
+    // On a cover the slot shows only while the cover is being edited; idle,
+    // the row keeps its box (print's) and shows nothing.
+    if (inCover && !active) {
+      row.classList.add("fm-logos--quiet");
+      continue;
+    }
     const label = document.createElement("span");
     label.className = "fm-logos__empty";
     label.textContent = t3({
@@ -1649,6 +1673,66 @@ function attachLogoRows(
       pt: "Escolher logótipos",
     });
     row.append(label);
+  }
+}
+
+// An active cover's empty logo positions (fastrCoverLogosOf: its top, its
+// bottom), each a dashed slot to press for logos there. Only while the
+// cover holds the caret: they are not in the source and never print.
+function attachCoverLogoGhosts(
+  dom: HTMLElement,
+  resolver: EmbedResolver,
+  startLine: number,
+  sourceLines: string[],
+): void {
+  const add = resolver.onAddCoverLogos;
+  if (add === undefined) return;
+  for (
+    const cover of Array.from(
+      dom.querySelectorAll<HTMLElement>(".fm-cover[data-line]"),
+    )
+  ) {
+    const rel = Number(cover.getAttribute("data-line"));
+    if (!Number.isFinite(rel) || sourceLines[rel] === undefined) continue;
+    const logos = fastrCoverLogosOf(sourceLines, rel);
+    for (const position of FASTR_COVER_LOGO_POSITIONS) {
+      if (logos[position] !== undefined) continue;
+      const ghost = document.createElement("div");
+      ghost.className = position === "bottom"
+        ? "fm-logos fm-logos--empty fm-logos--ghost fm-logos--at-bottom"
+        : "fm-logos fm-logos--empty fm-logos--ghost";
+      const label = document.createElement("span");
+      label.className = "fm-logos__empty";
+      label.textContent = position === "bottom"
+        ? t3({
+          en: "+ Logos at the bottom",
+          fr: "+ Logos en bas",
+          pt: "+ Logótipos em baixo",
+        })
+        : t3({
+          en: "+ Logos at the top",
+          fr: "+ Logos en haut",
+          pt: "+ Logótipos em cima",
+        });
+      ghost.append(label);
+      ghost.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        add(startLine + rel + 1, position);
+      });
+      if (position === "bottom") {
+        cover.append(ghost);
+        continue;
+      }
+      const head = cover.querySelector<HTMLElement>(":scope > .fm-cover__head");
+      if (head !== null) {
+        head.prepend(ghost);
+        continue;
+      }
+      const title = cover.querySelector(":scope > h1");
+      cover.insertBefore(ghost, title ?? cover.firstChild);
+    }
   }
 }
 

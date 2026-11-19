@@ -986,7 +986,7 @@ ${
     )
   }
 ${d}.fm-cover__head > .fm-logos--empty { visibility: hidden; }
-${d}.fm-cover__head > .fm-logos > .fm-logo {
+${d}.fm-cover__head > .fm-logos .fm-logo {
   height: var(--fm-logo-h);
   width: auto;
   /* Never past its own column (a bulletin's side of the lines), where a
@@ -994,10 +994,11 @@ ${d}.fm-cover__head > .fm-logos > .fm-logo {
   max-width: min(100%, calc(2 * var(--fm-logo-h)));
   object-fit: contain;
 }
-/* Bulletin and banner: the row's first logo left of the lines, its last
-   right, the lines centred between two equal columns whatever stands in
-   them (one logo, two or none). The row stands aside (display: contents) so
-   its logos are the grid's own items. */
+/* Bulletin and banner: the row's logos either side of the lines (the
+   compiler splits two or more into a start and an end side, the first half
+   left), the lines centred between two equal columns whatever stands in
+   them. The row stands aside (display: contents) so a logo, or a side, is
+   the grid's own item. */
 ${d}.fm-cover.fm-cover--bulletin > .fm-cover__head,
 ${d}.fm-cover.fm-cover--banner > .fm-cover__head {
   display: grid;
@@ -1020,14 +1021,44 @@ ${d}.fm-cover--banner > .fm-cover__head > .fm-logos--empty {
 }
 ${d}.fm-cover--bulletin > .fm-cover__head > .fm-logos--empty,
 ${d}.fm-cover--banner > .fm-cover__head > .fm-logos--empty { width: 7em; }
-${d}.fm-cover--bulletin > .fm-cover__head > .fm-logos > .fm-logo:last-child:not(:first-child),
-${d}.fm-cover--banner > .fm-cover__head > .fm-logos > .fm-logo:last-child:not(:first-child) {
+${d}.fm-cover--bulletin > .fm-cover__head > .fm-logos > .fm-logos__side--end,
+${d}.fm-cover--banner > .fm-cover__head > .fm-logos > .fm-logos__side--end {
   grid-column: 3;
   justify-self: end;
 }
-${d}.fm-cover--bulletin > .fm-cover__head > .fm-logos > .fm-logo:not(:first-child):not(:last-child),
-${d}.fm-cover--banner > .fm-cover__head > .fm-logos > .fm-logo:not(:first-child):not(:last-child) {
-  display: none;
+${d}.fm-cover__head .fm-logos__side {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  min-width: 0;
+}
+${d}.fm-cover__head .fm-logos__side > .fm-logo { min-width: 0; }
+
+/* A cover's bottom logos: a row across its foot, after everything else (a
+   date too), at a cover logo's sizes. With no date to push the foot down
+   the row takes the room above it, and a cover that centres its words keeps
+   them centred in what is left; a poster's words already stand at its foot,
+   a letterhead's and a minimal cover's at its top. */
+${d}.fm-cover > .fm-logos--at-bottom {
+  order: 1;
+  align-self: stretch;
+  margin: 2em 0 0;
+  --fm-mt: 2em;
+  --fm-mb: 0;
+  height: ${FASTR_COVER_LOGO_EM.m}em;
+}
+${
+    logoSizeRules(
+      `${d}.fm-cover > .fm-logos--at-bottom.fm-logos`,
+      FASTR_COVER_LOGO_EM,
+      "height",
+    )
+  }
+${d}.fm-cover.fm-cover--foot:not(.fm-cover--dated):not(.fm-cover--poster) > .fm-logos--at-bottom {
+  margin-top: auto;
+}
+${d}.fm-cover.fm-cover--foot:not(.fm-cover--dated):not(.fm-cover--poster):not(.fm-cover--letterhead):not(.fm-cover--minimal) > :first-child {
+  margin-top: auto;
 }
 ${d}.fm-cover--bulletin > .fm-cover__head > :not(.fm-logos),
 ${d}.fm-cover--banner > .fm-cover__head > :not(.fm-logos) { grid-column: 2; }
@@ -2360,8 +2391,14 @@ ${d}.fm-logos--empty {
   cursor: pointer;
 }
 ${d}.fm-logos__empty { font-size: 0.8em; }
-/* An official cover's logos open the cover's Logos menu. */
-${d}.fm-cover__head > .fm-logos { cursor: pointer; }
+/* A cover's logos open the cover's Logos menu. An empty row there shows
+   its slot only while the cover is being edited (the widget marks it
+   quiet otherwise: print's box, nothing drawn), and an active cover's empty
+   positions are ghost slots to press for logos. */
+${d}.fm-cover .fm-logos { cursor: pointer; }
+${d}.fm-logos--quiet { border-color: transparent; }
+${d}.fm-cover__head > .fm-logos--quiet { visibility: hidden; }
+${d}.fm-logos--ghost { min-width: 12em; }
 /* A block the paginator had to split because it is taller than a page: a
    chip laid over the block's top corner, out of the flow, so the block's
    box is print's box and the layout that placed the seam is not moved by

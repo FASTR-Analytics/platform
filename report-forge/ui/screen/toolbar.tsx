@@ -20,6 +20,7 @@ import {
   coverSnippet,
   FASTR_BLOCK_SNIPPETS,
   FASTR_COVER_LAYOUTS,
+  FASTR_COVER_LOGO_POSITIONS,
   FASTR_COVER_PRESETS,
   FASTR_FRAME_STYLES,
   FASTR_INK_ROLES,
@@ -34,7 +35,7 @@ import {
   fastrCoverAccentsOf,
   type FastrCoverColorPart,
   fastrCoverColorParts,
-  type FastrCoverHead,
+  type FastrCoverLogoPosition,
   fastrCoverLogosAlign,
   type FastrCoverPreset,
   type FastrFencePatch,
@@ -54,6 +55,7 @@ import {
   type FastrTone,
   fastrToneOf,
   isFastrBlockName,
+  isFastrBottomLogos,
   renderFastrMarkdownToHtml,
   statTilesSnippet,
   STEPS_MAX_PICK,
@@ -212,9 +214,12 @@ type Props = {
   // A logos row: the picker, for a new row or the one at `fence`.
   onInsertLogos: () => void;
   onEditLogos: (fence: FastrOpenFence) => void;
-  // An official cover with no logos row: the picker, its row added to the
-  // head of the cover whose fence is on `coverLine` (1-based).
-  onAddCoverLogos: (coverLine: number) => void;
+  // A cover with no logos at `position`: the picker, its row added there to
+  // the cover whose fence is on `coverLine` (1-based).
+  onAddCoverLogos: (
+    coverLine: number,
+    position: FastrCoverLogoPosition,
+  ) => void;
   // A press on an official cover's logos on the page: its Logos menu
   // opens, once for each new count.
   coverLogosRequest?: () => number;
@@ -456,6 +461,9 @@ export function ReportToolbar(p: Props) {
   function liveChoiceControls(name: FastrBlockName): ChoiceControl[] {
     const controls = choiceControlsFor(name);
     if (name !== "logos") return controls;
+    // A cover's bottom row runs across its foot: its align always places.
+    const row = target();
+    if (row !== undefined && isFastrBottomLogos(row.attrs)) return controls;
     const cover = p.context()?.stack.findLast((f) => f.name === "cover");
     if (cover === undefined || fastrCoverLogosAlign(cover.attrs["layout"])) {
       return controls;
@@ -2071,69 +2079,59 @@ export function ReportToolbar(p: Props) {
                 </Show>
 
                 {
-                  /* An official cover's logos: set from here, a press on
-                    them on the page opens this menu. */
+                  /* A cover's logos, at its top and at its bottom: set from
+                    here; a press on them on the page opens this menu. */
                 }
                 <Show
-                  when={block().name === "cover"
-                    ? p.context()?.coverHead
+                  when={block().name === "cover" && p.canInsertImage()
+                    ? p.context()?.coverLogos
                     : undefined}
                 >
-                  {(head) => (
-                    <>
-                      <Show when={p.canInsertImage()}>
-                        <Popover
-                          openRequest={() => p.coverLogosRequest?.() ?? 0}
-                          label={t3({
-                            en: "Logos",
-                            fr: "Logos",
-                            pt: "Logótipos",
-                          })}
-                          title={t3({
-                            en: "Logos",
-                            fr: "Logos",
-                            pt: "Logótipos",
-                          })}
-                        >
-                          {(close) => (
-                            <CoverLogosPanel
-                              head={head()}
-                              canAlign={fastrCoverLogosAlign(
-                                attrValue("layout"),
-                              )}
-                              onChoose={() => {
-                                close();
-                                const h = head();
-                                if (h.logosLine === undefined) {
-                                  p.onAddCoverLogos(h.coverLine);
-                                } else {
-                                  p.onEditLogos({
-                                    name: "logos",
-                                    attrs: h.logos ?? {},
-                                    line: h.logosLine + 1,
-                                    markerLength: 3,
-                                    indent: "",
-                                  });
-                                }
-                              }}
-                              onPatch={(patch) => {
-                                const at = head().logosLine;
-                                if (at !== undefined) {
-                                  p.api()?.setBlockAttrs(at + 1, patch);
-                                }
-                              }}
-                              onRemove={() => {
-                                p.api()?.setCoverHeadLogos(
-                                  head().coverLine,
-                                  undefined,
-                                );
-                                close();
-                              }}
-                            />
-                          )}
-                        </Popover>
-                      </Show>
-                    </>
+                  {(logos) => (
+                    <Popover
+                      openRequest={() => p.coverLogosRequest?.() ?? 0}
+                      label={t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })}
+                      title={t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })}
+                    >
+                      {(close) => (
+                        <CoverLogosPanel
+                          logos={logos()}
+                          onChoose={(position) => {
+                            close();
+                            const l = logos();
+                            const row = l[position];
+                            if (row === undefined) {
+                              p.onAddCoverLogos(l.coverLine, position);
+                            } else {
+                              p.onEditLogos({
+                                name: "logos",
+                                attrs: row.attrs,
+                                line: row.line,
+                                markerLength: 3,
+                                indent: "",
+                              });
+                            }
+                          }}
+                          onPatch={(position, patch) => {
+                            const row = logos()[position];
+                            if (row !== undefined) {
+                              p.api()?.setBlockAttrs(row.line, patch);
+                            }
+                          }}
+                          onMove={(position) =>
+                            p.api()?.moveCoverLogos(
+                              logos().coverLine,
+                              position,
+                            )}
+                          onRemove={(position) =>
+                            p.api()?.setCoverLogos(
+                              logos().coverLine,
+                              position,
+                              undefined,
+                            )}
+                        />
+                      )}
+                    </Popover>
                   )}
                 </Show>
 
@@ -2933,90 +2931,152 @@ function coverThemePaint(part: FastrCoverColorPart): string {
   return part === "date" ? "var(--fm-ink)" : "var(--fm-accent-ground)";
 }
 
-// An official cover's logos: the picker (for the row it has, or a new
-// one), the row's alignment (where the layout leaves it to the row) and
-// size, and taking the row away.
+// A cover's logos, position by position (its top, its bottom): for a
+// position with a row, the picker, its alignment (where it places anything:
+// fastrCoverLogosAlign for the top, always at the bottom), its size, a move
+// to the other position when that is free, and taking it away; for an
+// empty one, the picker.
+type CoverLogosContext = NonNullable<ReportBlockContext["coverLogos"]>;
 function CoverLogosPanel(p: {
-  head: FastrCoverHead;
-  canAlign: boolean;
-  onChoose: () => void;
-  onPatch: (patch: FastrFencePatch) => void;
-  onRemove: () => void;
+  logos: CoverLogosContext;
+  onChoose: (position: FastrCoverLogoPosition) => void;
+  onPatch: (position: FastrCoverLogoPosition, patch: FastrFencePatch) => void;
+  onMove: (position: FastrCoverLogoPosition) => void;
+  onRemove: (position: FastrCoverLogoPosition) => void;
 }) {
-  const attrs = () => p.head.logos;
-  const count = () => {
-    const a = attrs();
-    return a === undefined ? 0 : fastrLogoImageIds(a).length;
-  };
+  const label = (position: FastrCoverLogoPosition) =>
+    position === "top"
+      ? t3({ en: "At the top", fr: "En haut", pt: "Em cima" })
+      : t3({ en: "At the bottom", fr: "En bas", pt: "Em baixo" });
+  const canAlign = (position: FastrCoverLogoPosition) =>
+    position === "bottom" || fastrCoverLogosAlign(p.logos.layout);
   return (
-    <div class="rf:flex rf:w-56 rf:flex-col rf:gap-0.5">
-      <PopoverRow active={false} onClick={() => p.onChoose()}>
-        {count() > 0
-          ? t3({
-            en: "Change logos…",
-            fr: "Changer les logos…",
-            pt: "Mudar os logótipos…",
-          })
-          : t3({
-            en: "Choose logos…",
-            fr: "Choisir des logos…",
-            pt: "Escolher logótipos…",
-          })}
-      </PopoverRow>
-      <Show when={attrs()}>
-        {(a) => (
-          <>
-            <Show when={p.canAlign}>
-              <MenuGroupLabel
-                label={t3({ en: "Align", fr: "Alignement", pt: "Alinhamento" })}
-              />
-              <For each={FASTR_LOGO_ALIGNS}>
-                {(align) => (
+    <div class="rf:flex rf:w-60 rf:flex-col rf:gap-0.5">
+      <For each={FASTR_COVER_LOGO_POSITIONS}>
+        {(position, i) => {
+          const row = () => p.logos[position];
+          const other = position === "top" ? "bottom" : "top";
+          return (
+            <>
+              <MenuGroupLabel label={label(position)} first={i() === 0} />
+              <Show
+                when={row()}
+                fallback={
                   <PopoverRow
-                    active={fastrLogoAlign(a()) === align}
-                    onClick={() =>
-                      p.onPatch({
-                        align: align === "left" ? undefined : align,
-                      })}
+                    active={false}
+                    onClick={() => p.onChoose(position)}
                   >
-                    {fastrLogoAlignLabel(align)}
+                    {t3({
+                      en: "Add logos…",
+                      fr: "Ajouter des logos…",
+                      pt: "Adicionar logótipos…",
+                    })}
                   </PopoverRow>
+                }
+              >
+                {(r) => (
+                  <>
+                    <PopoverRow
+                      active={false}
+                      onClick={() => p.onChoose(position)}
+                    >
+                      {fastrLogoImageIds(r().attrs).length > 0
+                        ? t3({
+                          en: "Change logos…",
+                          fr: "Changer les logos…",
+                          pt: "Mudar os logótipos…",
+                        })
+                        : t3({
+                          en: "Choose logos…",
+                          fr: "Choisir des logos…",
+                          pt: "Escolher logótipos…",
+                        })}
+                    </PopoverRow>
+                    <Show when={canAlign(position)}>
+                      <div class="rf:flex rf:gap-1 rf:px-2 rf:py-1">
+                        <For each={FASTR_LOGO_ALIGNS}>
+                          {(align) => (
+                            <button
+                              type="button"
+                              class="rf:ui-focusable rf:flex-1 rf:cursor-pointer rf:rounded rf:border rf:py-1 rf:text-xs"
+                              classList={{
+                                "rf:bg-base-200 rf:font-700":
+                                  fastrLogoAlign(r().attrs) === align,
+                              }}
+                              title={fastrLogoAlignLabel(align)}
+                              onClick={() =>
+                                p.onPatch(position, {
+                                  align: align === "left" ? undefined : align,
+                                })}
+                            >
+                              {align === "spread"
+                                ? t3({
+                                  en: "Spread",
+                                  fr: "Étaler",
+                                  pt: "Espalhar",
+                                })
+                                : fastrLogoAlignLabel(align)}
+                            </button>
+                          )}
+                        </For>
+                      </div>
+                    </Show>
+                    <div class="rf:flex rf:gap-1 rf:px-2 rf:py-1">
+                      <For each={FASTR_LOGO_SIZES}>
+                        {(size) => (
+                          <button
+                            type="button"
+                            class="rf:ui-focusable rf:flex-1 rf:cursor-pointer rf:rounded rf:border rf:py-1 rf:text-xs"
+                            classList={{
+                              "rf:bg-base-200 rf:font-700":
+                                fastrLogoSize(r().attrs) === size,
+                            }}
+                            title={fastrLogoSizeLabel(size)}
+                            onClick={() =>
+                              p.onPatch(position, {
+                                size: size === "m" ? undefined : size,
+                              })}
+                          >
+                            {size.toUpperCase()}
+                          </button>
+                        )}
+                      </For>
+                    </div>
+                    <Show when={p.logos[other] === undefined}>
+                      <PopoverRow
+                        active={false}
+                        onClick={() => p.onMove(position)}
+                      >
+                        {other === "bottom"
+                          ? t3({
+                            en: "Move to the bottom",
+                            fr: "Déplacer en bas",
+                            pt: "Mover para baixo",
+                          })
+                          : t3({
+                            en: "Move to the top",
+                            fr: "Déplacer en haut",
+                            pt: "Mover para cima",
+                          })}
+                      </PopoverRow>
+                    </Show>
+                    <PopoverRow
+                      active={false}
+                      onClick={() => p.onRemove(position)}
+                    >
+                      {t3({
+                        en: "Remove these logos",
+                        fr: "Retirer ces logos",
+                        pt: "Retirar estes logótipos",
+                      })}
+                    </PopoverRow>
+                  </>
                 )}
-              </For>
-            </Show>
-            <MenuGroupLabel
-              label={t3({ en: "Size", fr: "Taille", pt: "Tamanho" })}
-            />
-            <div class="rf:flex rf:gap-1 rf:px-2 rf:pb-1">
-              <For each={FASTR_LOGO_SIZES}>
-                {(size) => (
-                  <button
-                    type="button"
-                    class="rf:ui-focusable rf:flex-1 rf:cursor-pointer rf:rounded rf:border rf:py-1 rf:text-xs"
-                    classList={{
-                      "rf:bg-base-200 rf:font-700": fastrLogoSize(a()) === size,
-                    }}
-                    title={fastrLogoSizeLabel(size)}
-                    onClick={() =>
-                      p.onPatch({ size: size === "m" ? undefined : size })}
-                  >
-                    {size.toUpperCase()}
-                  </button>
-                )}
-              </For>
-            </div>
-            <div class="rf:border-base-300 rf:mt-1 rf:border-t rf:pt-1">
-              <PopoverRow active={false} onClick={() => p.onRemove()}>
-                {t3({
-                  en: "No logos",
-                  fr: "Sans logos",
-                  pt: "Sem logótipos",
-                })}
-              </PopoverRow>
-            </div>
-          </>
-        )}
-      </Show>
+              </Show>
+            </>
+          );
+        }}
+      </For>
     </div>
   );
 }

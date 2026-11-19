@@ -26,10 +26,11 @@ import {
   FASTR_TABLE_CAPTION_RE,
   type FastrAlign,
   type FastrChartPalette,
+  type FastrContainerAttrs,
   fastrContainerStackUpTo,
-  type FastrCoverHead,
-  fastrCoverHeadLogosEdit,
-  fastrCoverHeadOf,
+  type FastrCoverLogoPosition,
+  fastrCoverLogosEdit,
+  fastrCoverLogosOf,
   type FastrFencePatch,
   type FastrFigureWidth,
   type FastrInkRole,
@@ -54,7 +55,6 @@ import {
   insertLinkEdit,
   insertPageTemplateEdit,
   isFastrEmbedLine,
-  isFastrOfficialCover,
   paragraphAlignAtLine,
   parseContainerFence,
   type ReportEmbedRef,
@@ -221,7 +221,13 @@ export type ReportEditorApi = {
   // An official cover's logos row, from the cover's toolbar: the cover whose
   // fence is on `coverLine` (1-based) takes this row (a `:::logos{…}` line;
   // undefined removes it).
-  setCoverHeadLogos: (coverLine: number, fence: string | undefined) => void;
+  setCoverLogos: (
+    coverLine: number,
+    position: FastrCoverLogoPosition,
+    fence: string | undefined,
+  ) => void;
+  // That cover's row at `from` moved to the other position, when free.
+  moveCoverLogos: (coverLine: number, from: FastrCoverLogoPosition) => void;
   // Create the `:::report` page-setup header (first line) when the document
   // lacks one — the toolbar's Page setup control targets it from anywhere.
   insertPageSetup: (patch: FastrFencePatch) => void;
@@ -315,8 +321,13 @@ type Props = {
   onSelectEmbed: (kind: "figure" | "image", id: string) => void;
   // A `:::logos` row asked for its picker.
   onEditLogos?: (fence: FastrOpenFence) => void;
-  // An official cover's logos were pressed (EmbedResolver.onCoverLogosPress).
+  // A cover's logos were pressed (EmbedResolver.onCoverLogosPress).
   onCoverLogosPress?: () => void;
+  // A cover's empty logo position asked for logos (EmbedResolver).
+  onAddCoverLogos?: (
+    coverLine: number,
+    position: FastrCoverLogoPosition,
+  ) => void;
   // A page template's empty photo slot asked for a photo: the host picks
   // one and hands back its embed token (undefined when the user cancels).
   pickPhoto?: () => Promise<string | undefined>;
@@ -356,6 +367,10 @@ type Props = {
   ref?: (api: ReportEditorApi) => void;
 };
 
+// How far down from a cover's fence its rows are looked for: a cover is a
+// title page, a few lines long.
+const COVER_SCAN_LINES = 400;
+
 export type ReportBlockContext = {
   // Blocks ENCLOSING the caret line, innermost last.
   stack: FastrOpenFence[];
@@ -386,10 +401,17 @@ export type ReportBlockContext = {
   // The alignment of the paragraph the caret is in; undefined when the caret
   // is not in one (a heading, a list, a fence, an embed line).
   align: FastrAlign | undefined;
-  // The official cover the caret is in (on its fence, or anywhere in it):
-  // its fence line (1-based) and its head as the source has it
-  // (fastrCoverHeadOf), which the cover's toolbar sets.
-  coverHead: (FastrCoverHead & { coverLine: number }) | undefined;
+  // The cover the caret is in (on its fence, or anywhere in it): its fence
+  // line and layout, and its logos rows by position (fastrCoverLogosOf),
+  // lines 1-based, which the cover's toolbar sets.
+  coverLogos:
+    | {
+      coverLine: number;
+      layout: string | undefined;
+      top: { line: number; attrs: FastrContainerAttrs } | undefined;
+      bottom: { line: number; attrs: FastrContainerAttrs } | undefined;
+    }
+    | undefined;
   // The page template the caret is in: its fence line (1-based), what it
   // gets wrong in the user's words (the template chrome's list, validator
   // and measured), the areas of its layout it does not have, and the area
@@ -511,6 +533,7 @@ export function ReportBodyEditor(p: Props) {
     },
     onEditLogos: (fence) => p.onEditLogos?.(fence),
     onCoverLogosPress: () => p.onCoverLogosPress?.(),
+    onAddCoverLogos: (line, position) => p.onAddCoverLogos?.(line, position),
     onAddPhoto: (line) => void addPhoto(line),
     onAddFigure: p.pickFigure === undefined
       ? undefined
@@ -1006,17 +1029,36 @@ export function ReportBodyEditor(p: Props) {
     const lines: string[] = [];
     for (const text of view.state.doc.iterLines(coverLine)) {
       lines.push(text);
-      if (lines.length > 40) break;
+      if (lines.length > COVER_SCAN_LINES) break;
     }
     // Still a cover there (a collaborator may have moved it meanwhile).
     const fence = parseContainerFence(lines[0]);
     return fence?.kind === "open" && fence.name === "cover" ? lines : undefined;
   }
 
-  function setCoverHeadLogos(coverLine: number, fence: string | undefined) {
+  function setCoverLogos(
+    coverLine: number,
+    position: FastrCoverLogoPosition,
+    fence: string | undefined,
+  ) {
     const doc = coverLinesFrom(coverLine);
     if (doc === undefined) return;
-    applyLinesEdit(coverLine, fastrCoverHeadLogosEdit(doc, 0, fence));
+    applyLinesEdit(coverLine, fastrCoverLogosEdit(doc, 0, position, fence));
+  }
+
+  function moveCoverLogos(coverLine: number, from: FastrCoverLogoPosition) {
+    const doc = coverLinesFrom(coverLine);
+    if (doc === undefined) return;
+    const logos = fastrCoverLogosOf(doc, 0);
+    const to = from === "top" ? "bottom" : "top";
+    const row = logos[from];
+    if (row === undefined || logos[to] !== undefined) return;
+    const moved = updateContainerFenceLine(doc[row.line], {
+      at: to === "bottom" ? "bottom" : undefined,
+    });
+    if (moved === undefined) return;
+    setCoverLogos(coverLine, from, undefined);
+    setCoverLogos(coverLine, to, moved.trim());
   }
 
   function insertPageSetup(patch: FastrFencePatch) {
@@ -1291,10 +1333,10 @@ export function ReportBodyEditor(p: Props) {
       line.number - 1,
     );
     const template = templateContext(state, fenceHere, line.number);
-    const coverHead = coverHeadContext(state, fenceHere);
+    const coverLogos = coverLogosContext(state, fenceHere);
     const key = `${line.number}|${align ?? "-"}|${!sel.empty}|${line.text}|${
       JSON.stringify(template)
-    }|${JSON.stringify(coverHead)}|${JSON.stringify(marks)}|${
+    }|${JSON.stringify(coverLogos)}|${JSON.stringify(marks)}|${
       JSON.stringify(table)
     }|${measureFontSizePt(pos) ?? "?"}|${
       ctxStack
@@ -1314,7 +1356,7 @@ export function ReportBodyEditor(p: Props) {
       embed: isFastrEmbedLine(line.text),
       align,
       template,
-      coverHead,
+      coverLogos,
     };
     // Out of the CodeMirror update. A synchronous signal write here re-renders
     // the toolbar mid-update, and anything in that render that touches the
@@ -1323,33 +1365,32 @@ export function ReportBodyEditor(p: Props) {
     queueMicrotask(() => p.onContextChange?.(ctx));
   }
 
-  // The official cover around the caret (on its fence, or anywhere in it).
-  function coverHeadContext(
+  // The cover around the caret (on its fence, or anywhere in it).
+  function coverLogosContext(
     state: EditorState,
     fenceHere: FastrOpenFence | undefined,
-  ): ReportBlockContext["coverHead"] {
+  ): ReportBlockContext["coverLogos"] {
     const fence = fenceHere?.name === "cover"
       ? fenceHere
       : ctxStack.findLast((f) => f.name === "cover");
-    if (fence === undefined || !isFastrOfficialCover(fence.attrs["layout"])) {
-      return undefined;
-    }
+    if (fence === undefined) return undefined;
     const lines: string[] = [];
     for (const text of state.doc.iterLines(fence.line)) {
       lines.push(text);
-      // The head runs to the title at the latest: a few lines in.
-      if (lines.length > 40) break;
+      if (lines.length > COVER_SCAN_LINES) break;
     }
-    // Read from the cover's own line: shifted to the document's lines.
-    const head = fastrCoverHeadOf(lines, 0);
-    const at = (rel: number | undefined) =>
-      rel === undefined ? undefined : rel + fence.line - 1;
+    // Read from the cover's own line: shifted to the document's 1-based lines.
+    const logos = fastrCoverLogosOf(lines, 0);
+    const row = (r: typeof logos.top) =>
+      r === undefined
+        ? undefined
+        : { line: r.line + fence.line, attrs: r.attrs };
+    const layout = fence.attrs["layout"];
     return {
-      ...head,
       coverLine: fence.line,
-      logosLine: at(head.logosLine),
-      linesFrom: at(head.linesFrom),
-      linesTo: at(head.linesTo),
+      layout: typeof layout === "string" ? layout : undefined,
+      top: row(logos.top),
+      bottom: row(logos.bottom),
     };
   }
 
@@ -1748,7 +1789,8 @@ export function ReportBodyEditor(p: Props) {
       setEmbedAttrs,
       getSelection,
       setBlockAttrs,
-      setCoverHeadLogos,
+      setCoverLogos,
+      moveCoverLogos,
       insertPageSetup,
       toggleInlineMark,
       setInlineRole,
