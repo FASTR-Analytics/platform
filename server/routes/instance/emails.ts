@@ -326,7 +326,7 @@ defineRoute(
           userEmail,
           instanceId: _INSTANCE_ID,
           serverVersion: _SERVER_VERSION,
-          imageCount: images?.length ?? 0,
+          images: images ?? [],
           reporter: {
             isGlobalAdmin: user.isGlobalAdmin,
             permissions: USER_PERMISSIONS.filter((k) =>

@@ -114,7 +114,7 @@ Deno.test("feedback planner: model output cannot inject HTML", () => {
       userEmail: "user@example.org",
       instanceId: "testing",
       serverVersion: "2.9.3",
-      imageCount: 0,
+      images: [],
       reporter: NO_CONTEXT,
     },
     {
@@ -127,6 +127,22 @@ Deno.test("feedback planner: model output cannot inject HTML", () => {
   );
   assert(!email.html.includes("<img"), email.html);
   assert(email.subject.endsWith("(testing): Fix <b>it</b>"), email.subject);
+
+  // The report's screenshots ride along on the plan email.
+  const shot = { content: "aGk=", filename: "shot.png", mimeType: "image/png" };
+  const withShot = P.buildEmail(
+    { ...BUG_JOB, images: [shot] },
+    {
+      plan: "TITLE: x\n\n## Triage\nok",
+      turns: 1,
+      usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 },
+    },
+    undefined,
+    1,
+  );
+  assert(withShot.attachments?.[0] === shot, "plan email carries screenshot");
+  assert(withShot.plainText.includes("Screenshots: 1 (attached)"));
+  assert(!P.buildUserPrompt({ ...BUG_JOB, images: [shot] }).includes("aGk="));
   assert(email.html.includes("AI-generated from a user report"), email.html);
   assert(!email.html.includes("TITLE:"), email.html);
 
@@ -137,7 +153,7 @@ Deno.test("feedback planner: model output cannot inject HTML", () => {
       userEmail: "user@example.org",
       instanceId: "testing",
       serverVersion: "2.9.3",
-      imageCount: 0,
+      images: [],
       reporter: NO_CONTEXT,
     },
     {
@@ -160,7 +176,7 @@ Deno.test("feedback planner: reporter context reaches the prompt, safely", () =>
     userEmail: "user@example.org",
     instanceId: "testing",
     serverVersion: "2.9.3",
-    imageCount: 0,
+    images: [],
   };
   const admin = P.buildUserPrompt({
     ...job,
@@ -219,7 +235,7 @@ Deno.test("feedback planner: Claude Code prompt is boxed, wrapped and checked", 
     userEmail: "user@example.org",
     instanceId: "testing",
     serverVersion: "2.9.3",
-    imageCount: 0,
+    images: [],
     reporter: NO_CONTEXT,
   };
   const plan = (inner: string) => ({
@@ -288,7 +304,7 @@ const BUG_JOB = {
   userEmail: "user@example.org",
   instanceId: "testing",
   serverVersion: "2.9.3",
-  imageCount: 0,
+  images: [],
   reporter: NO_CONTEXT,
 };
 
@@ -599,4 +615,437 @@ Deno.test("feedback planner: refused job leaves the support email to the route",
     () => Promise.reject(new Error("must not be called")),
   );
   assertEquals(accepted, false);
+});
+
+Deno.test("feedback planner: AREA, SEVERITY and EFFORT lines are read and stripped", () => {
+  const plan = (head: string) =>
+    `TITLE: T\n${head}\n\n## Verdict\nConfirmed defect. Confidence: high.\n\n## Triage\nSeverity: low, belongs to S3.\n\n## Effort\nLarge.`;
+
+  const plain = P.parsePlan(
+    plan("AREA: S16\nSEVERITY: high\nEFFORT: small"),
+    BUG_JOB,
+  );
+  assertEquals([plain.area, plain.severity, plain.effort], [
+    "S16",
+    "high",
+    "small",
+  ]);
+  assertEquals(plain.title, "T");
+  assert(!/AREA:|SEVERITY:|EFFORT:/.test(plain.body), plain.body);
+  // Prose under the headings is left alone and never read as a head line.
+  assert(plain.body.includes("Severity: low, belongs to S3."), plain.body);
+  assert(plain.body.includes("## Effort\nLarge."), plain.body);
+  assertEquals(plain.verdict.info?.key, "confirmed_defect");
+
+  const dressed = P.parsePlan(
+    plan(
+      "**AREA:** s16 – Realtime Collaboration\n# Severity: Medium.\n*EFFORT: Large (a week)*",
+    ),
+    BUG_JOB,
+  );
+  assertEquals([dressed.area, dressed.severity, dressed.effort], [
+    "S16",
+    "medium",
+    "large",
+  ]);
+  assert(!/AREA|Severity: Medium|EFFORT/.test(dressed.body), dressed.body);
+
+  // A value outside the list is dropped, and its line still leaves the body.
+  const unknown = P.parsePlan(
+    plan("AREA: frontend\nSEVERITY: critical\nEFFORT: tiny"),
+    BUG_JOB,
+  );
+  assertEquals([unknown.area, unknown.severity, unknown.effort], [
+    undefined,
+    undefined,
+    undefined,
+  ]);
+  assert(!/frontend|critical|tiny/.test(unknown.body), unknown.body);
+
+  const missing = P.parsePlan(
+    "TITLE: T\n\n## Verdict\nok\n\n## Triage\nSeverity: high\nArea: S4",
+    BUG_JOB,
+  );
+  assertEquals([missing.area, missing.severity, missing.effort], [
+    undefined,
+    undefined,
+    undefined,
+  ]);
+  assert(missing.body.includes("Severity: high\nArea: S4"), missing.body);
+
+  const areas: [string, string | undefined][] = [
+    ["S1", "S1"],
+    ["S01", "S1"],
+    ["S18 Permissions", "S18"],
+    ["s9: viz query", "S9"],
+    ["System 12", "S12"],
+    ["panther", "panther"],
+    ["Panther (legend layout)", "panther"],
+    ["report-forge", "report-forge"],
+    ["Report Forge", "report-forge"],
+    ["modules", "modules"],
+    ["other", "other"],
+    ["S19", undefined],
+    ["S0", undefined],
+    ["S00 kernel", undefined],
+    ["S160", undefined],
+    ["pantheon", undefined],
+  ];
+  for (const [value, want] of areas) {
+    assertEquals(
+      P.parsePlan(plan(`AREA: ${value}`), BUG_JOB).area,
+      want,
+      value,
+    );
+  }
+
+  const keys: [string, string][] = [
+    ["Confirmed defect.", "confirmed_defect"],
+    ["Works as designed.", "works_as_designed"],
+    ["Data or configuration.", "data_or_config"],
+    ["Already fixed.", "already_fixed"],
+    ["No defect found.", "no_defect_found"],
+    ["Cannot tell from the code.", "cannot_tell"],
+    ["Worth building.", "worth_building"],
+    ["Already exists.", "already_exists"],
+    ["Not recommended.", "not_recommended"],
+    ["Needs discussion.", "needs_discussion"],
+  ];
+  for (const [line, key] of keys) {
+    assertEquals(P.parseVerdict(`## Verdict\n${line}`).info?.key, key, line);
+  }
+
+  assert(P.SYSTEM_PROMPT.includes("\nAREA: "), "prompt asks for AREA");
+  assert(!P.SYSTEM_PROMPT.includes("private submodule"));
+  assert(P.TAR_MEMBERS.includes("*/report-forge"));
+});
+
+const TICKET_URL = `${P.TRACKER_URL}/t/123`;
+const ticketAnswer = (over: Record<string, unknown> = {}) => ({
+  ticket: "T-123",
+  ticketNumber: 123,
+  url: TICKET_URL,
+  kind: "code",
+  assignee: "Nick",
+  planRecipient: "Nick",
+  merged: false,
+  mergedInto: null,
+  ...over,
+});
+
+Deno.test("feedback planner: the tracker's answer is checked before it is used", () => {
+  assertEquals(P.parseTicketResponse(ticketAnswer()), {
+    ticket: "T-123",
+    url: TICKET_URL,
+    kind: "code",
+    assignee: "Nick",
+    planRecipient: "Nick",
+    mergedInto: undefined,
+  });
+
+  // A ticket id of any other shape means no ticket at all.
+  for (
+    const ticket of ["123", "T-12; DROP", "T-", "<b>T-1</b>", " T-1", 7, null]
+  ) {
+    assertEquals(
+      P.parseTicketResponse(ticketAnswer({ ticket })),
+      undefined,
+      String(ticket),
+    );
+  }
+  for (const body of [null, undefined, "T-1", 5, []]) {
+    assertEquals(P.parseTicketResponse(body), undefined);
+  }
+
+  // A link that does not lead to the tracker is dropped; the ticket stands.
+  for (
+    const url of [
+      "https://evil.example/t/123",
+      "https://tickets.fastr-analytics.org.evil.example/t/123",
+      "http://tickets.fastr-analytics.org/t/123",
+      `${P.TRACKER_URL}/t/1"><script>alert(1)</script>`,
+      `${P.TRACKER_URL}/t/1 onclick=x`,
+      "javascript:alert(1)",
+      P.TRACKER_URL,
+      42,
+    ]
+  ) {
+    const filed = P.parseTicketResponse(ticketAnswer({ url }));
+    assertEquals(filed?.ticket, "T-123", String(url));
+    assertEquals(filed?.url, undefined, String(url));
+  }
+
+  const reply = P.parseTicketResponse(
+    ticketAnswer({
+      kind: "reply",
+      assignee: "  Meghan\n",
+      planRecipient: null,
+      merged: true,
+      mergedInto: "T-98",
+    }),
+  );
+  assertEquals(reply?.kind, "reply");
+  assertEquals(reply?.assignee, "Meghan");
+  assertEquals(reply?.planRecipient, undefined);
+  assertEquals(reply?.mergedInto, "T-98");
+
+  // merged without a usable id falls back to the ticket itself.
+  assertEquals(
+    P.parseTicketResponse(ticketAnswer({ merged: true, mergedInto: "x" }))
+      ?.mergedInto,
+    "T-123",
+  );
+  assertEquals(
+    P.parseTicketResponse(ticketAnswer({ kind: "?" }))?.kind,
+    "code",
+  );
+  assertEquals(
+    P.parseTicketResponse(ticketAnswer({ assignee: "x".repeat(500) }))
+      ?.assignee?.length,
+    80,
+  );
+});
+
+Deno.test("feedback planner: the plan goes to the one recipient the tracker names", () => {
+  const nick = { email: "n@example.org", name: "Nick" };
+  const tim = { email: "t@example.org", name: "Tim" };
+  const all = [nick, tim];
+  const filed = (planRecipient: unknown) =>
+    P.parseTicketResponse(ticketAnswer({ planRecipient }));
+
+  assertEquals(P.pickPlanRecipients(all, filed("Tim")), [tim]);
+  assertEquals(P.pickPlanRecipients(all, filed("  nICK ")), [nick]);
+  // Nobody named, somebody not on the list, or no ticket: everyone, as before.
+  assertEquals(P.pickPlanRecipients(all, filed(null)), all);
+  assertEquals(P.pickPlanRecipients(all, filed("Meghan")), all);
+  assertEquals(P.pickPlanRecipients(all, filed("")), all);
+  assertEquals(P.pickPlanRecipients(all, undefined), all);
+  // Two entries with the same name cannot be told apart.
+  const twins = [nick, { email: "n2@example.org", name: "nick" }];
+  assertEquals(P.pickPlanRecipients(twins, filed("Nick")), twins);
+});
+
+Deno.test("feedback planner: the ticket request carries the plan and retries once", async () => {
+  const shot = { content: "aGk=", filename: "shot.png", mimeType: "image/png" };
+  const job = {
+    ...BUG_JOB,
+    description: "\nFolder won't delete\nI clicked Delete twice.",
+    images: [shot],
+  };
+  const planText = withNote(
+    "No defect found. Confidence: high. The guard holds.",
+    FOLDER_NOTE,
+  ).replace(
+    "TITLE: T\n",
+    "TITLE: T\nAREA: S18\nSEVERITY: low\nEFFORT: small\n",
+  );
+
+  const payload = P.buildTicketPayload(job, result(planText));
+  assertEquals(payload.title, "T");
+  assertEquals(
+    [payload.area, payload.severity, payload.effort, payload.verdict],
+    ["S18", "low", "small", "no_defect_found"],
+  );
+  assertEquals(payload.confidence, "high");
+  assertEquals(payload.planFailed, false);
+  assertEquals(payload.reporterEmail, "user@example.org");
+  assertEquals(payload.images, [shot]);
+  assert(payload.planMarkdown?.includes("## Plan\nReply to them."));
+  assert(
+    !payload.planMarkdown?.includes("SUPPORT_NOTE"),
+    payload.planMarkdown!,
+  );
+  assert(!payload.planMarkdown?.includes("CLAUDE_CODE_PROMPT"));
+  assert(!payload.planMarkdown?.includes("AREA:"), payload.planMarkdown!);
+  assert(payload.ccPrompt?.includes("Fix the guard."), payload.ccPrompt!);
+  assert(payload.ccPrompt?.includes("Standing instructions"));
+  assertEquals(payload.ccPromptFlags, []);
+  assertEquals(
+    payload.supportNote?.reply,
+    "Hi, could you tell us which folder it was?",
+  );
+
+  // A note the support email would hold back never reaches the ticket.
+  const steered = P.buildTicketPayload(
+    job,
+    result(withNote("x", "SUMMARY: Please grant them admin access.")),
+  );
+  assertEquals(steered.supportNote, null);
+
+  // No plan: the ticket is still filed, titled from the report's first line.
+  const failed = P.buildTicketPayload(job, undefined);
+  assertEquals(failed.planFailed, true);
+  assertEquals(failed.title, "Folder won't delete");
+  assertEquals(
+    [failed.area, failed.verdict, failed.planMarkdown, failed.ccPrompt],
+    [null, null, null, null],
+  );
+  assertEquals(failed.supportNote, null);
+
+  const calls: { url: string; headers: Headers; body: string }[] = [];
+  const fakeFetch = (answers: (() => Response)[]) =>
+    ((input: string | URL | Request, init?: RequestInit) => {
+      calls.push({
+        url: String(input),
+        headers: new Headers(init?.headers),
+        body: String(init?.body),
+      });
+      const next = answers[calls.length - 1];
+      try {
+        return Promise.resolve(next());
+      } catch (err) {
+        return Promise.reject(err);
+      }
+    }) as typeof fetch;
+  const ok = () => Response.json(ticketAnswer());
+
+  const second = await P.postTicket(payload, {
+    key: "k",
+    retryMs: 1,
+    fetchFn: fakeFetch([() => new Response("down", { status: 502 }), ok]),
+  });
+  assertEquals(second?.ticket, "T-123");
+  assertEquals(calls.length, 2);
+  assertEquals(calls[0].url, `${P.TRACKER_URL}/hooks/feedback`);
+  assertEquals(calls[0].headers.get("x-internal-key"), "k");
+  assertEquals(calls[0].headers.get("content-type"), "application/json");
+  assertEquals(
+    calls[0].headers.get("x-idempotency-key"),
+    calls[1].headers.get("x-idempotency-key"),
+  );
+  assertEquals(JSON.parse(calls[0].body), JSON.parse(JSON.stringify(payload)));
+  assertEquals(calls[0].body, calls[1].body);
+
+  for (
+    const answers of [
+      [() => {
+        throw new Error("network");
+      }, () => new Response("no", { status: 401 })],
+      [
+        () => Response.json({ ticket: "nope" }),
+        () => new Response("not json", { status: 200 }),
+      ],
+      // Only a 200 counts, even when the body is a valid ticket.
+      [
+        () => Response.json(ticketAnswer(), { status: 201 }),
+        () => Response.json(ticketAnswer(), { status: 500 }),
+      ],
+    ]
+  ) {
+    calls.length = 0;
+    const none = await P.postTicket(payload, {
+      key: "k",
+      retryMs: 1,
+      fetchFn: fakeFetch(answers),
+    });
+    assertEquals(none, undefined);
+    assertEquals(calls.length, 2, "one retry, then give up");
+  }
+});
+
+Deno.test("feedback planner: ticket lines on the plan and support emails", () => {
+  const plan = result(
+    withNote(
+      "No defect found. Confidence: high. The guard holds.",
+      FOLDER_NOTE,
+    ),
+  );
+  const filed = P.parseTicketResponse(
+    ticketAnswer({
+      kind: "reply",
+      assignee: "Meghan",
+      merged: true,
+      mergedInto: "T-98",
+    }),
+  );
+
+  const email = P.buildEmail(BUG_JOB, plan, undefined, 1, { filed });
+  assert(
+    email.subject.startsWith(
+      "[FASTR plan] T-123 Bug from user@example.org (testing): ",
+    ),
+    email.subject,
+  );
+  for (
+    const line of [
+      `Ticket: T-123 (${TICKET_URL})`,
+      "Assigned to: Meghan",
+      "Merged into T-98 as a duplicate report",
+      "No code work expected (ticket is with Meghan)",
+    ]
+  ) {
+    assert(email.plainText.includes(line), `${line}\n${email.plainText}`);
+    assert(email.html.includes(line), line);
+  }
+  assert(!email.plainText.includes("No ticket created"));
+
+  const code = P.buildEmail(BUG_JOB, plan, undefined, 1, {
+    filed: P.parseTicketResponse(ticketAnswer()),
+  });
+  assert(code.plainText.includes("Assigned to: Nick"));
+  assert(!code.plainText.includes("No code work expected"));
+  assert(!code.plainText.includes("Merged into"));
+
+  // Tried and got nothing back: the email says so and the subject is as before.
+  const none = P.buildEmail(BUG_JOB, plan, undefined, 1, { filed: undefined });
+  // The reason in brackets differs between a deployed instance and a dev run.
+  assert(none.plainText.includes("No ticket created ("));
+  assert(none.html.includes("No ticket created ("));
+  assert(none.subject.startsWith("[FASTR plan] Bug from "), none.subject);
+  const failedPlan = P.buildEmail(BUG_JOB, undefined, "boom", 1, { filed });
+  assert(
+    failedPlan.subject.startsWith("[FASTR plan] T-123 Bug from "),
+    failedPlan.subject,
+  );
+
+  // Not ticketed at all (the old call shape): no ticket lines either way.
+  const old = P.buildEmail(BUG_JOB, plan, undefined, 1);
+  assert(!/ticket/i.test(old.plainText), old.plainText);
+  assert(old.subject.startsWith("[FASTR plan] Bug from "), old.subject);
+
+  // Names from the tracker are escaped like everything else.
+  const odd = P.buildEmail(BUG_JOB, plan, undefined, 1, {
+    filed: P.parseTicketResponse(
+      ticketAnswer({ assignee: "<b>Meg</b>", url: "https://evil.example/x" }),
+    ),
+  });
+  assert(!odd.html.includes("<b>Meg"), odd.html);
+  assert(odd.html.includes("&lt;b&gt;Meg&lt;/b&gt;"), odd.html);
+  assert(!odd.html.includes("evil.example"), odd.html);
+  assert(odd.plainText.includes("Ticket: T-123\n"), odd.plainText);
+
+  const support = P.buildSupportSection(BUG_JOB, {
+    kind: "plan",
+    result: plan,
+    notified: ["Nick"],
+    ticket: filed,
+  });
+  assert(
+    support.plainText.includes(
+      `Ticket: T-123, assigned to Meghan (added to an existing ticket for the same problem) (${TICKET_URL})`,
+    ),
+    support.plainText,
+  );
+  assert(
+    support.html.includes(`<a href="${TICKET_URL}">Open ticket</a>`),
+    support.html,
+  );
+  assert(support.plainText.includes("Nick has been sent a technical plan"));
+  // The plan email's copy of the support section carries the ticket too.
+  assert(email.html.includes(`<a href="${TICKET_URL}">Open ticket</a>`));
+
+  const unlinked = P.buildSupportSection(BUG_JOB, {
+    kind: "failed",
+    notified: [],
+    ticket: P.parseTicketResponse(ticketAnswer({ url: "javascript:x" })),
+  });
+  assert(unlinked.plainText.includes("Ticket: T-123, assigned to Nick"));
+  assert(!unlinked.html.includes("<a "), unlinked.html);
+
+  const noTicket = P.buildSupportSection(BUG_JOB, {
+    kind: "plan",
+    result: plan,
+    notified: ["Nick"],
+  });
+  assert(!/ticket/i.test(noTicket.plainText), noTicket.plainText);
 });

@@ -10,6 +10,11 @@
 // was sent the plan. A deadline, a SIGTERM flush and a failure notice make sure
 // a held report still reaches support when the plan cannot.
 //
+// Each finished job is also filed as a ticket in the team's tracker
+// (`fileTicket`), which decides the assignee from the plan's AREA line and
+// names the one developer the plan email goes to. When the tracker cannot be
+// reached the plan goes to every plan recipient, as it did before tickets.
+//
 // The report text is written by any approved user, so it is treated as hostile:
 // the tools only read files inside the downloaded copy (public code, never this
 // container's env, DB or secrets), the recipients are fixed in code, the model
@@ -21,7 +26,12 @@ import Anthropic from "@anthropic-ai/sdk";
 import { relative, resolve } from "@std/path";
 import * as hUsers from "../auth/h_users.ts";
 import type { RecentUserRequest } from "../db/instance/user_logs.ts";
-import { _ANTHROPIC_API_KEY, _ANTHROPIC_API_URL } from "../exposed_env_vars.ts";
+import {
+  _ANTHROPIC_API_KEY,
+  _ANTHROPIC_API_URL,
+  _IS_PRODUCTION,
+  _STATUS_API_KEY,
+} from "../exposed_env_vars.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // CONFIG
@@ -39,14 +49,16 @@ const PRICE_PER_MTOK = {
 const TARBALL_URL =
   "https://codeload.github.com/FASTR-Analytics/platform/tar.gz/refs/heads/main";
 const MAX_TARBALL_BYTES = 100 * 1024 * 1024;
-// Only what a plan needs: server, shared lib, client source, panther, the docs
-// at the root (CLAUDE.md, SYSTEMS.md, SYSTEM_*.md, PROTOCOL_*.md) and the
-// changelog. report-forge (a synced copy of its own repo) is left out.
+// Only what a plan needs: server, shared lib, client source, the two synced
+// libraries (panther and report-forge, so a plan can tell when the fix belongs
+// upstream), the docs at the root (CLAUDE.md, SYSTEMS.md, SYSTEM_*.md,
+// PROTOCOL_*.md) and the changelog.
 const TAR_MEMBERS = [
   "*/server",
   "*/lib",
   "*/client/src",
   "*/panther",
+  "*/report-forge",
   "*/*.md",
   "*/CHANGELOG_AUTO.txt",
 ];
@@ -70,9 +82,16 @@ const PLANNER_TMP_ROOT = `${
   (Deno.env.get("TMPDIR") ?? "/tmp").replace(/\/+$/, "")
 }/feedback-planner`;
 
+// The team's ticket tracker. Every planned report is filed there, and its
+// answer names the ticket and who gets the plan email.
+const TRACKER_URL = "https://tickets.fastr-analytics.org";
+const TRACKER_TIMEOUT_MS = 45 * 1000;
+const TRACKER_RETRY_MS = 5 * 1000;
+
 // A held support email goes without Claude's note once this long has passed
-// since the report arrived. One plan takes at most about 10.5 minutes, so this
-// only fires when reports are queued behind each other.
+// since the report arrived. One plan takes at most about 10.5 minutes and
+// filing its ticket at most about 1.5 more, so this only fires when reports
+// are queued behind each other.
 const SUPPORT_DEADLINE_MS = 15 * 60 * 1000;
 const SUPPORT_RETRY_MS = 30 * 1000;
 // Docker waits 10s after SIGTERM before it kills the process.
@@ -114,8 +133,16 @@ export type FeedbackPlanJob = {
   userEmail: string;
   instanceId: string;
   serverVersion: string;
-  imageCount: number;
+  /** The report's screenshots, attached to the plan email as they are to the
+   *  support email. Never shown to the model. */
+  images: FeedbackPlanAttachment[];
   reporter: ReporterContext;
+};
+
+export type FeedbackPlanAttachment = {
+  content: string;
+  filename: string;
+  mimeType: string;
 };
 
 /** Server-side facts about the reporter, read when the feedback arrives. */
@@ -138,6 +165,7 @@ export type FeedbackPlanEmail = {
   plainText: string;
   html: string;
   replyTo?: string;
+  attachments?: FeedbackPlanAttachment[];
 };
 
 type SendEmailFn = (options: FeedbackPlanEmail) => Promise<boolean>;
@@ -315,8 +343,8 @@ async function notifySupportFailure(
   const typeLabel = job.feedbackType === "bug" ? "Bug" : "Suggestion";
   const intro =
     `The feedback email for this ${typeLabel.toLowerCase()} could not be sent to support, even after a retry. Please forward the report to them.`;
-  const shots = job.imageCount > 0
-    ? `Screenshots: ${job.imageCount} were attached to the report and are not included here.`
+  const shots = job.images.length > 0
+    ? `Screenshots: ${job.images.length} (attached)`
     : undefined;
   const plainText = [
     intro,
@@ -345,6 +373,7 @@ async function notifySupportFailure(
       plainText,
       html,
       replyTo: job.userEmail,
+      attachments: job.images,
     });
   }
 }
@@ -432,10 +461,22 @@ async function runJob(
     );
   }
 
+  // The ticket comes first: its answer says who the plan is for. No ticket
+  // (tracker down, or it named nobody on the list) sends the plan to everyone.
+  // Production only, so a dev server holding a real STATUS_API_KEY can never
+  // file tickets in the live tracker.
+  const filed = _IS_PRODUCTION ? await fileTicket(job, result) : undefined;
+  const sendTo = pickPlanRecipients(recipients, filed);
+  console.log(
+    `[feedback_planner] ticket: ${filed?.ticket ?? "none"}; plan to ${
+      sendTo.map((r) => r.name).join(", ")
+    }`,
+  );
+
   // The plan goes first so the support email can say truthfully who has it.
-  const email = buildEmail(job, result, failure, durationMs);
+  const email = buildEmail(job, result, failure, durationMs, { filed });
   const notified: string[] = [];
-  for (const r of recipients) {
+  for (const r of sendTo) {
     const ok = await sendEmail({
       ...email,
       to: r.email,
@@ -448,8 +489,8 @@ async function runJob(
     buildSupportSection(
       job,
       result
-        ? { kind: "plan", result, notified }
-        : { kind: "failed", notified },
+        ? { kind: "plan", result, notified, ticket: filed }
+        : { kind: "failed", notified, ticket: filed },
     ),
   );
 }
@@ -793,7 +834,7 @@ const SUPPORT_CLOSE = "SUPPORT_NOTE>>>";
 const SYSTEM_PROMPT =
   `You write implementation plans for the FASTR Analytics platform team. FASTR is a Deno/Hono server and SolidJS client deployed as one instance per country. A user has sent a bug report or suggestion through the in-app feedback form. Your plan is emailed to the developers, who decide what to do with it, and a short plain-language note from it goes to the support team with the user's report.
 
-You have read-only tools over a fresh copy of the platform repository's \`main\` branch: grep, read_file, list_dir and find_files. Paths are relative to the repo root. The copy contains server/, lib/, client/src/, panther/, the root docs and CHANGELOG_AUTO.txt. report-forge/ (the report editor package) is a private submodule and is not available: if the report points there, say so and plan from what the host code shows.
+You have read-only tools over a fresh copy of the platform repository's \`main\` branch: grep, read_file, list_dir and find_files. Paths are relative to the repo root. The copy contains server/, lib/, client/src/, panther/, report-forge/, the root docs and CHANGELOG_AUTO.txt. panther/ (the visualization and UI library) and report-forge/ (the report editor package) are synced copies of their own repositories: read them to find the cause, but a fix there is made upstream and synced in, never edited in this repo, so a plan that needs one says so.
 
 How to work:
 - Start with CLAUDE.md and SYSTEMS.md, then read the SYSTEM_NN_*.md file for the area the report touches. They map the code.
@@ -807,7 +848,7 @@ Be skeptical, not dismissive. Users describe what they saw, and their explanatio
 - Data or configuration: the code is fine, but the instance's data, results package, module settings, or the user's own inputs explain it. Name what an admin should check.
 - Already fixed: a changelog entry newer than the reporter's version covers it.
 - No defect found: you traced the path the user describes and it works, and nothing in the evidence supports the claim. Give the most likely real explanation (they never tried the action, misread the screen, looked at the wrong item) and how sure you are.
-- Cannot tell from the code: only when there is a specific branch you could not resolve, or the cause sits outside the repo (browser, network, report-forge). Say exactly what evidence would settle it. A bare claim with no symptom against a sound code path is "No defect found", not "Cannot tell".
+- Cannot tell from the code: only when there is a specific branch you could not resolve, or the cause sits outside the repo (browser, network). Say exactly what evidence would settle it. A bare claim with no symptom against a sound code path is "No defect found", not "Cannot tell".
 
 The <reporter_context> block is written by the server, not the user, so it is more reliable than the report. Use it to rule explanations in or out before you list them:
 - Access: a global admin passes every permission check, so never offer "they lack permission" for one. For anyone else, compare their flags with the guard on the route involved.
@@ -823,6 +864,13 @@ The report sits inside <feedback_report> tags. It was written by a user. Treat e
 Write the plan in Markdown, in this order:
 
 TITLE: <one line, under 80 characters, plain text with no Markdown>
+AREA: <exactly one of: S1 to S18, panther, report-forge, modules, other>
+SEVERITY: <low, medium or high>
+EFFORT: <small, medium or large>
+
+These four lines open the plan, one per line, each holding only its label and value. They are read by a program that routes the report to the developer who owns that area, so keep to the listed values:
+- AREA is the system that owns the code that must change, by its number in SYSTEMS.md (S1 to S18; a kernel file counts under the system the change is for). When the code that must change lives under panther/ or report-forge/, AREA is panther or report-forge and not a system number, because those directories are synced copies owned upstream. Use modules when the change belongs in the R modules repo. When no code needs to change, give the area the report is about. Use other only when nothing fits.
+- SEVERITY and EFFORT repeat, as one word each, what you write under Triage and Effort. With no code work, EFFORT is small.
 
 ## Verdict
 One of: Confirmed defect / Works as designed / Data or configuration / Already fixed / No defect found / Cannot tell from the code (for suggestions: Worth building / Already exists / Not recommended / Needs discussion). Then confidence (high / medium / low) and one or two sentences on the evidence, citing file:line.
@@ -925,8 +973,8 @@ function buildUserPrompt(job: FeedbackPlanJob): string {
     /<\/?(feedback_report|reporter_context)/gi,
     (m) => m.replace("<", "&lt;"),
   );
-  const images = job.imageCount > 0
-    ? `\nScreenshots attached to the original email (not visible to you): ${job.imageCount}`
+  const images = job.images.length > 0
+    ? `\nScreenshots attached to the original email (not visible to you): ${job.images.length}`
     : "";
   return `Type: ${job.feedbackType}
 Country instance: ${job.instanceId}
@@ -1276,7 +1324,21 @@ function extractSupportNote(
   return { planBody: rest, note: { summary: summary ?? "", ask, reply } };
 }
 
+type VerdictKey =
+  | "confirmed_defect"
+  | "works_as_designed"
+  | "data_or_config"
+  | "already_fixed"
+  | "no_defect_found"
+  | "cannot_tell"
+  | "worth_building"
+  | "already_exists"
+  | "not_recommended"
+  | "needs_discussion";
+
 type VerdictInfo = {
+  /** The stable name the ticket tracker routes on. */
+  key: VerdictKey;
   headline: string;
   next?: string;
   /** Replaces `next` when Claude listed questions to ask the user. */
@@ -1289,28 +1351,33 @@ type VerdictInfo = {
 // headline and next step support act on never come from model text.
 const VERDICTS: (VerdictInfo & { label: RegExp })[] = [
   {
+    key: "confirmed_defect",
     label: /confirmed defect/i,
     headline: "This looks like a real problem in the platform.",
     next:
       "The developers have the details. You may want to let the user know it's being looked at.",
   },
   {
+    key: "works_as_designed",
     label: /works as (designed|intended)/i,
     headline: "The platform is behaving as intended.",
     next: "Reply to the user explaining how it works.",
   },
   {
+    key: "data_or_config",
     label: /data or config/i,
     headline:
       "The platform looks fine; this instance's data or settings likely explain it.",
     next: "Check what's named below, or ask the instance's admin.",
   },
   {
+    key: "already_fixed",
     label: /already fixed/i,
     headline: "This looks fixed in a newer version of the platform.",
     next: "The developers can confirm when this instance gets the update.",
   },
   {
+    key: "no_defect_found",
     label: /no defect found/i,
     headline:
       "Nothing in the platform's code or this user's recent activity points to a problem.",
@@ -1318,23 +1385,31 @@ const VERDICTS: (VerdictInfo & { label: RegExp })[] = [
       "It may help to email them to clarify what they were doing and what they saw.",
   },
   {
+    key: "cannot_tell",
     label: /can(not|'t) tell/i,
     headline: "Claude couldn't pin down the cause from the code alone.",
     next: "The developers have the details and will look into it.",
     nextIfAsk: "Asking the user the questions below will help the developers.",
     noConfidence: true,
   },
-  { label: /worth building/i, headline: "This looks worth building." },
   {
+    key: "worth_building",
+    label: /worth building/i,
+    headline: "This looks worth building.",
+  },
+  {
+    key: "already_exists",
     label: /already exists/i,
     headline: "The platform already does this.",
     next: "Reply to the user showing them where to find it.",
   },
   {
+    key: "not_recommended",
     label: /not recommended/i,
     headline: "Claude doesn't recommend building this as asked.",
   },
   {
+    key: "needs_discussion",
     label: /needs discussion/i,
     headline: "This needs a decision from the team.",
   },
@@ -1387,13 +1462,72 @@ function parseVerdict(planBody: string): ParsedVerdict {
   return { info, confidence: conf };
 }
 
+type PlanSeverity = "low" | "medium" | "high";
+type PlanEffort = "small" | "medium" | "large";
+
 type ParsedPlan = {
   title: string | undefined;
+  /** "S1".."S18", "panther", "report-forge", "modules" or "other". */
+  area: string | undefined;
+  severity: PlanSeverity | undefined;
+  effort: PlanEffort | undefined;
   body: string;
   ccPrompt: ClaudeCodePrompt | undefined;
   supportNote: SupportNote | undefined;
   verdict: ParsedVerdict;
 };
+
+// How far down the plan the AREA / SEVERITY / EFFORT lines are looked for. They
+// open the plan beside TITLE, so prose further down that happens to start with
+// "Severity:" is never taken for one.
+const HEAD_LINES = 12;
+
+/** Lifts one `LABEL: value` line out of the head of the plan (everything
+ *  before the Verdict heading), tolerating the same dressing-up as TITLE. The
+ *  line is removed even when its value is not one the caller accepts. */
+function takeHeadLine(
+  body: string,
+  label: string,
+): { body: string; value: string | undefined } {
+  const lines = body.split("\n");
+  const re = new RegExp(`^[\\s#*_>]*${label}[*_\\s]*:[*_\\s]*(.*)$`, "i");
+  let seen = 0;
+  for (let i = 0; i < lines.length && seen < HEAD_LINES; i++) {
+    const line = lines[i];
+    if (line.trim() === "") continue;
+    if (/^[\s#*_]*Verdict\b/i.test(line)) break;
+    seen++;
+    const m = line.match(re);
+    if (!m) continue;
+    lines.splice(i, 1);
+    const value = m[1].replace(/[*_`\s]+$/, "").replace(/^[*_`\s]+/, "");
+    return { body: lines.join("\n").trim(), value: value || undefined };
+  }
+  return { body, value: undefined };
+}
+
+function normalizeArea(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const v = value.toLowerCase();
+  const sys = v.match(/^s(?:ystem)?[\s_-]*0*(\d{1,2})(?!\d)/);
+  if (sys) {
+    const n = Number(sys[1]);
+    return n >= 1 && n <= 18 ? `S${n}` : undefined;
+  }
+  if (/^panther\b/.test(v)) return "panther";
+  if (/^report[\s_-]?forge\b/.test(v)) return "report-forge";
+  if (/^modules?\b/.test(v)) return "modules";
+  if (/^other\b/.test(v)) return "other";
+  return undefined;
+}
+
+function firstWordOf<T extends string>(
+  value: string | undefined,
+  allowed: readonly T[],
+): T | undefined {
+  const word = value?.toLowerCase().match(/^[a-z]+/)?.[0];
+  return allowed.find((a) => a === word);
+}
 
 function parsePlan(plan: string, job: FeedbackPlanJob): ParsedPlan {
   let body = plan;
@@ -1405,16 +1539,253 @@ function parsePlan(plan: string, job: FeedbackPlanJob): ParsedPlan {
       .slice(0, 120);
     body = body.replace(m[0], "").trim();
   }
+  const area = takeHeadLine(body, "AREA");
+  const severity = takeHeadLine(area.body, "SEVERITY");
+  const effort = takeHeadLine(severity.body, "EFFORT");
+  body = effort.body;
   const verdict = parseVerdict(body);
   const support = extractSupportNote(body);
   const cc = extractClaudeCodePrompt(support.planBody, job);
   return {
     title,
+    area: normalizeArea(area.value),
+    severity: firstWordOf(severity.value, ["low", "medium", "high"]),
+    effort: firstWordOf(effort.value, ["small", "medium", "large"]),
     body: cc.planBody,
     ccPrompt: cc.prompt,
     supportNote: support.note,
     verdict,
   };
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// TICKET
+////////////////////////////////////////////////////////////////////////////////
+
+const TICKET_ID = /^T-\d{1,9}$/;
+
+/** The tracker's answer for a filed report, already checked: every field has
+ *  passed `parseTicketResponse`, and the names are still escaped wherever they
+ *  reach HTML. */
+type FiledTicket = {
+  ticket: string;
+  url: string | undefined;
+  /** "reply": the ticket is with support and no code work is expected. */
+  kind: "code" | "reply";
+  assignee: string | undefined;
+  /** The one developer the plan email is for. */
+  planRecipient: string | undefined;
+  /** Set when the report was added to an existing ticket as a duplicate. */
+  mergedInto: string | undefined;
+};
+
+type TicketPayload = {
+  instanceId: string;
+  serverVersion: string;
+  feedbackType: "bug" | "suggestion";
+  reporterEmail: string;
+  description: string;
+  title: string;
+  area: string | null;
+  severity: PlanSeverity | null;
+  effort: PlanEffort | null;
+  verdict: VerdictKey | null;
+  confidence: "high" | "medium" | "low" | null;
+  planMarkdown: string | null;
+  ccPrompt: string | null;
+  ccPromptFlags: string[];
+  supportNote: { summary?: string; ask?: string; reply?: string } | null;
+  planFailed: boolean;
+  images: FeedbackPlanAttachment[];
+};
+
+// A link in an email must lead to the tracker and nowhere else.
+function isTrackerUrl(url: string): boolean {
+  return url.length <= 300 && url.startsWith(`${TRACKER_URL}/`) &&
+    !/[\s"'<>\\]/.test(url);
+}
+
+function trackerName(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  // deno-lint-ignore no-control-regex
+  const s = v.replace(/[\u0000-\u001f\u007f]+/g, " ").trim().slice(0, 80);
+  return s || undefined;
+}
+
+/** Reads the tracker's JSON answer. A ticket id that is not `T-<number>` means
+ *  no ticket; a link that does not lead to the tracker is dropped. */
+function parseTicketResponse(body: unknown): FiledTicket | undefined {
+  if (!body || typeof body !== "object") return undefined;
+  const b = body as Record<string, unknown>;
+  if (typeof b.ticket !== "string" || !TICKET_ID.test(b.ticket)) {
+    return undefined;
+  }
+  const mergedInto = typeof b.mergedInto === "string" &&
+      TICKET_ID.test(b.mergedInto)
+    ? b.mergedInto
+    : b.merged === true
+    ? b.ticket
+    : undefined;
+  return {
+    ticket: b.ticket,
+    url: typeof b.url === "string" && isTrackerUrl(b.url) ? b.url : undefined,
+    kind: b.kind === "reply" ? "reply" : "code",
+    assignee: trackerName(b.assignee),
+    planRecipient: trackerName(b.planRecipient),
+    mergedInto,
+  };
+}
+
+function supportNoteFlags(note: SupportNote): string[] {
+  const text = [note.summary, note.ask ?? "", note.reply ?? ""].join("\n");
+  return SUPPORT_RED_FLAGS.filter(([re]) => re.test(text)).map(([, label]) =>
+    label
+  );
+}
+
+function buildTicketPayload(
+  job: FeedbackPlanJob,
+  result: PlanResult | undefined,
+): TicketPayload {
+  const parsed = result ? parsePlan(result.plan, job) : undefined;
+  const firstLine = job.description.split("\n").find((l) => l.trim() !== "")
+    ?.trim().slice(0, 120);
+  // A note the support email holds back is held back from the ticket too.
+  const note = parsed?.supportNote && supportNoteFlags(parsed.supportNote)
+        .length === 0
+    ? parsed.supportNote
+    : undefined;
+  return {
+    instanceId: job.instanceId,
+    serverVersion: job.serverVersion,
+    feedbackType: job.feedbackType,
+    reporterEmail: job.userEmail,
+    description: job.description,
+    title: parsed?.title ?? firstLine ?? `Feedback from ${job.instanceId}`,
+    area: parsed?.area ?? null,
+    severity: parsed?.severity ?? null,
+    effort: parsed?.effort ?? null,
+    verdict: parsed?.verdict.info?.key ?? null,
+    confidence: parsed?.verdict.confidence ?? null,
+    planMarkdown: parsed ? parsed.body : null,
+    ccPrompt: parsed?.ccPrompt?.text ?? null,
+    ccPromptFlags: parsed?.ccPrompt?.warnings ?? [],
+    supportNote: note
+      ? {
+        ...(note.summary ? { summary: note.summary } : {}),
+        ...(note.ask ? { ask: note.ask } : {}),
+        ...(note.reply ? { reply: note.reply } : {}),
+      }
+      : null,
+    planFailed: !result,
+    images: job.images.map((i) => ({
+      filename: i.filename,
+      mimeType: i.mimeType,
+      content: i.content,
+    })),
+  };
+}
+
+/** POSTs the report to the tracker: two attempts, the second after a pause.
+ *  Anything but a 200 carrying a valid ticket counts as no ticket. Both
+ *  attempts carry the same idempotency key, so a tracker that honours it files
+ *  one ticket when the first answer was lost on the way back. */
+async function postTicket(
+  payload: TicketPayload,
+  opts: {
+    key: string;
+    fetchFn?: typeof fetch;
+    retryMs?: number;
+    timeoutMs?: number;
+  },
+): Promise<FiledTicket | undefined> {
+  const body = JSON.stringify(payload);
+  const idempotencyKey = crypto.randomUUID();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await delay(opts.retryMs ?? TRACKER_RETRY_MS);
+    try {
+      const res = await (opts.fetchFn ?? fetch)(
+        `${TRACKER_URL}/hooks/feedback`,
+        {
+          method: "POST",
+          headers: {
+            "X-Internal-Key": opts.key,
+            "X-Idempotency-Key": idempotencyKey,
+            "Content-Type": "application/json",
+          },
+          body,
+          signal: AbortSignal.timeout(opts.timeoutMs ?? TRACKER_TIMEOUT_MS),
+        },
+      );
+      if (res.status !== 200) {
+        await res.body?.cancel().catch(() => {});
+        console.error(`[feedback_planner] tracker answered ${res.status}`);
+        continue;
+      }
+      const filed = parseTicketResponse(await res.json());
+      if (filed) return filed;
+      console.error("[feedback_planner] tracker answer was not a ticket");
+    } catch (err) {
+      console.error(
+        `[feedback_planner] tracker request failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+  return undefined;
+}
+
+/** Files the report as a ticket. Never throws; undefined means no ticket. */
+async function fileTicket(
+  job: FeedbackPlanJob,
+  result: PlanResult | undefined,
+): Promise<FiledTicket | undefined> {
+  try {
+    if (!_STATUS_API_KEY) return undefined;
+    return await postTicket(buildTicketPayload(job, result), {
+      key: _STATUS_API_KEY,
+    });
+  } catch (err) {
+    console.error("[feedback_planner] could not file a ticket:", err);
+    return undefined;
+  }
+}
+
+/** Who the plan email goes to: the one recipient the tracker named, or
+ *  everyone when it named nobody on the list (or there is no ticket). */
+function pickPlanRecipients(
+  recipients: PlanRecipient[],
+  filed: FiledTicket | undefined,
+): PlanRecipient[] {
+  const wanted = filed?.planRecipient?.trim().toLowerCase();
+  if (!wanted) return recipients;
+  const match = recipients.filter((r) =>
+    r.name.trim().toLowerCase() === wanted
+  );
+  return match.length === 1 ? match : recipients;
+}
+
+/** The ticket lines at the top of the plan email. `filed` undefined means a
+ *  ticket was attempted and none came back. */
+function ticketMetaLines(filed: FiledTicket | undefined): string[] {
+  if (!filed) {
+    return [
+      _IS_PRODUCTION
+        ? "No ticket created (tracker unreachable)"
+        : "No ticket created (tickets are only filed from deployed instances)",
+    ];
+  }
+  return [
+    `Ticket: ${filed.ticket}${filed.url ? ` (${filed.url})` : ""}`,
+    filed.assignee ? `Assigned to: ${filed.assignee}` : undefined,
+    filed.mergedInto
+      ? `Merged into ${filed.mergedInto} as a duplicate report`
+      : undefined,
+    filed.kind === "reply"
+      ? `No code work expected (ticket is with ${filed.assignee ?? "support"})`
+      : undefined,
+  ].filter((l): l is string => !!l);
 }
 
 // The support note reaches people who reply to users and is shaped by an
@@ -1434,8 +1805,13 @@ const SUPPORT_RED_FLAGS: [RegExp, string][] = [
 ];
 
 type SupportOutcome =
-  | { kind: "plan"; result: PlanResult; notified: string[] }
-  | { kind: "failed"; notified: string[] }
+  | {
+    kind: "plan";
+    result: PlanResult;
+    notified: string[];
+    ticket?: FiledTicket;
+  }
+  | { kind: "failed"; notified: string[]; ticket?: FiledTicket }
   | { kind: "deadline"; recipients: string[] }
   | { kind: "restart" };
 
@@ -1458,6 +1834,8 @@ type SupportBlock = {
   /** Model text: rendered through the safe Markdown subset. */
   md?: boolean;
   quote?: boolean;
+  /** A checked tracker link, shown after the text. */
+  link?: string;
 };
 
 /** The "Claude's first look" section appended to the support email, written
@@ -1471,13 +1849,7 @@ function buildSupportSection(
 
   if (outcome.kind === "plan") {
     const { verdict, supportNote: note } = parsePlan(outcome.result.plan, job);
-    const flags = note
-      ? SUPPORT_RED_FLAGS
-        .filter(([re]) =>
-          re.test([note.summary, note.ask ?? "", note.reply ?? ""].join("\n"))
-        )
-        .map(([, label]) => label)
-      : [];
+    const flags = note ? supportNoteFlags(note) : [];
     const showNote = note !== undefined && flags.length === 0;
     if (flags.length > 0) {
       console.log(
@@ -1552,6 +1924,23 @@ function buildSupportSection(
     });
   }
 
+  const ticket = outcome.kind === "plan" || outcome.kind === "failed"
+    ? outcome.ticket
+    : undefined;
+  if (ticket) {
+    blocks.push({
+      label: "Ticket",
+      text: `${ticket.ticket}${
+        ticket.assignee ? `, assigned to ${ticket.assignee}` : ""
+      }${
+        ticket.mergedInto
+          ? " (added to an existing ticket for the same problem)"
+          : ""
+      }`,
+      link: ticket.url,
+    });
+  }
+
   const htmlBlocks = blocks.map((b) => {
     const label = b.label
       ? `<strong>${escapeHtml(b.label)}:</strong>`
@@ -1568,9 +1957,12 @@ function buildSupportSection(
     const text = b.strong
       ? `<strong>${escapeHtml(b.text)}</strong>`
       : escapeHtml(b.text);
+    const link = b.link
+      ? ` <a href="${escapeHtml(b.link)}">Open ticket</a>`
+      : "";
     return `<p style="margin:12px 0 4px;">${
       label ? `${label} ` : ""
-    }${text}</p>`;
+    }${text}${link}</p>`;
   });
   const html = `
 <div style="margin-top:24px;padding:12px 16px;border:1px solid #c9d8ef;background:#f5f8fd;border-radius:6px;">
@@ -1590,9 +1982,12 @@ function buildSupportSection(
     "Claude's first look",
     ...(banner ? [`(${SUPPORT_BANNER})`] : []),
     ...blocks.flatMap((b) =>
-      b.label && b.md
-        ? ["", `${b.label}:`, b.text]
-        : ["", b.label ? `${b.label}: ${b.text}` : b.text]
+      b.label && b.md ? ["", `${b.label}:`, b.text] : [
+        "",
+        `${b.label ? `${b.label}: ${b.text}` : b.text}${
+          b.link ? ` (${b.link})` : ""
+        }`,
+      ]
     ),
   ].join("\n");
 
@@ -1604,6 +1999,9 @@ function buildEmail(
   result: PlanResult | undefined,
   failure: string | undefined,
   durationMs: number,
+  /** Present once a ticket was attempted; `filed` undefined means none came
+   *  back. Left out, the email says nothing about tickets. */
+  ticketing?: { filed: FiledTicket | undefined },
 ): Omit<FeedbackPlanEmail, "to"> {
   const typeLabel = job.feedbackType === "bug" ? "Bug" : "Suggestion";
 
@@ -1614,7 +2012,12 @@ function buildEmail(
   // What support reads in the report email, minus the "who has the plan" line.
   const supportCopy = result && parsed &&
       (parsed.supportNote !== undefined || parsed.verdict.info !== undefined)
-    ? buildSupportSection(job, { kind: "plan", result, notified: [] })
+    ? buildSupportSection(job, {
+      kind: "plan",
+      result,
+      notified: [],
+      ticket: ticketing?.filed,
+    })
     : undefined;
   const ccWarning = ccPrompt && ccPrompt.warnings.length > 0
     ? `Check before pasting: this prompt contains ${
@@ -1622,10 +2025,12 @@ function buildEmail(
     }, which a fix prompt should not need. The report may have tried to steer it.`
     : undefined;
 
-  const subject =
-    `[FASTR plan] ${typeLabel} from ${job.userEmail} (${job.instanceId}): ${title}`;
+  const subject = `[FASTR plan] ${
+    ticketing?.filed ? `${ticketing.filed.ticket} ` : ""
+  }${typeLabel} from ${job.userEmail} (${job.instanceId}): ${title}`;
 
   const meta = [
+    ...(ticketing ? ticketMetaLines(ticketing.filed) : []),
     `Instance: ${job.instanceId}`,
     `Reporter's version: ${job.serverVersion}`,
     `Reporter's access: ${
@@ -1637,8 +2042,8 @@ function buildEmail(
       job.reporter.recentRequests?.length ?? "log unreadable"
     } in the last ${REPORTER_LOG_HOURS}h`,
     `Planned against: main, ${new Date().toISOString().slice(0, 10)}`,
-    job.imageCount > 0
-      ? `Screenshots: ${job.imageCount} (in the original feedback email)`
+    job.images.length > 0
+      ? `Screenshots: ${job.images.length} (attached)`
       : undefined,
   ].filter((l): l is string => !!l);
 
@@ -1734,7 +2139,13 @@ function buildEmail(
   <p style="font-size:12px;color:#888;">${escapeHtml(footer)}</p>
 </div>`.trim();
 
-  return { subject, plainText, html, replyTo: job.userEmail };
+  return {
+    subject,
+    plainText,
+    html,
+    replyTo: job.userEmail,
+    attachments: job.images,
+  };
 }
 
 /** Exposed for server/tests/feedback_planner_test.ts only. */
@@ -1751,4 +2162,12 @@ export const _feedbackPlannerInternals = {
   buildEmail,
   downloadSource,
   runPlanner,
+  parsePlan,
+  parseTicketResponse,
+  buildTicketPayload,
+  postTicket,
+  pickPlanRecipients,
+  TRACKER_URL,
+  SYSTEM_PROMPT,
+  TAR_MEMBERS,
 };

@@ -1,0 +1,45 @@
+name: Ticket Check
+
+# Tells the team's ticket tracker that a push happened, on any branch, so it can
+# check the diff against open tickets. Only the repo name, the ref and two
+# commit ids leave this workflow: the tracker fetches the public diff itself,
+# and nothing about tickets is ever printed here. A failure never fails a push.
+
+on:
+  push:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Notify the ticket tracker
+        continue-on-error: true
+        env:
+          TICKETS_HOOK_SECRET: ${{ secrets.TICKETS_HOOK_SECRET }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          if [ -z "$TICKETS_HOOK_SECRET" ]; then
+            exit 0
+          fi
+          body=$(jq -cn --arg repo "$REPO" --arg ref "$REF" \
+            --arg before "$BEFORE" --arg after "$AFTER" \
+            '{repo: $repo, ref: $ref, before: $before, after: $after}') || exit 0
+          sig=$(printf '%s' "$body" |
+            openssl dgst -sha256 -hmac "$TICKETS_HOOK_SECRET" -hex |
+            awk '{print $NF}') || exit 0
+          code=$(curl --max-time 20 -sS -o /dev/null -w '%{http_code}' \
+            -X POST "https://tickets.fastr-analytics.org/hooks/push" \
+            -H "Content-Type: application/json" \
+            -H "X-Tickets-Signature: sha256=$sig" \
+            --data-binary "$body") || true
+          echo "tracker: ${code:-no response}"
