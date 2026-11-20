@@ -91,7 +91,7 @@ export function measureText(
       testLine += chunks[i];
       const trimmedTestLine = testLine.trimEnd();
       const metrics = ctx.measureText(trimmedTestLine);
-      const testWidth = ctx.measureText(trimmedTestLine).width;
+      const testWidth = metrics.width;
       const fontBoundingBoxAscent = metrics.fontBoundingBoxAscent;
       const fontBoundingBoxDescent = metrics.fontBoundingBoxDescent;
       if (

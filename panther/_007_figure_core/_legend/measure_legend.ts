@@ -8,9 +8,10 @@ import {
   type MeasuredText,
   type MergedLegendStyle,
   type RenderContext,
+  type TextInfoUnkeyed,
 } from "../deps.ts";
 import type { LegendEntry } from "./types.ts";
-import { getLegendEntriesInGroups } from "./utils.ts";
+import { getLegendEntriesInGroups, getNColumnsNeeded } from "./utils.ts";
 
 export type MeasuredLegend = {
   dimensions: Dimensions;
@@ -22,6 +23,8 @@ export type MeasuredLegend = {
   colorBoxWidthOrPointWidth: number;
   s: MergedLegendStyle;
 };
+
+type MeasuredLegendEntry = { legendEntry: LegendEntry; mLabel: MeasuredText };
 
 export function measureLegend(
   rc: RenderContext,
@@ -42,43 +45,55 @@ export function measureLegend(
     ? s.legendPointRadius * 2 + s.legendPointStrokeWidth
     : s.legendColorBoxWidth;
 
-  // Helper function to measure with a specific entries per column value and text style
+  // A label's size depends on its text style alone, so the labels are measured
+  // once per style and every column layout tried reuses them.
+  function measureLegendEntries(
+    textStyle: TextInfoUnkeyed,
+  ): MeasuredLegendEntry[] {
+    return orderedEntries.map((legendEntry) => ({
+      legendEntry,
+      mLabel: rc.mText(legendEntry.label, textStyle, Number.POSITIVE_INFINITY),
+    }));
+  }
+
   function measureWithEntriesPerColumn(
     entriesPerColumn: number | number[],
-    textStyle = s.text,
+    measuredLegendEntries: MeasuredLegendEntry[],
   ) {
     const legendEntriesInGroups = getLegendEntriesInGroups(
-      orderedEntries,
+      measuredLegendEntries,
       entriesPerColumn,
     );
     let legendW = 0;
     let legendH = 0;
-    const groups = legendEntriesInGroups.map((legendEntriesThisGroup) => {
+    const groups = legendEntriesInGroups.map((entriesThisGroup) => {
       let wThisGroupLabels = 0;
       let hThisGroup = 0;
-      const allMeasuredLines = legendEntriesThisGroup.map((legendEntry) => {
-        const m = rc.mText(
-          legendEntry.label,
-          textStyle,
-          Number.POSITIVE_INFINITY,
-        );
-        wThisGroupLabels = Math.max(wThisGroupLabels, m.dims.w());
-        hThisGroup += m.dims.h();
-        return m;
-      });
-      hThisGroup += (legendEntriesThisGroup.length - 1) *
-        s.legendEntryVerticalGap;
+      for (const { mLabel } of entriesThisGroup) {
+        wThisGroupLabels = Math.max(wThisGroupLabels, mLabel.dims.w());
+        hThisGroup += mLabel.dims.h();
+      }
+      hThisGroup += (entriesThisGroup.length - 1) * s.legendEntryVerticalGap;
       legendW += colorBoxWidthOrPointWidth + s.legendLabelGap +
         wThisGroupLabels;
       legendH = Math.max(legendH, hThisGroup);
-      return { allMeasuredLines, legendEntriesThisGroup, wThisGroupLabels };
+      return {
+        allMeasuredLines: entriesThisGroup.map((e) => e.mLabel),
+        legendEntriesThisGroup: entriesThisGroup.map((e) => e.legendEntry),
+        wThisGroupLabels,
+      };
     });
     legendW += (groups.length - 1) * (2 * s.legendLabelGap);
     return { legendW, legendH, groups };
   }
 
+  const measuredLegendEntries = measureLegendEntries(s.text);
+
   // Initial measurement
-  let result = measureWithEntriesPerColumn(s.maxLegendEntriesInOneColumn);
+  let result = measureWithEntriesPerColumn(
+    s.maxLegendEntriesInOneColumn,
+    measuredLegendEntries,
+  );
 
   // If width constraint provided and exceeded, and max is a number (not array), try to fit
   if (
@@ -87,12 +102,23 @@ export function measureLegend(
     typeof s.maxLegendEntriesInOneColumn === "number"
   ) {
     let entriesPerColumn = s.maxLegendEntriesInOneColumn;
+    let nColumns = getNColumnsNeeded(legendEntries.length, entriesPerColumn);
     while (
       result.legendW > availableWidth &&
       entriesPerColumn < legendEntries.length
     ) {
       entriesPerColumn++;
-      result = measureWithEntriesPerColumn(entriesPerColumn);
+      const nColumnsTried = nColumns;
+      nColumns = getNColumnsNeeded(legendEntries.length, entriesPerColumn);
+      // Entries per column change the layout only through the columns they
+      // need, so a count that needs the columns just tried is not laid out
+      // again.
+      if (nColumns !== nColumnsTried) {
+        result = measureWithEntriesPerColumn(
+          entriesPerColumn,
+          measuredLegendEntries,
+        );
+      }
     }
 
     // If still exceeds width even with all entries in one column, shrink text to fit
@@ -102,7 +128,10 @@ export function measureLegend(
         ...s.text,
         fontSize: s.text.fontSize * scaleFactor,
       };
-      result = measureWithEntriesPerColumn(entriesPerColumn, scaledTextStyle);
+      result = measureWithEntriesPerColumn(
+        entriesPerColumn,
+        measureLegendEntries(scaledTextStyle),
+      );
     }
   }
 
