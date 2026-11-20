@@ -82,7 +82,7 @@ export function getClientToolsForSlides(
       name: "get_deck",
       description:
         "Get the current state of the slide deck: a summary outline of all slides, giving the deck's structure, existing content, slide order and, for each content slide, whether it overflows the page, then the deck's settings: its cover, header and footer logos, the logos that can be selected, the footer text and the watermark.",
-      inputSchema: z.object({}),
+      inputSchema: z.strictObject({}),
       availableIn: COPILOT_TOOL_VIEWS.get_deck,
       kind: "read",
       handler: async (_input, view) => {
@@ -128,25 +128,25 @@ export function getClientToolsForSlides(
       description:
         "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text, figures and images)." +
         CONTENT_BLOCKS_NOTE,
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         position: z
           .union([
-            z.object({
+            z.strictObject({
               after: z.string().describe(
                 "Slide ID to place after (3-char, e.g. 'p4q')",
               ),
             }),
-            z.object({
+            z.strictObject({
               before: z.string().describe(
                 "Slide ID to place before (3-char, e.g. 'p4q')",
               ),
             }),
-            z.object({
+            z.strictObject({
               toStart: z.literal(true).describe(
                 "Set to true to insert at the beginning",
               ),
             }),
-            z.object({
+            z.strictObject({
               toEnd: z.literal(true).describe(
                 "Set to true to insert at the end",
               ),
@@ -224,7 +224,7 @@ export function getClientToolsForSlides(
       description:
         "Rebuild an existing slide from new content: its content and its layout, which is optimized again, so a layout the user arranged is lost. A slide that keeps its type keeps the settings the input does not name: a cover's or section's text sizes, bold and italic, a cover's logos, and a content slide's sub-header, date, footer, header and footer logos and side panel (split). Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n\nFor any other change to text, settings, blocks or layout, use update_slide, which keeps what it is not told to change. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately." +
         CONTENT_BLOCKS_NOTE,
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         slideId: z.string().describe(
           "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
         ),
@@ -288,7 +288,7 @@ export function getClientToolsForSlides(
       name: "delete_slides",
       description:
         "Permanently remove one or more slides from the deck. The user confirms the deletion in a dialog that lists the slides by title; once confirmed the slides cannot be recovered. Remaining slides will maintain their relative order.",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         slideIds: z
           .array(z.string())
           .describe(
@@ -379,7 +379,7 @@ export function getClientToolsForSlides(
       name: "duplicate_slides",
       description:
         "Create copies of one or more slides. All duplicates are inserted after the last original slide (preserving their relative order). The duplicated slides have identical content but receive new unique IDs. This is also the only way to reuse a figure: there is no figure library, so copying the slide that holds it is how a figure is reused.",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         slideIds: z
           .array(z.string())
           .describe(
@@ -440,7 +440,7 @@ export function getClientToolsForSlides(
       name: "move_slides",
       description:
         "Reposition one or more slides to a new location in the deck. This is the recommended way to reorder slides, as it's safer and more precise than trying to recreate the entire deck. The moved slides will maintain their relative order to each other.",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         slideIds: z
           .array(z.string())
           .describe(
@@ -448,22 +448,22 @@ export function getClientToolsForSlides(
           ),
         position: z
           .union([
-            z.object({
+            z.strictObject({
               after: z.string().describe(
                 "Slide ID to place after (3-char, e.g. 'p4q')",
               ),
             }),
-            z.object({
+            z.strictObject({
               before: z.string().describe(
                 "Slide ID to place before (3-char, e.g. 'p4q')",
               ),
             }),
-            z.object({
+            z.strictObject({
               toStart: z.literal(true).describe(
                 "Set to true to move slides to the beginning",
               ),
             }),
-            z.object({
+            z.strictObject({
               toEnd: z.literal(true).describe(
                 "Set to true to move slides to the end",
               ),

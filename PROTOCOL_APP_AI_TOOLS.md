@@ -10,9 +10,11 @@ Source of truth: `configDStrict` in [lib/types/_metric_installed.ts](lib/types/_
 
 ```ts
 // lib/types/ai_input.ts
-const aiFilterElementSchema = configDStrict.shape.filterBy.element;
+const aiFilterElementSchema = z.strictObject(
+  configDStrict.shape.filterBy.element.shape,
+);
 
-export const AiMetricQuerySchema = z.object({
+export const AiMetricQuerySchema = z.strictObject({
   metricId: z.string(),
   disaggregations: z.array(
     configDStrict.shape.disaggregateBy.element.shape.disOpt,
@@ -134,17 +136,16 @@ The bounds and the one paging helper live in [lib/ai_tools/read_bounds.ts](lib/a
 
 ## Gotchas
 
-- **Never `z.strictObject()`.** It rejects instead of strips unknown properties; Claude sometimes adds underscore-prefixed metadata keys, which then throw on every call. Empty-input tools use `z.object({})`.
 - **Never `strict: true` on tool definitions.** Anthropic's grammar-constrained mode rejects `minItems`/`maxItems`/`minLength`/ `maxLength`/`minimum`/`maximum` (which `.min()`/`.max()` emit) with a 400. Our schemas rely on those constraints.
 
 ## Checklist for a new AI tool schema
 
 1. Check storage schemas first: does `configDStrict` (or another) already have the fields?
-2. Derive with `.shape.fieldName`; keep storage field names.
+2. Derive with `.shape.fieldName`; keep storage field names. A borrowed field whose value is an object is rebuilt closed at the AI layer (`z.strictObject(Storage.shape.field.shape)`, each nested object included), and the storage schema is left open, because stored rows that still carry a retired key would throw.
 3. Simplifying? Document the exception in a comment, localize the conversion.
 4. Inclusion list? Add `.min(1)`.
 5. Data-dependent checks go in `content_validators.ts` (or `report_validators.ts`), called before any mutation.
-6. Handlers throw on failure; never return error strings; never `z.strictObject` / `strict: true`.
+6. Handlers throw on failure; never return error strings.
 7. If the tool's _output_ prints a schema example, it must match the real schema exactly.
 8. A read that can be asked for many takes an array, and a write's result states what the write left: "The round budget".
 9. A list whose length follows the instance's data is bounded where the copilot did not ask for it and paged where it did: "Bounded reads".

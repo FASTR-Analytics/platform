@@ -215,7 +215,7 @@ export function getSharedToolsForReferenceDocs(
     createAITool({
       name: "get_reference_docs",
       description: describeReferenceDocsList(entries),
-      inputSchema: z.object({}),
+      inputSchema: z.strictObject({}),
       handler: async () => {
         const instance = await surface.instance();
         return buildReferenceCatalog(
@@ -240,7 +240,7 @@ export function getSharedToolsForReferenceDocs(
       name: "get_reference_doc",
       description:
         "Read one reference document, by the id get_reference_docs lists: an app document's id (for example 'iceh') or a methodology hub path (for example '04_data_quality_assessment.md', or 'fr/04_data_quality_assessment.md' for its French mirror). Returns the document's markdown.",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         id: z.string().describe(
           "The document id, as get_reference_docs lists it.",
         ),

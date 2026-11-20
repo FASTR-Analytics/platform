@@ -79,7 +79,7 @@ export function getClientToolsForFigureEditor(
       name: "get_figure_editor",
       description:
         "Read the figure open in the figure editor as its draft stands: the metric, the chart type, each disaggregation and its display slot, the filters, the active replicant and the count of its values (get_dimension_values lists them), the period range and the captions. Call this before update_figure_editor.",
-      inputSchema: z.object({}),
+      inputSchema: z.strictObject({}),
       availableIn: COPILOT_TOOL_VIEWS.get_figure_editor,
       kind: "read",
       handler: async (_input, view) => {
@@ -109,7 +109,7 @@ export function getClientToolsForFigureEditor(
       name: "update_figure_editor",
       description:
         "Change the figure open in the figure editor. Provide only the fields to change (the chart type, timeseriesGrouping, the replicant, filters, disaggregations, period, captions); everything else is kept and the preview re-queries at once. The change lands in the editor's draft like the user's own edit. Call get_figure_editor first.",
-      inputSchema: z.object({ patch: AiVizConfigUpdateSchema }),
+      inputSchema: z.strictObject({ patch: AiVizConfigUpdateSchema }),
       availableIn: COPILOT_TOOL_VIEWS.update_figure_editor,
       kind: "write",
       handler: async (input, view) => {

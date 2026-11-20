@@ -57,7 +57,7 @@ export function createGetFigureEditorImageTool(
     name: "get_figure_editor_image",
     description:
       `Look at the figure open in the figure editor as an image, drawn from the editor's preview as it stands now, unapplied changes included. Use it to judge what get_figure_editor's configuration cannot tell you: whether the labels, legend and table cells can be read, whether the series can be told apart. The result gives the image's size in pixels: a figure too tall for one image is drawn narrower. You see the image for the rest of this turn and not after, so say in your reply what it showed. Looking again is one call and shows the figure as it is then. A turn takes at most ${IMAGE_LIMITS.MAX_PER_TURN} images.`,
-    inputSchema: z.object({}),
+    inputSchema: z.strictObject({}),
     availableIn: COPILOT_TOOL_VIEWS.get_figure_editor_image,
     kind: "read",
     handler: async (_input, view) => {

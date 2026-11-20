@@ -56,7 +56,7 @@ export function createUpdateSlideTool(
     name: "update_slide",
     description:
       "Change a slide in place, keeping everything not named: a cover's title, subtitle, presenter or date, each one's size, bold and italic, and its logos; a section's title or subtitle, and each one's size, bold and italic; a content slide's header, sub-header, date, footer, header and footer logos, side panel (split), its blocks (blockUpdates) or its layout (layoutChange). get_slides shows a slide's settings as stored. Give the slideId and an `update` whose `type` matches the slide's type, with only the fields to change. A block ID comes from get_slides or from the result of the write that made the block. A from_metric block needs get_metric_data first. To tweak an existing figure use update_figure; to rebuild a slide or change its type use replace_slide. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately.",
-    inputSchema: z.object({
+    inputSchema: z.strictObject({
       slideId: z.string().describe(
         "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
       ),

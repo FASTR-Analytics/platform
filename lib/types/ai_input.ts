@@ -24,19 +24,29 @@ import {
 } from "./slides.ts";
 
 // ============================================================================
-// Shared filter schema - DERIVED from storage schema (configDStrict.filterBy)
+// Shared filter and disaggregation schemas - DERIVED from storage schema
+// (configDStrict.filterBy, configDStrict.disaggregateBy)
 //
 // Field names match storage: disOpt, values (not col, vals)
 // Type matches storage: values is (string | number)[] with .min(1)
+//
+// A tool input refuses an undeclared key, so every object borrowed from a
+// storage schema is rebuilt closed here. The storage schema stays open,
+// because stored rows that still carry a retired key would otherwise throw.
 // ============================================================================
 
-const aiFilterElementSchema = configDStrict.shape.filterBy.element;
+const aiFilterElementSchema = z.strictObject(
+  configDStrict.shape.filterBy.element.shape,
+);
+const aiDisaggregationSchema = z.strictObject(
+  configDStrict.shape.disaggregateBy.element.shape,
+);
 
 // ============================================================================
 // Metric query schema
 // ============================================================================
 
-export const AiMetricQuerySchema = z.object({
+export const AiMetricQuerySchema = z.strictObject({
   metricId: z
     .string()
     .describe(
@@ -75,7 +85,7 @@ export const AiMetricQuerySchema = z.object({
     ),
 });
 
-export const AiDimensionValuesQuerySchema = z.object({
+export const AiDimensionValuesQuerySchema = z.strictObject({
   metricId: z
     .string()
     .describe(
@@ -105,7 +115,7 @@ export const AiDimensionValuesQuerySchema = z.object({
 
 // Individual figure schemas (unnested for type inference)
 
-export const AiTextBlockSchema = z.object({
+export const AiTextBlockSchema = z.strictObject({
   type: z.literal("text"),
   markdown: z
     .string()
@@ -123,7 +133,7 @@ export const AiTextBlockSchema = z.object({
       },
     ),
   style: z
-    .object({
+    .strictObject({
       textBackground: z
         .enum(TEXT_BACKGROUND_KEYS)
         .optional()
@@ -137,7 +147,7 @@ export const AiTextBlockSchema = z.object({
     ),
 });
 
-export const AiFigureFromMetricSchema = z.object({
+export const AiFigureFromMetricSchema = z.strictObject({
   type: z.literal("from_metric"),
   metricId: z
     .string()
@@ -192,7 +202,7 @@ export const AiFigureFromMetricSchema = z.object({
 // style (`config.s`) is excluded by design.
 // ============================================================================
 
-export const AiFigureConfigPatchSchema = z.object({
+export const AiFigureConfigPatchSchema = z.strictObject({
   // ── config.d (data spec) ──
   // NOTE: chart `type` is intentionally NOT editable. The figure keeps its type.
   valuesDisDisplayOpt: configDStrict.shape.valuesDisDisplayOpt.optional()
@@ -204,7 +214,7 @@ export const AiFigureConfigPatchSchema = z.object({
     ),
   valuesFilter: z.union([configDStrict.shape.valuesFilter, z.null()]).optional()
     .describe("Which value properties to show, or null to show all."),
-  disaggregateBy: configDStrict.shape.disaggregateBy.optional()
+  disaggregateBy: z.array(aiDisaggregationSchema).optional()
     .describe(
       "Replaces ALL disaggregations. Each is { disOpt, disDisplayOpt }; set a " +
         "dimension's disDisplayOpt to 'replicant' to replicate by it. An " +
@@ -214,7 +224,7 @@ export const AiFigureConfigPatchSchema = z.object({
         "flagged; an unavailable flag is an error). Prefer `rollupDimension` " +
         "for roll-up changes.",
     ),
-  filterBy: configDStrict.shape.filterBy.optional()
+  filterBy: z.array(aiFilterElementSchema).optional()
     .describe("Replaces ALL data filters. Empty array clears."),
   selectedReplicantValue: z.union([z.string(), z.null()]).optional()
     .describe(
@@ -234,7 +244,7 @@ export const AiFigureConfigPatchSchema = z.object({
   // extends as new data lands); an omitted min anchors to the data's
   // earliest period. See applyFigureConfigPatch.
   periodFilter: z.union([
-    z.object({
+    z.strictObject({
       min: z.number().optional().describe(
         "Start period (YYYY / YYYYQ / YYYYMM). Omit to start at the earliest available data.",
       ),
@@ -276,11 +286,14 @@ export type AiVizConfigUpdate = z.infer<typeof AiVizConfigUpdateSchema>;
 
 // Union schemas
 
-export const AiImageBlockSchema = imageBlockSchema.extend({
-  imgFile: imageBlockSchema.shape.imgFile.describe(
+const imageBlock = imageBlockSchema.shape;
+
+export const AiImageBlockSchema = z.strictObject({
+  type: imageBlock.type,
+  imgFile: imageBlock.imgFile.describe(
     "File name of one of the instance's image assets, exactly as get_image_assets lists it.",
   ),
-  style: imageBlockSchema.shape.style.describe(
+  style: z.strictObject(imageBlock.style.unwrap().shape).optional().describe(
     "Optional: imgFit 'contain' (the default) shows the whole image inside its cell; 'cover' fills the cell and crops the overflow. imgAlign ('center', the default, 'top', 'bottom', 'left', 'right') places the image within its cell.",
   ),
 });
@@ -293,7 +306,7 @@ export const AiContentBlockInputSchema = z.union([
 
 // Layout spec schemas (for AI layout control)
 
-export const LayoutCellSchema = z.object({
+export const LayoutCellSchema = z.strictObject({
   block: z.union([
     z.string().describe(
       "Existing block ID (from get_slides or from the result of the write that made the block) to keep unchanged",
@@ -328,6 +341,7 @@ const cover = coverSlideSchema.shape;
 const section = sectionSlideSchema.shape;
 const content = contentSlideSchema.shape;
 const split = content.split.unwrap().shape;
+const [plainFill, patternFill, imageFill] = split.fill.options;
 
 type TextStyleRange = Pick<
   SlideTextStyle<unknown>,
@@ -372,7 +386,7 @@ function logoVisibilityField(
 }
 
 const AiSplitSchema = z
-  .object({
+  .strictObject({
     placement: split.placement.describe(
       "The side of the page the panel sits on.",
     ),
@@ -385,7 +399,11 @@ const AiSplitSchema = z
           SPLIT_SIZES_PCT.join(", ")
         }.`,
       ),
-    fill: split.fill.describe(
+    fill: z.discriminatedUnion("type", [
+      z.strictObject(plainFill.shape),
+      z.strictObject(patternFill.shape),
+      z.strictObject(imageFill.shape),
+    ]).describe(
       "{ type: 'plain' } fills the panel with the theme's colour; { type: 'pattern', patternType } draws a pattern: ovals, circles, dots, lines, grid, chevrons, waves or noise; { type: 'image', imgFile } shows one of the instance's image assets, named as get_image_assets lists it.",
     ),
   })
@@ -476,7 +494,7 @@ const AI_CONTENT_SETTINGS = {
   split: AiSplitSchema.optional(),
 };
 
-export const AiCoverSlideSchema = z.object({
+export const AiCoverSlideSchema = z.strictObject({
   type: cover.type,
   title: cover.title.max(200).describe(
     "The main title of the presentation, displayed prominently on the cover slide. Maximum 200 characters.",
@@ -493,7 +511,7 @@ export const AiCoverSlideSchema = z.object({
   ...AI_COVER_SETTINGS,
 });
 
-export const AiSectionSlideSchema = z.object({
+export const AiSectionSlideSchema = z.strictObject({
   type: section.type,
   sectionTitle: section.sectionTitle.min(1).max(200).describe(
     "Required: The section title that will be displayed prominently. Use this to mark major transitions in the presentation, e.g., 'Introduction', 'Key Findings', 'Recommendations'. Minimum 1 character, maximum 200 characters.",
@@ -510,7 +528,7 @@ const contentHeaderField = content.header.unwrap().max(200).optional()
     "Optional: The slide header/title that appears at the top of the slide. Should clearly describe what this slide is about. Maximum 200 characters.",
   );
 
-export const AiContentSlideSchema = z.object({
+export const AiContentSlideSchema = z.strictObject({
   type: content.type,
   header: contentHeaderField,
   ...AI_CONTENT_SETTINGS,
@@ -533,7 +551,7 @@ export const AiSlideUpdateSchema = z
   .discriminatedUnion("type", [
     AiCoverSlideSchema.partial().required({ type: true }),
     AiSectionSlideSchema.partial().required({ type: true }),
-    z.object({
+    z.strictObject({
       type: content.type,
       header: contentHeaderField,
       ...AI_CONTENT_SETTINGS,
@@ -542,7 +560,7 @@ export const AiSlideUpdateSchema = z
       ),
       blockUpdates: z
         .array(
-          z.object({
+          z.strictObject({
             blockId: z.string().describe(
               "Block ID, from get_slides or from the result of the write that made the block",
             ),
@@ -554,7 +572,7 @@ export const AiSlideUpdateSchema = z
           `REPLACE specific blocks by ID with new content. Max ${MAX_CONTENT_BLOCKS} blocks. Use this to swap a block for a DIFFERENT figure (a different metric or a different chart type) or to change a text block. To merely TWEAK an existing figure (e.g. its replicant, filters, captions), use update_figure instead: replacing a figure block here REBUILDS it from scratch and DISCARDS any prior edits. No markdown tables: use a from_metric block with a table-type preset (vizPresetId) instead. Mutually exclusive with layoutChange.`,
         ),
       layoutChange: z
-        .object({ layout: LayoutSpecSchema })
+        .strictObject({ layout: LayoutSpecSchema })
         .optional()
         .describe(
           "Restructure the layout: add, remove or rearrange blocks, or change their spans. The layout names ALL blocks that will be on the slide: an existing block it does not name is REMOVED. Name existing blocks by ID to keep them; give inline content for new ones. Prefer balanced spans (e.g. 6+6 or 8+4) unless the user asks for specific proportions. Mutually exclusive with blockUpdates.",
@@ -582,9 +600,9 @@ export type AiSlideInput =
 export type AiSlideUpdate = z.infer<typeof AiSlideUpdateSchema>;
 
 const SETTING_KEYS = {
-  cover: z.object(AI_COVER_SETTINGS).keyof().options,
-  section: z.object(AI_SECTION_SETTINGS).keyof().options,
-  content: z.object(AI_CONTENT_SETTINGS).keyof().options,
+  cover: z.strictObject(AI_COVER_SETTINGS).keyof().options,
+  section: z.strictObject(AI_SECTION_SETTINGS).keyof().options,
+  content: z.strictObject(AI_CONTENT_SETTINGS).keyof().options,
 };
 
 // replace_slide's input: a slide that keeps its type keeps the settings the
@@ -624,9 +642,21 @@ function keptSettings<S extends Slide, K extends keyof S & string>(
 // ============================================================================
 
 const deck = slideDeckConfigSchema.shape;
+const logos = deck.logos.shape;
+const logoSection = logos.cover.shape;
 
-export const AiDeckSettingsPatchSchema = z.object({
-  logos: deck.logos.optional().describe(
+const AiLogoSectionSchema = z.strictObject({
+  ...logoSection,
+  sizing: z.strictObject(logoSection.sizing.unwrap().shape).optional(),
+});
+
+export const AiDeckSettingsPatchSchema = z.strictObject({
+  logos: z.strictObject({
+    ...logos,
+    cover: AiLogoSectionSchema,
+    header: AiLogoSectionSchema,
+    footer: AiLogoSectionSchema,
+  }).optional().describe(
     "Optional: the deck's logos, replaced whole: availableCustom (the deck's own logos, each one of the instance's image assets) and, for cover, header and footer, the logos selected (each a built-in logo or one of availableCustom, drawn in this order), showByDefault (whether a slide shows them when its own setting is 'inherit') and an optional sizing ({ size, spacing }, each 'sm', 'md', 'lg' or 'xl').",
   ),
   // null stands for the stored field's absence, which JSON cannot send.

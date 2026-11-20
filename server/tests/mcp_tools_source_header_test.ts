@@ -44,7 +44,7 @@ function stubTool(handler: () => Promise<string>) {
   return createAITool({
     name: "stub_tool",
     description: "stub",
-    inputSchema: z.object({}),
+    inputSchema: z.strictObject({}),
     handler,
     kind: "read",
     headless: true,
@@ -70,7 +70,7 @@ Deno.test("withSourceHeader: the Source line goes before an output's text and it
   const tool = createAITool({
     name: "stub_tool",
     description: "stub",
-    inputSchema: z.object({}),
+    inputSchema: z.strictObject({}),
     handler: async () => new AIToolOutput({ text: "body", images: [image] }),
     kind: "read",
     headless: true,
@@ -93,7 +93,7 @@ Deno.test("withSourceHeader: a structured return keeps its value beside the head
   const tool = createAITool({
     name: "stub_tool",
     description: "stub",
-    inputSchema: z.object({}),
+    inputSchema: z.strictObject({}),
     outputSchema: z.object({ n: z.number() }),
     handler: async () => ({ n: 1 }),
     kind: "read",
@@ -111,7 +111,7 @@ Deno.test("withSourceHeader: the call's context reaches the handler on every pat
   const tool = createAITool({
     name: "stub_tool",
     description: "stub",
-    inputSchema: z.object({}),
+    inputSchema: z.strictObject({}),
     outputSchema: z.object({ n: z.number() }),
     handler: async (_input, ctx) => {
       seen.push(ctx);

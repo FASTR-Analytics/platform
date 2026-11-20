@@ -76,7 +76,7 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
     name: "get_overview",
     description:
       "Overview of this FASTR instance: country, calendar, the pinned results package and what it holds (datasets, indicators, period coverage), terminology, and how to use the other tools. Call this first.",
-    inputSchema: z.object({}),
+    inputSchema: z.strictObject({}),
     kind: "read",
     headless: true,
     handler: async () => {

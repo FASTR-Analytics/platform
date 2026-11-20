@@ -44,7 +44,7 @@ export function getClientToolsForDrafts(
       availableIn: COPILOT_TOOL_VIEWS.show_draft_slide_to_user,
       description:
         `Show an ad-hoc slide preview to the user inline in the chat. This is also how you show a single chart: put one from_metric figure on a content slide. Use it to propose slide content, display ideas, or when the user asks to see something charted. While a slide deck is open the user can add the draft to it from the preview. For a content slide, the result says whether it overflows the page.\n\nSupports three slide types:\n- 'cover': Title slide with title and optional subtitle/presenter/date\n- 'section': Section divider with sectionTitle and optional sectionSubtitle\n- 'content': Content slide with optional header and blocks (text, figures and images)\n\nFor content blocks, use the same rules as create_slide: from_metric for figures (call get_metric_data first), text for markdown, image for an image asset (get_image_assets lists them). IMPORTANT: Markdown tables are NOT allowed — to display tabular data, use a from_metric block with a table-type preset. Max ${MAX_CONTENT_BLOCKS} content blocks.`,
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         slide: z
           .union([
             AiCoverSlideSchema,

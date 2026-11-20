@@ -14,7 +14,7 @@ export function getClientToolsForImageAssets() {
       availableIn: COPILOT_TOOL_VIEWS.get_image_assets,
       description:
         "List the file names of the instance's image assets: the files an image block or a content slide's image split panel can show. Call it only when an image is asked for. Assets are uploaded by users on the Assets page; no tool uploads one.",
-      inputSchema: z.object({}),
+      inputSchema: z.strictObject({}),
       kind: "read",
       handler: () => {
         const files = imageAssetFileNames();

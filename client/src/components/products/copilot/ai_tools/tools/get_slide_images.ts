@@ -13,7 +13,7 @@ export function createGetSlideImagesTool() {
     name: "get_slide_images",
     description:
       `Look at one to ${MAX_LOOK_SUBJECTS} slides of the open deck as images, each drawn as the PDF export draws its page: the open slide as it stands on the canvas (including edits not yet saved), any other slide as saved. Use it to judge what a slide's text, and whether it overflows the page, cannot tell you: whether a dense table can be read, whether several blocks sit well together. The images come back in the order asked, and the result gives each one's size in pixels and, for each content slide, whether it overflows the page. You see an image for the rest of this turn and not after, so say in your reply what it showed. Looking again is one call and shows the slide as it is then. A turn takes at most ${IMAGE_LIMITS.MAX_PER_TURN} images.`,
-    inputSchema: z.object({
+    inputSchema: z.strictObject({
       slideIds: z
         .array(z.string())
         .min(1)

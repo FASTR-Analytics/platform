@@ -32,7 +32,7 @@ export function getClientToolsForModules(
     createAITool({
       name: "get_available_modules",
       description: "Get a list of the analysis modules in the results package",
-      inputSchema: z.object({}),
+      inputSchema: z.strictObject({}),
       availableIn: COPILOT_TOOL_VIEWS.get_available_modules,
       handler: async () => {
         return formatModulesListForAI(modules, metrics);
@@ -52,7 +52,7 @@ export function getClientToolsForModules(
   ];
 }
 
-const ModuleFileQuerySchema = z.object({
+const ModuleFileQuerySchema = z.strictObject({
   id: z.string().describe("Module ID"),
   fromLine: z
     .number()
@@ -130,7 +130,7 @@ export function getClientToolsForModuleInternals(env: ModuleInternalsEnv) {
       name: "get_module_settings",
       description:
         "Get the configuration settings and parameters for a specific module. This shows what options are selected for the module.",
-      inputSchema: z.object({ id: z.string().describe("Module ID") }),
+      inputSchema: z.strictObject({ id: z.string().describe("Module ID") }),
       availableIn: COPILOT_TOOL_VIEWS.get_module_settings,
       handler: async (input) => {
         const res = await env.getModuleSettings(input.id);
