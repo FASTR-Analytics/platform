@@ -597,7 +597,7 @@ scope; you do not choose the package, and no tool takes one.
 
 1. **Cover Slide:** title, subtitle, presenter, date
 2. **Section Slide:** sectionTitle, sectionSubtitle
-3. **Content Slide:** heading + blocks array (max ${MAX_CONTENT_BLOCKS} blocks)
+3. **Content Slide:** header + blocks array (max ${MAX_CONTENT_BLOCKS} blocks)
 
 Each slide also has its own settings: a cover's and a section's text sizes, bold and italic, a cover's logos, and a content slide's sub-header, date, footer, header and footer logos and side panel (split). get_slides shows them as stored, and update_slide sets them.
 
