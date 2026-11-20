@@ -175,6 +175,17 @@ Tim ruled that step 1 designs the config and writes the steps after it. What ste
 
 Written by step 1.
 
+### The last step: does the config move into panther? (a question, not code)
+
+[TIM, 2026-11-19] "if this new optimised stored figure config essentially becomes a reduced JSON-only version of figure inputs that is AI-friendly, could it be moved into panther itself. That way we can maintain the light-storage version of the figure inputs in the same place as the inputs themselves."
+
+Step 1 writes this as the plan's last step. It answers whether the config, or which part of it, moves into panther. What it starts from [CHECKED]:
+
+- Panther's `PLAN_20_LONG_TABLE_FIGURE.md` already plans to take "the generic "figure over a long table" model" out of this app. It names a `d` config (the figure type, each dimension on a slot, filters, the period filter, the values filter, the replicant, the roll-up and the timeseries grain), kept apart from any style type. It runs after this plan closes, and says this plan's "whole-figure rules and per-type shape are part of the model this plan extracts". Its open question is whether `VIZ_TYPE_CONFIG` is universal or this app's taste.
+- Panther's `PLAN_21_FIGURE_JSON_INPUT.md` plans a JSON form of panther's own style.
+- The config holds no rows. It says what to read of a metric and how to lay it out and draw it, where a `FigureInputs` holds the rows themselves (§1.6).
+- Some of what the config means comes from this app's metrics: which dimensions a metric requires, how its values combine, and which special chart styles it may use ([special_chart_checks.ts](client/src/generate_visualization/special_chart_checks.ts)).
+
 ## §5 Out of scope
 
 - **Panther's figure schema.** The objective names it as the one other schema. Its own JSON form is panther's `PLAN_21_FIGURE_JSON_INPUT.md`. _(proposed)_
