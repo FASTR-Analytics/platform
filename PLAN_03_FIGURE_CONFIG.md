@@ -1,6 +1,6 @@
 # PLAN: The figure config
 
-Status: DESIGNED AND RULED (2026-11-20). Step 1 designed the config (§2), tested it (§1.7) and took Tim's rulings (§3). The code steps wait on panther's `PLAN_01_CLOSED_TOOL_INPUTS.md`.
+Status: THE CONFIG IS DESIGNED AND RULED (2026-11-20). LIVE EDITING IS NOT DESIGNED. Step 1 designed the config (§2), tested it (§1.7) and took Tim's rulings (§3). Step 2 designs how the editor's controls bind a person and how two people's edits combine (ruling 12, §1.8, §1.9). The code steps wait on panther's `PLAN_01_CLOSED_TOOL_INPUTS.md`.
 
 **The objective.** [TIM, 2026-11-19] "we essentially optimise PresentationObjectConfig as the best possible stored JSON-only config object, that gives us the best possible shape for creating the figures we want in wb-fastr in a way that works for AI too". [TIM] "then the only other schema is panther's on figure schema, and we have a conversion func as part of this lib". So `PresentationObjectConfig` is redesigned as the one description of a figure in this app: what is stored, what the editor and the presets write, and what the copilot states and reads. Statements in this file are marked by kind (§0). Nothing here is a design decision except this objective and the rulings of §3.
 
@@ -10,7 +10,7 @@ Branch: `main`. Repos: this one; `wb-fastr-modules` (`/Users/timroberton/project
 
 ## §0 How to work this plan
 
-The instruction is "Do the next step of PLAN_03_FIGURE_CONFIG.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 6. Step 2 writes in this file. Step 3 is worked in panther and ends with a sync commit here. Step 4 is this repo. Step 5 is this repo and `wb-fastr-modules`. Step 6 is this repo.
+The instruction is "Do the next step of PLAN_03_FIGURE_CONFIG.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 7. Steps 2 and 3 write in this file. Step 4 is worked in panther and ends with a sync commit here. Step 5 is this repo. Step 6 is this repo and `wb-fastr-modules`. Step 7 is this repo.
 
 ### The kinds of statement in this file
 
@@ -18,9 +18,10 @@ The instruction is "Do the next step of PLAN_03_FIGURE_CONFIG.md." Branch, floor
 - **[RUN]**: measured on 2026-11-20 by the agent that did step 1 ("the step-1 agent"), with a prototype of §2's schema kept outside the repos, or read in the code by that agent on that day. A count is of that day.
 - **[REVIEW]**: reported on 2026-11-20 by an independent agent that was given the prototype and not the step-1 agent's view of it, from scripts it ran against the prototype's first draft. Not rerun by the step-1 agent unless the line says so.
 - **[READ]**: read in the code on 2026-11-20, after step 1, by the agent that reviewed this plan ("the reviewing agent"). Where the code has moved, the code wins.
+- **[ATTACK]**: reported on 2026-11-20 by an independent agent that was given the reviewing agent's first change to §1.8, §2.2, §2.3 and ruling 12 (`git show 8630af2ba -- PLAN_03_FIGURE_CONFIG.md`) and told to refute it. Not read again by the reviewing agent unless the line says [READ]. A proposal in such a line is that agent's opinion.
 - **[TIM]**: Tim's words, quoted as typed.
 - **[ACCOUNT]**: what a quote of Tim's replied to, as an earlier version of this plan recorded it (`git show 46469d6f8:PLAN_03_COPILOT_FIGURES.md`, §2.1). Written by an agent that was in that conversation, and not a quote.
-- **_(proposed)_**: written by the writing agent and not heard from Tim. It stands unless Tim overrules it before the step that depends on it.
+- **_(proposed)_**: written by the agent the text names, or by the writing agent where it names none, and not heard from Tim. It stands unless Tim overrules it before the step that depends on it.
 
 A heading's mark covers everything under it. A line's own mark overrides its heading's. Unmarked text is procedure, vocabulary, or a ruling of §3.
 
@@ -50,7 +51,7 @@ The rules the writing agent draws from them _(proposed)_:
 
 - No design is put to Tim before it has been tested against the code and attacked by an independent agent that was not given the conclusion. A proposal states three things: what exists now, what this plan says, what is proposed.
 - An opinion is marked as one, with whose it is, and is never restated as a fact.
-- Step 1 writes no file in any repo but this plan. Anything it builds to test the design lives outside the repos. Production data it reads is read-only under PROTOCOL_ACCESS_DBS.md and is deleted when the step ends.
+- Steps 1 and 2 write no file in any repo but this plan. Anything either builds to test the design lives outside the repos. Production data either reads is read-only under PROTOCOL_ACCESS_DBS.md and is deleted when the step ends.
 
 The rules the step-1 agent adds for the code steps _(proposed)_:
 
@@ -200,9 +201,57 @@ A prototype of §2's schema, and of the conversion, was run over three sets of t
 - A stored figure that lacks a dimension its metric requires shows "Error with required disaggregator" and a locked checkbox, and no control adds the dimension but a change of type ([disaggregation_section.tsx:289-301](client/src/components/_shared/figure_editor/editor_panel_data/disaggregation_section.tsx#L289-L301)).
 - The preview shows a notice in place of the figure when two dimensions hold one slot ([figure_editor.tsx:217-231](client/src/components/_shared/figure_editor/figure_editor.tsx#L217-L231)).
 
+### 1.9 What the attack on the first draft of the editor's rules found [ATTACK]
+
+"The draft" is the text that stands in §2.3's rows "The editor" and "The collab map" and in the rules under its table. Its last rule is the one on opening a stored figure.
+
+1. **The draft's rules cover no write to `data`.** Three sequences by one person, each from a figure that passes the checks. Each ends in a figure that fails a metric check.
+   - Preset `m6-02-01/coverage-bar` holds a required `year` on no slot, under a one-year period [READ]. The person unticks the period filter, or chooses "Custom". Nothing then pins `year`.
+   - Preset `m9-02-01/iceh-inequality-chart` shows one of four value props and holds `iceh_indicator` on the values' slot [READ], so §2.4 leaves `"valueProps"` on no slot. The person unticks the value filter. Four value props are shown and none has a slot.
+   - A figure whose required dimension left its slot under §2.4, being filtered to one value. The person adds a second value. Nothing then pins the dimension.
+   - Proposed: a change to `periodFilter`, `filters` or `valueProps` that leaves a required dimension unpinned, or two or more value props with no slot, puts that dimension or `"valueProps"` on the first free slot in the same write.
+2. **A save that keeps a figure's stored config is silent.** A cutoff typed as "1e999" on a count-format figure is not finite (§1.8). Fitting changes keys only, so the config still fails the parse.
+   - Under the draft the save keeps the stored config and succeeds. No save-failure message goes out ([doc_rooms.ts:320-327](server/collab/doc_rooms.ts#L320-L327)) and the header stays "Live" ([figure_editor.tsx:991-1019](client/src/components/_shared/figure_editor/figure_editor.tsx#L991-L1019)). Each later edit of the figure is unsaved, and the next open starts from the stored row. Today the same input shows "Not saving" ([figure_editor.tsx:993-1005](client/src/components/_shared/figure_editor/figure_editor.tsx#L993-L1005)).
+   - A flush before a restore reports the room saved ([doc_rooms.ts:709-734](server/collab/doc_rooms.ts#L709-L734)).
+   - A stored config kept beside the document's own data half pairs a config with rows fetched for another ([slide_crdt.ts:86-93](lib/collab/slide_crdt.ts#L86-L93)). A figure with no stored row has nothing to keep.
+   - Proposed: the save keeps the stored figure block, config and data together, names the figure in the save-state message, the editor shows "Not saving" for it, and a flush reports the room unsaved. A number input writes finite numbers only.
+3. **A change of type that loses to a layout edit wipes the surviving type's style.** On a chart, A moves a dimension, which writes type and layout. B, before receiving that, changes the type to a table, which writes type and layout and resets the chart's style under ruling 11. Yjs keeps one of the two type-and-layout values, by client id. Where A's is kept, B's style writes stand: a chart with every style field at its default, which parses and which nobody chose.
+   - The draft's "a pure function of the draft" contradicts ruling 11's "the editor keeps it for the session". A change back restores from one editor's own cache ([summary.tsx:85](client/src/components/_shared/figure_editor/editor_panel_data/summary.tsx#L85), [:115-130](client/src/components/_shared/figure_editor/editor_panel_data/summary.tsx#L115-L130)), so two editors write differently from one draft.
+   - Proposed: each type's style, and each timeseries mode's, sits in the map under its own key. A change of type or mode writes the new key and leaves the old. Fitting reads the key of the type and mode the map holds, and a change back restores from the map.
+4. **Fields that merge apart today travel as one value under §2.3.**
+   - The replicant's value is inside `layout` (§2.1). Stepping the replicant ([replicate_by_options.tsx:189-223](client/src/components/_shared/figure_editor/replicate_by_options.tsx#L189-L223)), or the editor's own resolution of it after a fetch ([figure_editor.tsx:397-405](client/src/components/_shared/figure_editor/figure_editor.tsx#L397-L405)), then writes the whole type and layout, and drops another person's move of a dimension made at the same time. Today the replicant's value, the values' slot and the time grouping are keys of their own ([figure_config_crdt.ts:13-19](lib/collab/figure_config_crdt.ts#L13-L19)) [READ].
+   - A timeseries style is one value, so two people who change different style fields at once lose one change. Today each style field is a key of its own. 17,269 of the 24,052 stored figures are timeseries (§1.7).
+   - §2.3 says `conditionalFormatting` travels alone and a timeseries style travels whole. A standard timeseries style holds `conditionalFormatting` (§2.1) [READ].
+   - Proposed: type and layout travel as one value, apart from the replicant's value, which travels alone and which fitting drops when the layout has no replicant. Every style merges field by field, a timeseries style included, and `conditionalFormatting` is one field.
+5. **Undo and redo are controls, and their write is not a function of the draft.** A chooses the band mode: one write of layout, value props and style. B changes a style field. A presses Undo ([figure_editor.tsx:633-638](client/src/components/_shared/figure_editor/figure_editor.tsx#L633-L638), [:1020-1031](client/src/components/_shared/figure_editor/figure_editor.tsx#L1020-L1031)). Yjs restores A's earlier layout and value props and skips the style, which another client has written since. The mode is on, a dimension is back on `series`, and the value props are not the mode's.
+   - Proposed: a step of undo or redo whose result fails a check is not applied.
+6. **Back under a live binding writes a held-back draft.** A and B edit one figure. A presses Back. The editor returns A's whole config, and the host resolves the figure again and then diffs that config onto the map ([slide_editor.tsx:1084-1111](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx#L1084-L1111) [READ], [report.tsx:1219-1242](client/src/components/products/report/report.tsx#L1219-L1242), [visualization.tsx:389-401](client/src/components/products/visualization/visualization.tsx#L389-L401)). Each key B changed in the meantime is set back to A's value.
+   - Proposed: under a live binding, closing writes the figure's data half only.
+7. **A change of type to a map or a pie, and a required period dimension.** Preset `m4a-01-01/values-table` holds a required `year` on `col`. A change to a pie removes `year`, on purpose ([disaggregation_labels.ts:144-156](lib/disaggregation_labels.ts#L144-L156) [READ], [validate_figure_config_edit.ts:123-136](client/src/generate_visualization/validate_figure_config_edit.ts#L123-L136), [run_read.ts:629-637](server/run_query/run_read.ts#L629-L637)). §2.2's check exempts no type, §2.1 lets a pie's or a map's slot hold `year`, and no rule says what the change does. Either the pie fails the check, or the change starts drawing one pie a year. 13 of the 37 metrics require `year`.
+   - Proposed: a change of type keeps every required dimension on a slot of the new type.
+8. **"First free slot" and "swaps the two" where §2.1 cannot hold the result.**
+   - No free slot: a chart with its five slots and the replicant taken, changed to a table; a timeseries with every slot taken, choosing a special mode; the draft's last rule on a full layout.
+   - No swap: the replicant's dimension picking the slot `"valueProps"` holds, since `Replicant.dim` is a `Dim`; a dimension that is not an admin level picking `mapArea`; a dimension picking `series` while a mode is on.
+   - Proposed: a taken slot swaps where each can hold the other's place, a slot that cannot be swapped is not offered, and a type or mode whose layout cannot hold the figure's dimensions is not offered.
+9. **The draft's last rule against the paragraph after the rules** [READ]. The paragraph says a figure without a required dimension shows the notice when it is next opened. The rule says opening it moves the dimension onto a slot.
+   - Under a live binding the push sends that write at once ([figure_editor.tsx:701-715](client/src/components/_shared/figure_editor/figure_editor.tsx#L701-L715)), so opening one of the 68 `m6-02-01` charts of §1.7 regroups the stored figure by year for every reader.
+   - Without a binding it marks the draft changed, so Apply shows on an untouched figure, which the code avoids for the replicant's resolution ([figure_editor.tsx:359-363](client/src/components/_shared/figure_editor/figure_editor.tsx#L359-L363), [:760-765](client/src/components/_shared/figure_editor/figure_editor.tsx#L760-L765)).
+   - Proposed: a required dimension on no slot shows a control that puts it on the first free slot.
+10. **The copilot's write to an open editor.** Under a live binding it replaces the draft with the config the model states ([figure_editor.tsx:200](client/src/components/_shared/figure_editor/figure_editor.tsx#L200)) [READ], and the push diffs the whole draft onto the map. Each field a person changed since the model read the config is set back. Ruling 4 has the model state the whole config.
+    - Proposed: a write to an open editor changes the fields in which the stated config differs from the config the model last read.
+11. **Found, and not caused by the draft.**
+    - Two editors on one figure, opened under different packages, each commit their own resolved replicant value when the other's is not in their data, and each commit starts the other's fetch ([t2_figure_data.ts:147-158](client/src/state/products/t2_figure_data.ts#L147-L158), [figure_editor.tsx:397-405](client/src/components/_shared/figure_editor/figure_editor.tsx#L397-L405)). Under §2.3 each such write carries the whole type and layout.
+    - A slot or a filter naming a dimension the metric lacks in this package has no row in the editor's lists ([editor_panel_data.tsx:32-47](client/src/components/_shared/figure_editor/editor_panel_data.tsx#L32-L47), [:74-97](client/src/components/_shared/figure_editor/editor_panel_data.tsx#L74-L97)): a notice and no control.
+    - After a rejected last save the room stays in memory, holding the unsaved document, until a restart ([doc_rooms.ts:649-660](server/collab/doc_rooms.ts#L649-L660)).
+    - A visualization whose first sync took over four seconds stays on Apply for the editor's life ([visualization.tsx:203-205](client/src/components/products/visualization/visualization.tsx#L203-L205)).
+    - The required dimension's row shows only when the dimension is allowed for the type and has more than one value ([disaggregation_section.tsx:173-207](client/src/components/_shared/figure_editor/editor_panel_data/disaggregation_section.tsx#L173-L207)).
+    - Presets `m9-01-01/iceh-equiplot` and `iceh-coverage-table` hold a last-calendar-year filter on yearly data [READ], and 30 of the 50 presets hold no time grouping.
+    - [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md) says a number that is not finite cannot be reached through the editor.
+12. **No counterexample found** to this: each config-alone refinement lies inside one value written by one client, so with fitting for the style, every combination of two people's edits that was tried parses, the number of finding 2 apart.
+
 ## §2 The model
 
-Designed by step 1 and ruled (§3). The schema below is the design. A name in it is the name to use.
+Designed by step 1 and ruled (§3), but for the editor's rules and the collab map in §2.3, which step 2 designs. The schema below is the design. A name in it is the name to use.
 
 ### 2.1 The config
 
@@ -479,6 +528,8 @@ What the words mean:
 | The copilot          | One input, `{ metricId, config }`, for every tool that writes a figure. A read returns the same JSON. A write's result lists every field that differs from the stored config. A read returns a metric's presets as configs.                                                                                                                                                                                                                                                                                                                                              |
 | `get_metric_data`    | `{ metricId, groupBy, valueProps, filters, periodFilter }`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
+Step 2 designs the rows "The editor" and "The collab map" and the rules below. What stands in them is a first draft, the step-1 agent's for how fields travel and the reviewing agent's for the rest, and §1.9 lists the faults an independent agent found in it.
+
 The editor's rules (ruling 12). Every control's write is a pure function of the draft, and it takes a figure that passes the config-alone and metric checks to one that passes them. What that needs beyond today's controls (§1.8):
 
 - A change of type, of mode or of a slot is one write of everything it changes. Picking a taken slot swaps the two.
@@ -525,16 +576,16 @@ Rulings 8 to 13 were put to Tim on 2026-11-20 as questions, each with the step-1
 9. **The names are panther's.** `pane`, `tier`, `lane` for a chart's `cell`, `row`, `col`; `title`, `subtitle`, `footnote`; `dim`. A later move into panther then needs no second migration.
 10. **The period filter takes panther's four shapes**, in the stored config and in the fetch config, and yearly data takes only a range or the last full year. It changes the query engine's input type and every figure cache key.
 11. **A change of type or chart mode discards the old one's style.** The editor keeps it for the session.
-12. **The checks bind a person through the editor's controls.** No control writes a figure that fails a config-alone or metric check, the preview shows a failed check as a notice, and nothing is refused or held back (§2.3). The copilot's writes and a preset's build are refused on a failed check. Rendering does not run the metric checks, so a stored figure draws as it does today. The opinion Tim first agreed was that the editor's Apply refuses on a failed metric check. Under a live binding the editor shows no Apply, and a draft held back loses its own changes when another person's change arrives (§1.8). The reviewing agent put this replacement to Tim on 2026-11-20 with those reasons, and his reply was "ok edit the plan".
+12. **The checks bind a person through the editor's controls, not through a button.** Ruled (Tim, 2026-11-20). Nothing a person does in the editor is refused or held back. The copilot's writes and a preset's build are refused on a failed check. Rendering does not run the metric checks, so a stored figure draws as it does today. What each control does so that this holds, what the editor shows for a figure that fails a check, and how two people's edits combine are step 2's to design and Tim's to rule. The opinion Tim first agreed was that the editor's Apply refuses on a failed metric check: under a live binding the editor shows no Apply, and a draft held back loses its own changes when another person's change arrives (§1.8). The reviewing agent put the replacement to Tim with a first draft of the rules, and his reply was "ok edit the plan". An independent agent then found that draft incomplete (§1.9). The reviewing agent put to Tim that the principle stands and that the rules need a design step, and his reply was "yes".
 13. **A stored map with no admin area becomes an empty figure block**, listed in the migration log.
-14. **The high-level shapes stay in wb-fastr and the low-level elements come from panther.** Tim, 2026-11-20: "let's keep the high-level shapes in wb-fastr, but wherever possible, let's have low-level elements import from panther. to this end, move or create any needed schemas into panther (to import from), wherever it makes sense to do so." And of the design as a whole: "i think it's ok to design for wb-fastr primarily at this stage". Which elements those are is step 3's to settle with the code in front of it. This answers the question the plan kept for its last step, whether the config moves into panther: the config stays here.
+14. **The high-level shapes stay in wb-fastr and the low-level elements come from panther.** Tim, 2026-11-20: "let's keep the high-level shapes in wb-fastr, but wherever possible, let's have low-level elements import from panther. to this end, move or create any needed schemas into panther (to import from), wherever it makes sense to do so." And of the design as a whole: "i think it's ok to design for wb-fastr primarily at this stage". Which elements those are is step 4's to settle with the code in front of it. This answers the question the plan kept for its last step, whether the config moves into panther: the config stays here.
 15. **Nothing ships, and `wb-fastr-modules` is not pushed.** _(proposed)_ Production fetches module definitions from GitHub, and an app without §2's schema cannot parse a preset written in it. The push goes with the release, which is Tim's.
 
-Step 1 tested rulings 4 to 7 (§1.7). No step reopens a ruling.
+Step 1 tested rulings 4 to 7 (§1.7). No step reopens a ruling but step 2, which puts to Tim what ruling 12 leaves to it and any other ruling its design needs changed.
 
 ## §4 Steps
 
-Tim ruled that step 1 designs the config and writes the steps after it. What step 1 contains is the writing agent's _(proposed)_.
+Tim ruled that step 1 designs the config and writes the steps after it. What step 1 contains is the writing agent's _(proposed)_. Step 2 was added after step 1, on Tim's word (ruling 12).
 
 ### Step 1: design the config (not code)
 
@@ -557,13 +608,35 @@ Tim ruled that step 1 designs the config and writes the steps after it. What ste
 
 **Ends with.** One commit rewriting this plan, after Tim's rulings.
 
-### Step 2: ground (not code)
+### Step 2: design live editing (not code)
+
+Tim ruled this step in on 2026-11-20 (ruling 12). He was given its four parts: to list every control and every pair of simultaneous edits, to test them with scripted two-person edits, to have an independent agent attack the result, and to put it to him for rulings. The rest of this section is the reviewing agent's _(proposed)_.
+
+**Surface.** This file.
+
+**Deliverable.**
+
+- For every control of the figure editor, undo, redo and Back included, and for every write the editor makes with no control (the replicant's resolution, the coherent bundle): what it writes under §2.1's shape, and what keeps a figure that passes §2.2's checks passing. §1.8 says what today's controls allow.
+- For every pair of writes two people can make at once to one figure, and for a copilot write to an open editor: which fields travel as one value in the collab map, what the map holds after both writes, and what is lost. §2.3's account of how fields travel is the step-1 agent's and was not put to Tim as a question.
+- What a save does with a figure whose config does not parse, and what the person editing is shown.
+- What the editor shows, and offers, for a stored figure that already fails a check.
+- An answer to each finding of §1.9.
+- The design tested before it is put to Tim (§0): each control's rule run as a script over every preset and every config `deriveViewConfig` gives; each pair of simultaneous writes run as a script on two Yjs documents joined as the rooms join them; and the whole attacked by an independent agent that was not given the conclusion.
+- The findings go to Tim in the chat, as what exists, what this plan says and what is proposed, with every opinion marked as one. On his rulings, these are rewritten: ruling 12 and any other ruling he changes, §2.2's "Runs" cell, §2.3's rows "The editor" and "The collab map" with the rules under its table, and step 6's Deliverable and Gates where they name the editor or the collab map.
+
+**Not in this step.** Any change to this repo's code, to the modules repo or to panther. Any change to §2.1's shape or to a ruling that Tim has not made.
+
+**Gates.** `git status --short` shows this file and nothing else.
+
+**Ends with.** One commit rewriting those parts of this plan, after Tim's rulings.
+
+### Step 3: ground (not code)
 
 The code steps wait on panther's `PLAN_01_CLOSED_TOOL_INPUTS.md`, which rewrites the copilot's schemas, so their Surfaces are written when they can start.
 
 **Surface.** This file.
 
-**Deliverable.** The Surface of each of steps 3 to 6, written from the step's Deliverable and the code as it then is, each new file named. Any file, line or claim of §1 and §2 found wrong is corrected in place. Where the code no longer admits a ruling or a Deliverable, the step stops with the question for Tim.
+**Deliverable.** The Surface of each of steps 4 to 7, written from the step's Deliverable and the code as it then is, each new file named. Any file, line or claim of §1 and §2 found wrong is corrected in place. Where the code no longer admits a ruling or a Deliverable, the step stops with the question for Tim.
 
 **Not in this step.** Any code. Any change to §2 or §3.
 
@@ -571,11 +644,11 @@ The code steps wait on panther's `PLAN_01_CLOSED_TOOL_INPUTS.md`, which rewrites
 
 **Ends with.** One commit.
 
-### Step 3: panther's low-level schemas
+### Step 4: panther's low-level schemas
 
 Repo: panther. Its CLAUDE.md is read first.
 
-**Surface.** Written in step 2.
+**Surface.** Written in step 3.
 
 **Deliverable.**
 
@@ -590,11 +663,11 @@ Repo: panther. Its CLAUDE.md is read first.
 
 **Ends with.** One commit in panther and one sync commit here.
 
-### Step 4: the schema, the checks and the conversion
+### Step 5: the schema, the checks and the conversion
 
-Repo: this one. Nothing the app runs reads the new schema until step 5.
+Repo: this one. Nothing the app runs reads the new schema until step 6.
 
-**Surface.** Written in step 2.
+**Surface.** Written in step 3.
 
 **Deliverable.**
 
@@ -612,11 +685,11 @@ Repo: this one. Nothing the app runs reads the new schema until step 5.
 
 **Ends with.** One commit.
 
-### Step 5: the cutover
+### Step 6: the cutover
 
 Repos: this one and `wb-fastr-modules`.
 
-**Surface.** Written in step 2.
+**Surface.** Written in step 3.
 
 **Deliverable.**
 
@@ -628,17 +701,17 @@ Repos: this one and `wb-fastr-modules`.
 - In `wb-fastr-modules`: every preset is a complete config of §2's shape with translated texts and no `allowedFilters`; its vendored schema is this app's, with the panther files it imports; its build runs the schema and the metric checks on every preset; `DOC_VIZPRESET_STANDARDS.md` says so. Committed, not pushed (ruling 15).
 - The SYSTEM files and the protocols say what the code now does.
 
-**Not in this step.** The copilot's further reads and `get_metric_data`'s names (step 6). A repair of the stored figures of §1.7 that do not draw.
+**Not in this step.** The copilot's further reads and `get_metric_data`'s names (step 7). A repair of the stored figures of §1.7 that do not draw.
 
-**Gates.** The floor. `./validate_migrations`. `./validate_queries`. The tests the step adds or edits. Step 4's comparison test, now run on the app's own functions. Step 4's sweep. A committed test that applies every control's write to every preset and every config `deriveViewConfig` gives, and finds that each result parses and passes the metric checks. A committed test that combines two people's changes through the collab map, one of them a change of type or of mode, and finds that the save stores a config that parses.
+**Gates.** The floor. `./validate_migrations`. `./validate_queries`. The tests the step adds or edits. Step 5's comparison test, now run on the app's own functions. Step 5's sweep. A committed test that applies every control's write to every preset and every config `deriveViewConfig` gives, and finds that each result parses and passes the metric checks. A committed test that combines two people's changes through the collab map, one of them a change of type or of mode, and finds that the save stores a config that parses.
 
 **Ends with.** One commit here and one in `wb-fastr-modules`.
 
-### Step 6: the copilot's further reads
+### Step 7: the copilot's further reads
 
 Repo: this one.
 
-**Surface.** Written in step 2.
+**Surface.** Written in step 3.
 
 **Deliverable.**
 
@@ -659,11 +732,11 @@ Repo: this one.
 - **Panther's figure schema.** The objective names it as the one other schema. Its own JSON form is panther's `PLAN_21_FIGURE_JSON_INPUT.md`. _(proposed)_
 - **New figure types and significance testing.** _(proposed)_
 - **Moving the config into panther.** Ruled (ruling 14): it stays here at this stage. Panther's `PLAN_20_LONG_TABLE_FIGURE.md` runs after this plan closes and takes the generic model from it.
-- **A repair of the stored figures that do not draw** (§1.7). Step 4 writes them to SYSTEM_10's Open items.
+- **A repair of the stored figures that do not draw** (§1.7). Step 5 writes them to SYSTEM_10's Open items.
 
 ## §6 Log
 
-- Step 1 wrote `Written in step 2` for the Surface of steps 3 to 6, and a ground step, instead of the Surfaces its Deliverable names, because the code steps wait on panther's `PLAN_01_CLOSED_TOOL_INPUTS.md`, which rewrites files they touch.
+- Step 1 wrote no Surface for the code steps, and a ground step that writes them, instead of the Surfaces its Deliverable names, because the code steps wait on panther's `PLAN_01_CLOSED_TOOL_INPUTS.md`, which rewrites files they touch.
 - Step 1 did not write the last step its section names (does the config move into panther), because ruling 14 answers it.
 - Step 1's review ran on the prototype's first draft. The schema of §2.1 is the revision after it, on which the three sets of §1.7 were run again and the review was not.
 
