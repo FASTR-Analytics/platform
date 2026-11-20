@@ -158,6 +158,7 @@ Tim ruled that step 1 designs the config and writes the steps after it. What ste
 **Deliverable.**
 
 - The config's schema in full: closed at every level, JSON-only, every field with the reason it is there.
+- The shape designed with the last step's move in view, so that a yes there does not migrate every stored figure a second time. Step 1 reads panther's `PLAN_20_LONG_TABLE_FIGURE.md` and `TERMINOLOGY.md` (`/Users/timroberton/projects/panther/timroberton-panther/`) and says, for each part of the config, whether it could live in panther as designed or needs this app's metrics.
 - For each thing that writes or reads a config (§1.2, §1.4, §1.6), what it does under the new shape: the editor, the wizard, a change of type, the presets and the modules repo's schema, the Explore page, the collab map, `buildFigureInputs`, the copilot's one input (ruling 4), what the copilot reads back, and `get_metric_data` (ruling 6).
 - Rulings 4 to 7 tested. For ruling 4: whether a model restates a whole config without changing a setting it did not mean to.
 - What becomes of every stored config: the bundles in slides, reports and saved visualizations, figures on retired metrics included, and the 50 presets.
