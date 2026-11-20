@@ -51,10 +51,20 @@ type BulkActionButtonsProps<T> = {
 };
 
 export function _BulkActionButtons<T>(p: BulkActionButtonsProps<T>) {
+  // An action's onClick may call the server directly with no loading state of
+  // its own, so a second click while one runs would run it again.
+  let inFlight = false;
+
   const run = async (action: BulkAction<T>) => {
-    const result = await action.onClick(p.items);
-    if (result === true || result === "CLEAR_SELECTION") {
-      p.onClear();
+    if (inFlight) return;
+    inFlight = true;
+    try {
+      const result = await action.onClick(p.items);
+      if (result === true || result === "CLEAR_SELECTION") {
+        p.onClear();
+      }
+    } finally {
+      inFlight = false;
     }
   };
 

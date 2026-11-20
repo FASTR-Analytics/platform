@@ -29,8 +29,10 @@ export function createButtonAction<U extends unknown[]>(
 /**
  * Creates a button action that executes an action and shows alerts on error.
  *
- * Race condition protection: If click() is called multiple times before previous
- * actions complete, only the most recent action will update state and execute callbacks.
+ * While an action, its callbacks and its error alert are in flight, further
+ * click() calls are ignored, so a non-idempotent action cannot run twice.
+ * Button drops its own clicks while loading; this guard also covers click()
+ * called directly (a key handler, a form's onSubmit).
  */
 export function createButtonAction<T, U extends unknown[]>(
   actionFunc: (
@@ -44,17 +46,15 @@ export function createButtonAction<T, U extends unknown[]>(
     status: "ready",
   });
 
-  let requestId = 0;
+  let inFlight = false;
 
   async function click(...args: U) {
-    const thisRequestId = ++requestId;
-
-    setter({ status: "loading" });
+    if (inFlight) return;
+    inFlight = true;
 
     try {
+      setter({ status: "loading" });
       const res = await actionFunc(...args);
-
-      if (thisRequestId !== requestId) return;
 
       if (res.success === false) {
         setter({ status: "ready" });
@@ -76,7 +76,6 @@ export function createButtonAction<T, U extends unknown[]>(
             await (callback as () => void | Promise<void>)();
           }
         } catch (err) {
-          if (thisRequestId !== requestId) return;
           setter({ status: "ready" });
           await openAlert({
             title: "Error",
@@ -87,17 +86,16 @@ export function createButtonAction<T, U extends unknown[]>(
         }
       }
 
-      if (thisRequestId !== requestId) return;
-
       setter({ status: "ready" });
     } catch (err) {
-      if (thisRequestId !== requestId) return;
       setter({ status: "ready" });
       await openAlert({
         title: "Error",
         text: err instanceof Error ? err.message : String(err),
         intent: "danger",
       });
+    } finally {
+      inFlight = false;
     }
   }
 
