@@ -160,7 +160,7 @@ export function getClientToolsForSlides(
             AiContentSlideSchema,
           ])
           .describe(
-            "The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with optional header and blocks array of text, figures and images).",
+            "The complete slide content. Must be one of three types: 'cover' (title slide with title and optional subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with optional header and blocks array of text, figures and images).",
           ),
       }),
       availableIn: COPILOT_TOOL_VIEWS.create_slide,
