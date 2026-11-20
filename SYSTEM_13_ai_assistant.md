@@ -198,6 +198,7 @@ A write refuses before it proposes: `propose` loads fresh state and throws `AITo
 - **Governance changes go in `anthropic_messages_proxy.ts`**, never in the mount file, which is deliberately logic-free.
 - **Don't wrap proxy responses in `APIResponse`**: the client SDK parses Anthropic shapes. Equally: don't let new failure paths fall to `app.onError`, which returns an envelope at HTTP 200 the SDK can't parse.
 - **Tools are registered once at pane mount.** Nothing a registered tool closes over may move afterwards: a value that depends on the pair (the env, the authoring context, the HFA rounds) lives in an inner set the outer tool binds to per call (`bind_package_tools.ts`), keyed by `packageToolsKey`. Do not build a package tool over a mount's pair, and do not reintroduce a store the tools read live.
+- **Closed schemas and strict tool use:** see [panther/protocols/PROTOCOL_UI_AI_CHAT.md](panther/protocols/PROTOCOL_UI_AI_CHAT.md), "Input schemas: two decisions".
 - **Token limits are token-denominated, not dollar-denominated.** Cache tokens don't count, model price varies 10× and is client-chosen, server-tool fees are flat-rate per invocation. Treat the limits as volume brakes, not budget enforcement, until the Open items below are decided.
 
 ## Open items

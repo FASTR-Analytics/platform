@@ -136,7 +136,7 @@ The bounds and the one paging helper live in [lib/ai_tools/read_bounds.ts](lib/a
 
 ## Gotchas
 
-- **Never `strict: true` on tool definitions.** Anthropic's grammar-constrained mode rejects `minItems`/`maxItems`/`minLength`/ `maxLength`/`minimum`/`maximum` (which `.min()`/`.max()` emit) with a 400. Our schemas rely on those constraints.
+- **Closed schemas and strict tool use:** see [panther/protocols/PROTOCOL_UI_AI_CHAT.md](panther/protocols/PROTOCOL_UI_AI_CHAT.md), "Input schemas: two decisions".
 
 ## Checklist for a new AI tool schema
 
