@@ -63,7 +63,6 @@ export function measureMap(
   const transformedData = getMapDataTransformed(inputs.data);
 
   const config: SimplifiedChartConfig<
-    MapInputs,
     MapDataTransformed,
     MergedMapStyle
   > = {

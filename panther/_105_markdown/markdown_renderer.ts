@@ -9,7 +9,10 @@ import {
   resolveAutofitOptions,
 } from "./_internal/autofit.ts";
 import { measureInlineCodeAdvance } from "./_internal/formatted_text.ts";
-import { getInlineCodeStyle } from "./_internal/measure_items.ts";
+import {
+  getInlineCodeStyle,
+  measureCodeLine,
+} from "./_internal/measure_items.ts";
 import { measureMarkdown } from "./_internal/measure_markdown.ts";
 import { renderMarkdown } from "./_internal/render_markdown.ts";
 import {
@@ -73,7 +76,7 @@ function getMinComfortableWidth(
       // For code blocks, measure each line
       const lines = item.code.split("\n");
       for (const line of lines) {
-        const mText = rc.mText(line, style.text.code, Infinity);
+        const mText = measureCodeLine(rc, line, style.text.code, Infinity);
         maxWordWidth = Math.max(maxWordWidth, mText.dims.w());
       }
       return;

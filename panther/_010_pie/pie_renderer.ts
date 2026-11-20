@@ -11,6 +11,7 @@ import {
   computeFloorScale,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
+  estimateTierHeaderAndLabelGapWidth,
   getDimensionMembers,
   type HeightConstraints,
   type LegendInput,
@@ -176,7 +177,12 @@ export function getPieComponentSizes(
         PANE_HEADER_SAMPLE_MAX_W,
       )
       .dims.h(),
-    minYAxisWidth: 0,
+    minYAxisWidth: estimateTierHeaderAndLabelGapWidth(
+      rc,
+      transformedData.tier,
+      transformedData.lane,
+      mergedStyle,
+    ),
     // The 4th argument matters: without it the estimator synthesizes
     // { id: label, label } members, so a seriesColorFunc keyed on .id with
     // labelReplacements active would estimate the wrong width.

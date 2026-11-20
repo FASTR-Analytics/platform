@@ -227,14 +227,14 @@ export function measurePane<TData>(
     laneLayout?: PaneTierOrLaneLayout;
   } => {
     if (axes.kind === "none") {
-      const yAxisWidth = 0;
+      const yAxisWidth = tierHeaderAndLabelGapWidth;
       return {
         measuredAxes: {
           kind: "none",
           xAxisRcd: new RectCoordsDims({
-            x: config.geometry.innerRcd.x(),
+            x: config.geometry.innerRcd.x() + yAxisWidth,
             y: config.geometry.innerRcd.bottomY(),
-            w: config.geometry.innerRcd.w(),
+            w: config.geometry.innerRcd.w() - yAxisWidth,
             h: 0,
           }),
         },

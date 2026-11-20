@@ -33,13 +33,9 @@ export type PaneGridLayout = {
 // re-measures would otherwise repeat it every layout pass.
 let warnedProportionalGridUnsafe = false;
 
-export function resolvePaneGridLayout<
-  TInputs,
-  TData,
-  TStyle extends MergedChartStyleBase,
->(
+export function resolvePaneGridLayout(
   rc: RenderContext,
-  config: SimplifiedChartConfig<TInputs, TData, TStyle>,
+  config: SimplifiedChartConfig<unknown, MergedChartStyleBase>,
   bodyRcd: RectCoordsDims,
   measureOnePane: (
     pane: PaneGridLayout["panes"][number],

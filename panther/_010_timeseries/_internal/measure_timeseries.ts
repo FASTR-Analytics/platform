@@ -42,7 +42,6 @@ export function measureTimeseries(
   );
 
   const config: SimplifiedChartConfig<
-    TimeseriesInputs,
     TimeseriesDataTransformed,
     MergedTimeseriesStyle
   > = {

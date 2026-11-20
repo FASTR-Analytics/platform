@@ -1032,21 +1032,21 @@ export type GenericErrorBarStyleOptions = {
   show?: boolean;
   strokeColor?: ColorKeyOrString;
   strokeWidth?: number;
-  capWidthProportion?: number;
+  capWidthFractionOfMark?: number;
 };
 
 export type GenericErrorBarStyle = {
   show: boolean;
   strokeColor: ColorKeyOrString;
   strokeWidth: number;
-  capWidthProportion: number;
+  capWidthFractionOfMark: number;
 };
 
 export type ErrorBarStyle = {
   show: boolean;
   strokeColor: ColorKeyOrString;
   strokeWidth: number;
-  capWidthProportion: number;
+  capWidthFractionOfMark: number;
 };
 
 export function getErrorBarStyleFunc(
@@ -1063,10 +1063,10 @@ export function getErrorBarStyleFunc(
   const dShow = m(c?.show, g?.show, d.show);
   const dStrokeColor = m(c?.strokeColor, g?.strokeColor, d.strokeColor);
   const dStrokeWidth = ms(_sf, c?.strokeWidth, g?.strokeWidth, d.strokeWidth);
-  const dCapWidthProportion = m(
-    c?.capWidthProportion,
-    g?.capWidthProportion,
-    d.capWidthProportion,
+  const dCapWidthFractionOfMark = m(
+    c?.capWidthFractionOfMark,
+    g?.capWidthFractionOfMark,
+    d.capWidthFractionOfMark,
   );
   return (info: ChartValueInfo): ErrorBarStyle => {
     const oc = cf?.(info);
@@ -1078,8 +1078,9 @@ export function getErrorBarStyleFunc(
       strokeWidth: oStrokeWidth !== undefined
         ? oStrokeWidth * _sf
         : dStrokeWidth,
-      capWidthProportion: oc?.capWidthProportion ?? og?.capWidthProportion ??
-        dCapWidthProportion,
+      capWidthFractionOfMark: oc?.capWidthFractionOfMark ??
+        og?.capWidthFractionOfMark ??
+        dCapWidthFractionOfMark,
     };
   };
 }

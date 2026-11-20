@@ -121,10 +121,6 @@ export type ChartOVDataTransformed = {
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 
-// export function isChartOVDataCsv(d: ChartOVData): d is ChartOVDataCsv {
-//   return (d as ChartOVDataCsv).csv !== undefined;
-// }
-
 export function isChartOVDataJson(d: ChartOVData): d is ChartOVDataJson {
   return (d as ChartOVDataJson).jsonArray !== undefined;
 }

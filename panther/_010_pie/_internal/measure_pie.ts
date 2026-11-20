@@ -76,7 +76,6 @@ export function measurePie(
   const transformedData = getPieDataTransformed(inputs.data);
 
   const config: SimplifiedChartConfig<
-    PieInputs,
     PieDataTransformed,
     MergedPieStyle
   > = {

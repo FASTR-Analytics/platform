@@ -84,7 +84,7 @@ export function generateErrorBarPrimitives(
       categoryCenter: a.categoryCenter,
       valueUb: valueCoord(ubMapped.coords, orientation),
       valueLb: valueCoord(lbMapped.coords, orientation),
-      capExtent: a.markExtent * ebStyle.capWidthProportion,
+      capExtent: a.markExtent * ebStyle.capWidthFractionOfMark,
       strokeColor: ebStyle.strokeColor,
       strokeWidth: ebStyle.strokeWidth,
       zIndex: a.zIndex,

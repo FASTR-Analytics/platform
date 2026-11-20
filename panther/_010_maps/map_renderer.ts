@@ -11,6 +11,7 @@ import {
   computeFloorScale,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
+  estimateTierHeaderAndLabelGapWidth,
   getDimensionMembers,
   getSubChartMembers,
   type HeightConstraints,
@@ -129,7 +130,12 @@ export function getMapComponentSizes(
       : Math.max(minLabelSubChartExtent, labelBudget.vertical),
     xAxisHeight: 0,
     paneHeaderHeight: 0,
-    minYAxisWidth: 0,
+    minYAxisWidth: estimateTierHeaderAndLabelGapWidth(
+      rc,
+      transformedData.tier,
+      transformedData.lane,
+      mergedStyle,
+    ),
     surroundsMinWidth: estimateMinSurroundsWidth(
       rc,
       customFigureStyle,

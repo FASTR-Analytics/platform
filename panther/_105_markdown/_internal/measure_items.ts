@@ -6,6 +6,8 @@
 import {
   type AlignH,
   Coordinates,
+  Dimensions,
+  type MeasuredText,
   type MergedMarkdownStyle,
   RectCoordsDims,
   type RenderContext,
@@ -487,15 +489,15 @@ function measureCodeBlock(
   const contentWidth = maxWidth - paddingH * 2;
   const lineHeight = textInfo.fontSize * textInfo.lineHeight;
 
-  const measuredLines: {
-    mText: import("../deps.ts").MeasuredText;
-    y: number;
-  }[] = [];
+  const measuredLines: { mText: MeasuredText; y: number }[] = [];
 
+  // A code line that wraps pushes the lines after it down by the distance
+  // from its first baseline to its last.
+  let wrappedExtent = 0;
   for (let i = 0; i < codeLines.length; i++) {
-    const displayLine = codeLines[i] || " ";
-    const mText = rc.mText(displayLine, textInfo, contentWidth);
-    measuredLines.push({ mText, y: i * lineHeight });
+    const mText = measureCodeLine(rc, codeLines[i], textInfo, contentWidth);
+    measuredLines.push({ mText, y: i * lineHeight + wrappedExtent });
+    wrappedExtent += (mText.lines.at(-1)?.y ?? 0) - (mText.lines.at(0)?.y ?? 0);
   }
 
   const lastLine = measuredLines[measuredLines.length - 1];
@@ -511,6 +513,59 @@ function measureCodeBlock(
     },
     lines: measuredLines,
     contentPosition: new Coordinates({ x: contentX, y: contentY }),
+  };
+}
+
+// CommonMark's tab stop.
+const CODE_TAB_STOP = 4;
+
+function countIndentColumns(codeLine: string): number {
+  let nColumns = 0;
+  for (const char of codeLine) {
+    if (char === " ") {
+      nColumns++;
+    } else if (char === "\t") {
+      nColumns += CODE_TAB_STOP - (nColumns % CODE_TAB_STOP);
+    } else {
+      break;
+    }
+  }
+  return nColumns;
+}
+
+// The text measurer trims a line, so a code line is measured without its
+// indentation, in the width the indentation leaves, and each of its lines is
+// given the indentation back as spaces, which a render context draws at
+// their advance.
+export function measureCodeLine(
+  rc: RenderContext,
+  codeLine: string,
+  textInfo: TextInfoUnkeyed,
+  maxWidth: number,
+): MeasuredText {
+  const text = codeLine.trim();
+  if (text === "") {
+    return rc.mText(" ", textInfo, maxWidth);
+  }
+  const nIndentColumns = countIndentColumns(codeLine);
+  if (nIndentColumns === 0) {
+    return rc.mText(text, textInfo, maxWidth);
+  }
+  const indentWidth = nIndentColumns *
+    rc.mText(" ", textInfo, Number.POSITIVE_INFINITY).dims.w();
+  const indent = " ".repeat(nIndentColumns);
+  const mText = rc.mText(text, textInfo, maxWidth - indentWidth);
+  return {
+    ...mText,
+    lines: mText.lines.map((line) => ({
+      ...line,
+      text: indent + line.text,
+      w: indentWidth + line.w,
+    })),
+    dims: new Dimensions({
+      w: indentWidth + mText.dims.w(),
+      h: mText.dims.h(),
+    }),
   };
 }
 

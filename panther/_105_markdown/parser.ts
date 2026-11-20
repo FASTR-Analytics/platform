@@ -42,8 +42,7 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
   const tokens = md.parse(markdownContent, {});
   const items: ParsedMarkdownItem[] = [];
 
-  let listCounter = 0;
-  let inNumberedList = false;
+  const openLists: { numbered: boolean; nItems: number }[] = [];
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
@@ -52,7 +51,7 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
 
     if (token.type === "hr") {
       items.push({ type: "horizontal-rule", line });
-    } else if (token.type === "fence") {
+    } else if (token.type === "fence" || token.type === "code_block") {
       items.push({ type: "code-block", code: token.content ?? "", line });
     } else if (token.type === "blockquote_open") {
       const content: MarkdownInline[] = [];
@@ -117,15 +116,19 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
         }
       }
       i += 2;
-      inNumberedList = false;
-      listCounter = 0;
-    } else if (token.type === "bullet_list_open") {
-      inNumberedList = false;
-      listCounter = 0;
-    } else if (token.type === "ordered_list_open") {
-      inNumberedList = true;
-      listCounter = 0;
+    } else if (
+      token.type === "bullet_list_open" || token.type === "ordered_list_open"
+    ) {
+      openLists.push({
+        numbered: token.type === "ordered_list_open",
+        nItems: 0,
+      });
+    } else if (
+      token.type === "bullet_list_close" || token.type === "ordered_list_close"
+    ) {
+      openLists.pop();
     } else if (token.type === "list_item_open") {
+      const list = openLists[openLists.length - 1];
       const listLevel = Math.floor((token.level - 1) / 2) as 0 | 1 | 2;
 
       let j = i + 1;
@@ -133,7 +136,7 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
         if (tokens[j].type === "inline") {
           const item: ParsedMarkdownItem = {
             type: "list-item",
-            listType: inNumberedList ? "numbered" : "bullet",
+            listType: list.numbered ? "numbered" : "bullet",
             level: listLevel,
             isFirstInList: false,
             isLastInList: false,
@@ -141,9 +144,9 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
             line,
           };
 
-          if (inNumberedList) {
-            listCounter++;
-            item.listIndex = listCounter;
+          if (list.numbered) {
+            list.nItems++;
+            item.listIndex = list.nItems;
           }
 
           items.push(item);
@@ -192,7 +195,7 @@ function parseInlineTokens(tokens: MarkdownItToken[]): MarkdownInline[] {
       i++;
     } else if (
       token.type === "html_inline" &&
-      (token.content === "<br>" || token.content === "<br/>")
+      /^<br\s*\/?>$/i.test(token.content ?? "")
     ) {
       content.push({ type: "break" });
       i++;
@@ -249,6 +252,9 @@ type NestedInlineSegment = {
   // (`**see [here](url) now**`). Emphasis wins the inline's shape only when the
   // segment carries no URL — a link must stay a link, or its href is lost.
   url?: string;
+  // Set when the segment is a code span. A code-inline carries no emphasis
+  // and no URL, so the span keeps its code style only outside a link.
+  code?: boolean;
 };
 
 type NestedInlineResult = {
@@ -277,6 +283,9 @@ function emphasizedInline(
 ): MarkdownInline {
   if (seg.url !== undefined) {
     return { type: "link", text: seg.text, url: seg.url, style };
+  }
+  if (seg.code) {
+    return { type: "code-inline", text: seg.text };
   }
   return { type: style, text: seg.text };
 }
@@ -321,6 +330,14 @@ function parseNestedInline(
       i = result.endIndex + 1;
     } else if (token.type === "softbreak" || token.type === "hardbreak") {
       segments.push({ text: "\n", bold: false, italic: false });
+      i++;
+    } else if (token.type === "code_inline" && token.content) {
+      segments.push({
+        text: token.content,
+        bold: false,
+        italic: false,
+        code: true,
+      });
       i++;
     } else {
       i++;

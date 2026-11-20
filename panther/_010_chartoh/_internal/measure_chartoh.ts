@@ -42,7 +42,6 @@ export function measureChartOH(
   );
 
   const config: SimplifiedChartConfig<
-    ChartOHInputs,
     ChartOHDataTransformed,
     MergedChartOHStyle
   > = {

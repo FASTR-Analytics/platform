@@ -12,7 +12,7 @@ The heart of the Panther visualization system, providing shared infrastructure f
 - **Surrounds**: Titles, subtitles, footnotes (shared by all figures)
 - **Legend**: Measurement and primitive generation for legends
 
-**Chart-specific features** (used by Timeseries and ChartOV):
+**Chart-specific features** (used by ChartOV, ChartOH, Timeseries, Map and Pie; a Map and a Pie have no axes):
 
 - Multi-pane/tier/lane layouts
 - Axis systems (X/Y, categorical/continuous/period)
@@ -25,7 +25,7 @@ The heart of the Panther visualization system, providing shared infrastructure f
 
 **Chart** is a specific type of Figure that uses a grid-based coordinate system with panes, tiers, and lanes:
 
-- **Chart types**: Timeseries (`_010_timeseries/`), ChartOV (`_010_chartov/`)
+- **Chart types**: ChartOV (`_010_chartov/`), ChartOH (`_010_chartoh/`), Timeseries (`_010_timeseries/`), Map (`_010_maps/`), Pie (`_010_pie/`)
 - **Non-Chart Figures**: Table (`_010_table/`), Scene and Diagram (`_010_scene/`)
 
 See `DOC_FIGURE_ARCHITECTURE.md` for detailed taxonomy.
@@ -53,7 +53,7 @@ renderFigurePrimitives(rc, measured.primitives);
 
 ### Primitive Types
 
-**Chart primitives** (ChartOV, Timeseries):
+**Chart primitives** (ChartOV, ChartOH and Timeseries; a Map and a Pie emit the grid and header primitives beside their own `MapAreaPrimitive` and `PieSlicePrimitive`):
 
 - `ChartAxisPrimitive`, `ChartGridPrimitive`, `ChartHeaderPrimitive`, `ChartDataPointPrimitive`, `ChartLineSeriesPrimitive`, `ChartAreaSeriesPrimitive`, `ChartConnectorPrimitive`, `ChartBarPrimitive`, `ChartErrorBarPrimitive`, `ChartErrorBandPrimitive`, `ChartCascadeArrowPrimitive`
 
@@ -102,7 +102,7 @@ measureChart<TInputs, TData, TStyle>(
   rc: RenderContext,
   rcdWithSurrounds: RectCoordsDims,
   inputs: TInputs,
-  config: SimplifiedChartConfig<TInputs, TData, TStyle>,
+  config: SimplifiedChartConfig<TData, TStyle>,
   fitScale?: number,
   layoutOnly?: boolean,
 ): MeasuredChartBase<TInputs, TData, TStyle>

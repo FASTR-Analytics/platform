@@ -319,8 +319,6 @@ function renderContent(
   createCanvasRenderContext: CreateCanvasRenderContext,
 ): void {
   // Walk layout and render container styles + content items
-  // Note: renderContainerStyle is called for ALL nodes (row, col, item)
-  // to match the PDF renderer behavior
   walkLayout(measured.mLayout, (node: MeasuredLayoutNode<PageContentItem>) => {
     renderContainerStyle(slide, node);
     if (node.type === "item") {

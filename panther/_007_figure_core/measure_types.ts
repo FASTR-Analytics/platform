@@ -59,7 +59,6 @@ export type PaneTierOrLaneLayout = {
 };
 
 export type SimplifiedChartConfig<
-  TInputs,
   TData,
   TStyle extends MergedChartStyleBase,
 > = {
@@ -109,7 +108,7 @@ export type MeasurePaneConfig<TData> = {
   // pass 2. Absent = measurePane solves its own per-pane slotExtent locally
   // (tiers-or-lanes mode, and every pass-1/layoutOnly probe).
   slotExtent?: number;
-  chart: SimplifiedChartConfig<unknown, TData, MergedChartStyleBase>;
+  chart: SimplifiedChartConfig<TData, MergedChartStyleBase>;
 };
 
 export type MeasuredAxes =

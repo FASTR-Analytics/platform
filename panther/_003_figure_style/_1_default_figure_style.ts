@@ -354,7 +354,7 @@ const _DS = {
         show: true,
         strokeColor: { key: "baseContent" },
         strokeWidth: 3,
-        capWidthProportion: 0.4,
+        capWidthFractionOfMark: 0.4,
       }),
     },
     errorBands: {

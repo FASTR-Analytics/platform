@@ -32,7 +32,7 @@ export function measureChart<
   rc: RenderContext,
   rcdWithSurrounds: RectCoordsDims,
   inputs: TInputs,
-  config: SimplifiedChartConfig<TInputs, TData, TStyle>,
+  config: SimplifiedChartConfig<TData, TStyle>,
   fitScale?: number,
   // Skip content-primitive generation; see measurePane. Probe-only.
   layoutOnly?: boolean,

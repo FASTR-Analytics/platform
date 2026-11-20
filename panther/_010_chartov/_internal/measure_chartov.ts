@@ -42,7 +42,6 @@ export function measureChartOV(
   );
 
   const config: SimplifiedChartConfig<
-    ChartOVInputs,
     ChartOVDataTransformed,
     MergedChartOVStyle
   > = {

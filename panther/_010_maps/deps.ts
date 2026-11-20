@@ -42,6 +42,7 @@ export {
   calculateMinLabelSubChartExtent,
   computeFloorScale,
   estimateMinSurroundsWidth,
+  estimateTierHeaderAndLabelGapWidth,
   fieldTrack,
   generateResolvedFigureLabelPrimitives,
   getDimensionId,

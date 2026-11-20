@@ -73,12 +73,6 @@ function getValueAxisTickLabelAlignment(
   return { alignH: "right", alignV: "middle" };
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    X-Text Axis Primitive Generation                                       //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
 export function generateXTextAxisPrimitive(
   rc: RenderContext,
   subChart: Extract<SubChart, { kind: "category-and-value" }>,
@@ -147,7 +141,6 @@ export function generateXTextAxisPrimitive(
     currentX += isCentered ? slotExtent : sg.gridLineStrokeWidth + slotExtent;
   }
 
-  // Add final tick if not centered
   if (!isCentered) {
     ticks.push({
       position: new Coordinates([currentX, tickY]),
@@ -186,12 +179,6 @@ export function generateXTextAxisPrimitive(
     zIndex: Z_INDEX.AXIS,
   });
 }
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    X-Period Axis Primitive Generation                                     //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
 
 export function generateXPeriodAxisPrimitive(
   rc: RenderContext,
@@ -474,12 +461,6 @@ export function generateXPeriodAxisPrimitive(
   });
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    Y-Scale Axis Primitive Generation                                      //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
 export function generateYValueAxisPrimitive(
   rc: RenderContext,
   subChart: Extract<SubChart, { kind: "category-and-value" }>,
@@ -595,12 +576,6 @@ export function generateYValueAxisPrimitive(
   });
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    X-Scale Axis Primitive Generation                                       //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
 export function generateXValueAxisPrimitive(
   rc: RenderContext,
   subChart: Extract<SubChart, { kind: "category-and-value" }>,
@@ -712,12 +687,6 @@ export function generateXValueAxisPrimitive(
   });
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    Y-Text Axis Primitive Generation                                        //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
 export function generateYTextAxisPrimitive(
   rc: RenderContext,
   subChart: Extract<SubChart, { kind: "category-and-value" }>,
@@ -785,7 +754,6 @@ export function generateYTextAxisPrimitive(
     currentY += isCentered ? slotExtent : slotExtent + sg.gridLineStrokeWidth;
   }
 
-  // Final tick at bottom boundary when sides mode
   if (!isCentered) {
     ticks.push({
       position: new Coordinates([axisX, currentY]),
