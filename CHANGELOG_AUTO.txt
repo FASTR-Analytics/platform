@@ -1,8 +1,8 @@
-[TBD] [user] [fixed] - AI assistant now correctly rejects unexpected fields in requests
-[TBD] [admin] [fixed] - AI assistant now rejects unexpected fields in tool inputs
-[TBD] [user] [fixed] - Improved grammar in status messages when processing single items
-[TBD] [admin] [fixed] - Copilot status messages now use correct singular/plural forms
-[TBD] [admin] [internal] - Improved AI instructions for generating slide content
+[2.15.0] [user] [fixed] - AI assistant now correctly rejects unexpected fields in requests
+[2.15.0] [admin] [fixed] - AI assistant now rejects unexpected fields in tool inputs
+[2.15.0] [user] [fixed] - Improved grammar in status messages when processing single items
+[2.15.0] [admin] [fixed] - Copilot status messages now use correct singular/plural forms
+[2.15.0] [admin] [internal] - Improved AI instructions for generating slide content
 [2.14.1] [user] [changed] - Chart editor header appears immediately while loading
 [2.14.1] [user] [fixed] - Back button now works during chart editor loading errors
 [2.14.1] [admin] [changed] - Chart editor header now appears immediately while loading
