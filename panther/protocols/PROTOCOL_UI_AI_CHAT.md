@@ -28,6 +28,7 @@ How to build an AI chat surface on panther's `_305_ai` engine: views, tools, gat
 
 Closed schema (every object in a tool input is `z.strictObject`): required. `createAITool` refuses an open object.
 
+- Applies to: every `createAITool` input, every view's `params`, and the `input` of every op with `exposure.ai` or `exposure.headless: true`, which the ops kernel refuses at boot.
 - Why: an open schema drops a misspelled key and runs the tool. A closed one refuses it by name, for the model, MCP and HTTP.
 - Evidence: 2026-10-29, 100 calls without strict tool use on Sonnet 5 and Opus 5, no key the schema does not declare (panther `tools/ai_tool_probe/`, mode `strays`, `out/strays_2026-10-29.txt`).
 - Reopen only if: the probe reproduces a stray key. The fix is then to drop `_`-prefixed keys in `parseToolInput`. Schemas stay closed.
