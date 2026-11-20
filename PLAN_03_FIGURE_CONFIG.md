@@ -1,20 +1,22 @@
 # PLAN: The figure config
 
-Status: NEEDS DESIGNING. Step 1 designs the config. No code step exists until Tim has ruled on that design.
+Status: DESIGNED AND RULED (2026-11-20). Step 1 designed the config (§2), tested it (§1.7) and took Tim's rulings (§3). The code steps wait on panther's `PLAN_01_CLOSED_TOOL_INPUTS.md`.
 
 **The objective.** [TIM, 2026-11-19] "we essentially optimise PresentationObjectConfig as the best possible stored JSON-only config object, that gives us the best possible shape for creating the figures we want in wb-fastr in a way that works for AI too". [TIM] "then the only other schema is panther's on figure schema, and we have a conversion func as part of this lib". So `PresentationObjectConfig` is redesigned as the one description of a figure in this app: what is stored, what the editor and the presets write, and what the copilot states and reads. Statements in this file are marked by kind (§0). Nothing here is a design decision except this objective and the rulings of §3.
 
-**Next step: Do 1.**
+**Next step: Do 2.**
 
-Branch: `main`. Repos: this one, and `wb-fastr-modules`, whose presets hold the config (§1.3). Step 1 writes each repo's steps. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md) on data transforms, [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md), [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) "FigureBundle architecture" and "Special chart modes", [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md) "The embedded figure editor", "The insert-figure wizard", "lib config semantics" and "Explore query model", [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Tool input schemas", "The slide_ai conversion layer" and Open items "Surface gaps", [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md), [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md), [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md), and in the modules repo `DOC_VIZPRESET_STANDARDS.md`. Start when: step 1 at any time, since it writes no file but this one _(proposed)_. Every code step (ruling 2): `test ! -e /Users/timroberton/projects/panther/timroberton-panther/PLAN_01_CLOSED_TOOL_INPUTS.md && echo ok` prints `ok`.
+Branch: `main`. Repos: this one; `wb-fastr-modules` (`/Users/timroberton/projects/apps/wb-fastr-modules`), whose presets hold the config (§1.3); and panther (`/Users/timroberton/projects/panther/timroberton-panther`), which gains the low-level schemas the config imports (ruling 14). §0 names each step's repo. Read first: [CLAUDE.md](CLAUDE.md), [SYSTEMS.md](SYSTEMS.md), [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md) on data transforms, [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md), [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) "FigureBundle architecture" and "Special chart modes", [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md) "The embedded figure editor", "The insert-figure wizard", "lib config semantics" and "Explore query model", [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "Tool input schemas", "The slide_ai conversion layer" and Open items "Surface gaps", [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md), [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md), [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md), in the modules repo `DOC_VIZPRESET_STANDARDS.md`, and in panther `CLAUDE.md`, `TERMINOLOGY.md` and `DOC_LONG_TABLE_QUERY.md` on period filters. Start when: step 1 at any time, since it writes no file but this one _(proposed)_. Step 2 and every step after it (ruling 2): `test ! -e /Users/timroberton/projects/panther/timroberton-panther/PLAN_01_CLOSED_TOOL_INPUTS.md && echo ok` prints `ok`.
 
 ## §0 How to work this plan
 
-The instruction is "Do the next step of PLAN_03_FIGURE_CONFIG.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. Step 1 sets the last step when it writes the steps after it.
+The instruction is "Do the next step of PLAN_03_FIGURE_CONFIG.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 6. Step 2 writes in this file. Step 3 is worked in panther and ends with a sync commit here. Step 4 is this repo. Step 5 is this repo and `wb-fastr-modules`. Step 6 is this repo.
 
 ### The kinds of statement in this file
 
 - **[CHECKED]**: read in the code, or run, by the agent that wrote this file ("the writing agent") on 2026-11-19. Where the code has moved, the code wins.
+- **[RUN]**: measured on 2026-11-20 by the agent that did step 1 ("the step-1 agent"), with a prototype of §2's schema kept outside the repos, or read in the code by that agent on that day. A count is of that day.
+- **[REVIEW]**: reported on 2026-11-20 by an independent agent that was given the prototype and not the step-1 agent's view of it, from scripts it ran against the prototype's first draft. Not rerun by the step-1 agent unless the line says so.
 - **[TIM]**: Tim's words, quoted as typed.
 - **[ACCOUNT]**: what a quote of Tim's replied to, as an earlier version of this plan recorded it (`git show 46469d6f8:PLAN_03_COPILOT_FIGURES.md`, §2.1). Written by an agent that was in that conversation, and not a quote.
 - **_(proposed)_**: written by the writing agent and not heard from Tim. It stands unless Tim overrules it before the step that depends on it.
@@ -27,8 +29,11 @@ A heading's mark covers everything under it. A line's own mark overrides its hea
 - **the config**: `PresentationObjectConfig`, today `{ d, s, t }`: the data settings, the style and the text.
 - **preset**: a config a module author wrote for a metric (`vizPresets`, in the modules repo).
 - **the editor**: the figure editor a person uses (`client/src/components/_shared/figure_editor/`).
-- **slot**: where a dimension is laid out in a figure (`disDisplayOpt`: row, col, series, replicant and so on).
-- **whole-figure check**: a check over a figure's config and its metric together, run on the whole figure and never only on what a call changed.
+- **slot**: where a dimension is laid out in a figure (today `disDisplayOpt`: row, col, series, replicant and so on; in §2 a key of `layout`).
+- **value props**: the columns of a metric that hold its numbers (`valueProps`). A figure that shows two or more lays them out on a slot, as if they were a dimension.
+- **effective**: said of a dimension on a slot that today's renderer lays out. `getEffectivePOConfig` ([normalize_po_config.ts:169](lib/normalize_po_config.ts#L169)) leaves out a dimension filtered to one value, and one that holds one value or one period in the figure's rows.
+- **the conversion**: the function that turns a stored `{ d, s, t }` into §2's config (§2.6).
+- **whole-figure check**: a check over a figure's config and its metric together, run on the whole figure and never only on what a call changed. §2.3 names three kinds by what each needs: the config alone, the metric, the data.
 - **misleading figure**: one that draws without error and shows numbers other than what its text says.
 
 ### Rules peculiar to this plan
@@ -45,6 +50,12 @@ The rules the writing agent draws from them _(proposed)_:
 - No design is put to Tim before it has been tested against the code and attacked by an independent agent that was not given the conclusion. A proposal states three things: what exists now, what this plan says, what is proposed.
 - An opinion is marked as one, with whose it is, and is never restated as a fact.
 - Step 1 writes no file in any repo but this plan. Anything it builds to test the design lives outside the repos. Production data it reads is read-only under PROTOCOL_ACCESS_DBS.md and is deleted when the step ends.
+
+The rules the step-1 agent adds for the code steps _(proposed)_:
+
+- Production is read-only for every step, under PROTOCOL_ACCESS_DBS.md. A read of every instance uses one SSH session for all of them: on 2026-11-20 a script that opened 87 connections in a row had the host refuse SSH for about five minutes [RUN]. No row and no config read from production is committed, and what a step reads is deleted when the step ends.
+- `wb-fastr-modules` is committed by this plan and never pushed (ruling 15).
+- §2 is the design. Where a step finds that the code does not admit it, the step stops with the question for Tim and designs nothing.
 
 [TIM] On plan file names: "Dont use the word WAIT in plans. That is my designation to give" and "number these plans PLAN_01_ PLAN_02_ PLAN_03_ which is much more helpful".
 
@@ -131,9 +142,326 @@ Each quote is Tim's, from 2026-11-13. The words before a quote say what it repli
 - Panther draws a `FigureInputs`: the rows, which column sits on which axis, the style, the three texts and the legend. Its zod schema is `zFigureInputs` ([figure_inputs.ts:268](panther/_150_figure_schema/figure_inputs.ts#L268)).
 - `buildFigureInputs` makes one from a stored bundle each time a figure is drawn ([build_figure_inputs.ts:71](client/src/generate_visualization/build_figure_inputs.ts#L71)). It is not stored.
 
+### 1.7 What step 1 measured [RUN]
+
+A prototype of §2's schema, and of the conversion, was run over three sets of today's configs.
+
+| Set                                           | Configs | Fit §2's schema | Pass the metric checks                       |
+| --------------------------------------------- | ------- | --------------- | -------------------------------------------- |
+| Every preset of every module                  | 50      | 50              | 50                                           |
+| Every distinct config `deriveViewConfig` gave | 281     | 281             | 281                                          |
+| Stored figures of 29 production instances     | 24,052  | 24,050          | 6,701 of the 6,814 on a metric defined today |
+
+- The stored figures are 23,234 in slides, 708 in reports and 110 saved visualizations: 17,269 timeseries (6,544 disruptions, 6,338 standard, 3,153 percent change, 1,085 coverage, 149 band), 5,160 tables, 985 charts, 637 maps and 1 pie. 16,676 are on retired metrics [REVIEW].
+- 7,246 stored figures hold a dimension on a slot that is not effective. 268 hold two things on one slot and draw, because one is not effective. 2 hold two effective dimensions on one slot and do not draw.
+- 5,424 stored figures have no value prop to draw. Their bundle's `resultsValue.valueProps` are labels the backfill wrote ([\_figure_block.ts:527](server/db/migrations/data_transforms/_figure_block.ts#L527), [:684-690](server/db/migrations/data_transforms/_figure_block.ts#L684-L690)) while `d.valuesFilter` holds ids. `buildFigureInputs`, run on one (afghanistan slide `2r3`), throws "Need at least one valueProp". 12,009 bundles hold value props that differ from their metric's [REVIEW].
+- On yearly data the engine reads every period filter but `custom` as the latest year ([get_fetch_config_from_po.ts:182-185](lib/get_fetch_config_from_po.ts#L182-L185)). 221 stored figures and 2 presets (`m6-02-01/coverage-bar`, `m6-03-01/coverage-bar`) hold another relative filter on yearly data. Both presets leave out `year`, which their metric requires, and so fail today's edit check ([validate_figure_config_edit.ts:128-141](client/src/generate_visualization/validate_figure_config_edit.ts#L128-L141)).
+- 68 stored `m6-02-01` charts pool `year`, which the metric requires: 59 under a range of several years, 9 with no period filter.
+- The server refuses a query that does not group by a dimension every metric of the results object requires ([run_read.ts:638](server/run_query/run_read.ts#L638)).
+- Two more stored fields have no reader: `customSeriesStyles[].strokeWidth` and `.lineStyle`. A `from_month` filter's stored `max` is not read by the engine and is in the cache hash.
+- Other stored states: `timeseriesGrouping` on a figure that is not a timeseries, 6,020; a replicant value with no replicant, 1,619; a replicant with no value, 19 stored and 12 presets; a replicant dimension also filtered to one value, 41; a roll-up, 914; a timeseries whose time-axis dimension is also on a slot, 7, on which panther throws [REVIEW]; a map showing several value props, 4; a custom colour scale with no colours, 5; thresholds with two equal cutoffs, 1; a percent-change threshold of 10, 9. The longest filter list holds 390 values and the longest custom order 392 ids. Every stored colour is a hex string or `{ key }`.
+- The median config is 1,705 characters today and 746 in §2's shape. The schema as JSON Schema is 15,878 characters and 40 objects, none open.
+- A model restating a whole config, tried on the prototype's first draft. 14 stored configs with one change each, haiku and sonnet: all 28 answers exact. 12 structural requests, haiku, sonnet and opus [REVIEW]: all 36 valid; 8 changed a text unasked, one of them replacing `DATE_RANGE` with literal dates; on both requests that added a series all three changed the series colours; one cut four custom colours to one.
+- Co-editing [REVIEW]: with one Y.Map key per slot, two people moving dimensions at once lose one and the result parses. A checkpoint the strict parse rejects is a permanent failure for the whole slide or report ([collab.ts:171-181](server/routes/instance/collab.ts#L171-L181)). The bridge derives its required keys from `.shape` and relies on unknown keys being stripped ([figure_config_crdt.ts:56-69](lib/collab/figure_config_crdt.ts#L56-L69), [:113-118](lib/collab/figure_config_crdt.ts#L113-L118)).
+- Migration [REVIEW]: `transformPOConfigData` run on a converted row adds `d`, `s` and `t` back, and it runs again on every boot for rows holding any of 8 metric ids and on every read of a version snapshot ([versions.ts:65-108](server/db/products/versions.ts#L65-L108)). Each sweep commits its own transaction and a failure exits the server. A package's manifest holds each metric's presets as a JSON string, which no transform reads today.
+- `wb-fastr-modules` has no panther copy and no CLAUDE.md, and pins zod `^3.22.4`. Panther exports `zPeriodFilter` and `zLongTableFilter` through both entry files. Its `zColorKeyOrString` is private and a `z.custom`.
+
 ## §2 The model
 
-Written by step 1.
+Designed by step 1 and ruled (§3). The schema below is the design. A name in it is the name to use.
+
+### 2.1 The config
+
+```ts
+// Dim: the app's dimension enum. Text: a string in a stored config, a
+// translated string in a preset. Every object is closed (z.strictObject).
+type FigureConfig =
+  | {
+    type: "table";
+    data: Data;
+    layout: TableLayout;
+    style: TableStyle;
+    text: FigureText;
+  }
+  | {
+    type: "timeseries";
+    data: Data;
+    layout: TimeseriesLayout;
+    style: TimeseriesStyle;
+    text: FigureText;
+  }
+  | {
+    type: "chart";
+    data: Data;
+    layout: ChartLayout;
+    style: ChartStyle;
+    text: FigureText;
+  }
+  | {
+    type: "map";
+    data: Data;
+    layout: MapLayout;
+    style: MapStyle;
+    text: FigureText;
+  }
+  | {
+    type: "pie";
+    data: Data;
+    layout: PieLayout;
+    style: PieStyle;
+    text: FigureText;
+  };
+
+// Which rows are read.
+type Data = {
+  valueProps?: string[]; // which of the metric's value props; absent: all
+  filters: { dim: Dim; values: (string | number)[] }[];
+  periodFilter?: PeriodFilter;
+};
+type PeriodFilter =
+  | { type: "range"; min: number; max: number }
+  | { type: "from"; min: number } // to the latest period in the data
+  | { type: "last"; n: number; unit: "month" } // n is 1 to 24
+  | { type: "lastFull"; n: number; unit: "quarter" | "year" }; // 1 to 20, 1 to 10
+
+// Where each dimension goes. A slot holds one dimension, or "valueProps".
+type Slot = Dim | "valueProps";
+type Replicant = { dim: Dim; value?: string }; // one value shown at a time
+type Rollup = { dim: RollupDim; position: "top" | "bottom" }; // a total row
+type TableLayout = {
+  row?: Slot;
+  col?: Slot;
+  rowGroup?: Slot;
+  colGroup?: Slot;
+  replicant?: Replicant;
+  rollup?: Rollup;
+};
+type TimeseriesLayout = {
+  period: PeriodDim;
+  series?: Slot;
+  pane?: Slot;
+  tier?: Slot;
+  lane?: Slot;
+  replicant?: Replicant;
+  rollup?: Rollup;
+};
+type ChartLayout = {
+  indicator?: Slot;
+  series?: Slot;
+  pane?: Slot;
+  tier?: Slot;
+  lane?: Slot;
+  replicant?: Replicant;
+  rollup?: Rollup;
+};
+type MapLayout = {
+  mapArea: AdminDim;
+  pane?: Dim;
+  tier?: Dim;
+  lane?: Dim;
+  replicant?: Replicant;
+};
+type PieLayout = {
+  series?: Slot;
+  indicator?: Slot;
+  pane?: Slot;
+  tier?: Slot;
+  lane?: Slot;
+  replicant?: Replicant;
+};
+
+// How it is drawn. Each type holds the fields its drawing reads, and no others.
+type Common = {
+  decimalPlaces: 0 | 1 | 2 | 3;
+  paneColumns: "auto" | number;
+  memberOrder: { dim: Dim; memberIds: string[] }[];
+};
+type ValueAxis = {
+  valueAxisMaxAt100Percent: boolean;
+  valueAxisMinAuto: boolean;
+  valueAxisLimitsPerTierOrLane: boolean;
+};
+type SeriesColors =
+  | "pastel-discrete"
+  | "alt-discrete"
+  | "red-green"
+  | "blue-green"
+  | "single-grey"
+  | { custom: string[] };
+type ColorBy = "series" | "pane" | "tier" | "lane";
+type TableStyle = {
+  allowVerticalColHeaders: boolean;
+  showSampleSizes: boolean;
+  hideLegend: boolean;
+  conditionalFormatting: ConditionalFormatting;
+  decimalPlaces: 0 | 1 | 2 | 3;
+  memberOrder: Common["memberOrder"];
+};
+type TimeseriesStyle =
+  | (
+    & {
+      mode: "standard";
+      marks: "bars" | "lines" | "lines-points" | "lines-area";
+      stacked: boolean;
+      seriesColors: SeriesColors;
+      colorBy: ColorBy;
+      conditionalFormatting: ConditionalFormatting;
+      showDataLabels: boolean;
+      hideLegend: boolean;
+    }
+    & Common
+    & ValueAxis
+  )
+  | {
+    mode: "coverage";
+    valueAxisMaxAt100Percent: boolean;
+    valueAxisMinAuto: boolean;
+    paneColumns: "auto" | number;
+    memberOrder: Common["memberOrder"];
+  }
+  | (
+    & {
+      mode: "percentChange";
+      threshold: number;
+      invertColors: boolean;
+      showDataLabels: boolean;
+      labelOnlyBeyondThreshold: boolean;
+      seriesColors: SeriesColors;
+      colorBy: ColorBy;
+    }
+    & Common
+    & ValueAxis
+  )
+  | (
+    & { mode: "disruptions"; invertColors: boolean; showDataLabels: boolean }
+    & Common
+    & ValueAxis
+  )
+  | (
+    & {
+      mode: "disruptionsBand";
+      invertColors: boolean;
+      showDataLabels: boolean;
+    }
+    & Common
+    & ValueAxis
+  );
+type ChartStyle =
+  & {
+    marks:
+      | "bars"
+      | "lines"
+      | "lines-points"
+      | "lines-area"
+      | "points"
+      | "points-connectors";
+    stacked: boolean;
+    orientation: "vertical" | "horizontal";
+    verticalTickLabels: boolean;
+    sortByValue: "none" | "ascending" | "descending";
+    seriesColors: SeriesColors;
+    colorBy: ColorBy;
+    conditionalFormatting: ConditionalFormatting;
+    showDataLabels: boolean;
+    hideLegend: boolean;
+  }
+  & Common
+  & ValueAxis;
+type MapStyle = {
+  projection: "equirectangular" | "mercator" | "naturalEarth1";
+  conditionalFormatting: ConditionalFormatting;
+  showMapAreaLabels: boolean;
+  showDataLabels: boolean;
+  labelPlacement: "centroid" | "callout" | "auto";
+  hideLegend: boolean;
+} & Common;
+type PieStyle = {
+  shape: "pie" | "doughnut";
+  showCenterValue: boolean;
+  valueAgainst100Percent: boolean;
+  sortByValue: "none" | "ascending" | "descending";
+  groupSlicesBelow: number; // a share of the whole, 0 to 0.2; 0: none
+  seriesColors: SeriesColors;
+  showDataLabels: boolean;
+  hideLegend: boolean;
+} & Common;
+type ConditionalFormatting =
+  | { type: "none" }
+  | { type: "indicator" } // each indicator's own rule, from the catalog
+  | {
+    type: "thresholds";
+    cutoffs: number[];
+    buckets: { color: Color; label?: string }[];
+    direction: "higher-is-better" | "lower-is-better";
+    noDataColor?: string;
+  }
+  | {
+    type: "scale";
+    palette: { preset: PaletteName } | {
+      from: string;
+      mid?: string;
+      to: string;
+    };
+    reverse: boolean;
+    steps?: number;
+    domain: "auto" | { min: number; max: number };
+    noDataColor?: string;
+  };
+
+// DATE_RANGE in a text is replaced by the period shown, REPLICANT by the
+// replicant's value.
+type FigureText = { title: Text; subtitle: Text; footnote: Text };
+```
+
+What the words mean:
+
+- The value props are laid out on their slot only while the figure shows two or more. A timeseries with nothing on `series`, and a chart with nothing on `indicator`, draw them there.
+- The query groups by every dimension on a slot, the replicant, and every dimension filtered to exactly one value.
+- A dimension on a slot that is not effective is not laid out, as today.
+- A replicant whose dimension is also filtered to one value is a filter, as today.
+- A roll-up is closed while its dimension is filtered to one value, as today.
+- A color is a hex string or `{ key }`. A custom series colour and a scale colour are hex strings.
+
+### 2.2 The whole-figure checks
+
+| Needs              | Checks                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Runs                                                                                                                                       |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| The config alone   | By the shape: a slot or a style field of another type or mode, two things on one slot, a timeseries with no `period`, a map with no admin-level `mapArea`, a roll-up on a map or a pie, an unknown key. By refinement: a dimension on two slots, or on a slot and the replicant; a roll-up whose dimension is on no slot; two filters on one dimension; a range that is not two ordered periods of one grain; thresholds with other than one more bucket than cutoffs, or cutoffs that descend.                                                                                                                                             | In the schema, so wherever a config is parsed.                                                                                             |
+| The metric         | Every dimension and value prop named is the metric's. A filter-only dimension is only filtered. Two or more value props shown have a slot, and a map shows one. A required dimension is on a slot, the replicant, or filtered to one value; `year` on yearly data also under a one-year period. Yearly data takes a range or `lastFull` 1 year. A timeseries lays time out on `period` only. A roll-up needs a metric that can be rolled up. A special mode needs a metric on its list, no dimension on `series`, and its value props (two for disruptions, all four for the band). `indicator` colouring needs an indicator-format metric. | Every write of a whole figure: the copilot's input, a preset at module build, the wizard, the editor's Apply (ruling 12). Never at render. |
+| The package's data | Filter values exist. The replicant has a value among its dimension's values under the figure's filters and period. The period is in the data. A map's boundaries exist and meet its areas. The rows are some and under the cap.                                                                                                                                                                                                                                                                                                                                                                                                             | When a figure is resolved, before anything is committed, as today.                                                                         |
+
+### 2.3 What writes and reads a config
+
+| Thing                | Under §2                                                                                                                                                                                                                    |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The three schemas    | One factory, with a stored instance and a preset instance. `configSStrict`, the github copies and `cfStorageSchema` go.                                                                                                     |
+| The editor           | Panels write the type's own style. Picking a taken slot swaps the two. Apply refuses on a failed metric check. A change of type or mode discards the old style, and the editor keeps it for the session (ruling 11).        |
+| The wizard, a preset | A preset is a complete config. `deriveConfigFromVizPreset` picks the language of its three texts.                                                                                                                           |
+| Explore              | `deriveViewConfig` builds §2's shape and adds a roll-up only for a metric that can be rolled up.                                                                                                                            |
+| The collab map       | `type` and `layout` travel as one value. `filters`, `periodFilter`, `conditionalFormatting` and a timeseries style each travel as one value. Other fields merge one by one. A shape change clears stored `crdt_state`.      |
+| `buildFigureInputs`  | Switches on `type` and `mode`.                                                                                                                                                                                              |
+| The query            | The fetch config is built from `data` and `layout`, and carries §2's period filter.                                                                                                                                         |
+| A retired metric     | `resolveFigureMetric` carries §2's config to the successor.                                                                                                                                                                 |
+| The copilot          | One input, `{ metricId, config }`, for every tool that writes a figure. A read returns the same JSON. A write's result lists every field that differs from the stored config. A read returns a metric's presets as configs. |
+| `get_metric_data`    | `{ metricId, groupBy, valueProps, filters, periodFilter }`.                                                                                                                                                                 |
+
+### 2.4 What becomes of every stored config
+
+- 24,050 of the 24,052 stored figures convert [RUN]. For every stored figure, the fetch config, the axes, the roll-up, the filters, the period bounds and the conditional formatting before and after the prototype's first draft were equal but for the cases below [REVIEW].
+- Two things on one slot, one of them not effective (268): a dimension filtered to one value leaves the slot and stays grouped. One that holds one value in the figure's rows moves to the first free slot (104).
+- A relative period filter on yearly data (221, and 2 presets) becomes `lastFull` 1 year: the same rows.
+- Line-and-point marks (26): two label flags become one, on if either was.
+- A roll-up closed today whose dimension left its slot (9) is dropped.
+- A timeseries whose time-axis dimension is also on a slot (7) loses the slot entry and would draw.
+- Two effective dimensions on one slot (2): the second moves to the first free slot and would draw.
+- A map with no admin-level `mapArea` (ghana slides `zm2`, `saf`) becomes an empty figure block, listed in the migration log (ruling 13).
+- Dropped, with no reader for the type that holds them: the fields of §1.1 and §1.7 with no reader; a style field of another type or mode; `timeseriesGrouping` off a timeseries; a replicant value with no replicant; a `from_month` filter's `max`.
+- The conversion reads no value props from a bundle (§1.7). It keeps `"valueProps"` on its stored slot wherever that slot is of the type and free.
+- The conversion is the last transform block and runs only on a row that holds `d`. Every other block passes a converted row through. The figure sweeps share one transaction. A read of a version snapshot converts. A manifest transform fills a stored preset's defaults and converts it.
+
+### 2.5 Panther
+
+The union, the layouts, the styles and the checks are this app's. The low-level elements are imported from panther wherever it has or can hold them (ruling 14): today that is the period filter and the filter.
 
 ## §3 Rulings
 
@@ -143,9 +471,20 @@ Written by step 1.
 4. **One input.** Ruled (Tim, 2026-11-19). The copilot states a config. Changing a figure means stating it again, through one input shared by creating, replacing and the editor's tool. It rests on §1.5: "can just replace", "no need to "patch"" and "the same tool signature".
 5. **No preset id in an input.** Ruled (Tim, 2026-11-19). A preset is a config the copilot reads as a recipe and states itself. An id would bring settings from somewhere the input does not show.
 6. **`get_metric_data` takes the same names for the same things.** Ruled (Tim, 2026-11-19), under ruling 3.
-7. **The app stops reading `allowedFilters`.** Ruled (Tim, 2026-11-19). The create path from a preset is all that enforces it (§1.4), and with no preset in the input nothing does. Whether the field leaves the module definitions is step 1's to put to Tim _(proposed)_.
+7. **The app stops reading `allowedFilters`, and the field leaves the module definitions.** The first ruled (Tim, 2026-11-19): the create path from a preset is all that enforces it (§1.4), and with no preset in the input nothing does. The second ruled (Tim, 2026-11-20): it leaves both preset schemas and the 50 presets.
 
-Step 1 tests rulings 4 to 7. It does not reopen them.
+Rulings 8 to 13 were put to Tim on 2026-11-20 as questions, each with the step-1 agent's opinion. His reply to all of them: "agree with all your rulings". Each is written here as that opinion.
+
+8. **The shape.** The config is a union by figure type, with a slot-keyed layout and a style of each type's own (§2.1). This is the union declined on 2026-08-06 (§1.1).
+9. **The names are panther's.** `pane`, `tier`, `lane` for a chart's `cell`, `row`, `col`; `title`, `subtitle`, `footnote`; `dim`. A later move into panther then needs no second migration.
+10. **The period filter takes panther's four shapes**, in the stored config and in the fetch config, and yearly data takes only a range or the last full year. It changes the query engine's input type and every figure cache key.
+11. **A change of type or chart mode discards the old one's style.** The editor keeps it for the session.
+12. **The metric checks bind a person too.** The editor's Apply refuses on a failed metric check, as the copilot's writes and a preset's build do. Rendering does not run them, so a stored figure draws as it does today.
+13. **A stored map with no admin area becomes an empty figure block**, listed in the migration log.
+14. **The high-level shapes stay in wb-fastr and the low-level elements come from panther.** Tim, 2026-11-20: "let's keep the high-level shapes in wb-fastr, but wherever possible, let's have low-level elements import from panther. to this end, move or create any needed schemas into panther (to import from), wherever it makes sense to do so." And of the design as a whole: "i think it's ok to design for wb-fastr primarily at this stage". Which elements those are is step 3's to settle with the code in front of it. This answers the question the plan kept for its last step, whether the config moves into panther: the config stays here.
+15. **Nothing ships, and `wb-fastr-modules` is not pushed.** _(proposed)_ Production fetches module definitions from GitHub, and an app without §2's schema cannot parse a preset written in it. The push goes with the release, which is Tim's.
+
+Step 1 tested rulings 4 to 7 (§1.7). No step reopens a ruling.
 
 ## §4 Steps
 
@@ -172,27 +511,114 @@ Tim ruled that step 1 designs the config and writes the steps after it. What ste
 
 **Ends with.** One commit rewriting this plan, after Tim's rulings.
 
-### Steps 2 onward
+### Step 2: ground (not code)
 
-Written by step 1.
+The code steps wait on panther's `PLAN_01_CLOSED_TOOL_INPUTS.md`, which rewrites the copilot's schemas, so their Surfaces are written when they can start.
 
-### The last step: does the config move into panther? (a question, not code)
+**Surface.** This file.
 
-[TIM, 2026-11-19] "if this new optimised stored figure config essentially becomes a reduced JSON-only version of figure inputs that is AI-friendly, could it be moved into panther itself. That way we can maintain the light-storage version of the figure inputs in the same place as the inputs themselves."
+**Deliverable.** The Surface of each of steps 3 to 6, written from the step's Deliverable and the code as it then is, each new file named. Any file, line or claim of §1 and §2 found wrong is corrected in place. Where the code no longer admits a ruling or a Deliverable, the step stops with the question for Tim.
 
-Step 1 writes this as the plan's last step. It answers whether the config, or which part of it, moves into panther. What it starts from [CHECKED]:
+**Not in this step.** Any code. Any change to §2 or §3.
 
-- Panther's `PLAN_20_LONG_TABLE_FIGURE.md` already plans to take "the generic "figure over a long table" model" out of this app. It names a `d` config (the figure type, each dimension on a slot, filters, the period filter, the values filter, the replicant, the roll-up and the timeseries grain), kept apart from any style type. It runs after this plan closes, and says this plan's "whole-figure rules and per-type shape are part of the model this plan extracts". Its open question is whether `VIZ_TYPE_CONFIG` is universal or this app's taste.
-- Panther's `PLAN_21_FIGURE_JSON_INPUT.md` plans a JSON form of panther's own style.
-- The config holds no rows. It says what to read of a metric and how to lay it out and draw it, where a `FigureInputs` holds the rows themselves (§1.6).
-- Some of what the config means comes from this app's metrics: which dimensions a metric requires, how its values combine, and which special chart styles it may use ([special_chart_checks.ts](client/src/generate_visualization/special_chart_checks.ts)).
+**Gates.** `git status --short` shows this file and nothing else. A reviewer who derives a step's Surface from its Deliverable and the code finds no file missing and none surplus.
+
+**Ends with.** One commit.
+
+### Step 3: panther's low-level schemas
+
+Repo: panther. Its CLAUDE.md is read first.
+
+**Surface.** Written in step 2.
+
+**Deliverable.**
+
+- Panther exports, through both entry files, a closed zod schema that `z.toJSONSchema` converts for every low-level element of §2.1 that panther has a type for or can sensibly hold (ruling 14). The step settles the list. It starts from: the period filter and the filter, which panther has; a colour that is a hex string or `{ key }`; a continuous palette name; a map projection; a map label placement.
+- `wb-fastr-modules` has no panther copy (§1.7). The schemas the config imports can be copied into it as files that import nothing but zod.
+- Panther's own docs and TERMINOLOGY.md say what the step added.
+- `./sync wb-fastr` has run.
+
+**Not in this step.** A JSON form of panther's style (panther's `PLAN_21_FIGURE_JSON_INPUT.md`). The long-table figure model (panther's `PLAN_20_LONG_TABLE_FIGURE.md`). Any change to this app beyond the sync.
+
+**Gates.** Panther's floor. A committed panther test pins what each new schema accepts and refuses. This app's floor after the sync.
+
+**Ends with.** One commit in panther and one sync commit here.
+
+### Step 4: the schema, the checks and the conversion
+
+Repo: this one. Nothing the app runs reads the new schema until step 5.
+
+**Surface.** Written in step 2.
+
+**Deliverable.**
+
+- §2.1's schema in `lib`, as one factory with a stored instance and a preset instance, its low-level elements imported from panther.
+- §2.2's config-alone checks inside the schema, and its metric checks as one pure function in `lib`.
+- The conversion of §2.4 as a pure function, with what it needs of a bundle as arguments.
+- What §2 derives from a config, as pure functions in `lib`: what the query groups by, the fetch config, which dimensions are effective, the roll-up, the replicant.
+- Tests: a passing and a refused case for every check; a case for every rule of §2.4; under `FASTR_MODULES_LOCAL_DIR`, every preset and every config `deriveViewConfig` gives converts, fits and passes the metric checks; for each of those, the fetch config, the axes, the roll-up, the filters, the period bounds and the conditional formatting derived from the converted config equal those today's functions derive from the stored one.
+- A read-only root script in the manner of `sweep_retired_figures.ts` that runs the same comparison over every stored figure of every instance and writes its counts by the cases of §2.4.
+- SYSTEM_10's Open items gains the 5,424 figures of §1.7 that have no value prop to draw.
+
+**Not in this step.** Any change to what is stored, read or drawn. The modules repo.
+
+**Gates.** The floor. The new test files. The sweep reports that every stored figure converts and fits but a map with no admin-level `mapArea`, and that every difference is one §2.4 lists.
+
+**Ends with.** One commit.
+
+### Step 5: the cutover
+
+Repos: this one and `wb-fastr-modules`.
+
+**Surface.** Written in step 2.
+
+**Deliverable.**
+
+- §2's config is the one description of a figure: what is stored, what a preset holds, what the editor, the wizard and Explore write, what the collab map carries, what the query and the renderer read, and what the copilot states and reads (§2.3). `{ d, s, t }`, its three schemas, `cfStorageSchema` and the copilot's four shapes are gone.
+- Every stored config is converted as §2.4 says: slides, reports, saved visualizations, version snapshots on read, and the presets in each package's manifest. A new migration clears stored `crdt_state`.
+- The fetch config carries §2's period filter, and the figure cache prefixes are bumped (ruling 10).
+- The copilot writes a figure through one input and reads back the same JSON, with a read that returns a metric's presets as configs (rulings 3 to 5). The app reads no `allowedFilters` (ruling 7).
+- In `wb-fastr-modules`: every preset is a complete config of §2's shape with translated texts and no `allowedFilters`; its vendored schema is this app's, with the panther files it imports; its build runs the schema and the metric checks on every preset; `DOC_VIZPRESET_STANDARDS.md` says so. Committed, not pushed (ruling 15).
+- The SYSTEM files and the protocols say what the code now does.
+
+**Not in this step.** The copilot's further reads and `get_metric_data`'s names (step 6). A repair of the stored figures of §1.7 that do not draw.
+
+**Gates.** The floor. `./validate_migrations`. `./validate_queries`. The tests the step adds or edits. Step 4's comparison test, now run on the app's own functions. Step 4's sweep.
+
+**Ends with.** One commit here and one in `wb-fastr-modules`.
+
+### Step 6: the copilot's further reads
+
+Repo: this one.
+
+**Surface.** Written in step 2.
+
+**Deliverable.**
+
+- `get_metric_data` takes `{ metricId, groupBy, valueProps, filters, periodFilter }` (ruling 6).
+- A write of a figure returns every field that differs from the stored config, so a change the model did not mean is seen (§1.7).
+- A read returns the editor's starting config for a metric and a type, and a read returns the editor's conversion of a config to another type, so the model takes a style from the app.
+- Each of the 17 notes of §6 is closed by this plan, saying how, or moved to a SYSTEM file's Open items.
+- SYSTEM_13 and PROTOCOL_APP_AI_TOOLS.md say what the code now does.
+
+**Not in this step.** Any change to the stored config.
+
+**Gates.** The floor. The tests the step adds or edits. After the review passes, `deno task test`, once for the plan.
+
+**Ends with.** One commit, and the close commit that deletes this file.
 
 ## §5 Out of scope
 
 - **Panther's figure schema.** The objective names it as the one other schema. Its own JSON form is panther's `PLAN_21_FIGURE_JSON_INPUT.md`. _(proposed)_
 - **New figure types and significance testing.** _(proposed)_
+- **Moving the config into panther.** Ruled (ruling 14): it stays here at this stage. Panther's `PLAN_20_LONG_TABLE_FIGURE.md` runs after this plan closes and takes the generic model from it.
+- **A repair of the stored figures that do not draw** (§1.7). Step 4 writes them to SYSTEM_10's Open items.
 
 ## §6 Log
+
+- Step 1 wrote `Written in step 2` for the Surface of steps 3 to 6, and a ground step, instead of the Surfaces its Deliverable names, because the code steps wait on panther's `PLAN_01_CLOSED_TOOL_INPUTS.md`, which rewrites files they touch.
+- Step 1 did not write the last step its section names (does the config move into panther), because ruling 14 answers it.
+- Step 1's review ran on the prototype's first draft. The schema of §2.1 is the revision after it, on which the three sets of §1.7 were run again and the review was not.
 
 ### NOTES FROM EXPERIMENT WITH AI AGENT IN sierraleone PROD INSTANCE
 
