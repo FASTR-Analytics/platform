@@ -26,3 +26,11 @@ export function visualizationsLabel(n: number): string {
     })
   }`;
 }
+
+export function asImagesLabel(n: number): string {
+  return t3({
+    en: plural(n, { one: "as an image", other: "as images" }),
+    fr: "en image",
+    pt: "como imagem",
+  });
+}

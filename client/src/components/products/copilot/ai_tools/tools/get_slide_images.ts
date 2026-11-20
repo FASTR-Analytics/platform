@@ -3,7 +3,7 @@ import { z } from "zod";
 import { COPILOT_TOOL_VIEWS, t3 } from "lib";
 import { describeSlideOverflow, renderSlideImage } from "../../slide_ai/mod.ts";
 import { describeToolImage, MAX_LOOK_SUBJECTS } from "../../_shared/mod.ts";
-import { slidesLabel } from "./tool_labels.ts";
+import { asImagesLabel, slidesLabel } from "./tool_labels.ts";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import { assertSlidesInDeck, readSlideTarget } from "./slide_target.ts";
 
@@ -55,24 +55,27 @@ export function createGetSlideImagesTool() {
       });
     },
     inProgressLabel: (input) => {
-      const slides = slidesLabel(new Set(input.slideIds).size);
+      const n = new Set(input.slideIds).size;
+      const slides = slidesLabel(n);
+      const asImages = asImagesLabel(n);
       return t3({
-        en: `Getting ${slides} as images...`,
-        fr: `Récupération de ${slides} en image...`,
-        pt: `A obter ${slides} como imagem...`,
+        en: `Getting ${slides} ${asImages}...`,
+        fr: `Récupération de ${slides} ${asImages}...`,
+        pt: `A obter ${slides} ${asImages}...`,
       });
     },
     successMessage: (input) => {
       const n = new Set(input.slideIds).size;
       const slides = slidesLabel(n);
+      const asImages = asImagesLabel(n);
       return t3({
-        en: `Retrieved ${slides} as images`,
+        en: `Retrieved ${slides} ${asImages}`,
         fr: `${slides} ${
           plural(n, { one: "récupérée", other: "récupérées" })
-        } en image`,
+        } ${asImages}`,
         pt: `${slides} ${
           plural(n, { one: "obtido", other: "obtidos" })
-        } como imagem`,
+        } ${asImages}`,
       });
     },
   });

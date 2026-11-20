@@ -18,7 +18,7 @@ import {
   MAX_LOOK_SUBJECTS,
   type ToolImage,
 } from "../../_shared/mod.ts";
-import { visualizationsLabel } from "./tool_labels.ts";
+import { asImagesLabel, visualizationsLabel } from "./tool_labels.ts";
 import { describeFigureUnavailableForAI } from "./figure_unavailable_for_ai.ts";
 import { liveBundleOrRefuse } from "./report_editor.ts";
 
@@ -82,24 +82,27 @@ export function createGetReportFigureImagesTool() {
       });
     },
     inProgressLabel: (input) => {
-      const visualizations = visualizationsLabel(new Set(input.figureIds).size);
+      const n = new Set(input.figureIds).size;
+      const visualizations = visualizationsLabel(n);
+      const asImages = asImagesLabel(n);
       return t3({
-        en: `Getting ${visualizations} as images...`,
-        fr: `Récupération de ${visualizations} en image...`,
-        pt: `A obter ${visualizations} como imagem...`,
+        en: `Getting ${visualizations} ${asImages}...`,
+        fr: `Récupération de ${visualizations} ${asImages}...`,
+        pt: `A obter ${visualizations} ${asImages}...`,
       });
     },
     successMessage: (input) => {
       const n = new Set(input.figureIds).size;
       const visualizations = visualizationsLabel(n);
+      const asImages = asImagesLabel(n);
       return t3({
-        en: `Retrieved ${visualizations} as images`,
+        en: `Retrieved ${visualizations} ${asImages}`,
         fr: `${visualizations} ${
           plural(n, { one: "récupérée", other: "récupérées" })
-        } en image`,
+        } ${asImages}`,
         pt: `${visualizations} ${
           plural(n, { one: "obtida", other: "obtidas" })
-        } como imagem`,
+        } ${asImages}`,
       });
     },
   });
