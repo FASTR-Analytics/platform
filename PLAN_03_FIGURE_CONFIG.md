@@ -16,6 +16,7 @@ The instruction is "Do the next step of PLAN_03_FIGURE_CONFIG.md." Branch, floor
 
 - **[CHECKED]**: read in the code, or run, by the agent that wrote this file ("the writing agent") on 2026-11-19. Where the code has moved, the code wins.
 - **[TIM]**: Tim's words, quoted as typed.
+- **[ACCOUNT]**: what a quote of Tim's replied to, as an earlier version of this plan recorded it (`git show 46469d6f8:PLAN_03_COPILOT_FIGURES.md`, §2.1). Written by an agent that was in that conversation, and not a quote.
 - **_(proposed)_**: written by the writing agent and not heard from Tim. It stands unless Tim overrules it before the step that depends on it.
 
 A heading's mark covers everything under it. A line's own mark overrides its heading's. Unmarked text is procedure, vocabulary, or a ruling of §3.
@@ -113,8 +114,19 @@ All are in [ai_input.ts](lib/types/ai_input.ts), and each is an open `z.object`.
 - The type and the time grouping can be stated only through `update_figure_editor`. No shape states any style: the edit schema's own comment says style is excluded by design ([ai_input.ts:186-193](lib/types/ai_input.ts#L186-L193)).
 - The read prints the metric, the type, the dimensions and their slots, the filters, the replicant, the values, the period filter and the three texts. It prints no style, no time grouping and no roll-up.
 - An edit is checked only on what its patch touches, by contract ([validate_figure_config_edit.ts:54](client/src/generate_visualization/validate_figure_config_edit.ts#L54)).
+- The three edit tools each hold their own copy of one sequence of calls: apply the patch, check the edit, check the data, describe the change, resolve the bundle, check the slots ([update_figure.ts:163-213](client/src/components/products/copilot/ai_tools/tools/update_figure.ts#L163-L213), [figure_editor.ts:178-211](client/src/components/products/copilot/ai_tools/tools/figure_editor.ts#L178-L211), [report_editor.ts:640-684](client/src/components/products/copilot/ai_tools/tools/report_editor.ts#L640-L684)).
+- `get_metric_data` takes `AiMetricQuerySchema` ([ai_input.ts:39](lib/types/ai_input.ts#L39)): the create names `filters`, `startDate`, `endDate` and `valuesFilter`, and one name of its own, `disaggregations`, a list of dimensions with no slots. One builder makes the tool for the app's copilot and for `/mcp` ([tools_metrics.ts:94](lib/ai_tools/tools_metrics.ts#L94), [copilot_tools.ts:47](client/src/components/instance/copilot_tools.ts#L47), [mcp_tools.ts:59](server/mcp/mcp_tools.ts#L59)).
+- A preset's `allowedFilters` is read in two places. The create path refuses a filter on a dimension it does not list ([build_config_from_preset.ts:71-84](client/src/components/products/copilot/slide_ai/build_config_from_preset.ts#L71-L84)), and the metrics listing prints it ([format_metrics_list_for_ai.ts:126](lib/ai_tools/format_metrics_list_for_ai.ts#L126)). No edit tool reads it.
 
-### 1.5 Panther's figure schema [CHECKED]
+### 1.5 What Tim has said about the copilot's tools [TIM]
+
+Each quote is Tim's, from 2026-11-13. The words before a quote say what it replied to and are [ACCOUNT].
+
+1. After being told that `update_figure` cannot change a chart type and that creation would gain a field for the type: "do we really need update_figure for slides, when we can just replace? Or is the issue that we can't see the original in full?"
+2. Of a proposal for one set of names in which a create still names a preset and adds a patch to it: "i agree with one-vocabulary, but i am unclear why it needs to be from a preset... aren't we at the point now where we can just create things from metrics?", then "and if it's from metric, why is it a patch? what is there to patch?" and "you should be just choosing the correct things to begin with - no need to "patch""
+3. After a stress test of creating a figure from a metric's defaults: "i am beginning to think that the presets system is potentially a footgun. it would be better for the AI to have to specify everything that the user's UI figure editor has, and thus have visibility into everything, and also thus have the same tool signature for editing figures in the UI editor (perhaps). And presents are essentially a cookbook that AI can see and recreate." ([ACCOUNT] "presents" was read as presets.)
+
+### 1.6 Panther's figure schema [CHECKED]
 
 - Panther draws a `FigureInputs`: the rows, which column sits on which axis, the style, the three texts and the legend. Its zod schema is `zFigureInputs` ([figure_inputs.ts:268](panther/_150_figure_schema/figure_inputs.ts#L268)).
 - `buildFigureInputs` makes one from a stored bundle each time a figure is drawn ([build_figure_inputs.ts:71](client/src/generate_visualization/build_figure_inputs.ts#L71)). It is not stored.
@@ -127,6 +139,13 @@ Written by step 1.
 
 1. **Whole-figure checks.** Ruled in Tim's words (2026-11-13): "Please - extremely solid whole-figure checks, which if I understand would just be the zod schema (and don't we already have this?)". What the checks are is step 1's to design.
 2. **Every tool input is closed.** Ruled (Tim, 2026-11-19). Every object in a tool input is `z.strictObject` at every level, panther's `createAITool` refuses an open one, and the API's `strict: true` is still never sent. The work is panther's `PLAN_01_CLOSED_TOOL_INPUTS.md` (`/Users/timroberton/projects/panther/timroberton-panther/`), which holds the evidence and closes every tool schema in this app. It runs before this plan's code steps. "Never `z.strictObject()`" in PROTOCOL_APP_AI_TOOLS.md is withdrawn, and that plan rewrites it. So the config, as the copilot's input, is closed at every level.
+3. **One set of names for creating and editing a figure.** Ruled. Tim, 2026-11-13: "i agree with one-vocabulary" (§1.5, 2).
+4. **One input.** Ruled (Tim, 2026-11-19). The copilot states a config. Changing a figure means stating it again, through one input shared by creating, replacing and the editor's tool. It rests on §1.5: "can just replace", "no need to "patch"" and "the same tool signature".
+5. **No preset id in an input.** Ruled (Tim, 2026-11-19). A preset is a config the copilot reads as a recipe and states itself. An id would bring settings from somewhere the input does not show.
+6. **`get_metric_data` takes the same names for the same things.** Ruled (Tim, 2026-11-19), under ruling 3.
+7. **The app stops reading `allowedFilters`.** Ruled (Tim, 2026-11-19). The create path from a preset is all that enforces it (§1.4), and with no preset in the input nothing does. Whether the field leaves the module definitions is step 1's to put to Tim _(proposed)_.
+
+Step 1 tests rulings 4 to 7. It does not reopen them.
 
 ## §4 Steps
 
@@ -139,7 +158,8 @@ Tim ruled that step 1 designs the config and writes the steps after it. What ste
 **Deliverable.**
 
 - The config's schema in full: closed at every level, JSON-only, every field with the reason it is there.
-- For each thing that writes or reads a config (§1.2, §1.4, §1.5), what it does under the new shape: the editor, the wizard, a change of type, the presets and the modules repo's schema, the Explore page, the collab map, `buildFigureInputs`, and what the copilot sends to create a figure, sends to change one, and reads back.
+- For each thing that writes or reads a config (§1.2, §1.4, §1.6), what it does under the new shape: the editor, the wizard, a change of type, the presets and the modules repo's schema, the Explore page, the collab map, `buildFigureInputs`, the copilot's one input (ruling 4), what the copilot reads back, and `get_metric_data` (ruling 6).
+- Rulings 4 to 7 tested. For ruling 4: whether a model restates a whole config without changing a setting it did not mean to.
 - What becomes of every stored config: the bundles in slides, reports and saved visualizations, figures on retired metrics included, and the 50 presets.
 - The whole-figure checks (ruling 1): each check, whether it needs the config alone, the metric or the data, and where it runs.
 - The design tested before it is put to Tim (§0): against every preset of every module, every figure `deriveViewConfig` gives, and the stored figures of at least one production instance, and attacked by an independent agent that was not given the conclusion.
