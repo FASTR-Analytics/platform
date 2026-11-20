@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - AI assistant now correctly rejects unexpected fields in requests
+[TBD] [admin] [fixed] - AI assistant now rejects unexpected fields in tool inputs
 [TBD] [user] [fixed] - Improved grammar in status messages when processing single items
 [TBD] [admin] [fixed] - Copilot status messages now use correct singular/plural forms
 [TBD] [admin] [internal] - Improved AI instructions for generating slide content
