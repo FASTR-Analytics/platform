@@ -232,7 +232,7 @@ export type ObjectJsonSchema = {
   type: "object";
   properties?: Record<string, JsonValue>;
   required?: string[];
-  additionalProperties?: false;
+  additionalProperties: false;
 };
 
 // What a handler gets beside its input: the tool_use id the call answers and
@@ -558,24 +558,100 @@ export type CreateUngatedViewAIToolConfig<
 
 // Emitted with io: "input": .default() fields are optional on the wire and
 // .transform() inputs are representable, where output io would list
-// defaulted fields as required and cannot represent a transform. A plain
-// z.object emits no additionalProperties and z.strictObject emits false, so
-// the wire says exactly what parse accepts. One known laxity: a z.preprocess
+// defaulted fields as required and cannot represent a transform.
+// buildAITool refuses an open object, so every object on the wire carries
+// additionalProperties: false and the wire says exactly what parse accepts:
+// a closed object at every level. One known laxity: a z.preprocess
 // field is advertised optional, so its fn must tolerate undefined or parse
 // rejects what the wire allowed. These schemas also serve the MCP
 // tools/list (_220), so any change ripples to MCP clients and must re-run
 // the mcp rigs.
-function zodToJsonSchema(zodSchema: zType.ZodType): ObjectJsonSchema {
-  const jsonSchema = z.toJSONSchema(zodSchema, { io: "input", reused: "ref" });
+export function wireInputSchema(schema: zType.ZodType): JsonValue {
+  return z.toJSONSchema(schema, { io: "input", reused: "ref" }) as JsonValue;
+}
 
-  if (jsonSchema.type !== "object") {
-    throw new Error(`Zod schema must be an object, but got ${jsonSchema.type}`);
+function asClosedRoot(jsonSchema: JsonValue): ObjectJsonSchema {
+  if (
+    typeof jsonSchema !== "object" || jsonSchema === null ||
+    Array.isArray(jsonSchema) || jsonSchema.type !== "object" ||
+    jsonSchema.additionalProperties !== false
+  ) {
+    throw new Error(
+      `Zod schema must be a closed object at the root, but got ${
+        JSON.stringify(jsonSchema)
+      }`,
+    );
   }
 
   return jsonSchema as ObjectJsonSchema;
 }
 
-function parseToolInput<TInput>(
+// Keywords whose value is data, not a schema: a default or an example may
+// hold a literal object that has `properties`.
+const DATA_KEYWORDS = new Set(["default", "examples", "const", "enum"]);
+// Keywords whose value maps a name to a schema: the names are data (a
+// property may be called "default"), the values are schema positions.
+const SCHEMA_MAP_KEYWORDS = new Set([
+  "properties",
+  "patternProperties",
+  "$defs",
+  "definitions",
+  "dependentSchemas",
+]);
+
+export const CLOSED_INPUT_RULE =
+  "Every object in a tool input is z.strictObject; a key free by intent is a z.record.";
+
+// The path of the first open object in a wire schema, or null: an object
+// node that has `properties` and lacks `additionalProperties: false`, so it
+// accepts a misspelled key beside its declared ones. z.object, z.looseObject
+// and .catchall(<schema>) emit one; a z.record emits no `properties` and is
+// not one.
+export function findOpenObjectPath(schema: JsonValue): string | null {
+  return findOpenObjectPathFrom(schema, "$");
+}
+
+function findOpenObjectPathFrom(node: JsonValue, path: string): string | null {
+  if (Array.isArray(node)) {
+    for (const [i, item] of node.entries()) {
+      const hit = findOpenObjectPathFrom(item, `${path}[${i}]`);
+      if (hit !== null) {
+        return hit;
+      }
+    }
+    return null;
+  }
+  if (node === null || typeof node !== "object") {
+    return null;
+  }
+  if ("properties" in node && node.additionalProperties !== false) {
+    return path;
+  }
+  for (const [key, value] of Object.entries(node)) {
+    if (DATA_KEYWORDS.has(key)) {
+      continue;
+    }
+    if (
+      SCHEMA_MAP_KEYWORDS.has(key) && value !== null &&
+      typeof value === "object" && !Array.isArray(value)
+    ) {
+      for (const [name, sub] of Object.entries(value)) {
+        const hit = findOpenObjectPathFrom(sub, `${path}.${key}.${name}`);
+        if (hit !== null) {
+          return hit;
+        }
+      }
+      continue;
+    }
+    const hit = findOpenObjectPathFrom(value, `${path}.${key}`);
+    if (hit !== null) {
+      return hit;
+    }
+  }
+  return null;
+}
+
+export function parseToolInput<TInput>(
   schema: zType.ZodType<TInput>,
   input: unknown,
 ): TInput {
@@ -658,6 +734,14 @@ export function createAITool<TInput>(
 export function buildAITool<TInput>(
   config: ErasedCreateAIToolConfig,
 ): AIToolWithMetadata<TInput> {
+  const wire = wireInputSchema(config.inputSchema);
+  const openPath = findOpenObjectPath(wire);
+  if (openPath !== null) {
+    throw new Error(
+      `createAITool("${config.name}"): input schema leaves extra keys undeclared at ${openPath}. ${CLOSED_INPUT_RULE}`,
+    );
+  }
+  const inputSchema = asClosedRoot(wire);
   if (config.availableIn !== undefined && config.availableIn.length === 0) {
     throw new Error(
       `createAITool("${config.name}"): availableIn is empty — the tool would be executable nowhere. Omit the field for an everywhere-available tool.`,
@@ -792,7 +876,7 @@ export function buildAITool<TInput>(
   const sdkTool: SDKTool<TInput> = {
     name: config.name,
     description,
-    input_schema: zodToJsonSchema(config.inputSchema),
+    input_schema: inputSchema,
     run: async (input: TInput, context?: SDKToolRunContext) =>
       buildToolResultContent(
         (await execute(

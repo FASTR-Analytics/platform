@@ -90,13 +90,14 @@ export async function handleDelete(c: Context): Promise<Response> {
 ### Derive from Storage Schemas
 
 ```typescript
-// ✅ DO: derive from source of truth
-const toolSchema = storageSchema.shape.config
+// ✅ DO: derive from source of truth, closed at the AI layer. The storage
+// schema stays open: closing it would make stored rows with old keys throw.
+const toolSchema = z.strictObject(storageSchema.shape.config.shape)
   .partial()
   .describe("Configuration options");
 
 // ❌ DON'T: create "slightly different" schemas
-const toolSchema = z.object({
+const toolSchema = z.strictObject({
   col: z.string(), // renamed from "column"
   vals: z.array(), // renamed from "values"
 });
@@ -109,9 +110,9 @@ const toolSchema = z.object({
 
 ```typescript
 // Layer 1: schema validation
-const schema = z.object({
+const schema = z.strictObject({
   indicatorId: z.string(),
-  dateRange: z.object({ start: z.string(), end: z.string() }),
+  dateRange: z.strictObject({ start: z.string(), end: z.string() }),
 });
 
 // Layer 2: runtime validation

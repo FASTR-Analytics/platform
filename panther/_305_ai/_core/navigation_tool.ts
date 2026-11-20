@@ -156,14 +156,14 @@ export function createNavigationTool<
       );
     }
     return def.params
-      ? z.object({ view: z.literal(id), params: def.params })
-      : z.object({ view: z.literal(id) });
+      ? z.strictObject({ view: z.literal(id), params: def.params })
+      : z.strictObject({ view: z.literal(id) });
   });
   const [firstBranch, ...restBranches] = branches;
   const targetSchema = restBranches.length === 0
     ? firstBranch
     : z.discriminatedUnion("view", [firstBranch, ...restBranches]);
-  const inputSchema = z.object({
+  const inputSchema = z.strictObject({
     target: targetSchema,
   }) as unknown as zType.ZodType<AINavigationToolInput<TDefs, K>>;
 

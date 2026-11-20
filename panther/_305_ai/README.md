@@ -107,7 +107,7 @@ import { z } from "zod";
 const weatherTool = createAITool({
   name: "get_weather",
   description: "Get weather for a location",
-  inputSchema: z.object({ location: z.string() }),
+  inputSchema: z.strictObject({ location: z.string() }),
   handler: async (input) => `Weather in ${input.location}: Sunny`,
 
   // Optional - customize labels shown to users:
@@ -130,7 +130,7 @@ import { AIToolFailure, createAITool } from "@timroberton/panther";
 const tool = createAITool({
   name: "set_temperature",
   description: "Set the thermostat",
-  inputSchema: z.object({ zone: z.string(), celsius: z.number() }),
+  inputSchema: z.strictObject({ zone: z.string(), celsius: z.number() }),
   handler: (input) => {
     if (!zones.has(input.zone)) {
       throw new AIToolFailure(`Unknown zone "${input.zone}"`);
@@ -151,7 +151,7 @@ import { AIToolOutput, createAITool } from "@timroberton/panther";
 const tool = createAITool({
   name: "get_slide_image",
   description: "Shows a slide as it is drawn",
-  inputSchema: z.object({ slideId: z.string() }),
+  inputSchema: z.strictObject({ slideId: z.string() }),
   handler: async (input) =>
     new AIToolOutput({
       text: `Slide ${input.slideId}`,
@@ -186,7 +186,7 @@ const views = defineAIViews({
   home: view({ label: "Home" }),
   editing_slide: view<{ slideId: string }, SlideEditorContext>({
     label: (p, ctx) => `Editing slide ${p.slideId} of ${ctx.deckName}`,
-    params: z.object({ slideId: z.string() }),
+    params: z.strictObject({ slideId: z.string() }),
     // What the view shows: a view-limited call made after the user moved to
     // another slide is refused until they write again.
     identity: (p, ctx) => ({ deckId: ctx.deckId, slideId: p.slideId }),

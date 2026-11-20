@@ -8,7 +8,13 @@ export type {
   APIResponseWithData,
   QueryState,
 } from "../_111_api_contract/mod.ts";
-export { AIToolFailure, createAITool } from "../_112_ai_tool_core/mod.ts";
+export {
+  AIToolFailure,
+  CLOSED_INPUT_RULE,
+  createAITool,
+  findOpenObjectPath,
+  wireInputSchema,
+} from "../_112_ai_tool_core/mod.ts";
 export type { AnyAITool, ProposalPreview } from "../_112_ai_tool_core/mod.ts";
 export { authorize } from "../_113_identity/mod.ts";
 export type {
