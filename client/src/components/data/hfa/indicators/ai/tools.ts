@@ -1253,11 +1253,19 @@ export function buildHfaIndicatorTools() {
         fr: "Proposition de modifications d'indicateurs HFA...",
         pt: "A propor alterações de indicadores HFA...",
       }),
-      successMessage: t3({
-        en: "Not proposed: the indicators would not change",
-        fr: "Non proposé : les indicateurs ne changeraient pas",
-        pt: "Não proposto: os indicadores não mudariam",
-      }),
+      successMessage: (input) =>
+        t3(plural(input.updates.length, {
+          one: {
+            en: "Not proposed: the indicator would not change",
+            fr: "Non proposé : l'indicateur ne changerait pas",
+            pt: "Não proposto: o indicador não mudaria",
+          },
+          other: {
+            en: "Not proposed: the indicators would not change",
+            fr: "Non proposé : les indicateurs ne changeraient pas",
+            pt: "Não proposto: os indicadores não mudariam",
+          },
+        })),
     }),
 
     createAITool({
