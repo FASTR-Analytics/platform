@@ -5,6 +5,7 @@
 
 import { extractGaps } from "./_internal/extract_gaps.ts";
 import {
+  getHeightConstraints,
   type MeasureContext,
   measureNode,
 } from "./_internal/measure_internal.ts";
@@ -83,6 +84,20 @@ export function measureLayout<T, U>(
     parentStartColumn: 0,
     parentAvailableSpan: nCols,
   };
+
+  // Rows and cols hold their children's minimum heights against their own
+  // height. The root has no parent, so its minimum is held against the bounds
+  // here: without this a layout that is one item never overflows.
+  const rootConstraints = getHeightConstraints(
+    measureCtx,
+    normalizedLayout,
+    bounds.w(),
+    nCols,
+    0,
+  );
+  if (rootConstraints.minH > bounds.h()) {
+    overflowTracker.overflow = true;
+  }
 
   const measured = measureNode(measureCtx, normalizedLayout, bounds);
   const gaps = extractGaps(
