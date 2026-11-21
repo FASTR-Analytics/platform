@@ -18,6 +18,7 @@ export type {
 export {
   describeSlideOverflow,
   measureSlideOverflow,
+  overflowOrRefuse,
 } from "./measure_slide_overflow.ts";
 export { renderSlideImage } from "./render_slide_image.ts";
 export { resolveFigureFromMetric } from "./resolve_figure_from_metric.ts";

@@ -81,7 +81,7 @@ export function getClientToolsForSlides(
       viewRegistry: copilotViews,
       name: "get_deck",
       description:
-        "Get the current state of the slide deck: a summary outline of all slides, giving the deck's structure, existing content, slide order and, for each content slide, whether it overflows the page, then the deck's settings: its cover, header and footer logos, the logos that can be selected, the footer text and the watermark.",
+        "Get the current state of the slide deck: a summary outline of all slides, giving the deck's structure, existing content, slide order and, for each slide, whether it overflows the page, then the deck's settings: its cover, header and footer logos, the logos that can be selected, the footer text and the watermark.",
       inputSchema: z.strictObject({}),
       availableIn: COPILOT_TOOL_VIEWS.get_deck,
       kind: "read",

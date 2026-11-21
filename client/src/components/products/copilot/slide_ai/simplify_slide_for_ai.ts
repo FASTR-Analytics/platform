@@ -23,11 +23,11 @@ import {
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 
 // A slide's own settings as stored; a content slide's layout is replaced by
-// its blocks and their arrangement. A content slide's `page` comes first so
-// that whether it overflows the page is read before its blocks.
+// its blocks and their arrangement. `page` comes first so that whether the
+// slide overflows the page is read before its content.
 export type SimplifiedSlide =
-  | CoverSlide
-  | SectionSlide
+  | { page: string } & CoverSlide
+  | { page: string } & SectionSlide
   | { page: string } & Omit<ContentSlide, "layout"> & {
     blocks: Array<{ id: string; summary: string }>;
     _layout: { description: string; structure: LayoutStructure | null };
@@ -40,7 +40,10 @@ export async function simplifySlideForAI(
   metrics: MetricWithStatus[],
   deckConfig: SlideDeckConfig,
 ): Promise<SimplifiedSlide> {
-  if (slide.type === "cover" || slide.type === "section") return slide;
+  if (slide.type === "cover" || slide.type === "section") {
+    const overflow = await measureSlideOverflow(slide, deckConfig);
+    return { page: describeSlideOverflow(slideId, overflow), ...slide };
+  }
 
   const { layout, ...settings } = slide;
   const blocks = extractBlocksFromLayout(layout);

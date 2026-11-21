@@ -1,59 +1,80 @@
 import {
+  AIToolFailure,
   createCanvasRenderContextBrowser,
+  getFontsForPage,
   loadFontsWithTimeout,
   type PageInputs,
   PageRenderer,
   RectCoordsDims,
 } from "panther";
-import type { ContentSlide, Slide, SlideDeckConfig } from "lib";
-import {
-  getAllSlideFontVariants,
-  getSlideDeckThemeSpec,
-  PAGE_HEIGHT_DU,
-  PAGE_WIDTH_DU,
-} from "lib";
+import type { Slide, SlideDeckConfig } from "lib";
+import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 
-// The page the deck renders for a slide. Every measurement of whether a slide
-// overflows the page builds its page here, so no two tools can disagree.
+// Whether a slide overflows the page, or the error that kept it from being
+// measured.
+export type SlideOverflow = boolean | Error;
+
+// The page the deck renders for a slide, with the fonts the deck's canvas
+// loads for that page, so a measurement here matches the canvas. Every
+// measurement of whether a slide overflows the page builds its page here, so
+// no two tools can disagree.
 export async function buildSlidePage(
   slide: Slide,
   deckConfig: SlideDeckConfig,
 ): Promise<PageInputs> {
-  const fontFamily = getSlideDeckThemeSpec(deckConfig.theme).fontFamily;
-  await loadFontsWithTimeout(getAllSlideFontVariants(fontFamily));
   const res = await convertSlideToPageInputs(slide, undefined, deckConfig);
   if (!res.success) throw new Error(res.err);
+  await loadFontsWithTimeout(getFontsForPage(res.data));
   return res.data;
 }
 
-// Whether a content slide overflows the page: the flag the deck's canvas
-// badges, from the same measurement. Every overflow the model is told comes
-// from here or, for a look, from the measurement it draws from.
-export async function measureSlideOverflow(
-  slide: ContentSlide,
-  deckConfig: SlideDeckConfig,
-): Promise<boolean> {
-  return PageRenderer.measure(
-    createCanvasRenderContextBrowser(),
-    new RectCoordsDims([0, 0, PAGE_WIDTH_DU, PAGE_HEIGHT_DU]),
-    await buildSlidePage(slide, deckConfig),
-  ).overflow;
+export function toSlideOverflowError(err: unknown): Error {
+  return err instanceof Error ? err : new Error(String(err));
 }
 
-// The one sentence every tool gives the model about whether a content slide
-// overflows the page. It names no fix: the model decides what to change.
-// `slideId` is null for a draft, which has none. `overflow` is an Error when
-// the slide's page could not be measured.
+// Whether a slide overflows the page: the flag the deck's canvas badges, from
+// the same measurement. Every overflow the model is told comes from here or,
+// for a look, from the measurement it draws from. A slide that cannot be
+// measured gives its error, so one slide never fails a read of several.
+export async function measureSlideOverflow(
+  slide: Slide,
+  deckConfig: SlideDeckConfig,
+): Promise<SlideOverflow> {
+  try {
+    return PageRenderer.measure(
+      createCanvasRenderContextBrowser(),
+      new RectCoordsDims([0, 0, PAGE_WIDTH_DU, PAGE_HEIGHT_DU]),
+      await buildSlidePage(slide, deckConfig),
+    ).overflow;
+  } catch (err) {
+    return toSlideOverflowError(err);
+  }
+}
+
+// A slide the model built that cannot be measured cannot be drawn on the
+// canvas or in the PDF export either, so the call that built it is refused.
+export function overflowOrRefuse(overflow: SlideOverflow): boolean {
+  if (overflow instanceof Error) {
+    throw new AIToolFailure(
+      `This slide cannot be drawn: ${overflow.message}. Nothing was changed.`,
+    );
+  }
+  return overflow;
+}
+
+// The one sentence every tool gives the model about whether a slide overflows
+// the page. It names no fix: the model decides what to change. `slideId` is
+// null for a draft, which has none.
 export function describeSlideOverflow(
   slideId: string | null,
-  overflow: boolean | Error,
+  overflow: SlideOverflow,
 ): string {
   const subject = slideId === null ? "Draft slide" : `Slide ${slideId}`;
   if (overflow instanceof Error) {
     return `${subject}: could not be measured: ${overflow.message}`;
   }
   return overflow
-    ? `${subject}: OVERFLOWS THE PAGE. Its content does not fit and is cut off at the bottom edge. The slide is broken until it fits.`
+    ? `${subject}: OVERFLOWS THE PAGE. Its content does not fit and is cut off. The slide is broken until it fits.`
     : `${subject}: fits the page.`;
 }

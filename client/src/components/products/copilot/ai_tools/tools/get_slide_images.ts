@@ -12,7 +12,7 @@ export function createGetSlideImagesTool() {
     viewRegistry: copilotViews,
     name: "get_slide_images",
     description:
-      `Look at one to ${MAX_LOOK_SUBJECTS} slides of the open deck as images, each drawn as the PDF export draws its page: the open slide as it stands on the canvas (including edits not yet saved), any other slide as saved. Use it to judge what a slide's text, and whether it overflows the page, cannot tell you: whether a dense table can be read, whether several blocks sit well together. The images come back in the order asked, and the result gives each one's size in pixels and, for each content slide, whether it overflows the page. You see an image for the rest of this turn and not after, so say in your reply what it showed. Looking again is one call and shows the slide as it is then. A turn takes at most ${IMAGE_LIMITS.MAX_PER_TURN} images.`,
+      `Look at one to ${MAX_LOOK_SUBJECTS} slides of the open deck as images, each drawn as the PDF export draws its page: the open slide as it stands on the canvas (including edits not yet saved), any other slide as saved. Use it to judge what a slide's text, and whether it overflows the page, cannot tell you: whether a dense table can be read, whether several blocks sit well together. The images come back in the order asked, and the result gives each one's size in pixels and, for each slide, whether it overflows the page. You see an image for the rest of this turn and not after, so say in your reply what it showed. Looking again is one call and shows the slide as it is then. A turn takes at most ${IMAGE_LIMITS.MAX_PER_TURN} images.`,
     inputSchema: z.strictObject({
       slideIds: z
         .array(z.string())
@@ -31,27 +31,28 @@ export function createGetSlideImagesTool() {
       const looks = await Promise.all(
         slideIds.map(async (slideId) => {
           const { slide } = await readSlideTarget(view, slideId);
-          const { toolImage, overflow } = await renderSlideImage(
-            slide,
-            deckConfig,
-          );
+          const look = await renderSlideImage(slide, deckConfig);
           return {
-            toolImage,
-            overflowLine: slide.type === "content"
-              ? describeSlideOverflow(slideId, overflow)
-              : undefined,
+            slideId,
+            toolImage: look.toolImage,
+            overflowLine: describeSlideOverflow(slideId, look.overflow),
           };
         }),
       );
+      const imaged = looks.flatMap((l) =>
+        l.toolImage ? [{ slideId: l.slideId, toolImage: l.toolImage }] : []
+      );
       return new AIToolOutput({
         text: [
-          `Images of slides, in this order: ${
-            slideIds.map((id, i) => describeToolImage(id, looks[i].toolImage))
-              .join(", ")
-          }`,
-          ...looks.flatMap((l) => l.overflowLine ? [l.overflowLine] : []),
+          imaged.length > 0
+            ? `Images of slides, in this order: ${
+              imaged.map((l) => describeToolImage(l.slideId, l.toolImage))
+                .join(", ")
+            }`
+            : "No slide could be drawn.",
+          ...looks.map((l) => l.overflowLine),
         ].join("\n"),
-        images: looks.map((l) => l.toolImage.image),
+        images: imaged.map((l) => l.toolImage.image),
       });
     },
     inProgressLabel: (input) => {
