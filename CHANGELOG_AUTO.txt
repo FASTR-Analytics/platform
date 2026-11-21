@@ -1,3 +1,8 @@
+[TBD] [user] [changed] - Overflow warnings now appear for all slide types, not just content slides
+[TBD] [user] [fixed] - Slides that fail to render now show a clear error instead of silently failing
+[TBD] [admin] [changed] - Overflow detection now applies to all slide types, not just content slides
+[TBD] [admin] [fixed] - Slides that cannot be measured no longer block reading other slides
+[TBD] [admin] [fixed] - Slides that cannot be drawn are now clearly refused with an explanation
 [2.15.0] [user] [fixed] - AI assistant now correctly rejects unexpected fields in requests
 [2.15.0] [admin] [fixed] - AI assistant now rejects unexpected fields in tool inputs
 [2.15.0] [user] [fixed] - Improved grammar in status messages when processing single items
