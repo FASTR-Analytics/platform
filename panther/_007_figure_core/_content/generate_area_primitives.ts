@@ -53,6 +53,9 @@ export function generateAreaPrimitives(
     { length: ctx.nSerieses },
     (_, i) => buildSeriesInfo(ctx, i, mapped),
   );
+  const areaStyles = seriesInfos.map((seriesInfo) =>
+    s.areas.getStyle(seriesInfo)
+  );
 
   const areaSeriesData: Map<
     number,
@@ -68,9 +71,7 @@ export function generateAreaPrimitives(
       const mappedValue = mapped[i_series][i_value];
       if (mappedValue === undefined) continue;
 
-      const seriesInfo = seriesInfos[i_series];
-      const areaStyle = s.areas?.getStyle(seriesInfo);
-      if (!areaStyle?.show) continue;
+      if (!areaStyles[i_series].show) continue;
 
       if (!areaSeriesData.has(i_series)) {
         areaSeriesData.set(i_series, {
@@ -89,15 +90,10 @@ export function generateAreaPrimitives(
 
   const primitives: Primitive[] = [];
 
-  if (s.areas && !s.areas.diff.enabled) {
+  if (!s.areas.diff.enabled) {
     for (const [i_series, areaData] of areaSeriesData.entries()) {
-      const seriesInfo: ChartSeriesInfo = {
-        ...seriesInfos[i_series],
-        nValues: areaData.coords.length,
-      };
-
-      const areaStyle = s.areas.getStyle(seriesInfo);
-      if (!areaStyle.show) continue;
+      const seriesInfo = seriesInfos[i_series];
+      const areaStyle = areaStyles[i_series];
 
       const areas: { coords: Coordinates[] }[] = [];
       let currentCoords: Coordinates[] = [];
@@ -187,9 +183,8 @@ export function generateAreaPrimitives(
         });
       }
     }
-  } else if (s.areas && s.areas.diff.enabled) {
-    const areasStyle = s.areas;
-    areasStyle.diff.pairs.forEach((pair, i_pair) => {
+  } else {
+    s.areas.diff.pairs.forEach((pair, i_pair) => {
       // A pair naming an absent series has nothing to diff — degrade rather
       // than dereference.
       if (
@@ -199,7 +194,14 @@ export function generateAreaPrimitives(
         return;
       }
       primitives.push(
-        ...generateDiffPairPrimitives(pair, i_pair, mapped, areasStyle, ctx),
+        ...generateDiffPairPrimitives(
+          pair,
+          i_pair,
+          mapped,
+          seriesInfos,
+          areaStyles,
+          ctx,
+        ),
       );
     });
   }
@@ -214,7 +216,8 @@ function generateDiffPairPrimitives(
   pair: AreaDiffPair,
   i_pair: number,
   mapped: MappedValueCoordinate[][],
-  areasStyle: NonNullable<MergedContentStyle["areas"]>,
+  seriesInfos: ChartSeriesInfo[],
+  areaStyles: ReturnType<MergedContentStyle["areas"]["getStyle"]>[],
   ctx: ContentGenerationContext,
 ): Primitive[] {
   const seriesA = mapped[pair.series[0]];
@@ -334,15 +337,8 @@ function generateDiffPairPrimitives(
     const order = areas[i_area].order;
     if (pair.emit !== "both" && order !== pair.emit) continue;
     const i_series = order === "over" ? pair.series[0] : pair.series[1];
-    const seriesInfo: ChartSeriesInfo = {
-      ...ctx.subChartInfo,
-      i_series,
-      isFirstSeries: i_series === 0,
-      isLastSeries: i_series === ctx.subChartInfo.nSerieses - 1,
-      seriesMember: ctx.itemDataDimensions.series?.members[i_series],
-      nValues: 0,
-    };
-    const areaStyle = areasStyle.getStyle(seriesInfo);
+    const seriesInfo = seriesInfos[i_series];
+    const areaStyle = areaStyles[i_series];
     const lineCoordArray = [...areas[i_area].coords, areas[i_area].coords[0]];
     const bounds = computeBoundsForPath(lineCoordArray);
 

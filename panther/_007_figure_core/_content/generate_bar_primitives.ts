@@ -11,6 +11,7 @@ import {
 } from "../deps.ts";
 import { chartValueItem } from "../chart_items.ts";
 import { buildLabelHalo } from "../label_halo.ts";
+import { computeBarThicknesses } from "./bar_thickness.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 import {
   buildDataLabelTextStyle,
@@ -29,11 +30,6 @@ import {
   valueCoord,
   valueExtendDir,
 } from "./orientation_helpers.ts";
-
-// Shared with measure_data_label_clearance.ts, which mirrors bar thickness
-// to reproduce data-label wrap widths at measure time.
-export const BAR_PROP_INDICATOR = 0.8;
-export const BAR_PROP_SERIES = 0.9;
 
 export function generateBarPrimitives(
   mapped: MappedValueCoordinate[][],
@@ -61,6 +57,8 @@ export function generateBarPrimitives(
     { length: ctx.nSerieses },
     (_, i) => buildSeriesInfo(ctx, i, mapped),
   );
+  const { barGroupThickness, seriesOuterThickness, barThickness } =
+    computeBarThicknesses(ctx.slotExtent, ctx.nSerieses, s.bars);
 
   for (let i_value = 0; i_value < ctx.nValues; i_value++) {
     for (let i_series = 0; i_series < ctx.nSerieses; i_series++) {
@@ -76,11 +74,13 @@ export function generateBarPrimitives(
       const barStyle = s.bars.getStyle(valueInfo);
       if (!barStyle.show) continue;
 
-      // The bar group: the bars' share of this i_value's slot along the
-      // category axis, centred on the mapped category coordinate.
-      const barGroupThickness = ctx.slotExtent * BAR_PROP_INDICATOR;
       const barGroupStart = catCoord(mappedValue.coords, orientation) -
         barGroupThickness / 2;
+      const seriesOuterStart = s.bars.stacking === "none"
+        ? barGroupStart + seriesOuterThickness * i_series
+        : barGroupStart;
+      const barStart = seriesOuterStart +
+        (seriesOuterThickness - barThickness) / 2;
 
       // Value-axis coordinate of this bar's value end (e.g. bar's top in
       // vertical, right-edge in horizontal).
@@ -94,13 +94,6 @@ export function generateBarPrimitives(
       let positionInStack = 0;
 
       if (s.bars.stacking === "stacked") {
-        const seriesThickness = Math.min(
-          barGroupThickness * BAR_PROP_SERIES,
-          s.bars.maxBarWidth,
-        );
-        const seriesStart = barGroupStart +
-          (barGroupThickness - seriesThickness) / 2;
-
         let accumulatedExtent = 0;
         for (let s_idx = 0; s_idx < i_series; s_idx++) {
           const mv = mapped[s_idx][i_value];
@@ -117,8 +110,8 @@ export function generateBarPrimitives(
 
         barRcd = makeBarRect(
           {
-            catStart: seriesStart,
-            catExtent: seriesThickness,
+            catStart: barStart,
+            catExtent: barThickness,
             valueStart,
             valueEnd,
           },
@@ -138,17 +131,10 @@ export function generateBarPrimitives(
         }
         positionInStack = i_series;
       } else if (s.bars.stacking === "imposed") {
-        const seriesThickness = Math.min(
-          barGroupThickness * BAR_PROP_SERIES,
-          s.bars.maxBarWidth,
-        );
-        const seriesStart = barGroupStart +
-          (barGroupThickness - seriesThickness) / 2;
-
         barRcd = makeBarRect(
           {
-            catStart: seriesStart,
-            catExtent: seriesThickness,
+            catStart: barStart,
+            catExtent: barThickness,
             valueStart: baselineStart,
             valueEnd: valueAtMapped,
           },
@@ -168,19 +154,12 @@ export function generateBarPrimitives(
         }
         positionInStack = i_series;
       } else if (s.bars.stacking === "diff") {
-        const seriesThickness = Math.min(
-          barGroupThickness * BAR_PROP_SERIES,
-          s.bars.maxBarWidth,
-        );
-        const seriesStart = barGroupStart +
-          (barGroupThickness - seriesThickness) / 2;
-
         if (i_series === 0) {
           // Same as imposed for the first series.
           barRcd = makeBarRect(
             {
-              catStart: seriesStart,
-              catExtent: seriesThickness,
+              catStart: barStart,
+              catExtent: barThickness,
               valueStart: baselineStart,
               valueEnd: valueAtMapped,
             },
@@ -191,8 +170,8 @@ export function generateBarPrimitives(
           if (!prevMapped) continue;
           barRcd = makeBarRect(
             {
-              catStart: seriesStart,
-              catExtent: seriesThickness,
+              catStart: barStart,
+              catExtent: barThickness,
               valueStart: valueCoord(prevMapped.coords, orientation),
               valueEnd: valueAtMapped,
             },
@@ -213,22 +192,10 @@ export function generateBarPrimitives(
         }
         positionInStack = i_series;
       } else {
-        // "none" — grouped. Each series gets its own share of the bar
-        // group.
-        const seriesOuterThickness = barGroupThickness / ctx.nSerieses;
-        const seriesOuterStart = barGroupStart +
-          seriesOuterThickness * i_series;
-        const seriesThickness = Math.min(
-          seriesOuterThickness * BAR_PROP_SERIES,
-          s.bars.maxBarWidth,
-        );
-        const seriesStart = seriesOuterStart +
-          (seriesOuterThickness - seriesThickness) / 2;
-
         barRcd = makeBarRect(
           {
-            catStart: seriesStart,
-            catExtent: seriesThickness,
+            catStart: barStart,
+            catExtent: barThickness,
             valueStart: baselineStart,
             valueEnd: valueAtMapped,
           },

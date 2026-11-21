@@ -184,7 +184,9 @@ export type CustomFigureStyleOptions = {
         | "stacked"
         | "imposed"
         | "diff";
-      maxBarWidth?: number;
+      barGroupThicknessFractionOfSlot?: number;
+      barThicknessFractionOfSeriesOuterThickness?: number;
+      maxBarThickness?: number;
     };
     lines?: {
       func?:

@@ -311,7 +311,7 @@ function solveOnePie(
   // ideal pass asks for in height AND the most the measure pass will draw, so
   // a big fixed frame yields a natural-size disc centred in whitespace rather
   // than a massive disc beside small type ("scales down, never up", the
-  // maxBarWidth precedent). sMax, not s0, is the largest drawable scale:
+  // maxBarThickness precedent). sMax, not s0, is the largest drawable scale:
   // placement is decided once, at sMax, and never re-decided, and
   // the label solve runs under it so outside labels are placed for the disc
   // that actually draws. The policy value is unscaled (merged with `m`), so

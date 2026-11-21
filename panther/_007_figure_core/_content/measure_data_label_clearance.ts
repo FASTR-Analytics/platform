@@ -12,6 +12,7 @@ import {
 import type { ChartItemDataDimensions } from "../chart_items.ts";
 import type { SubChart } from "../sub_charts.ts";
 import { NO_OVERHANG_CLEARANCE } from "../types.ts";
+import { computeBarThicknesses } from "./bar_thickness.ts";
 import {
   buildDataLabelTextStyle,
   buildSeriesInfo,
@@ -20,10 +21,6 @@ import {
 } from "./content_generation_types.ts";
 import { valueAxisExtentOfRect } from "./orientation_helpers.ts";
 import { resolveDataLabelOwnership } from "./resolve_data_label_ownership.ts";
-import {
-  BAR_PROP_INDICATOR,
-  BAR_PROP_SERIES,
-} from "./generate_bar_primitives.ts";
 
 type MeasurableDataLabel = ReturnType<
   MergedContentStyle["bars"]["getStyle"]
@@ -100,6 +97,11 @@ export function measureDataLabelEndClearance(
   const seriesInfos = Array.from(
     { length: ctx.nSerieses },
     (_, i) => buildSeriesInfo(ctx, i, seriesValues),
+  );
+  const { barThickness } = computeBarThicknesses(
+    subChart.slotExtent,
+    ctx.nSerieses,
+    s.bars,
   );
 
   let needed = 0;
@@ -233,21 +235,7 @@ export function measureDataLabelEndClearance(
       }
 
       // Vertical bar labels wrap to the bar thickness (mirrors barRcd.w()).
-      let textMaxWidth = 9999;
-      if (!isHorizontal) {
-        const barGroupThickness = subChart.slotExtent *
-          BAR_PROP_INDICATOR;
-        textMaxWidth = isStackLike
-          ? Math.min(
-            barGroupThickness * BAR_PROP_SERIES,
-            s.bars.maxBarWidth,
-          )
-          : Math.min(
-            (barGroupThickness / Math.max(1, ctx.nSerieses)) *
-              BAR_PROP_SERIES,
-            s.bars.maxBarWidth,
-          );
-      }
+      const textMaxWidth = isHorizontal ? 9999 : barThickness;
       const mText = rc.mText(
         labelStr,
         buildDataLabelTextStyle(p.dataLabelsTextStyle, dl),

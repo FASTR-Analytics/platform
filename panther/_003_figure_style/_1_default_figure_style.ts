@@ -251,7 +251,7 @@ const _DS = {
   //   siblings' decays (pie counts are single digits). Does double duty: a
   //   CAP on the ideal pass's width-driven term, and the draw-time MAXIMUM —
   //   a pie is never drawn larger than this, whatever frame it is given
-  //   (owner-ruled 2026-08-05; the maxBarWidth precedent), so a big fixed
+  //   (owner-ruled 2026-08-05; the maxBarThickness precedent), so a big fixed
   //   frame yields a natural-size disc centred in whitespace rather than a
   //   massive disc beside small type.
   // All are tunable starting points; the anchor is the single tuning knob.
@@ -316,7 +316,9 @@ const _DS = {
       }),
       textFormatter: typed<ChartValueInfoFunc<string> | "none">("none"),
       stacking: typed<"none" | "stacked" | "imposed" | "diff">("none"),
-      maxBarWidth: 200,
+      barGroupThicknessFractionOfSlot: 0.8,
+      barThicknessFractionOfSeriesOuterThickness: 0.9,
+      maxBarThickness: 200,
     },
     lines: {
       func: typed<GenericLineStyle>({

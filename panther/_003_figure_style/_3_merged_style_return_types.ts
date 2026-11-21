@@ -346,7 +346,9 @@ export type MergedContentStyle = {
       | "stacked"
       | "imposed"
       | "diff";
-    maxBarWidth: number;
+    barGroupThicknessFractionOfSlot: number;
+    barThicknessFractionOfSeriesOuterThickness: number;
+    maxBarThickness: number;
   };
   lines: {
     getStyle: ChartSeriesInfoFunc<

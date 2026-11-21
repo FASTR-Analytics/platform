@@ -38,13 +38,16 @@ export function generateLinePrimitives(
     { length: ctx.nSerieses },
     (_, i) => buildSeriesInfo(ctx, i, mapped),
   );
+  const lineStyles = seriesInfos.map((seriesInfo) =>
+    s.lines.getStyle(seriesInfo)
+  );
 
   for (const i_value of ctx.slotOrder) {
     for (let i_series = 0; i_series < ctx.nSerieses; i_series++) {
       const mappedValue = mapped[i_series][i_value];
 
       const seriesInfo = seriesInfos[i_series];
-      const lineStyle = s.lines.getStyle(seriesInfo);
+      const lineStyle = lineStyles[i_series];
       if (!lineStyle.show) continue;
 
       if (!lineSeriesData.has(i_series)) {
@@ -132,14 +135,8 @@ export function generateLinePrimitives(
   const primitives: Primitive[] = [];
 
   for (const [i_series, lineData] of lineSeriesData.entries()) {
-    const seriesInfo = {
-      ...seriesInfos[i_series],
-      nValues: lineData.segments.reduce(
-        (n: number, seg: LineSegment) => n + seg.coords.length,
-        0,
-      ),
-    };
-    const lineStyle = s.lines.getStyle(seriesInfo);
+    const seriesInfo = seriesInfos[i_series];
+    const lineStyle = lineStyles[i_series];
 
     for (let i_seg = 0; i_seg < lineData.segments.length; i_seg++) {
       const seg = lineData.segments[i_seg];
