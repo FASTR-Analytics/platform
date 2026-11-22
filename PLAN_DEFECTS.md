@@ -12,4 +12,3 @@ Lines are of cfb7c3562.
 ## AI tools
 
 - `lib` `LayoutSpecSchema`: a one-cell row's span is silently replaced by 12. Edit: the schema refuses a one-cell row with a span other than 12.
-- `lib` `LayoutSpecSchema` and `client/src/components/products/copilot/slide_ai/layout_spec_helpers.ts` `TOTAL_COLUMNS`: the 12 columns are written twice. Edit: one constant in `lib`, read by both.

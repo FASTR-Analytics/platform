@@ -201,7 +201,7 @@ async function applySlideUpdate(
 }
 
 // The layout a spec names: existing blocks by id, new blocks resolved from
-// their inline content, spans normalised to the 12-column grid. Every block
+// their inline content, spans normalised to the column grid. Every block
 // the spec leaves out is removed, and reported.
 async function resolveLayoutSpec(
   scope: PackageScope,

@@ -1,11 +1,11 @@
 import type { ContentBlock } from "lib";
 import {
+  _GLOBAL_LAYOUT_COLUMNS,
   createColsNode,
   createItemNode,
   createRowsNode,
   type LayoutNode,
 } from "panther";
-import { TOTAL_COLUMNS } from "./layout_structure.ts";
 
 type ResolvedCell = {
   id: string;
@@ -54,7 +54,7 @@ export function normalizeSpans(
   rows: Array<Array<{ span?: number }>>,
 ): number[][] {
   return rows.map((row) => {
-    if (row.length === 1) return [TOTAL_COLUMNS];
+    if (row.length === 1) return [_GLOBAL_LAYOUT_COLUMNS];
 
     const specified: Array<{ index: number; span: number }> = [];
     const unspecified: number[] = [];
@@ -68,28 +68,28 @@ export function normalizeSpans(
     }
 
     if (specified.length === 0) {
-      const base = Math.floor(TOTAL_COLUMNS / row.length);
-      const remainder = TOTAL_COLUMNS % row.length;
+      const base = Math.floor(_GLOBAL_LAYOUT_COLUMNS / row.length);
+      const remainder = _GLOBAL_LAYOUT_COLUMNS % row.length;
       return row.map((_, i) => base + (i < remainder ? 1 : 0));
     }
 
     const usedSpan = specified.reduce((sum, s) => sum + s.span, 0);
 
     if (unspecified.length === 0) {
-      if (usedSpan !== TOTAL_COLUMNS) {
+      if (usedSpan !== _GLOBAL_LAYOUT_COLUMNS) {
         throw new Error(
-          `Spans in row sum to ${usedSpan}, must sum to ${TOTAL_COLUMNS}. ` +
+          `Spans in row sum to ${usedSpan}, must sum to ${_GLOBAL_LAYOUT_COLUMNS}. ` +
             `Got: [${row.map((c) => c.span).join(", ")}]`,
         );
       }
       return row.map((c) => c.span!);
     }
 
-    const remaining = TOTAL_COLUMNS - usedSpan;
+    const remaining = _GLOBAL_LAYOUT_COLUMNS - usedSpan;
     if (remaining <= 0) {
       throw new Error(
         `Specified spans sum to ${usedSpan}, leaving no space for ${unspecified.length} unspecified cell(s). ` +
-          `Total must be ${TOTAL_COLUMNS}.`,
+          `Total must be ${_GLOBAL_LAYOUT_COLUMNS}.`,
       );
     }
 

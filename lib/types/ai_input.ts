@@ -1,3 +1,4 @@
+import { _GLOBAL_LAYOUT_COLUMNS } from "@timroberton/panther";
 import { z } from "zod";
 import {
   MAX_CONTENT_BLOCKS,
@@ -317,10 +318,10 @@ export const LayoutCellSchema = z.strictObject({
     .number()
     .int()
     .min(1)
-    .max(12)
+    .max(_GLOBAL_LAYOUT_COLUMNS)
     .optional()
     .describe(
-      "Column width (1-12). Spans per row must sum to 12. Omit for equal split.",
+      `Column width (1-${_GLOBAL_LAYOUT_COLUMNS}). Spans per row must sum to ${_GLOBAL_LAYOUT_COLUMNS}. Omit for equal split.`,
     ),
 });
 

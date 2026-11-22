@@ -80,6 +80,9 @@ export {
 export { slideDeckConfigSchema } from "./_slide_deck_config.ts";
 export { slideConfigSchema } from "./_slide_config.ts";
 
+// A slide layout is a panther layout, on panther's column grid.
+export { _GLOBAL_LAYOUT_COLUMNS } from "@timroberton/panther";
+
 export type LogoSectionConfig = {
   selected: string[];
   sizing?: LogoSizingConfig;

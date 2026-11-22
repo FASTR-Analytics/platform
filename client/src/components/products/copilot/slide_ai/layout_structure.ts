@@ -1,11 +1,13 @@
-import type { ContentBlock, ContentSlide } from "lib";
+import {
+  _GLOBAL_LAYOUT_COLUMNS,
+  type ContentBlock,
+  type ContentSlide,
+} from "lib";
 
 // The read-only half of the layout helpers: what a stored layout holds, as
 // the model is told it. The layout is typed through lib and nothing here
 // imports the client's panther, so a Deno test loads this file as it is.
 type Layout = ContentSlide["layout"];
-
-export const TOTAL_COLUMNS = 12;
 
 export type BlockWithId = {
   id: string;
@@ -64,7 +66,7 @@ export function layoutNodeToStructure(
 
 function tryConvert(node: Layout): LayoutStructure | null {
   if (node.type === "item") {
-    return [[{ blockId: node.id, span: TOTAL_COLUMNS }]];
+    return [[{ blockId: node.id, span: _GLOBAL_LAYOUT_COLUMNS }]];
   }
 
   if (node.type === "cols") {
@@ -76,7 +78,7 @@ function tryConvert(node: Layout): LayoutStructure | null {
   const rows: LayoutStructureCell[][] = [];
   for (const child of node.children) {
     if (child.type === "item") {
-      rows.push([{ blockId: child.id, span: TOTAL_COLUMNS }]);
+      rows.push([{ blockId: child.id, span: _GLOBAL_LAYOUT_COLUMNS }]);
     } else if (child.type === "rows") {
       if (
         child.children.length === 1 &&
@@ -85,7 +87,7 @@ function tryConvert(node: Layout): LayoutStructure | null {
         rows.push([
           {
             blockId: child.children[0].id,
-            span: child.span ?? TOTAL_COLUMNS,
+            span: child.span ?? _GLOBAL_LAYOUT_COLUMNS,
           },
         ]);
       } else {
@@ -108,7 +110,7 @@ function unwrapColsChildren(children: Layout[]): LayoutStructureCell[] | null {
     if (child.type === "item") {
       cells.push({
         blockId: child.id,
-        span: child.span ?? TOTAL_COLUMNS,
+        span: child.span ?? _GLOBAL_LAYOUT_COLUMNS,
       });
     } else if (child.type === "rows") {
       if (
@@ -117,7 +119,7 @@ function unwrapColsChildren(children: Layout[]): LayoutStructureCell[] | null {
       ) {
         cells.push({
           blockId: child.children[0].id,
-          span: child.span ?? TOTAL_COLUMNS,
+          span: child.span ?? _GLOBAL_LAYOUT_COLUMNS,
         });
       } else {
         return null;
