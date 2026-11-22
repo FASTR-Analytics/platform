@@ -10,6 +10,12 @@ Lines are of 4791184c9.
 - `lib/slide_text_offsets.ts` `slideInsertText`: a `!` typed directly before a link makes a lone image, which slide text cannot draw, so the insert is refused (before the table and image guard, the link's text vanished). Edit: escape a typed `!` when the next character is `[`.
 - `lib/slide_text_offsets.ts` `slideInsertText`: a multi-line paste into inline code is kept only if it makes no table, and its line breaks break the code span. Edit: paste line breaks into a code span as spaces, which is how a code span draws them.
 
+## Shared editing
+
+Lines are of 16471444e.
+
+- `client/src/components/products/visualization/visualization.tsx` `bindingFor` (353) and the editor's `collabBinding` prop (588): each call builds a new `localOrigin`, and the prop is an expression that calls it on every read. The figure editor reads the prop once for its undo manager's tracked origin and again for each write, so the writes carry an origin the manager does not track, and undo and redo record nothing in a visualization. Edit: build the binding once per session, so one origin serves the undo manager and the writes.
+
 ## AI tools
 
 - `lib` `LayoutSpecSchema`: a one-cell row's span is silently replaced by 12. Edit: the schema refuses a one-cell row with a span other than 12.
