@@ -1343,7 +1343,8 @@ export function slideInsertText(
     }
     return false;
   };
-  const inherited: SlideCharStyle = pv >= 0 && !separated(pv + 1, pos)
+  const fromBefore = pv >= 0 && !separated(pv + 1, pos);
+  const inherited: SlideCharStyle = fromBefore
     ? an.srcStyle[pv] ?? plain
     : nv >= 0 && !separated(pos, nv)
     ? an.srcStyle[nv] ?? plain
@@ -1351,9 +1352,15 @@ export function slideInsertText(
   const inherit: SlideCharStyle = want === undefined || inherited.code
     ? inherited
     : { ...inherited, ...want };
-  // Inside a code span text is literal (no escapes), and a line break goes in
-  // as the space a code span draws it as.
-  const text = inherit.code ? typed.replace(/\r\n?|\n/g, " ") : typed;
+  // CodeMirror holds every line break as "\n". Strictly inside a code span a
+  // typed line break goes in as the space the span draws it as; at the span's
+  // edge it breaks the line, ending the span.
+  const lines = typed.replace(/\r\n?/g, "\n");
+  const insideCode = pv >= 0 && nv >= 0 && !!an.srcStyle[pv]?.code &&
+    !!an.srcStyle[nv]?.code && !src.slice(pv + 1, nv).includes("`") &&
+    !hasStructure(an, pv + 1, nv);
+  const text = insideCode ? lines.replaceAll("\n", " ") : lines;
+  // Inside a code span text is literal: no escapes.
   const typedSrc = inherit.code ? text : escapeTypedSlideText(text);
   // A `!` typed right before a link's `[` would make the link an image.
   const insAt = (p: number) =>
@@ -1375,8 +1382,7 @@ export function slideInsertText(
   // Whitespace markdown trimmed before the caret (a trailing space) is drawn
   // once text follows it.
   const lead =
-    pv >= 0 && /[ \t]/.test(src.slice(pv + 1, pos).replace(/[^ \t]/g, "")) &&
-      !separated(pv + 1, pos)
+    fromBefore && /[ \t]/.test(src.slice(pv + 1, pos).replace(/[^ \t]/g, ""))
       ? " "
       : "";
   const added = [...(lead + text)].filter((c) => c !== "\n").map((ch) => ({
@@ -1392,7 +1398,15 @@ export function slideInsertText(
   const positions = [pos, b, a, f].filter((p, i, arr) => arr.indexOf(p) === i);
   const simple = positions.map(at);
   // Last resort: rebuild the line with the typed text styled as inherited.
-  const basePos = inherit.code ? f : b;
+  // A line break typed at a code span's edge ends the span: its rebuild
+  // starts outside it, past the closing fence or before the opening one.
+  const basePos = !inherit.code
+    ? b
+    : !text.includes("\n")
+    ? f
+    : fromBefore
+    ? b
+    : a;
   const ins = insAt(basePos);
   const base = inherit.code
     ? analyzeTypedIntoCode(src, basePos, ins)

@@ -374,6 +374,17 @@ Deno.test("a line break pasted into code goes in as the space it draws", () => {
   const u = analyzeSlideMarkdown(paste("x\n\ny")!).units;
   assertEquals(u.length, 1);
   assert(u[0].styles.slice(2, 8).every((s) => s.code));
+
+  // At a span's edge a line break breaks the line, as it does in plain text.
+  const type = (src: string, pos: number, text: string) =>
+    apply(src, slideInsertText(analyzeSlideMarkdown(src), pos, text));
+  assertEquals(type("a `bc` d", 5, "x\ny"), "a `bcx`\n`y` d");
+  assertEquals(type("first\n`bc` d", 7, "\n"), "first\n\n`bc` d");
+  assertEquals(type("Run `x`", 7, "\n"), "Run `x`\n");
+  // A Windows line break counts as the one "\n" the editor holds.
+  const crlf = slideInsertText(analyzeSlideMarkdown("a b"), 2, "x\r\n\r\ny");
+  assertEquals(apply("a b", crlf), "a x\n\nyb");
+  assertEquals(crlf.anchor, 6);
 });
 
 Deno.test("a `!` before a link stays text, never an image", () => {
