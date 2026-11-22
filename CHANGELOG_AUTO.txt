@@ -1,3 +1,6 @@
+[TBD] [user] [fixed] - AI assistant now correctly handles flexible slide column layouts
+[TBD] [admin] [changed] - Slide layout grid columns now use a global setting instead of being hardcoded to 12
+[TBD] [admin] [fixed] - AI copilot now rejects invalid column spans for single-cell layout rows
 [TBD] [user] [changed] - Overflow warnings now appear for all slide types, not just content slides
 [TBD] [user] [fixed] - Slides that fail to render now show a clear error instead of silently failing
 [TBD] [admin] [changed] - Overflow detection now applies to all slide types, not just content slides
