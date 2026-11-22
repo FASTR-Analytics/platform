@@ -6,7 +6,6 @@ Each line is a defect a session found while doing other work, whose fix no plan 
 
 Lines are of 4791184c9.
 
-- `lib/slide_text_offsets.ts` `slideInsertText`: a `!` typed directly before a link makes a lone image, which slide text cannot draw, so the insert is refused (before the table and image guard, the link's text vanished). Edit: escape a typed `!` when the next character is `[`.
 
 ## Shared editing
 

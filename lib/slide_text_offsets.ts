@@ -291,9 +291,17 @@ function markRaw(raw: RawChar[]): RawMarks {
     i = close + n - 1;
   }
 
-  // Images `![alt](src)`: nothing of them is drawn inline.
+  // Images `![alt](src)`: nothing of them is drawn inline. After an escaped
+  // `!` it is a link.
+  const escaped = (i: number) => {
+    let n = 0;
+    while (i - n > 0 && s[i - n - 1] === "\\") n++;
+    return n % 2 === 1;
+  };
   for (const m of s.matchAll(/!\[[^\]\n]*\]\([^)\n]*\)/g)) {
-    if (!inCode[m.index!]) block(m.index!, m.index! + m[0].length);
+    if (!inCode[m.index!] && !escaped(m.index!)) {
+      block(m.index!, m.index! + m[0].length);
+    }
   }
   // Link destinations `](url "title")`, with one level of nested parens.
   for (const m of s.matchAll(/\]\((?:[^()\n]|\([^()\n]*\))*\)/g)) {
@@ -965,6 +973,15 @@ function serializeAtoms(
       e++;
     }
     const run = serializeRun(atoms.slice(i, e), em);
+    // A plain `!` right before a link's `[` would make the link an image.
+    const prev = atoms[i - 1];
+    if (
+      url !== undefined && prev?.kind === "text" && prev.ch === "!" &&
+      !prev.style.bold && !prev.style.italic && !prev.style.code &&
+      prev.style.link === undefined
+    ) {
+      out = out.slice(0, -1) + "\\!";
+    }
     out += url !== undefined ? "[" + run + "](" + linkDest(url) + ")" : run;
     i = e;
   }

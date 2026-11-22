@@ -330,6 +330,22 @@ Deno.test("a line break pasted into code goes in as the space it draws", () => {
   assert(u[0].styles.slice(2, 8).every((s) => s.code));
 });
 
+Deno.test("a `!` before a link stays text, never an image", () => {
+  const link = "[link](https://x.y)";
+  assertEquals(analyzeSlideMarkdown("\\!" + link).units[0].text, "!link");
+  const typed = apply(
+    "see " + link,
+    slideInsertText(analyzeSlideMarkdown("see " + link), 4, "!"),
+  );
+  assertEquals(typed, "see \\!" + link);
+  const joined = apply(
+    "wow! " + link,
+    slideDeleteRange(analyzeSlideMarkdown("wow! " + link), 4, 5),
+  );
+  assertEquals(joined, "wow\\!" + link);
+  assertEquals(analyzeSlideMarkdown(joined!).units[0].text, "wow!link");
+});
+
 Deno.test("an empty list item is drawn (Enter on a bullet shows the bullet)", () => {
   const items = (src: string) =>
     parseMarkdown(slideRenderMarkdown(src)).items.map((i) => i.type);
