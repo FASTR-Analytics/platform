@@ -6,7 +6,6 @@ Each line is a defect a session found while doing other work, whose fix no plan 
 
 Lines are of 4791184c9.
 
-- `lib/slide_text_offsets.ts` `alignItem`: inside a code span that runs over two source lines, everything after the line break is read as invisible markup, so a backtick typed there is escaped and draws a `\` (49 times in a fuzz of 4,777 inserts). Edit: match the rendered space to the source newline inside a code span.
 - `lib/slide_text_offsets.ts` `slideInsertText`: a `!` typed directly before a link makes a lone image, which slide text cannot draw, so the insert is refused (before the table and image guard, the link's text vanished). Edit: escape a typed `!` when the next character is `[`.
 - `lib/slide_text_offsets.ts` `slideInsertText`: a multi-line paste into inline code is kept only if it makes no table, and its line breaks break the code span. Edit: paste line breaks into a code span as spaces, which is how a code span draws them.
 

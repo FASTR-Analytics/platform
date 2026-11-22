@@ -210,6 +210,8 @@ type RawMarks = {
   entities: Map<number, { end: number; decoded: string }>;
   /** Raw index of a `<br>` start → raw index just past its `>`. */
   brEnd: Map<number, number>;
+  /** Inside a code span (between its fences). */
+  inCode: boolean[];
 };
 
 const ESCAPABLE = /[!-/:-@[-`{-~]/;
@@ -331,7 +333,7 @@ function markRaw(raw: RawChar[]): RawMarks {
       i++;
     }
   }
-  return { blocked, entities, brEnd };
+  return { blocked, entities, brEnd, inCode };
 }
 
 function sameChar(rendered: string, source: string): boolean {
@@ -369,6 +371,14 @@ function alignItem(
       continue;
     }
     for (let k = j; k < raw.length; k++) {
+      if (raw[k].ch === "\n" && marks.inCode[k]) {
+        // A code span draws its line breaks as spaces.
+        if (c === " ") {
+          toSrc[i] = raw[k].src;
+          j = k + 1;
+        }
+        break;
+      }
       if (raw[k].ch === "\n" || marks.brEnd.has(k)) break;
       const ent = marks.entities.get(k);
       if (ent) {
@@ -968,10 +978,17 @@ function serializeAtoms(
   return out;
 }
 
-function lineBounds(src: string, pos: number): { start: number; end: number } {
-  const start = src.lastIndexOf("\n", pos - 1) + 1;
-  let end = src.indexOf("\n", pos);
-  if (end < 0) end = src.length;
+// A code span draws its line breaks as spaces, so they do not end a line.
+function lineBounds(
+  an: SlideTextAnalysis,
+  pos: number,
+): { start: number; end: number } {
+  const { src, kind } = an;
+  const endsLine = (i: number) => src[i] === "\n" && kind[i] !== SRC_VISIBLE;
+  let start = pos;
+  while (start > 0 && !endsLine(start - 1)) start--;
+  let end = pos;
+  while (end < src.length && !endsLine(end)) end++;
   return { start, end };
 }
 
@@ -997,12 +1014,12 @@ function serializeLines(
   em: string,
 ): string {
   const { src } = an;
-  const first = lineBounds(src, from);
-  const last = lineBounds(src, Math.max(from, to - 1));
+  const first = lineBounds(an, from);
+  const last = lineBounds(an, Math.max(from, to - 1));
   let out = src.slice(0, first.start);
   let ls = first.start;
   while (true) {
-    const le = src.indexOf("\n", ls) < 0 ? src.length : src.indexOf("\n", ls);
+    const le = lineBounds(an, ls).end;
     out += serializeRegion(an, ls, le, pick, em, true);
     if (le >= last.end || le >= src.length) {
       out += src.slice(le);
@@ -1027,8 +1044,8 @@ function serializeRegion(
   lineOnly = false,
 ): string {
   const { src, kind } = an;
-  const first = lineBounds(src, from);
-  const last = lineBounds(src, Math.max(from, to - 1 < from ? from : to));
+  const first = lineBounds(an, from);
+  const last = lineBounds(an, Math.max(from, to - 1 < from ? from : to));
   const rs = lineOnly
     ? prefixEnd(an, first.start, first.end)
     : Math.min(from, prefixEnd(an, first.start, first.end));
@@ -1184,7 +1201,7 @@ export function slideBackspace(
   an: SlideTextAnalysis,
   caret: number,
 ): SlideEditResult | undefined {
-  const line = lineBounds(an.src, caret);
+  const line = lineBounds(an, caret);
   const pe = prefixEnd(an, line.start, line.end);
   // At the start of a line's text with a block prefix (`- `, `# `): the prefix
   // goes first (bullet → plain line), like a word processor.
@@ -1198,7 +1215,9 @@ export function slideBackspace(
   }
   const v = prevVisible(an, caret);
   if (v < 0) return undefined;
-  if (hasStructure(an, v + 1, caret)) {
+  // A code span's line break draws as a space, and the line prefix after it
+  // (`> `, indentation) goes with it.
+  if (an.src[v] !== "\n" && hasStructure(an, v + 1, caret)) {
     return slideDeleteRange(an, v + 1, caret);
   }
   return slideDeleteRange(an, v, caret);
@@ -1232,6 +1251,28 @@ export function escapeTypedSlideText(text: string): string {
   return text.replace(/[\\*_`[\]~]/g, (c) => "\\" + c)
     .replace(/<(?=[A-Za-z/!])/g, "\\<")
     .replace(/&(?=#?[A-Za-z0-9]+;)/g, "\\&");
+}
+
+const HELD_BACKTICK = "";
+
+// No escape works inside a code span, so a typed backtick would end the span
+// before the rebuild could fence it. This analyzes `ins` typed at `pos` with
+// each backtick held by a char that cannot end the span, and drawn as the
+// backtick it holds.
+function analyzeTypedIntoCode(
+  src: string,
+  pos: number,
+  ins: string,
+): SlideTextAnalysis {
+  const an = analyzeSlideMarkdown(
+    src.slice(0, pos) + ins.replaceAll("`", HELD_BACKTICK) + src.slice(pos),
+  );
+  return {
+    ...an,
+    srcChar: an.srcChar.map((c, i) =>
+      c === HELD_BACKTICK && i >= pos && i < pos + ins.length ? "`" : c
+    ),
+  };
 }
 
 /** Type `typed` at `pos` (after any selection was deleted). The new text
@@ -1307,7 +1348,9 @@ export function slideInsertText(
   const simple = positions.map(at);
   // Last resort: rebuild the line with the typed text styled as inherited.
   const basePos = b;
-  const base = analyzeSlideMarkdown(at(basePos));
+  const base = inherit.code
+    ? analyzeTypedIntoCode(src, basePos, ins)
+    : analyzeSlideMarkdown(at(basePos));
   // The typed text, and any bare whitespace joining it to the char it
   // inherits from, take the inherited style.
   const from = lead && pv >= 0 ? pv + 1 : basePos;
