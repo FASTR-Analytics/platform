@@ -13,6 +13,7 @@ import {
   AiTextBlockSchema,
   type ContentSlide,
   type CoverSlide,
+  LayoutSpecSchema,
   withKeptSlideSettings,
 } from "lib";
 import {
@@ -150,4 +151,18 @@ Deno.test("a replaced slide that changes its type keeps nothing", () => {
     sectionTitle: "New section",
   };
   assertEquals(withKeptSlideSettings(COVER, input), input);
+});
+
+Deno.test("a layout row of one cell takes no span but the full width", () => {
+  const row = (cells: { block: string; span?: number }[]) =>
+    LayoutSpecSchema.safeParse([cells]).success;
+  assertEquals(
+    [
+      row([{ block: "b1", span: 6 }]),
+      row([{ block: "b1", span: 12 }]),
+      row([{ block: "b1" }]),
+      row([{ block: "b1", span: 4 }, { block: "b2", span: 8 }]),
+    ],
+    [false, true, true, true],
+  );
 });

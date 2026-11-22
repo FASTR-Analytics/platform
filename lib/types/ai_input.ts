@@ -326,7 +326,21 @@ export const LayoutCellSchema = z.strictObject({
 });
 
 export const LayoutSpecSchema = z
-  .array(z.array(LayoutCellSchema).min(1).max(3))
+  .array(
+    z
+      .array(LayoutCellSchema)
+      .min(1)
+      .max(3)
+      .refine(
+        (row) =>
+          row.length !== 1 || row[0].span === undefined ||
+          row[0].span === _GLOBAL_LAYOUT_COLUMNS,
+        {
+          message:
+            `A row with one cell spans all ${_GLOBAL_LAYOUT_COLUMNS} columns: omit its span.`,
+        },
+      ),
+  )
   .min(1)
   .max(3)
   .describe("Rows (top→bottom), each containing columns (left→right).");
