@@ -627,7 +627,7 @@ Nothing else is withheld by what the validator would say of a press. The control
 
 ### 2.5 Panther
 
-The union, the layouts, the styles and the checks are this app's. The low-level elements are imported from panther wherever it has or can hold them (ruling 14): the colour, the hex colour, the continuous palette name, the map projection, the map data label mode, the value sort order, the column count, the period filter and the filter (`zColorKeyOrHex`, `zHexColor`, `zContinuousPaletteName`, `zMapProjection`, `zMapDataLabelMode`, `zValueSortOrder`, `zNCols`, `zPeriodFilter`, `zLongTableFilter`, with `zPeriodUnit` and `zFullPeriodUnit`).
+The union, the layouts, the styles and the checks are this app's. The low-level elements are imported from panther wherever it has or can hold them (ruling 14): the colour, the hex colour, the continuous palette name, the map projection, the map data label mode, the value sort, the column count, the period filter and the filter (`zColorKeyOrHex`, `zHexColor`, `zContinuousPaletteName`, `zMapProjection`, `zMapDataLabelMode`, `zValueSort`, `zNColsOrAuto`, `zPeriodFilter`, `zLongTableFilter`, with `zPeriodUnit` and `zFullPeriodUnit`).
 
 ## §3 Rulings
 
@@ -724,15 +724,15 @@ Repo: panther. Its CLAUDE.md is read first.
 
 In panther (`/Users/timroberton/projects/panther/timroberton-panther`):
 
-- `modules/_150_figure_schema/style_leaves.ts` (new): the colour, the hex colour, the continuous palette name, the map projection, the map label placement, the value sort order and the column count, in a file that imports nothing but zod
+- `modules/_150_figure_schema/leaves.ts` (new): the colour, the hex colour, the continuous palette name, the map projection, the map label placement, the value sort and the column count, in a file that imports nothing but zod
 - `modules/_150_figure_schema/figure_inputs.ts` (its private `zColorKeyOrString`, a `z.custom` that `z.toJSONSchema` cannot convert, gives way to the exported colour schema)
 - `modules/_150_figure_schema/mod.ts`
 - `modules/_150_figure_schema/deps.ts` (the types the new schemas are checked against with `Conforms`, `ContinuousPaletteName` among them)
 - `modules/_150_figure_schema/shared.ts` (the `ConformsExactly` checks of the style leaves, which cannot sit in a file that imports nothing but zod)
-- `modules/_003_figure_style/_1_default_figure_style.ts`, `_2_custom_figure_style_options.ts`, `_3_merged_style_return_types.ts` (`MapProjection` names the projection union, which `zMapProjection` is checked against, and `NCols` the column count, which `zNCols` is checked against)
+- `modules/_003_figure_style/_1_default_figure_style.ts`, `_2_custom_figure_style_options.ts`, `_3_merged_style_return_types.ts` (`MapProjection` names the projection union, which `zMapProjection` is checked against, and `NColsOrAuto` the column count, which `zNColsOrAuto` is checked against)
 - `modules/_010_maps/_internal/projections.ts`, `modules/_010_maps/deps.ts` (`getProjectionFn` takes `MapProjection`)
-- `modules/_007_figure_core/common_data_transform.ts`, `chart_ov_or_oh_transform.ts`, `modules/_010_chartov/types.ts`, `deps.ts`, `modules/_010_chartoh/types.ts`, `deps.ts`, `modules/_010_pie/types.ts`, `deps.ts` (`ValueSortOrder` names the value sort union, which `zValueSortOrder` is checked against)
-- `modules/_150_figure_schema/chartov.ts`, `chartoh.ts`, `pie.ts` (their inline sort enums give way to `zValueSortOrder`)
+- `modules/_007_figure_core/common_data_transform.ts`, `chart_ov_or_oh_transform.ts`, `modules/_010_chartov/types.ts`, `deps.ts`, `modules/_010_chartoh/types.ts`, `deps.ts`, `modules/_010_pie/types.ts`, `deps.ts` (`ValueSort` names the value sort union, which `zValueSort` is checked against)
+- `modules/_150_figure_schema/chartov.ts`, `chartoh.ts`, `pie.ts` (their inline sort enums give way to `zValueSort`)
 - `DOC_MODULE_STRUCTURE.md` (the deps.ts rule and its exception for a file that imports nothing but zod)
 - `modules/_151_long_table_schema/filters.ts` (new): `zPeriodFilter` and `zLongTableFilter`, with `zPeriodUnit` and `zFullPeriodUnit`, moved out of `schema.ts`, which imports `deps.ts`, into a file that imports nothing but zod
 - `modules/_151_long_table_schema/schema.ts`
