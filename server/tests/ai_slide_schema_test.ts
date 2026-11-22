@@ -6,6 +6,7 @@
 
 import { assertEquals } from "@std/assert";
 import {
+  _GLOBAL_LAYOUT_COLUMNS,
   AiContentSlideSchema,
   AiCoverSlideSchema,
   AiSectionSlideSchema,
@@ -159,7 +160,7 @@ Deno.test("a layout row of one cell takes no span but the full width", () => {
   assertEquals(
     [
       row([{ block: "b1", span: 6 }]),
-      row([{ block: "b1", span: 12 }]),
+      row([{ block: "b1", span: _GLOBAL_LAYOUT_COLUMNS }]),
       row([{ block: "b1" }]),
       row([{ block: "b1", span: 4 }, { block: "b2", span: 8 }]),
     ],

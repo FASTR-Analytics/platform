@@ -590,7 +590,13 @@ export const AiSlideUpdateSchema = z
         .strictObject({ layout: LayoutSpecSchema })
         .optional()
         .describe(
-          "Restructure the layout: add, remove or rearrange blocks, or change their spans. The layout names ALL blocks that will be on the slide: an existing block it does not name is REMOVED. Name existing blocks by ID to keep them; give inline content for new ones. Prefer balanced spans (e.g. 6+6 or 8+4) unless the user asks for specific proportions. Mutually exclusive with blockUpdates.",
+          `Restructure the layout: add, remove or rearrange blocks, or change their spans. The layout names ALL blocks that will be on the slide: an existing block it does not name is REMOVED. Name existing blocks by ID to keep them; give inline content for new ones. Prefer balanced spans (e.g. ${
+            _GLOBAL_LAYOUT_COLUMNS / 2
+          }+${_GLOBAL_LAYOUT_COLUMNS / 2} or ${
+            (_GLOBAL_LAYOUT_COLUMNS * 2) / 3
+          }+${
+            _GLOBAL_LAYOUT_COLUMNS / 3
+          }) unless the user asks for specific proportions. Mutually exclusive with blockUpdates.`,
         ),
     }),
   ])
