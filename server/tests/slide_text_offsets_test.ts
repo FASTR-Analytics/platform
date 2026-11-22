@@ -315,52 +315,6 @@ Deno.test("a code span's line break draws as a space, and is code", () => {
     apply(doc, slideBackspace(analyzeSlideMarkdown(doc), caret));
   assertEquals(bs(src, 4), "`abcd` e");
   assertEquals(bs("> q `a\n> b` c", 9), "> q `ab` c");
-
-  // The caret stop after the break stands before the next line's `> `: edits
-  // there act after it, on what is drawn.
-  const quote = "> q `a\n> b` c";
-  assertEquals(
-    apply(quote, slideInsertText(analyzeSlideMarkdown(quote), 7, "x")),
-    "> q `a\n> xb` c",
-  );
-  assertEquals(bs(quote, 7), "> q `ab` c");
-  assertEquals(
-    apply(quote, slideDeleteForward(analyzeSlideMarkdown(quote), 7)),
-    "> q `a\n> ` c",
-  );
-  // After a deletion leaves the span ending at the break, typed text still
-  // lands in the span, after the prefix.
-  const emptied = apply(
-    quote,
-    slideDeleteRange(analyzeSlideMarkdown(quote), 9, 10),
-  )!;
-  assertEquals(emptied, "> q `a\n> ` c");
-  assertEquals(
-    apply(emptied, slideInsertText(analyzeSlideMarkdown(emptied), 7, "x")),
-    "> q `a\n> x` c",
-  );
-  // A break markdown drops at the span's edge is markup, not the end of the
-  // text: everything after it is still drawn.
-  assertEquals(analyzeSlideMarkdown("x `\nab\n` y").units[0].toSrc, [
-    0,
-    1,
-    4,
-    5,
-    8,
-    9,
-  ]);
-  // A span never pairs its fences across a blockquote's paragraphs.
-  assertEquals(
-    analyzeSlideMarkdown("> `x\n>\n> `a\n> b` c").units[1].toSrc,
-    [10, 11, 14, 16, 17],
-  );
-  // A backtick typed at the end of bold-wrapped code stays code.
-  const boldCode = "**`bc`** d";
-  const ticked = apply(
-    boldCode,
-    slideInsertText(analyzeSlideMarkdown(boldCode), 5, "`"),
-  )!;
-  assertEquals(drawn(ticked), ["bc` d", "ccc--"]);
 });
 
 Deno.test("a line break pasted into code goes in as the space it draws", () => {
@@ -374,58 +328,6 @@ Deno.test("a line break pasted into code goes in as the space it draws", () => {
   const u = analyzeSlideMarkdown(paste("x\n\ny")!).units;
   assertEquals(u.length, 1);
   assert(u[0].styles.slice(2, 8).every((s) => s.code));
-
-  // At a span's edge a line break breaks the line, as it does in plain text.
-  const type = (src: string, pos: number, text: string) =>
-    apply(src, slideInsertText(analyzeSlideMarkdown(src), pos, text));
-  assertEquals(type("a `bc` d", 5, "x\ny"), "a `bcx`\n`y` d");
-  assertEquals(type("first\n`bc` d", 7, "\n"), "first\n\n`bc` d");
-  assertEquals(type("Run `x`", 7, "\n"), "Run `x`\n");
-  // Where no candidate can break the line there, it goes in as spaces.
-  assertEquals(
-    type("see `code`[link](https://x.y)", 9, "x\n\ny"),
-    "see `codex  y`[link](https://x.y)",
-  );
-  // A Windows line break counts as the one "\n" the editor holds.
-  const crlf = slideInsertText(analyzeSlideMarkdown("a b"), 2, "x\r\n\r\ny");
-  assertEquals(apply("a b", crlf), "a x\n\nyb");
-  assertEquals(crlf.anchor, 6);
-});
-
-Deno.test("a `!` before a link stays text, never an image", () => {
-  const link = "[link](https://x.y)";
-  assertEquals(analyzeSlideMarkdown("\\!" + link).units[0].text, "!link");
-  const typed = apply(
-    "see " + link,
-    slideInsertText(analyzeSlideMarkdown("see " + link), 4, "!"),
-  );
-  assertEquals(typed, "see \\!" + link);
-  const joined = apply(
-    "wow! " + link,
-    slideDeleteRange(analyzeSlideMarkdown("wow! " + link), 4, 5),
-  );
-  assertEquals(joined, "wow\\!" + link);
-  assertEquals(analyzeSlideMarkdown(joined!).units[0].text, "wow!link");
-
-  // The rest of the line is left as written.
-  const titled = 'see [a](https://x.y "t") and __b__';
-  assertEquals(
-    apply(titled, slideInsertText(analyzeSlideMarkdown(titled), 4, "!")),
-    'see \\![a](https://x.y "t") and __b__',
-  );
-  // A paste no candidate can verify still never makes an image.
-  assertEquals(
-    apply(
-      "see " + link,
-      slideInsertText(analyzeSlideMarkdown("see " + link), 4, "a\n\nb!"),
-    ),
-    "see a\n\nb\\!" + link,
-  );
-  const nested = "**a *b*! " + link + "**";
-  assertEquals(
-    apply(nested, slideBackspace(analyzeSlideMarkdown(nested), 9)),
-    "**a *b*\\!" + link + "**",
-  );
 });
 
 Deno.test("an empty list item is drawn (Enter on a bullet shows the bullet)", () => {

@@ -269,13 +269,11 @@ function markRaw(raw: RawChar[]): RawMarks {
     let n = 1;
     while (s[i + n] === "`") n++;
     const fence = "`".repeat(n);
-    // A span ends in its paragraph (a blockquote's are joined by "\n\n").
-    const para = s.indexOf("\n\n", i);
     let j = i + n;
     let close = -1;
     while (j < s.length) {
       const k = s.indexOf(fence, j);
-      if (k < 0 || (para >= 0 && k > para)) break;
+      if (k < 0) break;
       let m = k + n;
       if (s[m] === "`") {
         while (s[m] === "`") m++;
@@ -293,17 +291,9 @@ function markRaw(raw: RawChar[]): RawMarks {
     i = close + n - 1;
   }
 
-  // Images `![alt](src)`: nothing of them is drawn inline. After an escaped
-  // `!` it is a link.
-  const escaped = (i: number) => {
-    let n = 0;
-    while (i - n > 0 && s[i - n - 1] === "\\") n++;
-    return n % 2 === 1;
-  };
+  // Images `![alt](src)`: nothing of them is drawn inline.
   for (const m of s.matchAll(/!\[[^\]\n]*\]\([^)\n]*\)/g)) {
-    if (!inCode[m.index!] && !escaped(m.index!)) {
-      block(m.index!, m.index! + m[0].length);
-    }
+    if (!inCode[m.index!]) block(m.index!, m.index! + m[0].length);
   }
   // Link destinations `](url "title")`, with one level of nested parens.
   for (const m of s.matchAll(/\]\((?:[^()\n]|\([^()\n]*\))*\)/g)) {
@@ -358,7 +348,6 @@ function sameChar(rendered: string, source: string): boolean {
 // never swallow the rest of the item.
 function alignItem(
   rendered: string,
-  renderedCode: boolean[],
   raw: RawChar[],
   marks: RawMarks,
 ): number[] {
@@ -383,11 +372,11 @@ function alignItem(
     }
     for (let k = j; k < raw.length; k++) {
       if (raw[k].ch === "\n" && marks.inCode[k]) {
-        // A code span draws its line breaks as spaces, but drops one that
-        // stands for its edge space.
-        if (c !== " " || !renderedCode[i]) continue;
-        toSrc[i] = raw[k].src;
-        j = k + 1;
+        // A code span draws its line breaks as spaces.
+        if (c === " ") {
+          toSrc[i] = raw[k].src;
+          j = k + 1;
+        }
         break;
       }
       if (raw[k].ch === "\n" || marks.brEnd.has(k)) break;
@@ -604,18 +593,11 @@ function analyzeRendered(src: string): SlideTextAnalysis {
       }
       raw.push(...rawCharsOf(tok, srcLines, lineStarts));
     });
-    const marks = markRaw(raw);
-    raw.forEach((r, k) => {
-      if (r.src < 0 || r.src >= src.length) return;
-      if (r.ch === "\n" && marks.inCode[k]) {
-        // A code span's line break, and the next line's prefix after it, are
-        // markup of the span (the break draws as a space where it is kept).
-        const next = raw[k + 1]?.src ?? -1;
-        kind.fill(SRC_INLINE_SYNTAX, r.src, next > r.src ? next : r.src + 1);
-      } else {
+    for (const r of raw) {
+      if (r.src >= 0 && r.src < src.length) {
         kind[r.src] = r.ch === "\n" ? SRC_BREAK : SRC_INLINE_SYNTAX;
       }
-    });
+    }
 
     // Rendered text, with each char's inline index.
     let rendered = "";
@@ -625,12 +607,7 @@ function analyzeRendered(src: string): SlideTextAnalysis {
       rendered += t;
       for (let k = 0; k < t.length; k++) inlineOf.push(ii);
     });
-    const toSrc = alignItem(
-      rendered,
-      inlineOf.map((ii) => inlines[ii].type === "code-inline"),
-      raw,
-      marks,
-    );
+    const toSrc = alignItem(rendered, raw, markRaw(raw));
 
     for (let i = 0; i < rendered.length; i++) {
       const s = toSrc[i];
@@ -988,9 +965,6 @@ function serializeAtoms(
       e++;
     }
     const run = serializeRun(atoms.slice(i, e), em);
-    // A `!` right before a link's `[` would make the link an image. A `!`
-    // ending `out` is plain text: emphasis, code and links end in delimiters.
-    if (url !== undefined) out = out.replace(/!$/, "\\!");
     out += url !== undefined ? "[" + run + "](" + linkDest(url) + ")" : run;
     i = e;
   }
@@ -1004,14 +978,13 @@ function serializeAtoms(
   return out;
 }
 
-// A code span's line break draws as a space or nothing: it does not end a line.
+// A code span draws its line breaks as spaces, so they do not end a line.
 function lineBounds(
   an: SlideTextAnalysis,
   pos: number,
 ): { start: number; end: number } {
   const { src, kind } = an;
-  const endsLine = (i: number) =>
-    src[i] === "\n" && (kind[i] === SRC_BREAK || kind[i] === SRC_BLOCK);
+  const endsLine = (i: number) => src[i] === "\n" && kind[i] !== SRC_VISIBLE;
   let start = pos;
   while (start > 0 && !endsLine(start - 1)) start--;
   let end = pos;
@@ -1176,24 +1149,14 @@ export function slideDeleteRange(
     if (src[i] === "\\" && i + 1 < to && kind[i + 1] === SRC_VISIBLE) continue;
     kept += src[i];
   }
-  // A `!` left right before a link's `[` would make the link an image.
-  const join = (head: number, tail: string) =>
-    tail.startsWith("[") && src[head - 1] === "!" &&
-      kind[head - 1] === SRC_VISIBLE &&
-      !(src[head - 2] === "\\" && kind[head - 2] === SRC_INLINE_SYNTAX)
-      ? src.slice(0, head - 1) + "\\!" + tail
-      : src.slice(0, head) + tail;
-  const keptDoc = join(from, kept + src.slice(to));
+  const keptDoc = src.slice(0, from) + kept + src.slice(to);
   // Candidate 2: the same, with the syntax run around the join cleaned.
   let a = from;
   while (a > 0 && kind[a - 1] === SRC_INLINE_SYNTAX) a--;
   let b = to;
   while (b < src.length && kind[b] === SRC_INLINE_SYNTAX) b++;
-  const cleanedDoc = join(
-    a,
-    cleanSyntaxRun(src.slice(a, from) + kept + src.slice(to, b)) +
-      src.slice(b),
-  );
+  const cleanedDoc = src.slice(0, a) +
+    cleanSyntaxRun(src.slice(a, from) + kept + src.slice(to, b)) + src.slice(b);
   // Candidates 3-4: the touched lines rebuilt from their remaining text.
   const pick = (i: number) =>
     i >= from && i < to
@@ -1252,7 +1215,9 @@ export function slideBackspace(
   }
   const v = prevVisible(an, caret);
   if (v < 0) return undefined;
-  if (hasStructure(an, v + 1, caret)) {
+  // A code span's line break draws as a space, and the line prefix after it
+  // (`> `, indentation) goes with it.
+  if (an.src[v] !== "\n" && hasStructure(an, v + 1, caret)) {
     return slideDeleteRange(an, v + 1, caret);
   }
   return slideDeleteRange(an, v, caret);
@@ -1288,7 +1253,7 @@ export function escapeTypedSlideText(text: string): string {
     .replace(/&(?=#?[A-Za-z0-9]+;)/g, "\\&");
 }
 
-const HELD_BACKTICK = "\uE000";
+const HELD_BACKTICK = "";
 
 // No escape works inside a code span, so a typed backtick would end the span
 // before the rebuild could fence it. This analyzes `ins` typed at `pos` with
@@ -1343,8 +1308,7 @@ export function slideInsertText(
     }
     return false;
   };
-  const fromBefore = pv >= 0 && !separated(pv + 1, pos);
-  const inherited: SlideCharStyle = fromBefore
+  const inherited: SlideCharStyle = pv >= 0 && !separated(pv + 1, pos)
     ? an.srcStyle[pv] ?? plain
     : nv >= 0 && !separated(pos, nv)
     ? an.srcStyle[nv] ?? plain
@@ -1352,37 +1316,24 @@ export function slideInsertText(
   const inherit: SlideCharStyle = want === undefined || inherited.code
     ? inherited
     : { ...inherited, ...want };
-  // CodeMirror holds every line break as "\n". Strictly inside a code span a
-  // typed line break goes in as the space the span draws it as; at the span's
-  // edge it breaks the line, ending the span.
-  const lines = typed.replace(/\r\n?/g, "\n");
-  const insideCode = pv >= 0 && nv >= 0 && !!an.srcStyle[pv]?.code &&
-    !!an.srcStyle[nv]?.code && !src.slice(pv + 1, nv).includes("`") &&
-    !hasStructure(an, pv + 1, nv);
-  const text = insideCode ? lines.replaceAll("\n", " ") : lines;
-  // Inside a code span text is literal: no escapes.
-  const typedSrc = inherit.code ? text : escapeTypedSlideText(text);
-  // A `!` typed right before a link's `[` would make the link an image.
-  const insAt = (p: number) =>
-    !inherit.code && src[p] === "[" ? typedSrc.replace(/!$/, "\\!") : typedSrc;
-  const at = (p: number) => src.slice(0, p) + insAt(p) + src.slice(p);
+  // Inside a code span text is literal (no escapes), and a line break goes in
+  // as the space a code span draws it as.
+  const text = inherit.code ? typed.replace(/\r\n?|\n/g, " ") : typed;
+  const ins = inherit.code ? text : escapeTypedSlideText(text);
+  const at = (p: number) => src.slice(0, p) + ins + src.slice(p);
 
   let b = pos;
   while (b < src.length && kind[b] === SRC_INLINE_SYNTAX) b++;
   let a = pos;
   while (a > 0 && kind[a - 1] === SRC_INLINE_SYNTAX) a--;
-  // Past syntax but not past a code fence: where text typed into code stays
-  // in its span, after a line prefix and before the closing fence (past which
-  // a closing `**` would stop closing).
-  let f = pos;
-  while (f < src.length && kind[f] === SRC_INLINE_SYNTAX && src[f] !== "`") f++;
 
   const before = visibleSeq(an);
   const k = before.filter((c) => c.src < pos).length;
   // Whitespace markdown trimmed before the caret (a trailing space) is drawn
   // once text follows it.
   const lead =
-    fromBefore && /[ \t]/.test(src.slice(pv + 1, pos).replace(/[^ \t]/g, ""))
+    pv >= 0 && /[ \t]/.test(src.slice(pv + 1, pos).replace(/[^ \t]/g, "")) &&
+      !separated(pv + 1, pos)
       ? " "
       : "";
   const added = [...(lead + text)].filter((c) => c !== "\n").map((ch) => ({
@@ -1395,19 +1346,10 @@ export function slideInsertText(
     ...before.slice(k).map((c) => ({ ch: c.ch, style: c.style })),
   ];
 
-  const positions = [pos, b, a, f].filter((p, i, arr) => arr.indexOf(p) === i);
+  const positions = [pos, b, a].filter((p, i, arr) => arr.indexOf(p) === i);
   const simple = positions.map(at);
   // Last resort: rebuild the line with the typed text styled as inherited.
-  // A line break typed at a code span's edge ends the span: its rebuild
-  // starts outside it, past the closing fence or before the opening one.
-  const basePos = !inherit.code
-    ? b
-    : !text.includes("\n")
-    ? f
-    : fromBefore
-    ? b
-    : a;
-  const ins = insAt(basePos);
+  const basePos = b;
   const base = inherit.code
     ? analyzeTypedIntoCode(src, basePos, ins)
     : analyzeSlideMarkdown(at(basePos));
@@ -1421,22 +1363,16 @@ export function slideInsertText(
   );
   const hit = firstVerified([...simple, ...rebuilt], expected);
   if (!hit) {
-    // A line break at a code span's edge that no candidate draws goes in as
-    // the space the span draws it as.
-    if (inherit.code && text.includes("\n")) {
-      return slideInsertText(an, pos, text.replaceAll("\n", " "), want);
-    }
-    const raw = insAt(pos);
     return {
-      changes: [{ from: pos, to: pos, insert: raw }],
-      anchor: pos + raw.length,
-      head: pos + raw.length,
+      changes: [{ from: pos, to: pos, insert: ins }],
+      anchor: pos + ins.length,
+      head: pos + ins.length,
     };
   }
   const si = simple.indexOf(hit.next);
   let caret: number;
   if (si >= 0) {
-    caret = positions[si] + insAt(positions[si]).length;
+    caret = positions[si] + ins.length;
   } else {
     // After the last typed glyph, plus any whitespace typed after it.
     const ink = (c: { ch: string }) => !/\s/.test(c.ch);
