@@ -94,6 +94,9 @@ type EditorInputs = {
   bundle: FigureBundle;
   metric: MetricWithStatus | undefined;
   session: VisualizationSession | undefined;
+  /** One per mount: the editor's undo manager tracks this binding's origin,
+   *  so its writes must carry the same one. */
+  collabBinding: VizFigureCollabBinding | undefined;
 };
 
 export function VisualizationProductEditor(p: Props) {
@@ -250,12 +253,14 @@ export function VisualizationProductEditor(p: Props) {
         // The doc holds no figure yet: the stored row is the content.
       }
     }
+    const live = m === "live" ? s : undefined;
     return {
       scope: { runId: pair.runId, scopeId: pair.scopeId },
       context,
       bundle,
       metric: context.metrics.find((x) => x.id === bundle.metricId),
-      session: m === "live" ? s : undefined,
+      session: live,
+      collabBinding: live ? bindingFor(live) : undefined,
     };
   });
 
@@ -585,9 +590,7 @@ export function VisualizationProductEditor(p: Props) {
                   params: { productId: p.productId },
                 }}
                 authoringContext={inputs.context}
-                collabBinding={inputs.session
-                  ? bindingFor(inputs.session)
-                  : undefined}
+                collabBinding={inputs.collabBinding}
                 viewOnly={!canEdit()}
                 productChrome={chrome}
                 close={(result) => void handleClose(inputs, result)}
