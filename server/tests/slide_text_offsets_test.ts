@@ -317,6 +317,19 @@ Deno.test("a code span's line break draws as a space, and is code", () => {
   assertEquals(bs("> q `a\n> b` c", 9), "> q `ab` c");
 });
 
+Deno.test("a line break pasted into code goes in as the space it draws", () => {
+  const paste = (text: string) =>
+    apply(
+      "a `bc` d",
+      slideInsertText(analyzeSlideMarkdown("a `bc` d"), 4, text),
+    );
+  assertEquals(paste("x\n\ny"), "a `bx  yc` d");
+  assertEquals(paste("x\r\n|y|\r\n|-|"), "a `bx |y| |-|c` d");
+  const u = analyzeSlideMarkdown(paste("x\n\ny")!).units;
+  assertEquals(u.length, 1);
+  assert(u[0].styles.slice(2, 8).every((s) => s.code));
+});
+
 Deno.test("an empty list item is drawn (Enter on a bullet shows the bullet)", () => {
   const items = (src: string) =>
     parseMarkdown(slideRenderMarkdown(src)).items.map((i) => i.type);
