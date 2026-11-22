@@ -269,11 +269,13 @@ function markRaw(raw: RawChar[]): RawMarks {
     let n = 1;
     while (s[i + n] === "`") n++;
     const fence = "`".repeat(n);
+    // A span ends in its paragraph (a blockquote's are joined by "\n\n").
+    const para = s.indexOf("\n\n", i);
     let j = i + n;
     let close = -1;
     while (j < s.length) {
       const k = s.indexOf(fence, j);
-      if (k < 0) break;
+      if (k < 0 || (para >= 0 && k > para)) break;
       let m = k + n;
       if (s[m] === "`") {
         while (s[m] === "`") m++;
@@ -356,6 +358,7 @@ function sameChar(rendered: string, source: string): boolean {
 // never swallow the rest of the item.
 function alignItem(
   rendered: string,
+  renderedCode: boolean[],
   raw: RawChar[],
   marks: RawMarks,
 ): number[] {
@@ -380,11 +383,11 @@ function alignItem(
     }
     for (let k = j; k < raw.length; k++) {
       if (raw[k].ch === "\n" && marks.inCode[k]) {
-        // A code span draws its line breaks as spaces.
-        if (c === " ") {
-          toSrc[i] = raw[k].src;
-          j = k + 1;
-        }
+        // A code span draws its line breaks as spaces, but drops one that
+        // stands for its edge space.
+        if (c !== " " || !renderedCode[i]) continue;
+        toSrc[i] = raw[k].src;
+        j = k + 1;
         break;
       }
       if (raw[k].ch === "\n" || marks.brEnd.has(k)) break;
@@ -601,11 +604,18 @@ function analyzeRendered(src: string): SlideTextAnalysis {
       }
       raw.push(...rawCharsOf(tok, srcLines, lineStarts));
     });
-    for (const r of raw) {
-      if (r.src >= 0 && r.src < src.length) {
+    const marks = markRaw(raw);
+    raw.forEach((r, k) => {
+      if (r.src < 0 || r.src >= src.length) return;
+      if (r.ch === "\n" && marks.inCode[k]) {
+        // A code span's line break, and the next line's prefix after it, are
+        // markup of the span (the break draws as a space where it is kept).
+        const next = raw[k + 1]?.src ?? -1;
+        kind.fill(SRC_INLINE_SYNTAX, r.src, next > r.src ? next : r.src + 1);
+      } else {
         kind[r.src] = r.ch === "\n" ? SRC_BREAK : SRC_INLINE_SYNTAX;
       }
-    }
+    });
 
     // Rendered text, with each char's inline index.
     let rendered = "";
@@ -615,7 +625,12 @@ function analyzeRendered(src: string): SlideTextAnalysis {
       rendered += t;
       for (let k = 0; k < t.length; k++) inlineOf.push(ii);
     });
-    const toSrc = alignItem(rendered, raw, markRaw(raw));
+    const toSrc = alignItem(
+      rendered,
+      inlineOf.map((ii) => inlines[ii].type === "code-inline"),
+      raw,
+      marks,
+    );
 
     for (let i = 0; i < rendered.length; i++) {
       const s = toSrc[i];
@@ -989,13 +1004,14 @@ function serializeAtoms(
   return out;
 }
 
-// A code span draws its line breaks as spaces, so they do not end a line.
+// A code span's line break draws as a space or nothing: it does not end a line.
 function lineBounds(
   an: SlideTextAnalysis,
   pos: number,
 ): { start: number; end: number } {
   const { src, kind } = an;
-  const endsLine = (i: number) => src[i] === "\n" && kind[i] !== SRC_VISIBLE;
+  const endsLine = (i: number) =>
+    src[i] === "\n" && (kind[i] === SRC_BREAK || kind[i] === SRC_BLOCK);
   let start = pos;
   while (start > 0 && !endsLine(start - 1)) start--;
   let end = pos;
@@ -1110,15 +1126,6 @@ function hasStructure(
 function prevVisible(an: SlideTextAnalysis, pos: number): number {
   for (let i = pos - 1; i >= 0; i--) if (an.kind[i] === SRC_VISIBLE) return i;
   return -1;
-}
-
-// The caret after a code span's line break stands before the next line's
-// prefix (`> `, indentation), which draws nothing: an edit there starts after
-// the prefix, inside the span.
-function pastCodeBreak(an: SlideTextAnalysis, caret: number): number {
-  return an.src[caret - 1] === "\n" && an.kind[caret - 1] === SRC_VISIBLE
-    ? prefixEnd(an, caret, an.src.length)
-    : caret;
 }
 
 function nextVisible(an: SlideTextAnalysis, pos: number): number {
@@ -1245,12 +1252,10 @@ export function slideBackspace(
   }
   const v = prevVisible(an, caret);
   if (v < 0) return undefined;
-  // A code span's line break draws as a space, and the line prefix after it
-  // (`> `, indentation) goes with it.
-  if (an.src[v] !== "\n" && hasStructure(an, v + 1, caret)) {
+  if (hasStructure(an, v + 1, caret)) {
     return slideDeleteRange(an, v + 1, caret);
   }
-  return slideDeleteRange(an, v, pastCodeBreak(an, caret));
+  return slideDeleteRange(an, v, caret);
 }
 
 function countSyntaxAt(an: SlideTextAnalysis, pos: number): number {
@@ -1266,13 +1271,12 @@ export function slideDeleteForward(
   an: SlideTextAnalysis,
   caret: number,
 ): SlideEditResult | undefined {
-  const at = pastCodeBreak(an, caret);
-  const w = nextVisible(an, at);
+  const w = nextVisible(an, caret);
   if (w < 0) return undefined;
-  if (hasStructure(an, at, w)) {
-    return slideDeleteRange(an, at, w);
+  if (hasStructure(an, caret, w)) {
+    return slideDeleteRange(an, caret, w);
   }
-  return slideDeleteRange(an, at, w + 1);
+  return slideDeleteRange(an, caret, w + 1);
 }
 
 /** Escape typed text so it renders literally (pure WYSIWYG: typing `*` never
@@ -1284,7 +1288,7 @@ export function escapeTypedSlideText(text: string): string {
     .replace(/&(?=#?[A-Za-z0-9]+;)/g, "\\&");
 }
 
-const HELD_BACKTICK = "";
+const HELD_BACKTICK = "\uE000";
 
 // No escape works inside a code span, so a typed backtick would end the span
 // before the rebuild could fence it. This analyzes `ins` typed at `pos` with
@@ -1306,7 +1310,7 @@ function analyzeTypedIntoCode(
   };
 }
 
-/** Type `typed` at `offset` (after any selection was deleted). The new text
+/** Type `typed` at `pos` (after any selection was deleted). The new text
  *  takes the style of the visible char before it (or after it, at the start
  *  of a line), like a word processor, and lands where it renders that way:
  *  a space typed at the end of `**bold|**` cannot go inside the delimiters
@@ -1318,12 +1322,11 @@ function analyzeTypedIntoCode(
  *  (`**bold**x`). */
 export function slideInsertText(
   an: SlideTextAnalysis,
-  offset: number,
+  pos: number,
   typed: string,
   want?: Partial<Pick<SlideCharStyle, "bold" | "italic">>,
 ): SlideEditResult {
   const { src, kind } = an;
-  const pos = pastCodeBreak(an, offset);
   const plain: SlideCharStyle = { bold: false, italic: false, code: false };
   const pv = prevVisible(an, pos);
   const nv = nextVisible(an, pos);
@@ -1361,6 +1364,11 @@ export function slideInsertText(
   while (b < src.length && kind[b] === SRC_INLINE_SYNTAX) b++;
   let a = pos;
   while (a > 0 && kind[a - 1] === SRC_INLINE_SYNTAX) a--;
+  // Past syntax but not past a code fence: where text typed into code stays
+  // in its span, after a line prefix and before the closing fence (past which
+  // a closing `**` would stop closing).
+  let f = pos;
+  while (f < src.length && kind[f] === SRC_INLINE_SYNTAX && src[f] !== "`") f++;
 
   const before = visibleSeq(an);
   const k = before.filter((c) => c.src < pos).length;
@@ -1381,15 +1389,10 @@ export function slideInsertText(
     ...before.slice(k).map((c) => ({ ch: c.ch, style: c.style })),
   ];
 
-  const positions = [pos, b, a].filter((p, i, arr) => arr.indexOf(p) === i);
+  const positions = [pos, b, a, f].filter((p, i, arr) => arr.indexOf(p) === i);
   const simple = positions.map(at);
   // Last resort: rebuild the line with the typed text styled as inherited.
-  // Text typed into code just after a code char stays inside the span: past
-  // the fence and a closing `**`, it would stop the `**` closing.
-  const basePos =
-    inherit.code && kind[pos - 1] === SRC_VISIBLE && an.srcStyle[pos - 1]?.code
-      ? pos
-      : b;
+  const basePos = inherit.code ? f : b;
   const ins = insAt(basePos);
   const base = inherit.code
     ? analyzeTypedIntoCode(src, basePos, ins)

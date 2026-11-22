@@ -328,6 +328,32 @@ Deno.test("a code span's line break draws as a space, and is code", () => {
     apply(quote, slideDeleteForward(analyzeSlideMarkdown(quote), 7)),
     "> q `a\n> ` c",
   );
+  // After a deletion leaves the span ending at the break, typed text still
+  // lands in the span, after the prefix.
+  const emptied = apply(
+    quote,
+    slideDeleteRange(analyzeSlideMarkdown(quote), 9, 10),
+  )!;
+  assertEquals(emptied, "> q `a\n> ` c");
+  assertEquals(
+    apply(emptied, slideInsertText(analyzeSlideMarkdown(emptied), 7, "x")),
+    "> q `a\n> x` c",
+  );
+  // A break markdown drops at the span's edge is markup, not the end of the
+  // text: everything after it is still drawn.
+  assertEquals(analyzeSlideMarkdown("x `\nab\n` y").units[0].toSrc, [
+    0,
+    1,
+    4,
+    5,
+    8,
+    9,
+  ]);
+  // A span never pairs its fences across a blockquote's paragraphs.
+  assertEquals(
+    analyzeSlideMarkdown("> `x\n>\n> `a\n> b` c").units[1].toSrc,
+    [10, 11, 14, 16, 17],
+  );
   // A backtick typed at the end of bold-wrapped code stays code.
   const boldCode = "**`bc`** d";
   const ticked = apply(
