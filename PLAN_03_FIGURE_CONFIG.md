@@ -203,13 +203,13 @@ A prototype of §2's schema, and of the conversion, was run over three sets of t
 ### 1.8 What today's editor lets one person write, and how a draft is saved [READ]
 
 - While its host's session is live the editor shows no Apply, and each change to the draft is written to the host's shared document as it is made ([figure_editor.tsx:943-987](client/src/components/_shared/figure_editor/figure_editor.tsx#L943-L987), [:701-715](client/src/components/_shared/figure_editor/figure_editor.tsx#L701-L715)). So a draft is saved, or fails to save, at every press.
-- The room saves the document after each change. The save parses the slide, the report's figures or the visualization's bundle with the stored schema. A rejection saves nothing of that document and no timer retries it: the save is tried again when the document next changes, when the last person leaves, and when the room is flushed ([collab.ts:160-182](server/routes/instance/collab.ts#L160-L182), [:434-453](server/routes/instance/collab.ts#L434-L453), [visualization_rooms.ts:69-91](server/collab/visualization_rooms.ts#L69-L91), [doc_rooms.ts:257-285](server/collab/doc_rooms.ts#L257-L285), [:624-634](server/collab/doc_rooms.ts#L624-L634), [:724-734](server/collab/doc_rooms.ts#L724-L734)).
+- The room saves the document after each change. The save parses the slide, the report's figures or the visualization's bundle with the stored schema. A rejection saves nothing of that document and no timer retries it: the save is tried again when the document next changes, when the last person leaves, and when the room is flushed ([collab.ts:160-182](server/routes/instance/collab.ts#L160-L182), [:434-453](server/routes/instance/collab.ts#L434-L453), [visualization_rooms.ts:69-91](server/collab/visualization_rooms.ts#L69-L91), [doc_rooms.ts:257-285](server/collab/doc_rooms.ts#L257-L285), [:626-630](server/collab/doc_rooms.ts#L626-L630), [:717-732](server/collab/doc_rooms.ts#L717-L732)).
 - Before that parse, `dropStorageInvalidTransients` removes three states the schema refuses: a filter with no value, an empty `valuesFilter`, and a period filter the schema rejects ([normalize_po_config.ts:22-57](lib/normalize_po_config.ts#L22-L57)). The editor writes the first two itself: ticking a filter writes it with no value ([filters.tsx:509-512](client/src/components/_shared/figure_editor/editor_panel_data/filters.tsx#L509-L512)), and ticking the value filter writes an empty list ([:145](client/src/components/_shared/figure_editor/editor_panel_data/filters.tsx#L145)).
 - The bridge that carries the config through the shared document is written for `{ d, s, t }`: one key per field of `d` and of `s`, and the three texts as Y.Texts. It reads every key the map holds and relies on the open schema to strip one it does not know ([figure_config_crdt.ts:35-36](lib/collab/figure_config_crdt.ts#L35-L36), [:115-143](lib/collab/figure_config_crdt.ts#L115-L143)).
 - What today's controls keep one person from writing:
   - a required dimension unticked ([disaggregation_section.tsx:261-288](client/src/components/_shared/figure_editor/editor_panel_data/disaggregation_section.tsx#L261-L288)). A change of type to one not yet seen in the session adds a missing one ([convert_visualization_type.ts:63-76](lib/convert_visualization_type.ts#L63-L76), [summary.tsx:131-158](client/src/components/_shared/figure_editor/editor_panel_data/summary.tsx#L131-L158)), and a change back restores the list that type held ([summary.tsx:115-130](client/src/components/_shared/figure_editor/editor_panel_data/summary.tsx#L115-L130));
   - two filters on one dimension ([filters.tsx:509-512](client/src/components/_shared/figure_editor/editor_panel_data/filters.tsx#L509-L512));
-  - a period range out of order, which a two-ended slider sets ([filters.tsx:637-651](client/src/components/_shared/figure_editor/editor_panel_data/filters.tsx#L637-L651));
+  - a period range out of order, which a two-ended slider sets ([filters.tsx:639-653](client/src/components/_shared/figure_editor/editor_panel_data/filters.tsx#L639-L653));
   - a period filter yearly data does not take, on a figure that holds none: it is offered "Last year" and "Custom" ([filters.tsx:223-241](client/src/components/_shared/figure_editor/editor_panel_data/filters.tsx#L223-L241));
   - thresholds whose buckets and cutoffs are out of step, or whose cutoffs descend: a cutoff and its bucket are added and removed together, and a cutoff is held between its neighbours, which it may equal ([conditional_formatting_editor.tsx:387-432](client/src/components/_shared/figure_editor/_shared/conditional_formatting_editor.tsx#L387-L432));
   - a roll-up on a metric that cannot be rolled up ([disaggregation_section.tsx:355-386](client/src/components/_shared/figure_editor/editor_panel_data/disaggregation_section.tsx#L355-L386));
@@ -225,8 +225,8 @@ A prototype of §2's schema, and of the conversion, was run over three sets of t
   - two things on one slot, and a dimension that is not an admin level on `mapArea`: a slot list offers every slot of the type to every dimension ([disaggregation_section.tsx:333-345](client/src/components/_shared/figure_editor/editor_panel_data/disaggregation_section.tsx#L333-L345));
   - a cutoff or a scale bound that is not finite, which zod refuses: a number input takes "1e999" and holds it only to a bound it is given ([numbers.tsx:43-57](panther/_303_components/form_inputs/numbers.tsx#L43-L57), [conditional_formatting_editor.tsx:496-508](client/src/components/_shared/figure_editor/_shared/conditional_formatting_editor.tsx#L496-L508));
   - a filter with no value and an empty value filter, above.
-- A stored figure that lacks a dimension its metric requires shows "Error with required disaggregator" and a locked checkbox, and no control adds the dimension but a change of type ([disaggregation_section.tsx:289-301](client/src/components/_shared/figure_editor/editor_panel_data/disaggregation_section.tsx#L289-L301)).
-- The preview shows a notice in place of the figure when two dimensions hold one slot ([figure_editor.tsx:217-231](client/src/components/_shared/figure_editor/figure_editor.tsx#L217-L231)).
+- A stored figure that lacks a dimension its metric requires shows "Error with required disaggregator" and a locked checkbox, and no control adds the dimension but a change of type ([disaggregation_section.tsx:261-301](client/src/components/_shared/figure_editor/editor_panel_data/disaggregation_section.tsx#L261-L301)).
+- The preview shows a notice in place of the figure when two dimensions hold one slot ([figure_editor.tsx:217-233](client/src/components/_shared/figure_editor/figure_editor.tsx#L217-L233)).
 
 ### 1.9 What the first working of step 2 found
 
@@ -844,6 +844,10 @@ In this repo, `lib`:
 - `lib/ai_tools/content_validators.ts`
 - `lib/ai_tools/format_metric_data_for_ai.ts` (the period filter it builds for a read)
 - `lib/ai_tools/format_metrics_list_for_ai.ts` (presets as configs, no `allowedFilters`)
+- `lib/ai_tools/format_dimension_values_for_ai.ts` (it tells the model that a `selectedReplicant` takes a value by its id)
+- `lib/ai_tools/tools_metrics.ts` (`get_dimension_values`' description names `selectedReplicant`)
+- `lib/legacy_cf_presets.ts` (it imports `ConditionalFormattingThresholds`, and its thresholds carry no `direction`, which §2.1's require)
+- `lib/collab/crdt_util.ts` (the `setOpaqueByValue` comment takes a figure config's `filterBy` as its case)
 
 In this repo, `client/src`:
 
@@ -883,7 +887,7 @@ In this repo, `client/src`:
 - `components/instance/copilot/ai_views.ts`
 - `components/instance/copilot/build_system_prompt.ts` (what `get_figure_editor` reads)
 - `components/products/copilot/_shared/content_validators.ts`, `figure_metric_for_ai.ts`, `format_figure_config_for_ai.ts`, `mod.ts`
-- `components/products/copilot/ai_tools/tools/figure_editor.ts`, `report_editor.ts`, `slide_write_result.ts`, `slides.tsx`, `update_figure.ts`, `update_slide.ts`
+- `components/products/copilot/ai_tools/tools/figure_editor.ts`, `report_editor.ts`, `slide_write_result.ts`, `slides.tsx`, `update_figure.ts`, `update_slide.ts`, `drafts.tsx`, `get_slides.ts`
 - `components/products/copilot/slide_ai/build_config_from_preset.ts` (deleted)
 - `components/products/copilot/slide_ai/convert_ai_input_to_slide.ts`, `get_slide_with_updated_blocks.ts`, `mod.ts`, `resolve_figure_from_metric.ts`, `simplify_slide_for_ai.ts`
 - `state/products/t2_figure_data.ts`
@@ -900,6 +904,8 @@ In this repo, `server`, the root and the docs:
 - `server/run_query/package_presets.ts`, `run_read.ts`
 - `server/routes/caches/visualizations.ts` (`PO_CACHE_VERSION`)
 - `server/server_only_funcs_presentation_objects/period_helpers.ts`
+- `server/run_query/run_data_reads.ts` (a comment on how `from_month` re-anchors)
+- `server/server_only_funcs_presentation_objects/possible_values_core.ts` (a comment that names `filterBy`)
 - `server/tests/explore_query_test.ts`, `explore_views_test.ts`, `figure_bundle_schema_test.ts`, `indicator_metadata_for_read_test.ts`, `population_coverage_issue_test.ts`, `products_routes_test.ts`, `retired_metrics_test.ts`, `visualization_crdt_test.ts`, `run_manifest_transform_test.ts`, `copilot_prompt_test.ts`
 - `server/tests/figure_config_presets_test.ts` (step 5's comparison, on the app's own functions)
 - `server/tests/figure_config_render_test.ts` (new): every preset and Explore config drawn through panther's transforms
@@ -912,6 +918,7 @@ In this repo, `server`, the root and the docs:
 - `SYSTEM_02_persistence.md`, `SYSTEM_08_results_packages.md`, `SYSTEM_09_viz_query_cache.md`, `SYSTEM_10_figure_render_export.md`, `SYSTEM_11_viz_authoring.md`, `SYSTEM_13_ai_assistant.md`, `SYSTEM_16_collaboration.md` (prose, and the manifests for the new, deleted and moved files)
 - `PROTOCOL_APP_AI_TOOLS.md`, `PROTOCOL_APP_MIGRATIONS.md`
 - `TESTING_SCRIPT_FOR_AI_COPILOT.md` (its figure steps name a preset and `update_figure`'s change report)
+- `client/public/info/iceh.md`, `client/public/info/iceh-equity-profile.md` (copilot reference documents that name presets by id, `chartTitle` and `selectedReplicant`)
 
 In `wb-fastr-modules`:
 
@@ -925,6 +932,7 @@ In `wb-fastr-modules`:
 - `deno.json`, `deno.lock` (zod `^3.22.4` has neither `z.strictObject` nor `z.toJSONSchema`)
 - `fix_cf_presets.ts` (it writes imports of the vendored schema and the flat `cf*` fields the cutover replaces)
 - `review_ai_text/render_ai_view.ts`
+- `review_ai_text/BRIEFING.md` (it documents a preset's `allowedFilters` and the `config.t` texts as the AI sees them)
 - `DOC_VIZPRESET_STANDARDS.md`, `DOC_MODULES.md`, `DOC_METRICS_REFERENCE.md`, `DOC_SPECIAL_METRICS_SYNC.md`
 
 **Deliverable.**
@@ -993,15 +1001,17 @@ Repo: this one.
 - `lib/ai_tools/build_system_prompt.ts` (the deck brief's steps for building a figure)
 - `lib/figure_config/diff.ts` (new): every field where two configs differ
 - `lib/figure_config/mod.ts`
+- `lib/ai_tools/content_validators.ts` (`validateAiMetricQuery` reads the names the input renames)
 - `client/src/components/instance/copilot_tools.ts`
-- `client/src/components/products/copilot/ai_tools/tools/tool_labels.ts`
 - `client/src/components/products/copilot/ai_tools/tools/figure_editor.ts`, `report_editor.ts`, `slides.tsx`, `update_figure.ts`, `update_slide.ts`, `slide_write_result.ts` (each write of a figure returns the diff)
 - `server/mcp/mcp_tools.ts`
-- `server/tests/format_metric_data_for_ai_test.ts`, `copilot_catalogue_test.ts`, `copilot_tool_labels_test.ts`, `copilot_prompt_test.ts`
+- `server/mcp/mcp_endpoint.ts` (its instructions name the package tools, which the two reads join)
+- `server/tests/format_metric_data_for_ai_test.ts`, `copilot_catalogue_test.ts`, `copilot_prompt_test.ts`
 - `server/tests/figure_config_diff_test.ts` (new)
 - `server/tests/figure_config_reads_for_ai_test.ts` (new): the starting config and the change of type as the copilot reads them
 - This file (§6's notes)
 - `SYSTEM_05_facilities_indicators.md` (note 2, the map areas that match no boundary), `SYSTEM_09_viz_query_cache.md` (note 13, `__BLANK`), `SYSTEM_10_figure_render_export.md` (notes 3, 4, 5, 9 and 10, which are how a figure draws), `SYSTEM_13_ai_assistant.md` (the copilot's reads, and notes 14 to 17): each where a note moves to Open items
+- `SYSTEM_08_results_packages.md` (it counts the `/mcp` metric tools)
 - `PROTOCOL_APP_AI_TOOLS.md`
 - `USER_GUIDE_MCP.md` (its table of the `/mcp` tools)
 
