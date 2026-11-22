@@ -208,7 +208,7 @@ export type MergedPieStyle = MergedChartStyleBase & {
       headerPosition: "top" | "bottom";
       gapX: number;
       gapY: number;
-      nCols: number | "auto";
+      nCols: NCols;
     };
     labelCollision: LabelCollisionConfig;
     outsideLabelPlacement: OutsideLabelPlacement;
@@ -319,9 +319,11 @@ export type MergedGridStyle = {
   backgroundColor: string | "none";
 };
 
+export type NCols = number | "auto";
+
 export type MergedPaneStyle = {
   hideHeaders: boolean;
-  nCols: number | "auto";
+  nCols: NCols;
   minWidth: number;
   gapX: number;
   gapY: number;

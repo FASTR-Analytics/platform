@@ -458,6 +458,8 @@ export function deriveVisibleIndicatorsByPaneTierOrLane(
 
 export type ValueSortDirection = "ascending" | "descending";
 
+export type ValueSortOrder = ValueSortDirection | "none";
+
 // Stable, so ties keep the order the mask arrived in (storage order). The
 // blank indicator follows every named one whatever its value.
 function orderByKey(

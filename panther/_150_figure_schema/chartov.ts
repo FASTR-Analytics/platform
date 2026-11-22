@@ -26,6 +26,7 @@ import {
   zVisibleByPane,
   zVisibleByPaneTierOrLane,
 } from "./shared.ts";
+import { zValueSortOrder } from "./style_leaves.ts";
 
 export const zChartOVJsonDataConfig = z.object({
   valueProps: z.array(z.string()),
@@ -54,7 +55,7 @@ export const zChartOVJsonDataConfig = z.object({
       pane: zMemberSortConfig.optional(),
     })
     .optional(),
-  sortIndicatorValues: z.enum(["ascending", "descending", "none"]).optional(),
+  sortIndicatorValues: zValueSortOrder.optional(),
   yValueAxisLabel: z.string().optional(),
 });
 const _zChartOVJsonDataConfigConforms: Conforms<

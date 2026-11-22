@@ -19,14 +19,21 @@ import type {
   MapProjection,
   MemberSortConfig,
   MemberSortFunc,
+  NCols,
   PeriodType,
   UncertaintyConfig,
+  ValueSortOrder,
 } from "./deps.ts";
 import type {
+  zColorKey,
+  zColorKeyOrHex,
   zColorKeyOrString,
   zContinuousPaletteName,
+  zHexColor,
   zMapDataLabelMode,
   zMapProjection,
+  zNCols,
+  zValueSortOrder,
 } from "./style_leaves.ts";
 
 // Compile-time conformance check binding each schema to its hand-written type
@@ -169,8 +176,18 @@ export const zPeriodType = z.enum(["year-month", "year-quarter", "year"]);
 const _zPeriodTypeConforms: Conforms<z.infer<typeof zPeriodType>, PeriodType> =
   true;
 
+const _zColorKeyConforms: ConformsExactly<
+  z.infer<typeof zColorKey>,
+  Exclude<ColorKeyOrString, string>
+> = true;
+const _zHexColorConforms: ConformsExactly<z.infer<typeof zHexColor>, string> =
+  true;
 const _zColorKeyOrStringConforms: ConformsExactly<
   z.infer<typeof zColorKeyOrString>,
+  ColorKeyOrString
+> = true;
+const _zColorKeyOrHexConforms: ConformsExactly<
+  z.infer<typeof zColorKeyOrHex>,
   ColorKeyOrString
 > = true;
 const _zContinuousPaletteNameConforms: ConformsExactly<
@@ -185,6 +202,11 @@ const _zMapDataLabelModeConforms: ConformsExactly<
   z.infer<typeof zMapDataLabelMode>,
   MapDataLabelMode
 > = true;
+const _zValueSortOrderConforms: ConformsExactly<
+  z.infer<typeof zValueSortOrder>,
+  ValueSortOrder
+> = true;
+const _zNColsConforms: ConformsExactly<z.infer<typeof zNCols>, NCols> = true;
 
 export const zChartValueAxisLimitsEntry = z.object({
   valueMin: z.number(),

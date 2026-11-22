@@ -18,6 +18,7 @@ import type {
   PaneLayout,
   Primitive,
   UncertaintyConfig,
+  ValueSortOrder,
 } from "./deps.ts";
 
 export type ChartOVInputs = FigureInputsBase & {
@@ -71,7 +72,7 @@ export type ChartOVJsonDataConfig = {
     tier?: MemberSortConfig;
     pane?: MemberSortConfig;
   };
-  sortIndicatorValues?: "ascending" | "descending" | "none";
+  sortIndicatorValues?: ValueSortOrder;
   yValueAxisLabel?: string;
 };
 

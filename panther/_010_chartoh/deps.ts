@@ -50,4 +50,5 @@ export type {
   ResolveTargetExtent,
   SimplifiedChartConfig,
   UncertaintyConfig,
+  ValueSortOrder,
 } from "../_007_figure_core/mod.ts";

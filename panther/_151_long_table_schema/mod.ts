@@ -28,4 +28,6 @@ export {
   zLongTableValue,
   zPeriodBounds,
   zRowsResult,
+  zSqlColumn,
+  zSqlRowsResult,
 } from "./schema.ts";

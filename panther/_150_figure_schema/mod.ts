@@ -18,10 +18,15 @@ export {
 } from "./shared.ts";
 export type { Conforms, ConformsExactly } from "./shared.ts";
 export {
+  zColorKey,
+  zColorKeyOrHex,
   zColorKeyOrString,
   zContinuousPaletteName,
+  zHexColor,
   zMapDataLabelMode,
   zMapProjection,
+  zNCols,
+  zValueSortOrder,
 } from "./style_leaves.ts";
 export {
   zTimeseriesData,

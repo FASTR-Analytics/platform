@@ -114,7 +114,7 @@ async function runPlan(
 
 // A server-owned cap. A value below 1 or a fraction is the app's mistake,
 // not the query's, so it is a plain Error.
-function requireCap(value: number, name: string): number {
+export function requireCap(value: number, name: string): number {
   if (!Number.isSafeInteger(value) || value < 1) {
     throw new Error(`${name} ${value} must be a whole number of at least 1`);
   }

@@ -73,7 +73,7 @@ function validateTableNames(names: string[]): void {
 // The original failure is the one to report, so a close that throws on the
 // way out is dropped; the instance is closed even when the connection's
 // close fails.
-function closeQuietly(
+export function closeQuietly(
   connection: DuckDBConnection | undefined,
   instance: DuckDBInstance,
 ): void {

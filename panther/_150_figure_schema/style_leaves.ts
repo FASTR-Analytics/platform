@@ -8,27 +8,34 @@
 // to its hand-written type.
 import { z } from "zod";
 
-export const zColorKeyOrString = z.union([
-  z.string(),
-  z.strictObject({
-    key: z.enum([
-      "base100",
-      "base200",
-      "base300",
-      "baseContent",
-      "primary",
-      "primaryContent",
-      "neutral",
-      "neutralContent",
-      "success",
-      "successContent",
-      "warning",
-      "warningContent",
-      "danger",
-      "dangerContent",
-    ]),
-  }),
-]);
+export const zColorKey = z.strictObject({
+  key: z.enum([
+    "base100",
+    "base200",
+    "base300",
+    "baseContent",
+    "primary",
+    "primaryContent",
+    "neutral",
+    "neutralContent",
+    "success",
+    "successContent",
+    "warning",
+    "warningContent",
+    "danger",
+    "dangerContent",
+  ]),
+});
+
+// What Color reads as hex, with or without alpha. Color's own patterns are in
+// _001_color, which this file cannot import.
+export const zHexColor = z.string().regex(
+  /^#([\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})$/i,
+);
+
+export const zColorKeyOrString = z.union([z.string(), zColorKey]);
+
+export const zColorKeyOrHex = z.union([zHexColor, zColorKey]);
 
 export const zContinuousPaletteName = z.enum([
   "blues",
@@ -80,3 +87,7 @@ export const zMapDataLabelMode = z.enum([
   "callout",
   "auto",
 ]);
+
+export const zValueSortOrder = z.enum(["ascending", "descending", "none"]);
+
+export const zNCols = z.union([z.literal("auto"), z.int().min(1)]);

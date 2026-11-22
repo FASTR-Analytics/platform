@@ -30,4 +30,10 @@ export type {
   LongTableRowsOptions,
   LongTableValuesOptions,
 } from "./reads.ts";
+export {
+  DEFAULT_MAX_SQL_ROWS,
+  DEFAULT_SQL_TIMEOUT_MS,
+  getSqlRows,
+} from "./sql.ts";
+export type { LongTableSqlRowsOptions } from "./sql.ts";
 export type { WriteParquetFromCsvOptions } from "./write.ts";

@@ -37,6 +37,7 @@ import {
   validateChartProportional,
   validateDataInput,
   validateDimensionProps,
+  type ValueSortOrder,
 } from "./common_data_transform.ts";
 import {
   type ChartValueAxisLimits,
@@ -78,7 +79,7 @@ export type ChartOVOrOHJsonConfigCore = {
     tier?: MemberSortConfig;
     pane?: MemberSortConfig;
   };
-  sortIndicatorValues?: "ascending" | "descending" | "none";
+  sortIndicatorValues?: ValueSortOrder;
 };
 
 export type ChartOVOrOHTransformResult = {

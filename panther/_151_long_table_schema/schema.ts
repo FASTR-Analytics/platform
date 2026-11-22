@@ -33,6 +33,8 @@ import type {
   PeriodFilter,
   PeriodUnit,
   RowsResult,
+  SqlColumn,
+  SqlRowsResult,
 } from "./deps.ts";
 import {
   type zFullPeriodUnit,
@@ -249,6 +251,36 @@ export const zRowsResult = z.discriminatedUnion("status", [
 const _zRowsResultConforms: ConformsExactly<
   z.infer<typeof zRowsResult>,
   RowsResult
+> = true;
+
+export const zSqlColumn = z.strictObject({
+  name: z.string(),
+  type: zLongTableColumnType,
+  rawType: z.string(),
+});
+const _zSqlColumnConforms: ConformsExactly<
+  z.infer<typeof zSqlColumn>,
+  SqlColumn
+> = true;
+
+export const zSqlRowsResult = z.discriminatedUnion("status", [
+  z.strictObject({
+    status: z.literal("ok"),
+    columns: z.array(zSqlColumn),
+    rows: z.array(zLongTableRow),
+  }),
+  z.strictObject({
+    status: z.literal("too_many_rows"),
+    columns: z.array(zSqlColumn),
+  }),
+  z.strictObject({
+    status: z.literal("no_data"),
+    columns: z.array(zSqlColumn),
+  }),
+]);
+const _zSqlRowsResultConforms: ConformsExactly<
+  z.infer<typeof zSqlRowsResult>,
+  SqlRowsResult
 > = true;
 
 export const zDescribedColumn = z.strictObject({

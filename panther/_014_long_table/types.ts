@@ -159,6 +159,15 @@ export type RowsResult =
   | { status: "ok"; rows: LongTableRow[] }
   | { status: "no_data" };
 
+// A column of a caller's SELECT: its output name, its type as a cell carries
+// it, and DuckDB's own name for the type.
+export type SqlColumn = LongTableColumn & { rawType: string };
+
+export type SqlRowsResult =
+  | { status: "ok"; columns: SqlColumn[]; rows: LongTableRow[] }
+  | { status: "too_many_rows"; columns: SqlColumn[] }
+  | { status: "no_data"; columns: SqlColumn[] };
+
 // What a name in `groupBy` or a filter resolves to. The time column and the
 // derived dimensions are integer categories that never fold.
 export type ResolvedDimension =

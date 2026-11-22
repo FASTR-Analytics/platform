@@ -54,10 +54,21 @@ export type {
   PeriodFilter,
   ResolvedDimension,
   RowsResult,
+  SqlColumn,
+  SqlRowsResult,
 } from "../_014_long_table/mod.ts";
-export { BIGINT, DOUBLE, DuckDBInstance, VARCHAR } from "@duckdb/node-api";
+export {
+  BIGINT,
+  DOUBLE,
+  DuckDBInstance,
+  DuckDBTypeId,
+  StatementType,
+  VARCHAR,
+} from "@duckdb/node-api";
 export type {
   DuckDBConnection,
+  DuckDBPreparedStatement,
+  DuckDBResult,
   DuckDBType,
   DuckDBValue,
 } from "@duckdb/node-api";

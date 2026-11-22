@@ -49,4 +49,5 @@ export type {
   PaneLayout,
   SimplifiedChartConfig,
   UncertaintyConfig,
+  ValueSortOrder,
 } from "../_007_figure_core/mod.ts";
