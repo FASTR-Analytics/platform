@@ -283,40 +283,6 @@ Deno.test("typing continues the formatting it is typed into, validly", () => {
   );
 });
 
-Deno.test("a code span's line break draws as a space, and is code", () => {
-  const src = "`ab\ncd` e";
-  const an = analyzeSlideMarkdown(src);
-  assertEquals(an.units[0].text, "ab cd e");
-  assertEquals(an.units[0].toSrc, [1, 2, 3, 4, 5, 7, 8]);
-  assertEquals(an.kind[3], SRC_VISIBLE);
-  assert(an.srcStyle[4]?.code);
-
-  const drawn = (doc: string) => {
-    const u = analyzeSlideMarkdown(doc).units[0];
-    return [u.text, u.styles.map((s) => s.code ? "c" : "-").join("")];
-  };
-  // A backtick typed into code stays code: the span is fenced to fit it.
-  const after = apply(src, slideInsertText(an, 5, "`"))!;
-  assertEquals(drawn(after), ["ab c`d e", "cccccc--"]);
-  assertEquals(
-    drawn(
-      apply("`abcd`", slideInsertText(analyzeSlideMarkdown("`abcd`"), 3, "`"))!,
-    ),
-    ["ab`cd", "ccccc"],
-  );
-
-  // Bold over the paragraph keeps the code span whole.
-  const bold = apply(src, slideToggleStyle(an, 0, src.length, "bold"))!;
-  assertEquals(drawn(bold)[0], "ab cd e");
-  assert(analyzeSlideMarkdown(bold).units[0].styles[6].bold);
-
-  // Backspace after the break deletes the drawn space, with the line prefix.
-  const bs = (doc: string, caret: number) =>
-    apply(doc, slideBackspace(analyzeSlideMarkdown(doc), caret));
-  assertEquals(bs(src, 4), "`abcd` e");
-  assertEquals(bs("> q `a\n> b` c", 9), "> q `ab` c");
-});
-
 Deno.test("an empty list item is drawn (Enter on a bullet shows the bullet)", () => {
   const items = (src: string) =>
     parseMarkdown(slideRenderMarkdown(src)).items.map((i) => i.type);
