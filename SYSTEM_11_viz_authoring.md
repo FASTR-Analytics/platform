@@ -14,6 +14,7 @@ globs:
   - lib/disaggregation_labels.ts
   - lib/explore_query.ts
   - lib/explore_views.ts
+  - lib/figure_config/**
   - lib/format_nigeria_admin_label.ts
   - lib/get_disaggregator_display_prop.ts
   - lib/group_metrics.ts
@@ -27,8 +28,14 @@ globs:
   - lib/types/disaggregation_options.ts
   - lib/types/presentation_object_defaults.ts
   - lib/types/presentation_objects.ts
+  - server/tests/_figure_config_comparison.ts
   - server/tests/explore_query_test.ts
   - server/tests/explore_views_test.ts
+  - server/tests/figure_config_convert_test.ts
+  - server/tests/figure_config_gate_test.ts
+  - server/tests/figure_config_presets_test.ts
+  - server/tests/figure_config_schema_test.ts
+  - server/tests/figure_config_validate_test.ts
 docs_absorbed:
 ---
 
@@ -103,6 +110,20 @@ Under a built map, the figure editor's preview and the explore view show its cov
 - **PO config schema** (`_presentation_object_config.ts`): `d` = `configDStrict` (shared with the module-authoring repo), `s` = all-required flat style incl. the `cf*` fields, `t` = six plain-string/number fields. Reads are strict-throw (`parsePresentationObjectConfig`), no permissive fallback. Duplicate display slots are allowed in storage; the UI warns and blocks render.
 - **Conditional formatting**: storage = 16 flat `cf*` fields (`conditional_formatting_standalone.ts`, vendored to wb-fastr-modules); semantics = the `ConditionalFormatting` union with `selectCf` (flat→union) / `flattenCf` (union→flat) bridges and display-time `deriveBucketLabels`. The editor works purely on the union; `applyCfToTempConfig` fans the flat fields into batched store writes. `legacy_cf_presets.ts` maps the 9 legacy preset ids, consumed by the S2 po_config transform (Blocks 5/6) and as the thresholds editor's preset dropdown.
 - **Replicant helpers**: `getReplicateByProp` is the filter-aware single source of truth for "active replicant" (safe on raw config); `getDisaggregatorDisplayProp` / `hasDuplicateDisaggregatorDisplayOptions` are deliberately NOT filter-aware (they receive effective configs).
+
+### The figure config (`lib/figure_config/`)
+
+The figure config describes a figure as `{ type, data, layout, style, text }`, a union by figure type, every object closed. Nothing the app runs reads it: the stored config, the editor, the presets and the copilot still use `{ d, s, t }`. It is not exported from the `lib` barrel, because its names (`PeriodFilter` and others) collide with today's; code imports `lib/figure_config/mod.ts`.
+
+- **`schema.ts`**: one factory, `makeFigureConfigShape(text)`, with a stored instance (texts are strings, `figureConfigSchema`) and a preset instance (texts are translated, `figureConfigPresetSchema`). `layout` gives each slot of the type one thing, a dimension or `"valueProps"`; a timeseries has `period` and a map `mapArea` (an admin level). Its low-level elements are panther's (`zColorKeyOrHex`, `zHexColor`, `zContinuousPaletteName`, `zMapProjection`, `zMapDataLabelMode`, `zValueSort`, `zNColsOrAuto`, `zLongTableFilter`, and `zPeriodFilter`'s four shapes narrowed to what the query engine resolves). The checks that need the config alone run inside the schema as a refinement: a thing on two places (two slots, or a slot and the replicant), a roll-up whose dimension is on no slot, two filters on one dimension, a range or `from` bound that is not a period (or a range of two grains, or out of order), thresholds with other than one more bucket than cutoffs or with descending cutoffs, and a fixed scale domain whose minimum is not below its maximum. `figureConfigShapeSchema` is the same shape without the refinement.
+- **`validate.ts`**: `validateFigureConfig(input, metric)` is the validator, one pure function that returns problems, each a kind and what it names; `problemKey` makes two configs' problems comparable. A value that does not fit the shape has only its shape problems. The metric checks: every dimension and value prop named is the metric's; a filter-only dimension is only filtered; a dimension is laid out (on a slot or as the replicant) only on a type its metric allows, and a timeseries lays time out on `period` only; two or more value props shown are on a slot that names them, a chart with them on another slot holds a dimension on `indicator`, and a map shows exactly one; a required dimension is on a slot, the replicant or filtered to one value on every type, a required period dimension also where the period filter selects one period of the metric's grain; yearly data takes a range of years or the last full year, and a metric with no time column takes no period filter; a roll-up needs a metric that can be rolled up; a special mode needs a metric on its list (`SPECIAL_CHART_METRICS`), and coverage, disruptions and the band hold the value props on `series` while two or more are shown and never a dimension there, disruptions shows two or more and the band exactly its four in order; `indicator` colouring needs an indicator-format metric.
+- **`derive.ts`**: what a config means, as pure functions: the value props shown, the effective replicant (a replicant filtered to one value is a filter), the open roll-up (closed while its dimension is filtered to one value) and the dimension the query totals, what the query groups by (every dimension on a slot, the replicant, every dimension filtered to exactly one value, never a filter-only one), the axes (two or more value props drawn only on their slot; one drawn on a timeseries' `series` or a chart's `indicator` while nothing is laid out there; a dimension laid out unless a filter holds it to one value or the rows hold one of its members, `period` and `mapArea` always, and a chart's `indicator` kept while the value props are on another slot), the fetch config with the figure config's period filter, and the periods a filter selects given the data's bounds.
+- **`settings_key.ts`**: `settingsKey(metricId, config)`, a canonical string of what the query reads: the metric id, the value props named, the filters, the replicant's value as a filter where no filter holds its dimension to one value, the period filter, what the query groups by, and the open roll-up's dimension. The slots, the roll-up's position, the style and the text are no part of it.
+- **`gate.ts`**: `isDraftWritable(draftProblems, documentProblems)`: the editor's one check, true while the draft has no problem the document's config lacks.
+- **`starting_config.ts`**: `startingFigureConfig(metric, type, chosen)`, the insert wizard's starting config, which passes the validator: the required dimensions the type allows and the chosen ones each on the first free slot, else the replicant, else left out; two or more value props on the type's own slot (`series`, `col`, `indicator`, `pane`); a map names its area (the finest admin level laid out, else the metric's coarsest) and the first value prop; a map or a pie of a metric that requires a period dimension shows the last full year. `defaultFigureStyle` is each type's starting style.
+- **`convert.ts`**: `convertStoredConfig(config, context)` and, for translated texts, `convertFigureConfig`, the conversion of a stored `{ d, s, t }`. It needs the metric's value props (a backfilled bundle's own may be labels), whether the metric's values can be re-totalled, the dimensions whose column holds one member in the figure's rows, and whether the data is yearly. Each slot holds what today's renderer draws there, and two or more value props stored on a display option the type does not read take the slot today's renderer falls back to; a dimension sharing a slot leaves it when filtered to one value and otherwise moves to the first free slot; a timeseries' time-axis dimension leaves its slot; a relative period filter on yearly data becomes the last full year; a map that shows several value props names the first; a closed roll-up whose dimension left its slot, and a roll-up on a metric whose values cannot be re-totalled, which today's query never reads, are dropped; fields with no reader for the type are dropped. Every such case is a note. A map with no admin-level area fails the conversion.
+
+The figure config is checked against today's functions by `server/tests/figure_config_presets_test.ts` (every preset and Explore config converts, fits and passes, and derives the same fetch config, axes, roll-up, filters, period bounds and conditional formatting as today but for the cases the conversion means to change) and by `sweep_figure_config.ts` (repo root), a read-only sweep of every instance's stored figures that runs the same comparison (`server/tests/_figure_config_comparison.ts`), counts the conversions by case and lists every figure with a validator problem, by problem.
 
 ### Explore query model
 

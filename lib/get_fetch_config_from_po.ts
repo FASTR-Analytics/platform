@@ -134,7 +134,7 @@ export function getFetchConfigFromPresentationObjectConfig(
 // source format differs (the finest alignment we can honor). Used to keep both
 // bounds the same self-identified format; returns the value unchanged when already
 // aligned or when the target format is unknown.
-function reAnchorToFormat(
+export function reAnchorToFormat(
   value: number,
   fmt: PeriodOption | undefined,
 ): number {
@@ -265,7 +265,7 @@ export function getPeriodFilterExactBounds(
   throw new Error("Should not happen");
 }
 
-function getLastFullYearBounds(
+export function getLastFullYearBounds(
   periodBounds: PeriodBounds,
 ): { min: number; max: number } {
   if (getCalendar() === "ethiopian") {
@@ -288,7 +288,7 @@ function getLastFullYearBounds(
   return { min: minYear * 100 + 1, max: minYear * 100 + 12 };
 }
 
-function getLastFullQuarterBounds(
+export function getLastFullQuarterBounds(
   periodBounds: PeriodBounds,
 ): { min: number; max: number } {
   if (getCalendar() === "ethiopian") {

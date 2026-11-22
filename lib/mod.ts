@@ -20,6 +20,7 @@ export * from "./hfa_sentinel_classification.ts";
 export * from "./format_nigeria_admin_label.ts";
 export * from "./normalize_po_config.ts";
 export * from "./sample_n.ts";
+export * from "./special_chart_metrics.ts";
 export * from "./special_indicators.ts";
 export * from "./get_disaggregator_display_prop.ts";
 export * from "./get_fetch_config_from_po.ts";

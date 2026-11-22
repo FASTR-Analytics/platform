@@ -784,7 +784,11 @@ Repo: this one. Nothing the app runs reads the new schema until step 6.
 - `sweep_figure_config.ts` (new, repo root)
 - `deno.json` (the typecheck task checks the new root script)
 - `SYSTEM_10_figure_render_export.md` (manifest: `lib/special_chart_metrics.ts`; the special-mode prose, which names `special_chart_checks.ts` as the home of the lists; Open items: the 5,424 figures)
-- `SYSTEM_11_viz_authoring.md` (manifest: `lib/figure_config/**` and the five tests; "lib config semantics")
+- `SYSTEM_11_viz_authoring.md` (manifest: `lib/figure_config/**`, the five tests and the comparison they share with the sweep; "lib config semantics")
+- `lib/get_fetch_config_from_po.ts` (exports the last-full-year and last-full-quarter bounds and the re-anchoring of a bound, which the figure config's period bounds read)
+- `server/tests/_figure_config_comparison.ts` (new): the comparison with today's functions, shared by the presets test and the sweep
+- `server/tests/_module_definitions.ts` (each metric carries whether its rows are facilities, as a package stamps it, which roll-up eligibility reads)
+- `sweep_retired_figures.ts` (exports the fleet's ssh tunnel, which the new sweep reuses)
 
 **Deliverable.**
 
@@ -1056,6 +1060,10 @@ Repo: this one.
 - Step 2 replaced the rule of ruling 12 it was given to test, instead of confirming it, because the independent agent found that today's controls cannot reach some figures under it (§1.10). Tim ruled the gate in its place.
 - Step 2's independent agent attacked the rule that was replaced, and not the gate, which was put to Tim after the attack and marked to him as not attacked. The gate's two properties, that no draft with a new problem is written and that no press is withheld, are its definition. The validator it rests on was attacked.
 - Step 4 ended with a second commit here, 5c3aa4cb6, after the sync commit 21fce60f8, because `./sync` makes its commit itself and stages only `panther/`, so the Surface's additions and §2.5 could not go in it.
+- Step 5's conversion drops a roll-up on a metric whose values cannot be re-totalled, a case §2.4 does not name, because today's query never reads it (`getEffectiveRollupDimension`) and it is a field with no reader. Step 2's prototype found no such problem only because its test metrics carried no facility-rows flag and it read an AVG metric without one as eligible; with the flag a package stamps, 127 stored figures hold such a roll-up, and kept they would be validator problems beyond the 96 of ruling 18. The conversion takes whether the metric can be rolled up as an argument, beside its value props.
+- Step 5's conversion puts two or more value props stored on a display option the type does not read on the slot today's renderer falls back to (`series`, `indicator`, `col`), a case §2.4 does not name, so such a figure keeps the axis it draws on today. No preset, Explore config or stored figure is in that state.
+- Step 5's comparison gives today's renderer no date range, because its one-period rule is one of the two renderer rules ruling 18 changes, and reads a replicant whose value is `""` today and absent in the figure config as one, because neither reads a member and the editor writes a value after its first read.
+- Step 5's sweep reads slides, reports and saved visualizations and not the version tables, whose rows are older shapes that only the transform chain on read brings to today's schema.
 
 ### NOTES FROM EXPERIMENT WITH AI AGENT IN sierraleone PROD INSTANCE
 
