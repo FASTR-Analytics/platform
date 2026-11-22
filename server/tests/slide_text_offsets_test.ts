@@ -344,6 +344,26 @@ Deno.test("a `!` before a link stays text, never an image", () => {
   );
   assertEquals(joined, "wow\\!" + link);
   assertEquals(analyzeSlideMarkdown(joined!).units[0].text, "wow!link");
+
+  // The rest of the line is left as written.
+  const titled = 'see [a](https://x.y "t") and __b__';
+  assertEquals(
+    apply(titled, slideInsertText(analyzeSlideMarkdown(titled), 4, "!")),
+    'see \\![a](https://x.y "t") and __b__',
+  );
+  // A paste no candidate can verify still never makes an image.
+  assertEquals(
+    apply(
+      "see " + link,
+      slideInsertText(analyzeSlideMarkdown("see " + link), 4, "a\n\nb!"),
+    ),
+    "see a\n\nb\\!" + link,
+  );
+  const nested = "**a *b*! " + link + "**";
+  assertEquals(
+    apply(nested, slideBackspace(analyzeSlideMarkdown(nested), 9)),
+    "**a *b*\\!" + link + "**",
+  );
 });
 
 Deno.test("an empty list item is drawn (Enter on a bullet shows the bullet)", () => {

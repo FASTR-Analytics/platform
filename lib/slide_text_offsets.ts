@@ -973,15 +973,9 @@ function serializeAtoms(
       e++;
     }
     const run = serializeRun(atoms.slice(i, e), em);
-    // A plain `!` right before a link's `[` would make the link an image.
-    const prev = atoms[i - 1];
-    if (
-      url !== undefined && prev?.kind === "text" && prev.ch === "!" &&
-      !prev.style.bold && !prev.style.italic && !prev.style.code &&
-      prev.style.link === undefined
-    ) {
-      out = out.slice(0, -1) + "\\!";
-    }
+    // A `!` right before a link's `[` would make the link an image. A `!`
+    // ending `out` is plain text: emphasis, code and links end in delimiters.
+    if (url !== undefined) out = out.replace(/!$/, "\\!");
     out += url !== undefined ? "[" + run + "](" + linkDest(url) + ")" : run;
     i = e;
   }
@@ -1166,14 +1160,24 @@ export function slideDeleteRange(
     if (src[i] === "\\" && i + 1 < to && kind[i + 1] === SRC_VISIBLE) continue;
     kept += src[i];
   }
-  const keptDoc = src.slice(0, from) + kept + src.slice(to);
+  // A `!` left right before a link's `[` would make the link an image.
+  const join = (head: number, tail: string) =>
+    tail.startsWith("[") && src[head - 1] === "!" &&
+      kind[head - 1] === SRC_VISIBLE &&
+      !(src[head - 2] === "\\" && kind[head - 2] === SRC_INLINE_SYNTAX)
+      ? src.slice(0, head - 1) + "\\!" + tail
+      : src.slice(0, head) + tail;
+  const keptDoc = join(from, kept + src.slice(to));
   // Candidate 2: the same, with the syntax run around the join cleaned.
   let a = from;
   while (a > 0 && kind[a - 1] === SRC_INLINE_SYNTAX) a--;
   let b = to;
   while (b < src.length && kind[b] === SRC_INLINE_SYNTAX) b++;
-  const cleanedDoc = src.slice(0, a) +
-    cleanSyntaxRun(src.slice(a, from) + kept + src.slice(to, b)) + src.slice(b);
+  const cleanedDoc = join(
+    a,
+    cleanSyntaxRun(src.slice(a, from) + kept + src.slice(to, b)) +
+      src.slice(b),
+  );
   // Candidates 3-4: the touched lines rebuilt from their remaining text.
   const pick = (i: number) =>
     i >= from && i < to
@@ -1336,8 +1340,11 @@ export function slideInsertText(
   // Inside a code span text is literal (no escapes), and a line break goes in
   // as the space a code span draws it as.
   const text = inherit.code ? typed.replace(/\r\n?|\n/g, " ") : typed;
-  const ins = inherit.code ? text : escapeTypedSlideText(text);
-  const at = (p: number) => src.slice(0, p) + ins + src.slice(p);
+  const typedSrc = inherit.code ? text : escapeTypedSlideText(text);
+  // A `!` typed right before a link's `[` would make the link an image.
+  const insAt = (p: number) =>
+    !inherit.code && src[p] === "[" ? typedSrc.replace(/!$/, "\\!") : typedSrc;
+  const at = (p: number) => src.slice(0, p) + insAt(p) + src.slice(p);
 
   let b = pos;
   while (b < src.length && kind[b] === SRC_INLINE_SYNTAX) b++;
@@ -1367,6 +1374,7 @@ export function slideInsertText(
   const simple = positions.map(at);
   // Last resort: rebuild the line with the typed text styled as inherited.
   const basePos = b;
+  const ins = insAt(basePos);
   const base = inherit.code
     ? analyzeTypedIntoCode(src, basePos, ins)
     : analyzeSlideMarkdown(at(basePos));
@@ -1380,16 +1388,17 @@ export function slideInsertText(
   );
   const hit = firstVerified([...simple, ...rebuilt], expected);
   if (!hit) {
+    const raw = insAt(pos);
     return {
-      changes: [{ from: pos, to: pos, insert: ins }],
-      anchor: pos + ins.length,
-      head: pos + ins.length,
+      changes: [{ from: pos, to: pos, insert: raw }],
+      anchor: pos + raw.length,
+      head: pos + raw.length,
     };
   }
   const si = simple.indexOf(hit.next);
   let caret: number;
   if (si >= 0) {
-    caret = positions[si] + ins.length;
+    caret = positions[si] + insAt(positions[si]).length;
   } else {
     // After the last typed glyph, plus any whitespace typed after it.
     const ink = (c: { ch: string }) => !/\s/.test(c.ch);
