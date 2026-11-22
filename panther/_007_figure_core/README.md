@@ -95,7 +95,7 @@ This pane/tier/lane system is what distinguishes Charts from other Figures.
 
 ### Chart Measurement
 
-The stages: `measureChart` → `resolvePaneGridLayout` → `measurePane` → `buildSubCharts` → `generatePaneContentPrimitives`.
+The stages: `measureChart` → `resolvePaneGridLayout` → `measurePane` → `buildSubCharts` → `generatePaneContentPrimitives`. `buildSubCharts` resolves each sub-chart's content (`resolveSubChartContent`: the info and the styles of every series, drawn value, connector and cascade arrow, and every data label and cascade arrow label measured) before its end clearance, which folds over the labels.
 
 ```typescript
 measureChart<TInputs, TData, TStyle>(
@@ -221,7 +221,7 @@ Axis measurement and primitive generation for period, text, and value axes.
 
 ### `_content/`
 
-Content primitive generation (points, lines, areas, bars) and coordinate mapping.
+Content resolution (`resolve_sub_chart_content.ts`), the data-label clearance that folds over it (`measure_data_label_clearance.ts`), content primitive generation (points, lines, areas, bars) and coordinate mapping.
 
 ### `_legend/`
 
@@ -236,5 +236,5 @@ Surrounds measurement and primitive generation (figure texts + legend).
 - `render_primitives.ts` - Primitive rendering dispatcher
 - `measure_chart.ts` / `measure_pane.ts` - Chart/pane measurement
 - `pane_grid_layout.ts` - Each pane's place in the pane grid, the pane headers, and the proportional panes solve
-- `sub_charts.ts` - Each sub-chart's record: its rect, its slots, its value range and its value clearance
+- `sub_charts.ts` - Each sub-chart's record: its rect, its slots, its value range, its content and its value clearance
 - `common_data_transform.ts` - Data transformation utilities

@@ -3,7 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { BLANK_SENTINEL, getPeriodTypeFromValue } from "./deps.ts";
+import {
+  _GLOBAL_MAX_YEAR_FOR_PERIODS,
+  _GLOBAL_MIN_YEAR_FOR_PERIODS,
+  BLANK_SENTINEL,
+  getPeriodTypeFromValue,
+} from "./deps.ts";
 import type { PeriodType } from "./deps.ts";
 import { LongTableValidationError, SAMPLE_N_PREFIX } from "./types.ts";
 import type {
@@ -31,12 +36,13 @@ const DEFAULT_TIME_COLUMNS: Record<string, PeriodType> = {
   year: "year",
 };
 
-// One more than the distinct periods any grain can hold (151 years of 12
-// months, the range periods.ts accepts). A read of a time column's distinct
-// values limited to this is every value, or proof there are too many for
-// them all to be periods; either way the check over them is complete, which
-// a small sample is not.
-export const TIME_VALUES_LIMIT = 1813;
+// One more than the distinct periods any grain can hold (every month of the
+// years periods.ts accepts). A read of a time column's distinct values
+// limited to this is every value, or proof there are too many for them all to
+// be periods; either way the check over them is complete, which a small
+// sample is not.
+export const TIME_VALUES_LIMIT =
+  (_GLOBAL_MAX_YEAR_FOR_PERIODS - _GLOBAL_MIN_YEAR_FOR_PERIODS + 1) * 12 + 1;
 
 export function getTimeConventions(
   conventions?: InferConventions,

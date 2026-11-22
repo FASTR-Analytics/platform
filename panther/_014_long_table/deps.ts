@@ -4,6 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export {
+  _GLOBAL_MAX_YEAR_FOR_PERIODS,
+  _GLOBAL_MIN_YEAR_FOR_PERIODS,
   BLANK_SENTINEL,
   foldString,
   getLastFullUnitBounds,

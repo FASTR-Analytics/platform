@@ -5,19 +5,17 @@
 
 import {
   type AreaDiffPair,
-  type ChartSeriesInfo,
   computeBoundsForPath,
   Coordinates,
-  type MergedContentStyle,
   type Primitive,
   type RectCoordsDims,
   Z_INDEX,
 } from "../deps.ts";
 import { chartSeriesItem } from "../chart_items.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
-import {
-  buildSeriesInfo,
-  type ContentGenerationContext,
+import type {
+  ContentGenerationContext,
+  SubChartContent,
 } from "./content_generation_types.ts";
 
 function zeroLineMirrorCoords(
@@ -45,60 +43,30 @@ function zeroLineMirrorCoords(
 
 export function generateAreaPrimitives(
   mapped: MappedValueCoordinate[][],
+  content: SubChartContent,
   ctx: ContentGenerationContext,
 ): Primitive[] {
   const s = ctx.contentStyle;
-
-  const seriesInfos = Array.from(
-    { length: ctx.nSerieses },
-    (_, i) => buildSeriesInfo(ctx, i, mapped),
-  );
-  const areaStyles = seriesInfos.map((seriesInfo) =>
-    s.areas.getStyle(seriesInfo)
-  );
-
-  const areaSeriesData: Map<
-    number,
-    {
-      coords: Coordinates[];
-      values: number[];
-      valueIndices: number[];
-    }
-  > = new Map();
-
-  for (const i_value of ctx.slotOrder) {
-    for (let i_series = 0; i_series < ctx.nSerieses; i_series++) {
-      const mappedValue = mapped[i_series][i_value];
-      if (mappedValue === undefined) continue;
-
-      if (!areaStyles[i_series].show) continue;
-
-      if (!areaSeriesData.has(i_series)) {
-        areaSeriesData.set(i_series, {
-          coords: [],
-          values: [],
-          valueIndices: [],
-        });
-      }
-
-      const areaData = areaSeriesData.get(i_series)!;
-      areaData.coords.push(mappedValue.coords);
-      areaData.values.push(mappedValue.value);
-      areaData.valueIndices.push(i_value);
-    }
-  }
+  const { i_pane, i_tier, i_lane, slotOrder, rcd: subChartRcd } = ctx.subChart;
+  const valueClearanceStart = ctx.subChart.valueClearance.start;
 
   const primitives: Primitive[] = [];
 
   if (!s.areas.diff.enabled) {
-    for (const [i_series, areaData] of areaSeriesData.entries()) {
-      const seriesInfo = seriesInfos[i_series];
-      const areaStyle = areaStyles[i_series];
+    for (let i_series = 0; i_series < mapped.length; i_series++) {
+      const { info: seriesInfo, area: areaStyle } =
+        content.resolvedSeries[i_series];
+      if (!areaStyle.show) {
+        continue;
+      }
+      const valueIndices = slotOrder.filter((i_value) =>
+        mapped[i_series][i_value] !== undefined
+      );
 
       const areas: { coords: Coordinates[] }[] = [];
       let currentCoords: Coordinates[] = [];
 
-      for (const i_value of ctx.slotOrder) {
+      for (const i_value of slotOrder) {
         const mappedValueThisSeries = mapped[i_series][i_value];
         if (mappedValueThisSeries === undefined) {
           if (!s.areas.joinAcrossGaps && currentCoords.length > 0) {
@@ -112,20 +80,20 @@ export function generateAreaPrimitives(
         if (areaStyle.to === "zero-line") {
           mirrorCoords = zeroLineMirrorCoords(
             mappedValueThisSeries.coords,
-            ctx.subChartRcd,
+            subChartRcd,
             ctx.gridLineStrokeWidth,
             ctx.orientation,
-            ctx.valueClearance.start,
+            valueClearanceStart,
           );
         } else if (areaStyle.to === "previous-series-or-zero") {
           const otherSeries = mapped[i_series - 1];
           if (!otherSeries) {
             mirrorCoords = zeroLineMirrorCoords(
               mappedValueThisSeries.coords,
-              ctx.subChartRcd,
+              subChartRcd,
               ctx.gridLineStrokeWidth,
               ctx.orientation,
-              ctx.valueClearance.start,
+              valueClearanceStart,
             );
           } else if (otherSeries[i_value]) {
             mirrorCoords = otherSeries[i_value]!.coords;
@@ -166,8 +134,7 @@ export function generateAreaPrimitives(
 
         primitives.push({
           type: "chart-area-series",
-          key:
-            `area-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}-${i_area}`,
+          key: `area-${i_pane}-${i_tier}-${i_lane}-${i_series}-${i_area}`,
           item: chartSeriesItem(ctx.itemDataDimensions, seriesInfo),
           part: "body",
           bounds,
@@ -175,7 +142,7 @@ export function generateAreaPrimitives(
           zIndex: Z_INDEX.CONTENT_AREA,
           meta: {
             series: seriesInfo,
-            valueIndices: areaData.valueIndices,
+            valueIndices,
           },
           annotationGroup: areaStyle.annotationGroup,
           coords: lineCoordArray,
@@ -194,14 +161,7 @@ export function generateAreaPrimitives(
         return;
       }
       primitives.push(
-        ...generateDiffPairPrimitives(
-          pair,
-          i_pair,
-          mapped,
-          seriesInfos,
-          areaStyles,
-          ctx,
-        ),
+        ...generateDiffPairPrimitives(pair, i_pair, mapped, content, ctx),
       );
     });
   }
@@ -216,10 +176,10 @@ function generateDiffPairPrimitives(
   pair: AreaDiffPair,
   i_pair: number,
   mapped: MappedValueCoordinate[][],
-  seriesInfos: ChartSeriesInfo[],
-  areaStyles: ReturnType<MergedContentStyle["areas"]["getStyle"]>[],
+  content: SubChartContent,
   ctx: ContentGenerationContext,
 ): Primitive[] {
+  const { i_pane, i_tier, i_lane, slotOrder } = ctx.subChart;
   const seriesA = mapped[pair.series[0]];
   const seriesB = mapped[pair.series[1]];
 
@@ -233,7 +193,7 @@ function generateDiffPairPrimitives(
   let prevMappedValueA: MappedValueCoordinate | undefined = undefined;
   let prevMappedValueB: MappedValueCoordinate | undefined = undefined;
 
-  for (const i_value of ctx.slotOrder) {
+  for (const i_value of slotOrder) {
     const mappedValueA = seriesA[i_value];
     const mappedValueB = seriesB[i_value];
     if (mappedValueA === undefined || mappedValueB === undefined) {
@@ -337,15 +297,15 @@ function generateDiffPairPrimitives(
     const order = areas[i_area].order;
     if (pair.emit !== "both" && order !== pair.emit) continue;
     const i_series = order === "over" ? pair.series[0] : pair.series[1];
-    const seriesInfo = seriesInfos[i_series];
-    const areaStyle = areaStyles[i_series];
+    const { info: seriesInfo, area: areaStyle } =
+      content.resolvedSeries[i_series];
     const lineCoordArray = [...areas[i_area].coords, areas[i_area].coords[0]];
     const bounds = computeBoundsForPath(lineCoordArray);
 
     primitives.push({
       type: "chart-area-series",
       key:
-        `area-diff-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_pair}-${order}-${i_area}`,
+        `area-diff-${i_pane}-${i_tier}-${i_lane}-${i_pair}-${order}-${i_area}`,
       item: chartSeriesItem(ctx.itemDataDimensions, seriesInfo),
       part: "body",
       bounds,

@@ -6,9 +6,10 @@
 import { getValueAxisValueRange } from "./_axes/measure_y_axis.ts";
 import { getXValueAxisValueRange } from "./_axes/measure_x_axis.ts";
 import { computeSlotExtent } from "./_axes/slot_layout.ts";
-import type { ContentGenerationContext } from "./_content/content_generation_types.ts";
+import type { SubChartContent } from "./_content/content_generation_types.ts";
 import { measureDataLabelEndClearance } from "./_content/measure_data_label_clearance.ts";
 import { valueAxisExtentOfRect } from "./_content/orientation_helpers.ts";
+import { resolveSubChartContent } from "./_content/resolve_sub_chart_content.ts";
 import type { RenderContext } from "./deps.ts";
 import { getDimensionMembers, RectCoordsDims } from "./deps.ts";
 import type { ChartItemDataDimensions } from "./chart_items.ts";
@@ -40,6 +41,7 @@ export type SubChart =
     isCentered: boolean;
     valueRange: ValueRange;
     valueClearance: OverhangClearance;
+    content: SubChartContent;
   }
   | {
     kind: "none";
@@ -63,31 +65,6 @@ export function chartValueTensors<TData>(
   config: MeasurePaneConfig<TData>,
 ): ChartValueTensors {
   return config.chart.transformedData as TData & ChartValueTensors;
-}
-
-export function subChartInfoFor<TData>(
-  config: MeasurePaneConfig<TData>,
-  i_tier: number,
-  i_lane: number,
-): ContentGenerationContext["subChartInfo"] {
-  const i_pane = config.i_pane;
-  const { pane, tier, lane, series } = config.chart.dataDimensions;
-  const paneMembers = getDimensionMembers(pane);
-  const tierMembers = getDimensionMembers(tier);
-  const laneMembers = getDimensionMembers(lane);
-  return {
-    nSerieses: getDimensionMembers(series).length,
-    seriesValueArrays: chartValueTensors(config).values[i_pane][i_tier][i_lane],
-    i_pane,
-    nPanes: paneMembers.length,
-    paneMember: paneMembers[i_pane],
-    i_tier,
-    nTiers: tierMembers.length,
-    tierMember: tierMembers[i_tier],
-    i_lane,
-    nLanes: laneMembers.length,
-    laneMember: laneMembers[i_lane],
-  };
 }
 
 function buildPositionOrdinals(
@@ -192,13 +169,17 @@ export function buildSubCharts<TData>(
       ? Math.max(0, overhang - axes.x.info.xAxisRcd.h())
       : overhang;
 
+  const tensors = chartValueTensors(config);
   const unclamped = geometry.map(
     (g): Extract<SubChart, { kind: "category-and-value" }> => {
       const slotOrder = tierLayout?.visibleIndicators[g.tierOrdinal] ??
         laneLayout?.visibleIndicators[g.laneOrdinal] ??
         visibleIndicators ??
         Array.from({ length: nValues }, (_, i) => i);
-      return {
+      const subChart: Omit<
+        Extract<SubChart, { kind: "category-and-value" }>,
+        "content"
+      > = {
         ...g,
         kind: "category-and-value",
         nValues,
@@ -217,28 +198,31 @@ export function buildSubCharts<TData>(
           end: overhang,
         },
       };
+      return {
+        ...subChart,
+        content: resolveSubChartContent(rc, subChart, {
+          seriesValues: tensors.values[i_pane][g.i_tier][g.i_lane],
+          uncertaintyUbSeriesValues: tensors.uncertaintyValues
+            ?.ub[i_pane][g.i_tier][g.i_lane],
+          uncertaintyLbSeriesValues: tensors.uncertaintyValues
+            ?.lb[i_pane][g.i_tier][g.i_lane],
+          orientation: axes.orientation,
+          itemDataDimensions,
+          contentStyle: mergedStyle.content,
+          dataLabelsTextStyle: mergedStyle.text.dataLabels,
+        }),
+      };
     },
   );
 
   const endClearances = new Map<number, number>();
   for (const subChart of unclamped) {
     const group = clearanceGroupOf(subChart);
-    const subChartInfo = subChartInfoFor(
-      config,
-      subChart.i_tier,
-      subChart.i_lane,
-    );
     endClearances.set(
       group,
       Math.max(
         endClearances.get(group) ?? subChart.valueClearance.end,
-        measureDataLabelEndClearance(rc, subChart, {
-          orientation: axes.orientation,
-          contentStyle: mergedStyle.content,
-          dataLabelsTextStyle: mergedStyle.text.dataLabels,
-          subChartInfo,
-          itemDataDimensions,
-        }),
+        measureDataLabelEndClearance(subChart, axes.orientation),
       ),
     );
   }

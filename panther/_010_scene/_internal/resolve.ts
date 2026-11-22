@@ -25,7 +25,7 @@ import type {
 // the measured size, and whether the custom node claims it (decided once:
 // a claim is width-independent by contract). A folded group is a node here,
 // keyed by the group's id.
-export type ResolvedNode = {
+export type ResolvedDiagramNode = {
   id: string;
   info: DiagramNodeInfo;
   content: BoxContent;
@@ -34,7 +34,7 @@ export type ResolvedNode = {
   claimed: boolean;
 };
 
-export type ResolvedConnector = {
+export type ResolvedDiagramConnector = {
   id: string;
   data: DiagramConnector;
   from: string;
@@ -47,7 +47,7 @@ export type ResolvedConnector = {
   opacity?: number;
 };
 
-export type ResolvedText = {
+export type ResolvedDiagramText = {
   style?: TextAdjustmentOptions;
   opacity?: number;
 };
@@ -57,14 +57,14 @@ export function resolveNodes(
   data: DiagramData,
   s: MergedSceneStyle,
   customNode: DiagramCustomNode | undefined,
-): Map<string, ResolvedNode> {
-  const out = new Map<string, ResolvedNode>();
+): Map<string, ResolvedDiagramNode> {
+  const out = new Map<string, ResolvedDiagramNode>();
   const padding = new Padding(s.boxes.padding);
   const resolve = (
     id: string,
     info: DiagramNodeInfo,
     content: BoxContent,
-  ): ResolvedNode => {
+  ): ResolvedDiagramNode => {
     const o = s.diagram.nodeInfo(info);
     const textColor = o.textColor;
     const badges = content.badges?.map((badge, index): SceneBadgeStyle => {
@@ -143,8 +143,8 @@ export function connectorIds(connectors: DiagramConnector[]): string[] {
 export function resolveConnectors(
   data: DiagramData,
   s: MergedSceneStyle,
-): Map<string, ResolvedConnector> {
-  const out = new Map<string, ResolvedConnector>();
+): Map<string, ResolvedDiagramConnector> {
+  const out = new Map<string, ResolvedDiagramConnector>();
   const ids = connectorIds(data.connectors);
   data.connectors.forEach((c, i) => {
     const id = ids[i];
@@ -173,8 +173,8 @@ export function resolveConnectors(
 export function resolveTexts(
   data: DiagramData,
   s: MergedSceneStyle,
-): Map<string, ResolvedText> {
-  const out = new Map<string, ResolvedText>();
+): Map<string, ResolvedDiagramText> {
+  const out = new Map<string, ResolvedDiagramText>();
   for (const t of data.texts ?? []) {
     const o = s.diagram.textInfo({ id: t.id, text: t.text });
     out.set(t.id, {

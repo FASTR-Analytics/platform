@@ -25,8 +25,8 @@ import type {
 import { boxGeometry, boxTextStyles, measureBoxContent } from "./box_layout.ts";
 import {
   resolveConnectors,
-  type ResolvedConnector,
-  type ResolvedNode,
+  type ResolvedDiagramConnector,
+  type ResolvedDiagramNode,
   resolveNodes,
 } from "./resolve.ts";
 
@@ -35,8 +35,8 @@ type LayeredLayout = Extract<DiagramLayout, { kind: "layered" }>;
 // The engine model, its measurer and the resolved styles for one diagram at
 // scale 1: built once per measure, laid out once per fit width.
 export type DiagramBundle = {
-  nodes: Map<string, ResolvedNode>;
-  connectors: Map<string, ResolvedConnector>;
+  nodes: Map<string, ResolvedDiagramNode>;
+  connectors: Map<string, ResolvedDiagramConnector>;
   layoutAt: (fitWidth: number) => DiagramGeometry;
 };
 

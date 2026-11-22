@@ -98,8 +98,6 @@ export type OverhangClearance = {
   end: number;
 };
 
-export const NO_OVERHANG_CLEARANCE: OverhangClearance = { start: 0, end: 0 };
-
 // Never let clearance consume more than this fraction of the value axis extent
 // per side (pathologically small plots / huge labels).
 const MAX_OVERHANG_CLEARANCE_FRACTION = 0.4;

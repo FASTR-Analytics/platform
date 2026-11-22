@@ -25,11 +25,7 @@ import { buildItem, getDimensionMembers, Z_INDEX } from "./deps.ts";
 import type { ChartItemDataDimensions } from "./chart_items.ts";
 import { subChartItemCoordinates } from "./sub_chart_members.ts";
 import type { MeasuredAxes, MeasurePaneConfig } from "./measure_types.ts";
-import {
-  chartValueTensors,
-  type SubChart,
-  subChartInfoFor,
-} from "./sub_charts.ts";
+import { chartValueTensors, type SubChart } from "./sub_charts.ts";
 
 export function generatePaneContentPrimitives<TData>(
   rc: RenderContext,
@@ -191,8 +187,7 @@ export function generatePaneContentPrimitives<TData>(
     }
 
     allPrimitives.push(
-      ...generateContentPrimitives(rc, subChart, {
-        subChartInfo: subChartInfoFor(config, i_tier, i_lane),
+      ...generateContentPrimitives(subChart, {
         seriesValues: chartData.values[i_pane][i_tier][i_lane],
         uncertaintyUbSeriesValues: chartData.uncertaintyValues
           ?.ub[i_pane][i_tier][i_lane],
@@ -201,7 +196,6 @@ export function generatePaneContentPrimitives<TData>(
         orientation: axes.orientation,
         itemDataDimensions,
         contentStyle: mergedStyle.content,
-        dataLabelsTextStyle: mergedStyle.text.dataLabels,
         gridLineStrokeWidth: mergedStyle.grid.gridLineStrokeWidth,
       }),
     );

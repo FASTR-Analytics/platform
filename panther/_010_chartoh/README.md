@@ -85,7 +85,7 @@ Axis placement within the pane (horizontal):
 
 - Per-tier X value axis range variation — not required for a ChartOV mirror. If wanted, add an analogous flag (no such flag exists for ChartOV either).
 - Y-text col-groups (the `yTextAxis.colGroup*` style options exist but are ignored by v1 measurement / primitive generation).
-- Cascade arrows in horizontal — silently skipped (same gate as `generateCascadeArrowPrimitives` uses today).
+- Cascade arrows in horizontal — silently skipped (`resolveSubChartContent` resolves no cascade arrow on a horizontal chart).
 
 ## Module Dependencies
 

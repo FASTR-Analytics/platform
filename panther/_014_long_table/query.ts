@@ -548,8 +548,8 @@ export function coerceFilterValue(
 
 // Whether a derived dimension can hold `n`. A fiscal rule names a year by
 // its start or its end, so the derived year of the last (or first) period in
-// range lies one year outside it: under { 11, end } the period 205012 is
-// fiscal 2051.
+// range lies one year outside it: under { 11, end } the period 210012 is
+// fiscal 2101.
 function isDerivedValue(
   n: number,
   derived: DerivedDimension,

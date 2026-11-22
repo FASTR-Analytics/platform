@@ -10,7 +10,10 @@ import {
   type PrimitiveItem,
   Z_INDEX,
 } from "../deps.ts";
-import type { ContentGenerationContext } from "./content_generation_types.ts";
+import type {
+  ContentGenerationContext,
+  SubChartContent,
+} from "./content_generation_types.ts";
 import {
   catCenterOfRect,
   catCoord,
@@ -33,6 +36,7 @@ type Anchor = {
 // cap and the z-order.
 export function generateErrorBarPrimitives(
   marks: Primitive[],
+  content: SubChartContent,
   ctx: ContentGenerationContext,
 ): ChartErrorBarPrimitive[] {
   const ub = ctx.mappedUncertaintyUb;
@@ -41,6 +45,7 @@ export function generateErrorBarPrimitives(
     return [];
   }
   const orientation = ctx.orientation;
+  const { i_pane, i_tier, i_lane } = ctx.subChart;
   const anchors = new Map<string, Anchor>();
   const valueKey = (v: ChartValueInfo) => `${v.i_series}-${v.i_value}`;
   for (const p of marks) {
@@ -67,8 +72,9 @@ export function generateErrorBarPrimitives(
 
   const primitives: ChartErrorBarPrimitive[] = [];
   for (const a of anchors.values()) {
-    const ebStyle = ctx.contentStyle.errorBars.getStyle(a.value);
-    if (!ebStyle.show) {
+    const ebStyle = content.resolvedValues[a.value.i_series][a.value.i_value]
+      ?.errorBar;
+    if (!ebStyle?.show) {
       continue;
     }
     const ubMapped = ub[a.value.i_series]?.[a.value.i_value];
@@ -78,7 +84,7 @@ export function generateErrorBarPrimitives(
     }
     primitives.push(makeErrorBarPrimitive({
       key:
-        `errorbar-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${a.value.i_series}-${a.value.i_value}`,
+        `errorbar-${i_pane}-${i_tier}-${i_lane}-${a.value.i_series}-${a.value.i_value}`,
       item: a.item,
       meta: { value: a.value },
       categoryCenter: a.categoryCenter,
