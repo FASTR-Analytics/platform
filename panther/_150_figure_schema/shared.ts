@@ -19,10 +19,10 @@ import type {
   MapProjection,
   MemberSortConfig,
   MemberSortFunc,
-  NCols,
+  NColsOrAuto,
   PeriodType,
   UncertaintyConfig,
-  ValueSortOrder,
+  ValueSort,
 } from "./deps.ts";
 import type {
   zColorKey,
@@ -32,9 +32,9 @@ import type {
   zHexColor,
   zMapDataLabelMode,
   zMapProjection,
-  zNCols,
-  zValueSortOrder,
-} from "./style_leaves.ts";
+  zNColsOrAuto,
+  zValueSort,
+} from "./leaves.ts";
 
 // Compile-time conformance check binding each schema to its hand-written type
 // (the _010_* types remain the single source of truth). A type change the
@@ -202,11 +202,14 @@ const _zMapDataLabelModeConforms: ConformsExactly<
   z.infer<typeof zMapDataLabelMode>,
   MapDataLabelMode
 > = true;
-const _zValueSortOrderConforms: ConformsExactly<
-  z.infer<typeof zValueSortOrder>,
-  ValueSortOrder
+const _zValueSortConforms: ConformsExactly<
+  z.infer<typeof zValueSort>,
+  ValueSort
 > = true;
-const _zNColsConforms: ConformsExactly<z.infer<typeof zNCols>, NCols> = true;
+const _zNColsOrAutoConforms: ConformsExactly<
+  z.infer<typeof zNColsOrAuto>,
+  NColsOrAuto
+> = true;
 
 export const zChartValueAxisLimitsEntry = z.object({
   valueMin: z.number(),

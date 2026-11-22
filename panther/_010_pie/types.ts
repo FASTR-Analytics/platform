@@ -10,7 +10,7 @@ import type {
   MeasuredChartBase,
   MemberSortConfig,
   MergedPieStyle,
-  ValueSortOrder,
+  ValueSort,
 } from "./deps.ts";
 
 export type PieInputs = FigureInputsBase & {
@@ -58,7 +58,7 @@ export type PieJsonDataConfig = {
   // ChartOV — but global where ChartOV's is per pane, because slices are the
   // series dimension: global order keeps one legend and a stable color identity;
   // per-pie orders would break both.
-  sortSeriesValues?: ValueSortOrder;
+  sortSeriesValues?: ValueSort;
   // Collapses every named series whose share of the GLOBAL sum across every
   // pie is below `threshold` into one synthetic slice (id "--other", display
   // label `label` ?? "Other"), summing their values per pie. The criterion is

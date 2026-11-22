@@ -53,7 +53,7 @@ import {
 import type {
   LabelCollisionConfig,
   MapProjection,
-  NCols,
+  NColsOrAuto,
 } from "./_3_merged_style_return_types.ts";
 import type { LegendPosition } from "./types.ts";
 
@@ -498,7 +498,7 @@ const _DS = {
     headerGap: 5,
     gapX: 15,
     gapY: 15,
-    nCols: typed<NCols>("auto"),
+    nCols: typed<NColsOrAuto>("auto"),
     minWidth: 230,
   },
   // Scene: the element model under hand-built figures and diagrams. A box's
@@ -686,7 +686,7 @@ const _DS = {
       headerPosition: typed<"top" | "bottom">("top"),
       gapX: 15,
       gapY: 15,
-      nCols: typed<NCols>("auto"),
+      nCols: typed<NColsOrAuto>("auto"),
     },
     labelCollision: defaultLabelCollision(),
     ...defaultLabelPlacement(),

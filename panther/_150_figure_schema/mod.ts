@@ -25,9 +25,9 @@ export {
   zHexColor,
   zMapDataLabelMode,
   zMapProjection,
-  zNCols,
-  zValueSortOrder,
-} from "./style_leaves.ts";
+  zNColsOrAuto,
+  zValueSort,
+} from "./leaves.ts";
 export {
   zTimeseriesData,
   zTimeseriesDataJson,

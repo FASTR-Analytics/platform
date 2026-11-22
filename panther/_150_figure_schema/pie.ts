@@ -17,7 +17,7 @@ import {
   zMemberSortConfig,
   zValues5D,
 } from "./shared.ts";
-import { zValueSortOrder } from "./style_leaves.ts";
+import { zValueSort } from "./leaves.ts";
 
 // The denominator: "sum" normalises by the pie's own total, a number declares
 // a fixed envelope.
@@ -41,7 +41,7 @@ export const zPieJsonDataConfig = z.object({
       lane: zMemberSortConfig.optional(),
     })
     .optional(),
-  sortSeriesValues: zValueSortOrder.optional(),
+  sortSeriesValues: zValueSort.optional(),
   groupSmallSlices: z
     .object({ threshold: z.number(), label: z.string().optional() })
     .optional(),

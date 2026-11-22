@@ -21,7 +21,7 @@ export type {
   CustomFigureStyleOptions,
   MapDataLabelMode,
   MapProjection,
-  NCols,
+  NColsOrAuto,
 } from "../_003_figure_style/mod.ts";
 export type {
   AnnotationRectStyle,
@@ -36,7 +36,7 @@ export type {
   LegendInput,
   ScaleLegendConfig,
   UncertaintyConfig,
-  ValueSortOrder,
+  ValueSort,
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartOHData,

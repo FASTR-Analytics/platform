@@ -28,7 +28,7 @@ import type {
   TimeseriesInputs,
 } from "./deps.ts";
 import { type Conforms, zAnyPresentObject } from "./shared.ts";
-import { zColorKeyOrString } from "./style_leaves.ts";
+import { zColorKeyOrString } from "./leaves.ts";
 import { zChartOHData } from "./chartoh.ts";
 import { zChartOVData } from "./chartov.ts";
 import { zPieData } from "./pie.ts";

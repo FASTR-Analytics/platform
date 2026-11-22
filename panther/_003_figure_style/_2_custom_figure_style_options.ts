@@ -41,7 +41,10 @@ import type {
   GenericTableCellStyleOptions,
   GenericTableHeaderStyleOptions,
 } from "./style_func_types.ts";
-import type { MapProjection, NCols } from "./_3_merged_style_return_types.ts";
+import type {
+  MapProjection,
+  NColsOrAuto,
+} from "./_3_merged_style_return_types.ts";
 import type { FigureTextStyleOptions } from "./text_style_keys.ts";
 import type { LegendPosition } from "./types.ts";
 
@@ -294,7 +297,7 @@ export type CustomFigureStyleOptions = {
     headerAlignH?: "left" | "center" | "right";
     gapX?: number;
     gapY?: number;
-    nCols?: NCols;
+    nCols?: NColsOrAuto;
     // The pane width the automatic column count packs to, in design units.
     minWidth?: number;
   };
@@ -423,7 +426,7 @@ export type CustomFigureStyleOptions = {
       headerPosition?: "top" | "bottom";
       gapX?: number;
       gapY?: number;
-      nCols?: NCols;
+      nCols?: NColsOrAuto;
     };
     labelCollision?: {
       gap?: number;

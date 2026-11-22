@@ -91,5 +91,5 @@ export type {
   PaneGrid,
   SimplifiedChartConfig,
   SubChartMembers,
-  ValueSortOrder,
+  ValueSort,
 } from "../_007_figure_core/mod.ts";

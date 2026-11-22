@@ -88,6 +88,6 @@ export const zMapDataLabelMode = z.enum([
   "auto",
 ]);
 
-export const zValueSortOrder = z.enum(["ascending", "descending", "none"]);
+export const zValueSort = z.enum(["ascending", "descending", "none"]);
 
-export const zNCols = z.union([z.literal("auto"), z.int().min(1)]);
+export const zNColsOrAuto = z.union([z.literal("auto"), z.int().min(1)]);
