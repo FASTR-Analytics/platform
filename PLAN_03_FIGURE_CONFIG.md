@@ -627,7 +627,7 @@ Nothing else is withheld by what the validator would say of a press. The control
 
 ### 2.5 Panther
 
-The union, the layouts, the styles and the checks are this app's. The low-level elements are imported from panther wherever it has or can hold them (ruling 14): the colour, the continuous palette name, the map projection, the map data label mode, the period filter and the filter (`zColorKeyOrString`, `zContinuousPaletteName`, `zMapProjection`, `zMapDataLabelMode`, `zPeriodFilter`, `zLongTableFilter`, with `zPeriodUnit` and `zFullPeriodUnit`).
+The union, the layouts, the styles and the checks are this app's. The low-level elements are imported from panther wherever it has or can hold them (ruling 14): the colour, the hex colour, the continuous palette name, the map projection, the map data label mode, the value sort order, the column count, the period filter and the filter (`zColorKeyOrHex`, `zHexColor`, `zContinuousPaletteName`, `zMapProjection`, `zMapDataLabelMode`, `zValueSortOrder`, `zNCols`, `zPeriodFilter`, `zLongTableFilter`, with `zPeriodUnit` and `zFullPeriodUnit`).
 
 ## §3 Rulings
 
@@ -731,6 +731,9 @@ In panther (`/Users/timroberton/projects/panther/timroberton-panther`):
 - `modules/_150_figure_schema/shared.ts` (the `ConformsExactly` checks of the style leaves, which cannot sit in a file that imports nothing but zod)
 - `modules/_003_figure_style/_1_default_figure_style.ts`, `_2_custom_figure_style_options.ts`, `_3_merged_style_return_types.ts` (`MapProjection` names the projection union, which `zMapProjection` is checked against)
 - `modules/_010_maps/_internal/projections.ts`, `modules/_010_maps/deps.ts` (`getProjectionFn` takes `MapProjection`)
+- `modules/_007_figure_core/common_data_transform.ts`, `chart_ov_or_oh_transform.ts`, `modules/_010_chartov/types.ts`, `deps.ts`, `modules/_010_chartoh/types.ts`, `deps.ts`, `modules/_010_pie/types.ts`, `deps.ts` (`ValueSortOrder` names the value sort union, which `zValueSortOrder` is checked against)
+- `modules/_150_figure_schema/chartov.ts`, `chartoh.ts`, `pie.ts` (their inline sort enums give way to `zValueSortOrder`)
+- `DOC_MODULE_STRUCTURE.md` (the deps.ts rule and its exception for a file that imports nothing but zod)
 - `modules/_151_long_table_schema/filters.ts` (new): `zPeriodFilter` and `zLongTableFilter`, with `zPeriodUnit` and `zFullPeriodUnit`, moved out of `schema.ts`, which imports `deps.ts`, into a file that imports nothing but zod
 - `modules/_151_long_table_schema/schema.ts`
 - `modules/_151_long_table_schema/mod.ts`
@@ -1052,6 +1055,7 @@ Repo: this one.
 - Step 2 was first worked on 2026-11-21 as "design live editing", instead of the small step it now is, because its brief asked how two people's edits combine. The step-2 agent built a layout of the shared document by field, then a function that repaired a config after each press, and had each attacked by an independent agent. Tim stopped it. Nothing of it was committed. What it found is §1.9, and rulings 12, 16 and 17 redraw the step.
 - Step 2 replaced the rule of ruling 12 it was given to test, instead of confirming it, because the independent agent found that today's controls cannot reach some figures under it (§1.10). Tim ruled the gate in its place.
 - Step 2's independent agent attacked the rule that was replaced, and not the gate, which was put to Tim after the attack and marked to him as not attacked. The gate's two properties, that no draft with a new problem is written and that no press is withheld, are its definition. The validator it rests on was attacked.
+- Step 4 ended with a second commit here, 5c3aa4cb6, after the sync commit 21fce60f8, because `./sync` makes its commit itself and stages only `panther/`, so the Surface's additions and §2.5 could not go in it.
 
 ### NOTES FROM EXPERIMENT WITH AI AGENT IN sierraleone PROD INSTANCE
 
