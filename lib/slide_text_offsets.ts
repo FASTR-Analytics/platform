@@ -1316,10 +1316,8 @@ export function slideInsertText(
   const inherit: SlideCharStyle = want === undefined || inherited.code
     ? inherited
     : { ...inherited, ...want };
-  // Inside a code span text is literal (no escapes), and a line break goes in
-  // as the space a code span draws it as.
-  const text = inherit.code ? typed.replace(/\r\n?|\n/g, " ") : typed;
-  const ins = inherit.code ? text : escapeTypedSlideText(text);
+  // Inside a code span text is literal: no escapes.
+  const ins = inherit.code ? typed : escapeTypedSlideText(typed);
   const at = (p: number) => src.slice(0, p) + ins + src.slice(p);
 
   let b = pos;
@@ -1336,7 +1334,7 @@ export function slideInsertText(
       !separated(pv + 1, pos)
       ? " "
       : "";
-  const added = [...(lead + text)].filter((c) => c !== "\n").map((ch) => ({
+  const added = [...(lead + typed)].filter((c) => c !== "\n").map((ch) => ({
     ch: normQuote(ch),
     style: inherit,
   }));
@@ -1378,7 +1376,7 @@ export function slideInsertText(
     const ink = (c: { ch: string }) => !/\s/.test(c.ch);
     const inkBefore = before.slice(0, k).filter(ink).length;
     const inkTyped = added.filter(ink).length;
-    const trailing = /\s*$/.exec(text)![0].length;
+    const trailing = /\s*$/.exec(typed)![0].length;
     const inked = hit.seq.filter(ink);
     const last = inked[inkBefore + inkTyped - 1];
     caret = last ? last.src + 1 + trailing : basePos + ins.length;
