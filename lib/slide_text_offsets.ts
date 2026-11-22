@@ -1421,6 +1421,11 @@ export function slideInsertText(
   );
   const hit = firstVerified([...simple, ...rebuilt], expected);
   if (!hit) {
+    // A line break at a code span's edge that no candidate draws goes in as
+    // the space the span draws it as.
+    if (inherit.code && text.includes("\n")) {
+      return slideInsertText(an, pos, text.replaceAll("\n", " "), want);
+    }
     const raw = insAt(pos);
     return {
       changes: [{ from: pos, to: pos, insert: raw }],

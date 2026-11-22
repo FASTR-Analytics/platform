@@ -381,6 +381,11 @@ Deno.test("a line break pasted into code goes in as the space it draws", () => {
   assertEquals(type("a `bc` d", 5, "x\ny"), "a `bcx`\n`y` d");
   assertEquals(type("first\n`bc` d", 7, "\n"), "first\n\n`bc` d");
   assertEquals(type("Run `x`", 7, "\n"), "Run `x`\n");
+  // Where no candidate can break the line there, it goes in as spaces.
+  assertEquals(
+    type("see `code`[link](https://x.y)", 9, "x\n\ny"),
+    "see `codex  y`[link](https://x.y)",
+  );
   // A Windows line break counts as the one "\n" the editor holds.
   const crlf = slideInsertText(analyzeSlideMarkdown("a b"), 2, "x\r\n\r\ny");
   assertEquals(apply("a b", crlf), "a x\n\nyb");
