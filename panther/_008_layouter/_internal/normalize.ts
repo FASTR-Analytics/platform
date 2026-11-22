@@ -36,14 +36,14 @@ export function rescaleSpans(
 /**
  * Calculate minimum span needed for a node based on its structure.
  */
-function calculateMinimumSpan<U>(node: LayoutNode<U>): number {
+export function getMinimumSpan<U>(node: LayoutNode<U>): number {
   if (node.type === "item") return 1;
   if (node.type === "rows") {
     // Rows: max of children's minimum spans
-    return Math.max(...node.children.map((c) => calculateMinimumSpan(c)), 1);
+    return Math.max(...node.children.map((c) => getMinimumSpan(c)), 1);
   }
   // Cols: sum of children's minimum spans
-  return node.children.reduce((sum, c) => sum + calculateMinimumSpan(c), 0);
+  return node.children.reduce((sum, c) => sum + getMinimumSpan(c), 0);
 }
 
 /**
@@ -64,7 +64,7 @@ export function validateLayout<U>(
 /**
  * Pure function that normalizes/fixes a layout tree to ensure all spans are valid.
  * Use this in your app if you need to fix spans before passing to measureLayout.
- * - Rows: all children forced to parent's span
+ * - Rows: span set to available span, and all children forced to it
  * - Cols: children rescaled to sum to parent's span
  * - Items: span set to available span
  */
@@ -122,7 +122,7 @@ function validateLayoutInternal<U>(
   } else {
     // Cols: check children can structurally fit in the available span
     const totalMinSpan = layout.children.reduce(
-      (sum, c) => sum + calculateMinimumSpan(c),
+      (sum, c) => sum + getMinimumSpan(c),
       0,
     );
     if (totalMinSpan > nodeSpan) {
@@ -133,7 +133,7 @@ function validateLayoutInternal<U>(
 
     for (let i = 0; i < layout.children.length; i++) {
       const child = layout.children[i];
-      const neededSpan = calculateMinimumSpan(child);
+      const neededSpan = getMinimumSpan(child);
 
       if (child.span !== undefined && child.span < neededSpan) {
         throw new Error(
@@ -163,8 +163,8 @@ function normalizeLayoutInternal<U>(
   }
 
   if (layout.type === "rows") {
-    // Rows: cap to available, then force ALL children to exact span
-    const rowSpan = Math.min(layout.span ?? availableSpan, availableSpan);
+    // Rows: take the span given, then force ALL children to exact span
+    const rowSpan = availableSpan;
     const normalizedChildren = layout.children.map((child) => {
       const normalizedChild = normalizeLayoutInternal(child, rowSpan);
       return { ...normalizedChild, span: rowSpan };

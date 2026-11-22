@@ -64,22 +64,16 @@ async function handOver(chat: AIChatInstance, channel: BroadcastChannel) {
 
 ## One-Shot Requests
 
-`callAIStructured` and the one-shot types live in `_116_ai_one_shot`, which loads in Deno, so a server imports it from `mod.deno.ts`; `callAI` stays here. `_305_ai` re-exports them, so a browser import is unchanged.
+`callAI`, `callAIStructured` and the one-shot types live in `_116_ai_one_shot`, which loads in Deno, so a server imports them from `mod.deno.ts`. `_305_ai` re-exports them, so a browser import is unchanged. `createSDKClient` stays here; a server builds its client with the SDK's own constructor.
 
 Every request of `callAI` and `callAIStructured` streams and settles on its final message, the tool runner's requests included, so panther's default `max_tokens` is accepted (the SDK refuses a non-streaming request that could run past ten minutes). Both take `options?: { signal?: AbortSignal }`, passed to every SDK request of the call, and both return the `model` the response names.
 
 ```typescript
-import {
-  callAI,
-  callAIStructured,
-  createSDKClient,
-} from "@timroberton/panther";
+import Anthropic from "@anthropic-ai/sdk";
+import { callAI, callAIStructured } from "@timroberton/panther";
 import { z } from "zod";
 
-const anthropic = createSDKClient({
-  baseURL: "https://api.anthropic.com",
-  apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
-});
+const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });
 
 const controller = new AbortController();
 const result = await callAI(
@@ -96,6 +90,25 @@ const structured = await callAIStructured(
 );
 // structured.data is { answer: 4 }, or null on a refusal, on max_tokens or
 // when the text fails the schema; structured.model is the response's model.
+```
+
+### Trials
+
+`runAITrials` asks the real model each question `runs` times, each a conversation of one user message sent through `callAI`, and returns what each trial did: its tool calls (`name`, `input`, `isError`), its answer, its stop reason and its usage. An approval tool is sent as defined and its call is answered with an error, since a trial has no user. Panther decides nothing: the app's check holds the questions and the pass rule. `readAITrial` reads one `callAI` result the same way. Full contract: DOC_AI_CHAT.md "Trials".
+
+```typescript
+import { runAITrials } from "@timroberton/panther";
+
+const trials = await runAITrials(
+  { sdkClient: anthropic, system: () => SYSTEM_PROMPT, tools },
+  ["How many ANC1 visits were there in 2024?"],
+  { runs: 10 },
+);
+// trials[0] holds the 10 trials of the first question.
+const passed = trials[0].filter((trial) =>
+  trial.toolCalls.some((call) => call.name === "getData") &&
+  trial.toolCalls.every((call) => !call.isError)
+);
 ```
 
 ## Custom Tools
@@ -387,7 +400,7 @@ builtInTools: {
 - `AIToolOutput` - What a handler or a `commit` returns to send images with its text
 - `aiToolFactory(registry)` - Binds one registry once; the recommended form for an app with a single view registry
 - `bindAIToolToView(registry, template, resolve, options?)` - Resolves a tool's inner implementation per call from the view the call runs in
-- `callAI()` - One-shot requests
+- `callAI()` - One-shot request, with tools (from `_116_ai_one_shot`, loads in Deno)
 - `callAIStructured()` - Schema-constrained one-shot request (from `_116_ai_one_shot`, loads in Deno)
 - `view()` / `defineAIViews()` / `createAIViewController()` - View system
 - `interaction()` / `defineAIInteractions()` - Interaction log; each action is reported against the view it happened in

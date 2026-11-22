@@ -74,7 +74,6 @@ export {
   canSplitIntoColumns,
   deleteNode,
   deleteNodeWithCleanup,
-  getMinimumSpan,
   insertSibling,
   moveNodeDown,
   moveNodeLeft,
@@ -105,4 +104,8 @@ export type {
   ScoredLayout,
 } from "./optimizer.ts";
 
-export { normalizeLayout, validateLayout } from "./_internal/normalize.ts";
+export {
+  getMinimumSpan,
+  normalizeLayout,
+  validateLayout,
+} from "./_internal/normalize.ts";

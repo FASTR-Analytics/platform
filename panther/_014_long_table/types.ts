@@ -67,6 +67,15 @@ export const ALL_LONG_TABLE_AGGREGATES = [
 ] as const;
 export type LongTableAggregate = (typeof ALL_LONG_TABLE_AGGREGATES)[number];
 
+// The aggregates whose column must be listed in `schema.values`. One list,
+// read by the validator and by the description the zod twin puts on a value's
+// `column`, so what a query's writer is told is what the validator applies.
+export const VALUE_COLUMN_AGGREGATES = [
+  "SUM",
+  "AVG",
+  "identity",
+] as const satisfies readonly LongTableAggregate[];
+
 export type LongTableValue = {
   column: string;
   func: LongTableAggregate;

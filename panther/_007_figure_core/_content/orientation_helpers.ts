@@ -57,6 +57,31 @@ export function valueExtendDir(orientation: Orientation): 1 | -1 {
   return orientation === "horizontal" ? 1 : -1;
 }
 
+export function withValueCoord(
+  c: Coordinates,
+  value: number,
+  orientation: Orientation,
+): Coordinates {
+  return orientation === "horizontal"
+    ? new Coordinates([value, c.y()])
+    : new Coordinates([c.x(), value]);
+}
+
+export function withValueExtentOf(
+  rect: RectCoordsDims,
+  from: RectCoordsDims,
+  orientation: Orientation,
+): RectCoordsDims {
+  return orientation === "horizontal"
+    ? new RectCoordsDims({ x: from.x(), y: rect.y(), w: from.w(), h: rect.h() })
+    : new RectCoordsDims({
+      x: rect.x(),
+      y: from.y(),
+      w: rect.w(),
+      h: from.h(),
+    });
+}
+
 // Extent of a rect along the category axis.
 // Vertical: width (bars stand side-by-side horizontally).
 // Horizontal: height (bars stack vertically).

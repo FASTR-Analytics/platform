@@ -143,6 +143,8 @@ export type MergedChartStyleBase = {
   };
 };
 
+export type MapProjection = "equirectangular" | "mercator" | "naturalEarth1";
+
 export type MapDataLabelMode = "none" | "centroid" | "callout" | "auto";
 
 // Collision policy for the shared figure-label solver (map areas, pie
@@ -159,7 +161,7 @@ export type LabelCollisionConfig = {
 
 export type MergedMapStyle = MergedChartStyleBase & {
   map: {
-    projection: "equirectangular" | "mercator" | "naturalEarth1";
+    projection: MapProjection;
     fit: "all-map-areas" | "only-map-areas-in-data";
     dataLabelMode: MapDataLabelMode;
     calloutMargin: number;

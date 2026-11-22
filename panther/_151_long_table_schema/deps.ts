@@ -9,7 +9,10 @@ export type {
   PeriodBounds,
   PeriodUnit,
 } from "../_000_utils/mod.ts";
-export { ALL_LONG_TABLE_AGGREGATES } from "../_014_long_table/mod.ts";
+export {
+  ALL_LONG_TABLE_AGGREGATES,
+  VALUE_COLUMN_AGGREGATES,
+} from "../_014_long_table/mod.ts";
 export type {
   DescribedColumn,
   DimensionValuesResult,

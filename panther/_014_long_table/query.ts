@@ -27,6 +27,7 @@ import {
   ALL_LONG_TABLE_AGGREGATES,
   LongTableValidationError,
   SAMPLE_N_PREFIX,
+  VALUE_COLUMN_AGGREGATES,
 } from "./types.ts";
 import type {
   DerivedDimension,
@@ -310,18 +311,42 @@ function validateValue(schema: LongTableSchema, value: LongTableValue): void {
       }`,
     );
   }
-  if (
-    value.func === "SUM" || value.func === "AVG" || value.func === "identity"
-  ) {
+  if ((VALUE_COLUMN_AGGREGATES as readonly string[]).includes(value.func)) {
     if (!schema.values.includes(value.column)) {
       fail(
-        `${value.func} of "${value.column}" requires a declared value column`,
+        `${value.func} of "${value.column}" requires a column listed in schema.values${
+          valueColumnRemedy(schema, value)
+        }`,
       );
     }
     if (type === "text") {
       fail(`${value.func} of "${value.column}" requires a numeric column`);
     }
   }
+}
+
+// The remedy for a refused value column: the columns the schema lists. Only
+// identity also gets the groupBy clause, because a writer who puts a dimension
+// under identity wants it as stored, which grouping by it returns; SUM or AVG
+// of a dimension has no such reading. A set dimension cannot be grouped by.
+function valueColumnRemedy(
+  schema: LongTableSchema,
+  value: LongTableValue,
+): string {
+  const listed = schema.values.length === 0
+    ? ", and this schema lists none"
+    : ` (${schema.values.join(", ")})`;
+  const resolved = value.func === "identity"
+    ? resolveDimension(schema, value.column)
+    : undefined;
+  const groupable = resolved?.kind === "time"
+    ? "the time column"
+    : resolved?.kind === "dimension" && resolved.dimension.kind !== "set"
+    ? "a dimension"
+    : undefined;
+  return groupable === undefined
+    ? listed
+    : `${listed}; "${value.column}" is ${groupable}, so put it in groupBy`;
 }
 
 function validateFilter(

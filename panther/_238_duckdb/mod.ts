@@ -3,12 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { closeLongTable, LONG_TABLE_VIEW, openLongTable } from "./handle.ts";
+export { resolveLongTable } from "./resolve.ts";
 export type {
-  LongTableHandle,
   ParquetLookup,
   ParquetSource,
-} from "./handle.ts";
+  ResolvedLongTable,
+} from "./resolve.ts";
+export { closeLongTables, openLongTables } from "./handle.ts";
+export type { LongTablesHandle } from "./handle.ts";
 export type { LongTableOpenOptions } from "./instance.ts";
 export { describeLongTable, describeParquet } from "./describe.ts";
 export type { ParquetDescription } from "./describe.ts";

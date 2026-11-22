@@ -127,15 +127,18 @@ export function getPieComponentSizes(
     allPieIndices(transformedData),
   );
 
-  // The floor pass runs before any sub-chart shape exists, so the slot
+  // An explicit nCols is the slot grid measurePie draws. Under "auto" the
+  // floor pass runs before any sub-chart shape exists, so the slot
   // objective has nothing to optimise against and the slot grid is the plain
   // ceil(sqrt(n)). That overstates the demand for a wide, short
   // frame — conservative in the safe direction: an overstated floor only
   // makes autofit shrink type marginally earlier than it had to.
   const nIndicators = getDimensionMembers(transformedData.indicator).length;
-  const nSlotCols = Math.ceil(Math.sqrt(nIndicators));
-  const nSlotRows = Math.ceil(nIndicators / nSlotCols);
   const ind = mergedStyle.pie.indicators;
+  const nSlotCols = ind.nCols !== "auto"
+    ? ind.nCols
+    : Math.ceil(Math.sqrt(nIndicators));
+  const nSlotRows = Math.ceil(nIndicators / nSlotCols);
   const headerAllowance = showsIndicatorHeaders(transformedData, mergedStyle)
     ? ind.headerGap +
       rc.mText(

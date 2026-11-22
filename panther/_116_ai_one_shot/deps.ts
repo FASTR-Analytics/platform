@@ -6,17 +6,26 @@
 export {
   fillEmptyReplies,
   renderOutgoingMessages,
+  repairStrandedToolUse,
+  resolveBetas,
+  resolveBuiltInTools,
   resolveModelConfig,
   resolveOutputConfig,
   resolveThinkingConfig,
 } from "../_110_ai_types/mod.ts";
 export type {
   AnthropicModelConfig,
+  BuiltInToolsConfig,
   CacheControl,
   ContentBlock,
   MessageParam,
   Usage,
 } from "../_110_ai_types/mod.ts";
+export {
+  AIToolFailure,
+  getHeadlessCapability,
+} from "../_112_ai_tool_core/mod.ts";
+export type { AnyAITool } from "../_112_ai_tool_core/mod.ts";
 export type { default as Anthropic } from "@anthropic-ai/sdk";
 export { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 export type { z as zType } from "zod";

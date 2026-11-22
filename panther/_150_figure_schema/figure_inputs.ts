@@ -8,7 +8,6 @@ import type {
   AnnotationRectStyle,
   ChartOHInputs,
   ChartOVInputs,
-  ColorKeyOrString,
   CustomFigureStyleOptions,
   DiagramCustomNode,
   DiagramData,
@@ -29,19 +28,12 @@ import type {
   TimeseriesInputs,
 } from "./deps.ts";
 import { type Conforms, zAnyPresentObject } from "./shared.ts";
+import { zColorKeyOrString } from "./style_leaves.ts";
 import { zChartOHData } from "./chartoh.ts";
 import { zChartOVData } from "./chartov.ts";
 import { zPieData } from "./pie.ts";
 import { zTableData } from "./table.ts";
 import { zTimeseriesData } from "./timeseries.ts";
-
-// Style-leaning leaves: checked for primitive shape only, never mirrored —
-// color keys and point types are part of the style surface, which churns.
-const zColorKeyOrString = z.custom<ColorKeyOrString>(
-  (v) =>
-    typeof v === "string" ||
-    (typeof v === "object" && v !== null && "key" in v),
-);
 
 // Function leaves never survive JSON storage (stringify drops them); they are
 // accepted here for in-memory inputs.

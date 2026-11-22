@@ -11,6 +11,8 @@ import type {
   ParsedMarkdownItem,
 } from "./types.ts";
 
+type ParsedListItem = Extract<ParsedMarkdownItem, { type: "list-item" }>;
+
 export function createMarkdownIt(
   options?: { html?: boolean; images?: boolean },
 ): MarkdownIt {
@@ -43,6 +45,7 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
   const items: ParsedMarkdownItem[] = [];
 
   const openLists: { numbered: boolean; nItems: number }[] = [];
+  let lastListItem: ParsedListItem | undefined;
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
@@ -127,6 +130,10 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
       token.type === "bullet_list_close" || token.type === "ordered_list_close"
     ) {
       openLists.pop();
+      if (openLists.length === 0 && lastListItem) {
+        lastListItem.isLastInList = true;
+        lastListItem = undefined;
+      }
     } else if (token.type === "list_item_open") {
       const list = openLists[openLists.length - 1];
       const listLevel = Math.floor((token.level - 1) / 2) as 0 | 1 | 2;
@@ -134,11 +141,11 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
       let j = i + 1;
       while (j < tokens.length && tokens[j].type !== "list_item_close") {
         if (tokens[j].type === "inline") {
-          const item: ParsedMarkdownItem = {
+          const item: ParsedListItem = {
             type: "list-item",
             listType: list.numbered ? "numbered" : "bullet",
             level: listLevel,
-            isFirstInList: false,
+            isFirstInList: lastListItem === undefined,
             isLastInList: false,
             content: parseInlineTokens(tokens[j].children || []),
             line,
@@ -150,6 +157,7 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
           }
 
           items.push(item);
+          lastListItem = item;
           break;
         }
         j++;
@@ -157,27 +165,13 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
     }
   }
 
-  markFirstAndLastListItems(items);
-
   return { items };
 }
 
-function markFirstAndLastListItems(items: ParsedMarkdownItem[]): void {
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    if (item.type !== "list-item") continue;
-
-    const prevItem = items[i - 1];
-    const nextItem = items[i + 1];
-
-    const prevIsListItem = prevItem?.type === "list-item" &&
-      prevItem.listType === item.listType;
-    const nextIsListItem = nextItem?.type === "list-item" &&
-      nextItem.listType === item.listType;
-
-    item.isFirstInList = !prevIsListItem;
-    item.isLastInList = !nextIsListItem;
-  }
+function isLineBreak(token: MarkdownItToken): boolean {
+  return token.type === "softbreak" || token.type === "hardbreak" ||
+    (token.type === "html_inline" &&
+      /^<br\s*\/?>$/i.test(token.content ?? ""));
 }
 
 function parseInlineTokens(tokens: MarkdownItToken[]): MarkdownInline[] {
@@ -190,13 +184,7 @@ function parseInlineTokens(tokens: MarkdownItToken[]): MarkdownInline[] {
     if (token.type === "text" && token.content) {
       content.push({ type: "text", text: token.content });
       i++;
-    } else if (token.type === "softbreak" || token.type === "hardbreak") {
-      content.push({ type: "break" });
-      i++;
-    } else if (
-      token.type === "html_inline" &&
-      /^<br\s*\/?>$/i.test(token.content ?? "")
-    ) {
+    } else if (isLineBreak(token)) {
       content.push({ type: "break" });
       i++;
     } else if (token.type === "strong_open") {
@@ -328,7 +316,7 @@ function parseNestedInline(
         segments.push({ ...seg, url: href || "" });
       }
       i = result.endIndex + 1;
-    } else if (token.type === "softbreak" || token.type === "hardbreak") {
+    } else if (isLineBreak(token)) {
       segments.push({ text: "\n", bold: false, italic: false });
       i++;
     } else if (token.type === "code_inline" && token.content) {

@@ -127,7 +127,7 @@ function parseStructuredText<T>(
   return parsed.success ? parsed.data : null;
 }
 
-function isTextBlock(
+export function isTextBlock(
   block: ContentBlock,
 ): block is Extract<ContentBlock, { type: "text" }> {
   return block.type === "text";

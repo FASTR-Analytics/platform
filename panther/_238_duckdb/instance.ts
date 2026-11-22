@@ -20,7 +20,13 @@ const GLOB_CHARACTERS = /[*?[\]{}]/;
 export async function createInstance(
   opts: LongTableOpenOptions,
 ): Promise<DuckDBInstance> {
-  const config: Record<string, string> = {};
+  // enable_external_access = false freezes temp_directory, so it is set at
+  // create. DuckDB's default is `.tmp` under the working directory, with no
+  // cap that holds; the empty string turns spilling off, so a statement that
+  // does not fit the memory limit fails and writes nothing.
+  const config: Record<string, string> = {
+    temp_directory: opts.tempDirectory ?? "",
+  };
   if (opts.memoryLimit !== undefined) {
     // DuckDB's own message for a unitless limit is the bare "Failed to set
     // config", so the unit is checked here.
@@ -43,10 +49,8 @@ export async function createInstance(
     config.threads = String(opts.threads);
   }
   if (opts.tempDirectory !== undefined) {
-    // enable_external_access = false freezes temp_directory, so it is set at
-    // create; DuckDB does not create a missing one.
+    // DuckDB does not create a missing temp directory.
     await Deno.mkdir(opts.tempDirectory, { recursive: true });
-    config.temp_directory = opts.tempDirectory;
   }
   return await DuckDBInstance.create(":memory:", config);
 }
@@ -82,10 +86,6 @@ export async function validateParquetPath(path: string): Promise<string> {
       `Parquet path "${path}" resolves to "${resolved}", which contains glob characters`,
     );
   }
-  if (parentDirectory(resolved) === "/") {
-    // The lockdown allows the parquet's directory, and "/" is everything.
-    throw new Error(`Parquet path "${path}" must not sit directly under "/"`);
-  }
   return resolved;
 }
 
@@ -93,9 +93,22 @@ export function readParquet(path: string): string {
   return `read_parquet(${quoteLiteral(path)})`;
 }
 
-export function parentDirectory(path: string): string {
-  const i = path.lastIndexOf("/");
-  return i <= 0 ? "/" : path.slice(0, i);
+// allowed_paths first, then the irreversible lockdown: after it, DuckDB opens
+// the listed files and nothing else, never a sibling, a directory listing, a
+// new file or a URL. A directory is never allowed, since that would open
+// every file under it. The time zone is fixed before the lockdown so a
+// TIMESTAMP WITH TIME ZONE column cast to text reads the same on every
+// machine.
+export async function lockDown(
+  connection: DuckDBConnection,
+  paths: readonly string[],
+): Promise<void> {
+  const files = [...new Set(paths)];
+  await connection.run("SET TimeZone = 'UTC'");
+  await connection.run(
+    `SET allowed_paths = [${files.map(quoteLiteral).join(", ")}]`,
+  );
+  await connection.run("SET enable_external_access = false");
 }
 
 // Open, run, close: for the one-shot statements (describe, write) that need
@@ -103,7 +116,7 @@ export function parentDirectory(path: string): string {
 export async function withConnection<T>(
   fn: (connection: DuckDBConnection) => Promise<T>,
 ): Promise<T> {
-  const instance = await DuckDBInstance.create(":memory:");
+  const instance = await createInstance({});
   try {
     const connection = await instance.connect();
     try {

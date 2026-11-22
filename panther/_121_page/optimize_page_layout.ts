@@ -51,10 +51,7 @@ export function optimizePageLayout(
   const layoutStyle: LayoutStyleConfig = {
     gapX: s.content.gapX,
     gapY: s.content.gapY,
-    containerDefaults: {
-      ...s.layoutContainers,
-      backgroundExtent: "content" as const,
-    },
+    containerDefaults: s.layoutContainers,
     alreadyScaledValue: s.alreadyScaledValue,
   };
 

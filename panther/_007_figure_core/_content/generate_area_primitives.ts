@@ -8,7 +8,6 @@ import {
   computeBoundsForPath,
   Coordinates,
   type Primitive,
-  type RectCoordsDims,
   Z_INDEX,
 } from "../deps.ts";
 import { chartSeriesItem } from "../chart_items.ts";
@@ -17,29 +16,11 @@ import type {
   ContentGenerationContext,
   SubChartContent,
 } from "./content_generation_types.ts";
-
-function zeroLineMirrorCoords(
-  valueCoords: Coordinates,
-  subChartRcd: RectCoordsDims,
-  gridLineStrokeWidth: number,
-  orientation: "vertical" | "horizontal",
-  valueClearanceStart: number,
-): Coordinates {
-  if (orientation === "horizontal") {
-    // Horizontal: baseline is the valueMin grid line (left edge of the sub-chart
-    // plus the start-side overhang clearance).
-    return new Coordinates([
-      subChartRcd.x() + valueClearanceStart - gridLineStrokeWidth / 2,
-      valueCoords.y(),
-    ]);
-  }
-  // Vertical: baseline is the valueMin grid line (bottom edge of the sub-chart
-  // minus the start-side overhang clearance).
-  return new Coordinates([
-    valueCoords.x(),
-    subChartRcd.bottomY() - valueClearanceStart + gridLineStrokeWidth / 2,
-  ]);
-}
+import {
+  valueBaselineCoord,
+  valueExtendDir,
+  withValueCoord,
+} from "./orientation_helpers.ts";
 
 export function generateAreaPrimitives(
   mapped: MappedValueCoordinate[][],
@@ -48,7 +29,13 @@ export function generateAreaPrimitives(
 ): Primitive[] {
   const s = ctx.contentStyle;
   const { i_pane, i_tier, i_lane, slotOrder, rcd: subChartRcd } = ctx.subChart;
-  const valueClearanceStart = ctx.subChart.valueClearance.start;
+  // Half a grid stroke past the baseline, so the area's edge covers the
+  // baseline grid line.
+  const zeroLineValue = valueBaselineCoord(
+    subChartRcd,
+    ctx.orientation,
+    ctx.subChart.valueClearance.start,
+  ) - valueExtendDir(ctx.orientation) * ctx.gridLineStrokeWidth / 2;
 
   const primitives: Primitive[] = [];
 
@@ -78,22 +65,18 @@ export function generateAreaPrimitives(
 
         let mirrorCoords: Coordinates | undefined;
         if (areaStyle.to === "zero-line") {
-          mirrorCoords = zeroLineMirrorCoords(
+          mirrorCoords = withValueCoord(
             mappedValueThisSeries.coords,
-            subChartRcd,
-            ctx.gridLineStrokeWidth,
+            zeroLineValue,
             ctx.orientation,
-            valueClearanceStart,
           );
         } else if (areaStyle.to === "previous-series-or-zero") {
           const otherSeries = mapped[i_series - 1];
           if (!otherSeries) {
-            mirrorCoords = zeroLineMirrorCoords(
+            mirrorCoords = withValueCoord(
               mappedValueThisSeries.coords,
-              subChartRcd,
-              ctx.gridLineStrokeWidth,
+              zeroLineValue,
               ctx.orientation,
-              valueClearanceStart,
             );
           } else if (otherSeries[i_value]) {
             mirrorCoords = otherSeries[i_value]!.coords;

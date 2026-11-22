@@ -30,6 +30,7 @@ export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type {
   MapAreaStyle,
   MapDataLabelMode,
+  MapProjection,
   MergedMapStyle,
   OutsideLabelPlacement,
 } from "../_003_figure_style/mod.ts";

@@ -35,8 +35,9 @@ export function toLongTableCell(
 }
 
 // A value a JSON cell cannot carry exactly. The engine checks the bounds of
-// a declared-integer column at open and describes an integer column past them
-// as text, so a read never reaches the throw above.
+// a declared-integer column when it resolves the table, reads a declared-
+// number column over a wide integer as a double, and describes an integer
+// column past the bounds as text, so a read never reaches the throw above.
 export function isOutsideSafeRange(value: bigint): boolean {
   return value > BigInt(Number.MAX_SAFE_INTEGER) ||
     value < BigInt(Number.MIN_SAFE_INTEGER);

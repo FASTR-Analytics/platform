@@ -3,7 +3,11 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type ChartBarPrimitive, RectCoordsDims, Z_INDEX } from "../deps.ts";
+import {
+  type ChartBarPrimitive,
+  type RectCoordsDims,
+  Z_INDEX,
+} from "../deps.ts";
 import { chartValueItem } from "../chart_items.ts";
 import { computeBarThicknesses } from "./bar_thickness.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
@@ -20,6 +24,7 @@ import {
   valueBaselineCoord,
   valueCoord,
   valueExtendDir,
+  withValueExtentOf,
 } from "./orientation_helpers.ts";
 
 export function generateBarPrimitives(
@@ -123,22 +128,8 @@ export function generateBarPrimitives(
         );
       }
 
-      // Annotation bounds span the full sub-chart along the value axis
-      // (vertical) or the full sub-chart width (horizontal).
       const annotationBounds = barStyle.annotationGroup
-        ? (orientation === "horizontal"
-          ? new RectCoordsDims({
-            x: subChartRcd.x(),
-            y: barRcd.y(),
-            w: subChartRcd.w(),
-            h: barRcd.h(),
-          })
-          : new RectCoordsDims({
-            x: barRcd.x(),
-            y: subChartRcd.y(),
-            w: barRcd.w(),
-            h: subChartRcd.h(),
-          }))
+        ? withValueExtentOf(barRcd, subChartRcd, orientation)
         : undefined;
 
       const label = resolvedValue.label;

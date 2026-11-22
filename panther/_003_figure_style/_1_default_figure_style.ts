@@ -50,7 +50,10 @@ import {
   SERIES_COLOR_SENTINEL,
   VALUES_COLOR_SENTINEL,
 } from "./style_func_types.ts";
-import type { LabelCollisionConfig } from "./_3_merged_style_return_types.ts";
+import type {
+  LabelCollisionConfig,
+  MapProjection,
+} from "./_3_merged_style_return_types.ts";
 import type { LegendPosition } from "./types.ts";
 
 // Shared default for every figure's labelCollision block (map, pie). The
@@ -612,9 +615,7 @@ const _DS = {
     layoutMode: typed<"flow" | "tiered">("flow"),
   },
   map: {
-    projection: typed<"equirectangular" | "mercator" | "naturalEarth1">(
-      "equirectangular",
-    ),
+    projection: typed<MapProjection>("equirectangular"),
     fit: typed<"all-map-areas" | "only-map-areas-in-data">("all-map-areas"),
     // Where a map area's label goes. "centroid" pins every label to its map area's
     // centroid whatever happens; "callout" sends every label outside; "auto"

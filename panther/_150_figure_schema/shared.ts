@@ -8,16 +8,26 @@ import type {
   ChartValueAxisLimits,
   ChartValueAxisLimitsEntry,
   ChartValueAxisPaneLimits,
+  ColorKeyOrString,
+  ContinuousPaletteName,
   DataDimension,
   DimensionMember,
   DimensionMembership,
   JsonArray,
   JsonArrayItem,
+  MapDataLabelMode,
+  MapProjection,
   MemberSortConfig,
   MemberSortFunc,
   PeriodType,
   UncertaintyConfig,
 } from "./deps.ts";
+import type {
+  zColorKeyOrString,
+  zContinuousPaletteName,
+  zMapDataLabelMode,
+  zMapProjection,
+} from "./style_leaves.ts";
 
 // Compile-time conformance check binding each schema to its hand-written type
 // (the _010_* types remain the single source of truth). A type change the
@@ -158,6 +168,23 @@ export const zChartOHProportional = z.strictObject({
 export const zPeriodType = z.enum(["year-month", "year-quarter", "year"]);
 const _zPeriodTypeConforms: Conforms<z.infer<typeof zPeriodType>, PeriodType> =
   true;
+
+const _zColorKeyOrStringConforms: ConformsExactly<
+  z.infer<typeof zColorKeyOrString>,
+  ColorKeyOrString
+> = true;
+const _zContinuousPaletteNameConforms: ConformsExactly<
+  z.infer<typeof zContinuousPaletteName>,
+  ContinuousPaletteName
+> = true;
+const _zMapProjectionConforms: ConformsExactly<
+  z.infer<typeof zMapProjection>,
+  MapProjection
+> = true;
+const _zMapDataLabelModeConforms: ConformsExactly<
+  z.infer<typeof zMapDataLabelMode>,
+  MapDataLabelMode
+> = true;
 
 export const zChartValueAxisLimitsEntry = z.object({
   valueMin: z.number(),

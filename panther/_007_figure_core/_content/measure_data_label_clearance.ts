@@ -4,11 +4,14 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { SubChart } from "../sub_charts.ts";
-import { valueAxisExtentOfRect } from "./orientation_helpers.ts";
+import {
+  type Orientation,
+  valueAxisExtentOfRect,
+} from "./orientation_helpers.ts";
 
 export function measureDataLabelEndClearance(
   subChart: Extract<SubChart, { kind: "category-and-value" }>,
-  orientation: "vertical" | "horizontal",
+  orientation: Orientation,
 ): number {
   const { valueMin, valueMax } = subChart.valueRange;
   const range = valueMax - valueMin;

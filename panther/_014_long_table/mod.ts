@@ -9,6 +9,7 @@ export {
   DEFAULT_SET_DELIMITER,
   LongTableValidationError,
   SAMPLE_N_PREFIX,
+  VALUE_COLUMN_AGGREGATES,
 } from "./types.ts";
 export type {
   DerivedDimension,
@@ -45,6 +46,7 @@ export {
   getReachableComponents,
   getReachableGrains,
   getTimeConventions,
+  hasControlCharacter,
   inferLongTableSchema,
   resolveDimension,
   TIME_VALUES_LIMIT,

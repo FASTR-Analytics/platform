@@ -8,6 +8,8 @@ import {
   type CustomMarkdownStyleOptions,
   type ImageMap,
   type LayoutNode,
+  Padding,
+  type PaddingOptions,
   type RenderContext,
 } from "./deps.ts";
 import type { ConvertedPageContent } from "./convert_to_page_content.ts";
@@ -23,7 +25,7 @@ export type MarkdownPagesConfig = {
   asSlides?: boolean;
   pageWidth: number;
   pageHeight: number;
-  pagePadding: number;
+  pagePadding: PaddingOptions;
   headerHeight?: number;
   footerHeight?: number;
   gapY?: number;
@@ -61,14 +63,15 @@ export function buildMarkdownPageContents(
   }
 
   const parsed = parseMarkdown(markdown);
+  const padding = new Padding(config.pagePadding);
 
   const contentHeight = config.pageHeight -
-    config.pagePadding * 2 -
+    padding.totalPy() -
     (config.headerHeight ?? 0) -
     (config.footerHeight ?? 0);
 
   return paginateMarkdown(parsed.items, rc, {
-    contentWidth: config.pageWidth - config.pagePadding * 2,
+    contentWidth: config.pageWidth - padding.totalPx(),
     contentHeight,
     gapY: config.gapY,
     pageBreakRules: config.pageBreakRules,

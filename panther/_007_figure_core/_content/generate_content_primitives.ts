@@ -13,6 +13,7 @@ import { generateConnectorPrimitives } from "./generate_connector_primitives.ts"
 import { generateErrorBarPrimitives } from "./generate_error_bar_primitives.ts";
 import { generateLinePrimitives } from "./generate_line_primitives.ts";
 import { generatePointPrimitives } from "./generate_point_primitives.ts";
+import type { Orientation } from "./orientation_helpers.ts";
 import type { ChartItemDataDimensions } from "../chart_items.ts";
 import type { SubChart } from "../sub_charts.ts";
 
@@ -22,7 +23,7 @@ export function generateContentPrimitives(
     seriesValues: (number | undefined)[][];
     uncertaintyUbSeriesValues?: (number | undefined)[][];
     uncertaintyLbSeriesValues?: (number | undefined)[][];
-    orientation: "vertical" | "horizontal";
+    orientation: Orientation;
     itemDataDimensions: ChartItemDataDimensions;
     contentStyle: ContentGenerationContext["contentStyle"];
     gridLineStrokeWidth: number;

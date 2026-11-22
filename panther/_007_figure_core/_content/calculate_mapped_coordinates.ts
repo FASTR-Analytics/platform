@@ -5,6 +5,7 @@
 
 import { Coordinates, type RectCoordsDims } from "../deps.ts";
 import type { OverhangClearance, ValueRange } from "../types.ts";
+import type { Orientation } from "./orientation_helpers.ts";
 
 export type MappedValueCoordinate =
   | {
@@ -28,7 +29,7 @@ export function calculateMappedCoordinates(
   gridLineStrokeWidth: number,
   valueRange: ValueRange,
   valueClearance: OverhangClearance,
-  orientation: "vertical" | "horizontal" = "vertical",
+  orientation: Orientation = "vertical",
   positionOrdinals: (number | undefined)[],
 ): MappedValueCoordinate[][] {
   const { valueMax, valueMin } = valueRange;

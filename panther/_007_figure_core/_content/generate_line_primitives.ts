@@ -27,7 +27,6 @@ export function generateLinePrimitives(
   const { i_pane, i_tier, i_lane, slotOrder } = ctx.subChart;
   type LineSegment = {
     coords: Coordinates[];
-    values: number[];
     valueIndices: number[];
     pointLabels: Array<{ coordIndex: number; dataLabel: DataLabel }>;
   };
@@ -45,7 +44,6 @@ export function generateLinePrimitives(
         lineSeriesData.set(i_series, {
           segments: [{
             coords: [],
-            values: [],
             valueIndices: [],
             pointLabels: [],
           }],
@@ -60,7 +58,6 @@ export function generateLinePrimitives(
           if (currentSeg.coords.length > 0) {
             lineData.segments.push({
               coords: [],
-              values: [],
               valueIndices: [],
               pointLabels: [],
             });
@@ -71,7 +68,6 @@ export function generateLinePrimitives(
 
       const currentSeg = lineData.segments[lineData.segments.length - 1];
       currentSeg.coords.push(mappedValue.coords);
-      currentSeg.values.push(mappedValue.value);
       currentSeg.valueIndices.push(i_value);
 
       const label = content.resolvedValues[i_series][i_value]?.label;

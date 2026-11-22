@@ -4,16 +4,15 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AnyAITool,
   BuiltInToolsConfig,
-  CallAIOptions,
-  CallAIResult,
-  CallAIStructuredConfig,
   ContentBlock,
   MessageParam,
   Usage,
-} from "../deps.ts";
+} from "./deps.ts";
 import {
   fillEmptyReplies,
+  getHeadlessCapability,
   renderOutgoingMessages,
   repairStrandedToolUse,
   resolveBetas,
@@ -21,8 +20,12 @@ import {
   resolveModelConfig,
   resolveOutputConfig,
   resolveThinkingConfig,
-} from "../deps.ts";
-import { type AnyAITool, getHeadlessCapability } from "../deps.ts";
+} from "./deps.ts";
+import type {
+  CallAIOptions,
+  CallAIResult,
+  CallAIStructuredConfig,
+} from "./one_shot_structured.ts";
 
 // Safety cap on the SDK tool runner's requests so a pathological tool loop
 // can't run unbounded. Every request counts: a client tool round and a

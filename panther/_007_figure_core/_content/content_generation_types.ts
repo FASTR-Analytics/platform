@@ -19,6 +19,7 @@ import { getAdjustedFont, getColor } from "../deps.ts";
 import type { ChartItemDataDimensions } from "../chart_items.ts";
 import type { SubChart } from "../sub_charts.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
+import type { Orientation } from "./orientation_helpers.ts";
 
 // One home for deriving a data label's text style from its host's base text
 // style + per-label overrides.
@@ -43,7 +44,7 @@ export function buildDataLabelTextStyle(
 
 export type ContentGenerationContext = {
   subChart: Omit<Extract<SubChart, { kind: "category-and-value" }>, "content">;
-  orientation: "vertical" | "horizontal";
+  orientation: Orientation;
   gridLineStrokeWidth: number;
   itemDataDimensions: ChartItemDataDimensions;
   contentStyle: {

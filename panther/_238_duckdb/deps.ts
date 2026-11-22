@@ -18,6 +18,7 @@ export {
   getFilterBindType,
   getTimeConventions,
   getValueOutputName,
+  hasControlCharacter,
   inferLongTableSchema,
   isIngredientOnly,
   isOutsideSafeRange,

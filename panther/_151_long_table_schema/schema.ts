@@ -5,6 +5,7 @@
 
 import {
   ALL_LONG_TABLE_AGGREGATES,
+  VALUE_COLUMN_AGGREGATES,
   z,
   zJsonArrayItem,
   zPeriodType,
@@ -33,11 +34,19 @@ import type {
   PeriodUnit,
   RowsResult,
 } from "./deps.ts";
+import {
+  type zFullPeriodUnit,
+  zLongTableFilter,
+  zPeriodFilter,
+  type zPeriodUnit,
+  zStringsOrNumbers,
+} from "./filters.ts";
 
 // Zod twins of the long-table wire types, each bound to its hand-written
-// type in _014 by a conformance check. Every object is strict: a query is
-// written by hand, often by an AI, and a misspelled key that a lenient
-// parser stripped would be intent silently ignored.
+// type in _014 by a conformance check, the twins in filters.ts included.
+// Every object is strict: a query is written by hand, often by an AI, and a
+// misspelled key that a lenient parser stripped would be intent silently
+// ignored.
 
 export const zFiscalYearRule = z.strictObject({
   startMonth: z.number(),
@@ -101,32 +110,16 @@ const _zLongTableSchemaConforms: ConformsExactly<
   LongTableSchema
 > = true;
 
-const zPeriodUnit = z.enum(["period", "month", "quarter", "year"]);
 const _zPeriodUnitConforms: ConformsExactly<
   z.infer<typeof zPeriodUnit>,
   PeriodUnit
 > = true;
 
-const zFullPeriodUnit = z.enum(["quarter", "year"]);
 const _zFullPeriodUnitConforms: ConformsExactly<
   z.infer<typeof zFullPeriodUnit>,
   FullPeriodUnit
 > = true;
 
-export const zPeriodFilter = z.discriminatedUnion("type", [
-  z.strictObject({
-    type: z.literal("range"),
-    min: z.number(),
-    max: z.number(),
-  }),
-  z.strictObject({ type: z.literal("from"), min: z.number() }),
-  z.strictObject({ type: z.literal("last"), n: z.number(), unit: zPeriodUnit }),
-  z.strictObject({
-    type: z.literal("lastFull"),
-    n: z.number(),
-    unit: zFullPeriodUnit,
-  }),
-]);
 const _zPeriodFilterConforms: ConformsExactly<
   z.infer<typeof zPeriodFilter>,
   PeriodFilter
@@ -139,7 +132,11 @@ const _zLongTableAggregateConforms: ConformsExactly<
 > = true;
 
 export const zLongTableValue = z.strictObject({
-  column: z.string(),
+  column: z.string().describe(
+    `A column of schema.columns, or "*" with COUNT. ${
+      VALUE_COLUMN_AGGREGATES.join(", ")
+    } need a numeric column listed in schema.values.`,
+  ),
   func: zLongTableAggregate,
   as: z.string().optional(),
 });
@@ -148,12 +145,6 @@ const _zLongTableValueConforms: ConformsExactly<
   LongTableValue
 > = true;
 
-const zStringsOrNumbers = z.array(z.union([z.string(), z.number()]));
-
-export const zLongTableFilter = z.strictObject({
-  dim: z.string(),
-  values: zStringsOrNumbers,
-});
 const _zLongTableFilterConforms: ConformsExactly<
   z.infer<typeof zLongTableFilter>,
   LongTableFilter
