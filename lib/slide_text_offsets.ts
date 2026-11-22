@@ -1112,6 +1112,15 @@ function prevVisible(an: SlideTextAnalysis, pos: number): number {
   return -1;
 }
 
+// The caret after a code span's line break stands before the next line's
+// prefix (`> `, indentation), which draws nothing: an edit there starts after
+// the prefix, inside the span.
+function pastCodeBreak(an: SlideTextAnalysis, caret: number): number {
+  return an.src[caret - 1] === "\n" && an.kind[caret - 1] === SRC_VISIBLE
+    ? prefixEnd(an, caret, an.src.length)
+    : caret;
+}
+
 function nextVisible(an: SlideTextAnalysis, pos: number): number {
   for (let i = pos; i < an.kind.length; i++) {
     if (an.kind[i] === SRC_VISIBLE) return i;
@@ -1241,7 +1250,7 @@ export function slideBackspace(
   if (an.src[v] !== "\n" && hasStructure(an, v + 1, caret)) {
     return slideDeleteRange(an, v + 1, caret);
   }
-  return slideDeleteRange(an, v, caret);
+  return slideDeleteRange(an, v, pastCodeBreak(an, caret));
 }
 
 function countSyntaxAt(an: SlideTextAnalysis, pos: number): number {
@@ -1257,12 +1266,13 @@ export function slideDeleteForward(
   an: SlideTextAnalysis,
   caret: number,
 ): SlideEditResult | undefined {
-  const w = nextVisible(an, caret);
+  const at = pastCodeBreak(an, caret);
+  const w = nextVisible(an, at);
   if (w < 0) return undefined;
-  if (hasStructure(an, caret, w)) {
-    return slideDeleteRange(an, caret, w);
+  if (hasStructure(an, at, w)) {
+    return slideDeleteRange(an, at, w);
   }
-  return slideDeleteRange(an, caret, w + 1);
+  return slideDeleteRange(an, at, w + 1);
 }
 
 /** Escape typed text so it renders literally (pure WYSIWYG: typing `*` never
@@ -1296,7 +1306,7 @@ function analyzeTypedIntoCode(
   };
 }
 
-/** Type `typed` at `pos` (after any selection was deleted). The new text
+/** Type `typed` at `offset` (after any selection was deleted). The new text
  *  takes the style of the visible char before it (or after it, at the start
  *  of a line), like a word processor, and lands where it renders that way:
  *  a space typed at the end of `**bold|**` cannot go inside the delimiters
@@ -1308,11 +1318,12 @@ function analyzeTypedIntoCode(
  *  (`**bold**x`). */
 export function slideInsertText(
   an: SlideTextAnalysis,
-  pos: number,
+  offset: number,
   typed: string,
   want?: Partial<Pick<SlideCharStyle, "bold" | "italic">>,
 ): SlideEditResult {
   const { src, kind } = an;
+  const pos = pastCodeBreak(an, offset);
   const plain: SlideCharStyle = { bold: false, italic: false, code: false };
   const pv = prevVisible(an, pos);
   const nv = nextVisible(an, pos);
@@ -1373,7 +1384,12 @@ export function slideInsertText(
   const positions = [pos, b, a].filter((p, i, arr) => arr.indexOf(p) === i);
   const simple = positions.map(at);
   // Last resort: rebuild the line with the typed text styled as inherited.
-  const basePos = b;
+  // Text typed into code just after a code char stays inside the span: past
+  // the fence and a closing `**`, it would stop the `**` closing.
+  const basePos =
+    inherit.code && kind[pos - 1] === SRC_VISIBLE && an.srcStyle[pos - 1]?.code
+      ? pos
+      : b;
   const ins = insAt(basePos);
   const base = inherit.code
     ? analyzeTypedIntoCode(src, basePos, ins)

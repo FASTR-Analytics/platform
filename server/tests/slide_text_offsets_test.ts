@@ -315,6 +315,26 @@ Deno.test("a code span's line break draws as a space, and is code", () => {
     apply(doc, slideBackspace(analyzeSlideMarkdown(doc), caret));
   assertEquals(bs(src, 4), "`abcd` e");
   assertEquals(bs("> q `a\n> b` c", 9), "> q `ab` c");
+
+  // The caret stop after the break stands before the next line's `> `: edits
+  // there act after it, on what is drawn.
+  const quote = "> q `a\n> b` c";
+  assertEquals(
+    apply(quote, slideInsertText(analyzeSlideMarkdown(quote), 7, "x")),
+    "> q `a\n> xb` c",
+  );
+  assertEquals(bs(quote, 7), "> q `ab` c");
+  assertEquals(
+    apply(quote, slideDeleteForward(analyzeSlideMarkdown(quote), 7)),
+    "> q `a\n> ` c",
+  );
+  // A backtick typed at the end of bold-wrapped code stays code.
+  const boldCode = "**`bc`** d";
+  const ticked = apply(
+    boldCode,
+    slideInsertText(analyzeSlideMarkdown(boldCode), 5, "`"),
+  )!;
+  assertEquals(drawn(ticked), ["bc` d", "ccc--"]);
 });
 
 Deno.test("a line break pasted into code goes in as the space it draws", () => {
