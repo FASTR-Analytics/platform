@@ -867,7 +867,10 @@ Repo: this one. Nothing the app runs reads what this step adds until step 7. It 
 - `server/tests/figure_config_diff_test.ts` (new)
 - `server/tests/figure_config_block_test.ts` (new)
 - `server/tests/figure_config_render_test.ts` (new): every preset and Explore config drawn through panther's transforms
+- `server/tests/_figure_config_sets.ts` (new): the presets and Explore configs the presets, change-of-type and render tests run over
+- `server/tests/figure_config_presets_test.ts` (its sets move to `_figure_config_sets.ts`)
 - `SYSTEM_02_persistence.md`, `SYSTEM_08_results_packages.md`, `SYSTEM_11_viz_authoring.md` (manifests and prose for the new and moved files)
+- `SYSTEM_09_viz_query_cache.md` (it names the file that holds `inferPeriodFormatFromValue`)
 
 **Deliverable.**
 
@@ -1136,6 +1139,7 @@ Repo: this one.
 - Step 5's comparison counts as explained a figure on which today's renderer draws the value props on two axes, which throws today, a case §2.4 does not list, because it is one of the two renderer rules ruling 18 changes.
 - Step 5 keyed the four special-mode metric lists by mode in one `SPECIAL_CHART_METRICS` record instead of four constants, because the validator indexes the list by the config's mode.
 - Step 6 holds the cutover's functions in `lib` and `server`, and not the renderer's style from §2's config nor the collab bridge, which Tim was told on 2026-11-23 it would hold, because `lint:structure` refuses a client file nothing imports and the bridge's file is today's bridge's.
+- Step 6's floor booted the server (`main.ts`) on a throwaway Postgres and Valkey, port 8099 and empty runs and assets folders, instead of `./run`, because Tim's own `./run` was running on the dev database and `./run` replaces its containers.
 
 ### NOTES FROM EXPERIMENT WITH AI AGENT IN sierraleone PROD INSTANCE
 

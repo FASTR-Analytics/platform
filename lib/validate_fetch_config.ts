@@ -1,11 +1,14 @@
 import { z } from "zod";
 import { isRollupDimension, ROLLUP_DIMENSIONS } from "./rollup.ts";
-import { ALL_DISAGGREGATION_OPTIONS } from "./types/disaggregation_options.ts";
+import {
+  ALL_DISAGGREGATION_OPTIONS,
+  FILTER_ONLY_DISAGGREGATION_OPTIONS,
+} from "./types/disaggregation_options.ts";
 import {
   disaggregationOption,
   periodFilterSchema,
-  valueFuncStrict,
 } from "./types/_metric_installed.ts";
+import { valueFuncStrict } from "./types/value_func.ts";
 import { GenericLongFormFetchConfig } from "./types/presentation_objects.ts";
 
 // Every field below is interpolated into the SQL the DuckDB executor runs (see
@@ -156,15 +159,6 @@ export const genericLongFormFetchConfigSchema = z.object({
     .optional(),
   rollupDim: z.enum(ROLLUP_DIMENSIONS).optional(),
 });
-
-// Disaggregation options that are FILTER-ONLY: valid in `filters`, never in
-// `groupBys` (nor client `disaggregateBy` slots). Grouping by a many-to-many
-// dimension would double-count or expose raw composite groups.
-// Enforced: validateFetchConfig (server boundary); excluded from the client
-// disaggregation pickers and validate_display_slots.
-export const FILTER_ONLY_DISAGGREGATION_OPTIONS: ReadonlySet<string> = new Set([
-  "hfa_service_category",
-]);
 
 // Columns whose cell value is a delimiter-joined SET of ids
 // ("rmnch|nutrition"). Filtering is set membership (string_to_array overlap,

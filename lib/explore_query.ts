@@ -15,8 +15,8 @@ import type { DatasetType } from "./types/datasets.ts";
 import type {
   DisaggregationDisplayOption,
   PeriodFilter,
-  PeriodOption,
 } from "./types/_metric_installed.ts";
+import type { PeriodOption } from "./types/period_options.ts";
 import type { MetricWithStatus } from "./types/modules.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import {

@@ -1,7 +1,8 @@
 import { ADMIN_LEVELS } from "../rollup.ts";
-import type { ResultsValue } from "../types/modules.ts";
-import { PERIOD_DISAGGREGATION_OPTIONS } from "../types/disaggregation_options.ts";
-import { FILTER_ONLY_DISAGGREGATION_OPTIONS } from "../validate_fetch_config.ts";
+import {
+  FILTER_ONLY_DISAGGREGATION_OPTIONS,
+  PERIOD_DISAGGREGATION_OPTIONS,
+} from "../types/disaggregation_options.ts";
 import {
   type Dim,
   type FigureConditionalFormatting,
@@ -12,9 +13,10 @@ import {
   type Slot,
   VALUE_PROPS,
 } from "./schema.ts";
+import type { FigureMetric } from "./validate.ts";
 
 export type StartingMetric = Pick<
-  ResultsValue,
+  FigureMetric,
   | "valueProps"
   | "formatAs"
   | "disaggregationOptions"

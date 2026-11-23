@@ -15,8 +15,8 @@ import type {
   GenericLongFormFetchConfig,
   PeriodBounds,
 } from "../types/presentation_objects.ts";
-import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
-import { FILTER_ONLY_DISAGGREGATION_OPTIONS } from "../validate_fetch_config.ts";
+import { FILTER_ONLY_DISAGGREGATION_OPTIONS } from "../types/disaggregation_options.ts";
+import { inferPeriodFormatFromValue } from "../types/period_options.ts";
 import {
   type AxisSlot,
   type Dim,
@@ -25,24 +25,20 @@ import {
   type FigureReplicant,
   type FigureRollup,
   rollupOfLayout,
+  shownValueProps,
   slotEntries,
   VALUE_PROPS,
 } from "./schema.ts";
+import type { FigureMetric } from "./validate.ts";
 
 // What a config means: the rows its query reads and how they are laid out.
 // Pure functions of the config, and of the metric or the rows where a
 // derivation needs them.
 
-// The value props the figure shows, in the metric's order.
-export function shownValueProps(
-  config: FigureConfigBody,
-  metricValueProps: readonly string[],
-): string[] {
-  const named = config.data.valueProps;
-  return named === undefined
-    ? [...metricValueProps]
-    : metricValueProps.filter((v) => named.includes(v));
-}
+// The validator's metric is written out apart from the app's metric type, so
+// that a module build can run it. The app's metric must remain one.
+const _resultsValueIsFigureMetric: ResultsValue extends FigureMetric ? true
+  : false = true;
 
 export function isFilteredToOneValue(
   config: FigureConfigBody,

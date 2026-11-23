@@ -6,11 +6,7 @@
 // getEffectiveRollupDimension (in get_fetch_config_from_po.ts): see the doc
 // comment there for the contract.
 
-import type {
-  CatalogExpressionEvaluation,
-  PostAggregationExpression,
-  ValueFunc,
-} from "./types/_metric_installed.ts";
+import type { ValueFunc } from "./types/value_func.ts";
 
 export const ADMIN_LEVELS = [
   "admin_area_2",
@@ -78,13 +74,14 @@ export function rollupSentinelForDimension(dim: RollupDimension): string {
   return isAdminLevel(dim) ? ROLLUP_SENTINEL : ALL_FACILITIES_SENTINEL;
 }
 
-// The metric fields rollup eligibility is decided from. hasFacilityLevelRows
-// is derived at enrichment time (results table has a facility_id column) and
-// may be absent on stale cached ResultsValue objects: absence reads as false.
+// The metric fields rollup eligibility is decided from: the two expressions
+// count by their presence alone. hasFacilityLevelRows is derived at enrichment
+// time (results table has a facility_id column) and may be absent on stale
+// cached ResultsValue objects: absence reads as false.
 export type RollupEligibilityInputs = {
   valueFunc: ValueFunc;
-  postAggregationExpression?: PostAggregationExpression | null;
-  catalogExpressionEvaluation?: CatalogExpressionEvaluation | null;
+  postAggregationExpression?: unknown;
+  catalogExpressionEvaluation?: unknown;
   hasFacilityLevelRows?: boolean;
 };
 

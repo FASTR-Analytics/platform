@@ -1,13 +1,17 @@
 import { SPECIAL_CHART_METRICS } from "../special_chart_metrics.ts";
-import type { ResultsValue } from "../types/modules.ts";
 import {
   type DisaggregationOption,
+  FILTER_ONLY_DISAGGREGATION_OPTIONS,
   PERIOD_DISAGGREGATION_OPTIONS,
 } from "../types/disaggregation_options.ts";
-import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
-import { FILTER_ONLY_DISAGGREGATION_OPTIONS } from "../validate_fetch_config.ts";
-import { isRollupEligibleResultsValue } from "../rollup.ts";
-import { shownValueProps } from "./derive.ts";
+import {
+  inferPeriodFormatFromValue,
+  type PeriodOption,
+} from "../types/period_options.ts";
+import {
+  isRollupEligibleResultsValue,
+  type RollupEligibilityInputs,
+} from "../rollup.ts";
 import {
   conditionalFormattingOf,
   configAloneProblems,
@@ -16,6 +20,7 @@ import {
   figureConfigShapeSchema,
   type FigureType,
   rollupOfLayout,
+  shownValueProps,
   type Slot,
   slotEntries,
   type TimeseriesMode,
@@ -61,19 +66,21 @@ export function problemKey(problem: FigureConfigProblem): string {
   return JSON.stringify(problem);
 }
 
-// What the checks read of a metric.
-export type FigureMetric = Pick<
-  ResultsValue,
-  | "id"
-  | "valueProps"
-  | "formatAs"
-  | "disaggregationOptions"
-  | "mostGranularTimePeriodColumnInResultsFile"
-  | "valueFunc"
-  | "postAggregationExpression"
-  | "catalogExpressionEvaluation"
-  | "hasFacilityLevelRows"
->;
+// What the checks read of a metric. Written out, not picked from the app's
+// metric type, so the validator imports only files that import nothing else
+// of the app's and a module build can run it; derive.ts checks that the app's
+// metric is one.
+export type FigureMetric = RollupEligibilityInputs & {
+  id: string;
+  valueProps: readonly string[];
+  formatAs: "percent" | "number" | "indicator";
+  disaggregationOptions: readonly {
+    value: Dim;
+    isRequired: boolean;
+    allowedPresentationOptions?: readonly FigureType[];
+  }[];
+  mostGranularTimePeriodColumnInResultsFile?: PeriodOption;
+};
 
 // The band reads its series by position, so it shows exactly these, in order.
 export const BAND_VALUE_PROPS = ["observed", "expected", "ppi_lwr", "ppi_upr"];

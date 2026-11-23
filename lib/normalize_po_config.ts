@@ -10,10 +10,8 @@ import {
   PERIOD_DISAGGREGATION_OPTIONS,
 } from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
-import {
-  inferPeriodFormatFromValue,
-  periodFilterSchema,
-} from "./types/_metric_installed.ts";
+import { periodFilterSchema } from "./types/_metric_installed.ts";
+import { inferPeriodFormatFromValue } from "./types/period_options.ts";
 import { MULTI_MEMBERSHIP_FILTER_COLUMNS } from "./validate_fetch_config.ts";
 import type { FigureBlock, JsonArrayItem } from "./types/_figure_bundle.ts";
 import type { ContentBlock, Slide } from "./types/slides.ts";

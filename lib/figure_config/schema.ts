@@ -15,7 +15,7 @@ import {
   ALL_DISAGGREGATION_OPTIONS,
   type DisaggregationOption,
 } from "../types/disaggregation_options.ts";
-import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
+import { inferPeriodFormatFromValue } from "../types/period_options.ts";
 import type { FigureConfigProblem } from "./validate.ts";
 
 // The figure config: the one description of a figure. `type` decides every
@@ -452,6 +452,17 @@ export function rollupOfLayout(
   return config.type === "map" || config.type === "pie"
     ? undefined
     : config.layout.rollup;
+}
+
+// The value props the figure shows, in the metric's order.
+export function shownValueProps(
+  config: FigureConfigBody,
+  metricValueProps: readonly string[],
+): string[] {
+  const named = config.data.valueProps;
+  return named === undefined
+    ? [...metricValueProps]
+    : metricValueProps.filter((v) => named.includes(v));
 }
 
 export function conditionalFormattingOf(

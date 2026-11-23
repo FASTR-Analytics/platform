@@ -5,3 +5,6 @@ export * from "./convert.ts";
 export * from "./settings_key.ts";
 export * from "./gate.ts";
 export * from "./starting_config.ts";
+export * from "./change_type.ts";
+export * from "./describe_problem.ts";
+export * from "./diff.ts";

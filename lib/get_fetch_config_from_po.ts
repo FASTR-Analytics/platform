@@ -28,7 +28,7 @@ import type { PresentationObjectConfig } from "./types/_presentation_object_conf
 import {
   inferPeriodFormatFromValue,
   type PeriodOption,
-} from "./types/_metric_installed.ts";
+} from "./types/period_options.ts";
 import type { ResultsValue } from "./types/modules.ts";
 import type { APIResponseWithData } from "./types/instance.ts";
 import { getCalendar } from "./translate/mod.ts";

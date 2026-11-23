@@ -25,7 +25,7 @@ import { INDICATOR_DISAGGREGATION_OPTIONS } from "../types/disaggregation_option
 import {
   inferPeriodFormatFromValue,
   periodOption,
-} from "../types/_metric_installed.ts";
+} from "../types/period_options.ts";
 import { getFiltersWithReplicant } from "../get_fetch_config_from_po.ts";
 import { isSampleNProp, sampleNProp } from "../sample_n.ts";
 import { csvCell } from "../utils.ts";

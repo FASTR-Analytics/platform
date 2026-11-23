@@ -1,4 +1,4 @@
-import type { PeriodOption } from "./types/_metric_installed.ts";
+import type { PeriodOption } from "./types/period_options.ts";
 
 // Re-express a self-identifying period value into `target`'s format. Source
 // format is disjoint by digit length: year YYYY (4) / quarter_id YYYYQ (5) /
