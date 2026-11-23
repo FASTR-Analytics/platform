@@ -1,6 +1,6 @@
 # PLAN: The figure config
 
-Status: THE CONFIG IS DESIGNED AND RULED (2026-11-20). THE VALIDATOR, THE EDITOR'S GATE AND THE STALE CHECK ARE RULED (2026-11-22). Step 1 designed the config (§2), tested it (§1.7) and took Tim's rulings (§3). Step 2 settled where the validator and the renderer disagree, ran the editor's rule and saw it replaced by one gate at the editor's write, and settled the stale check (rulings 12, 17 and 18, §1.10). How two people's edits combine is not designed (ruling 16). Step 3 wrote the Surfaces of the code steps (2026-11-22), which start with step 4. Step 4 gave panther the leaf schemas the config imports (2026-11-22, §2.5). Step 5 built the schema, the validator, the conversion and what §2 derives from a config in `lib/figure_config/`, which nothing the app runs reads yet (2026-11-22).
+Status: THE CONFIG IS DESIGNED AND RULED (2026-11-20). THE VALIDATOR, THE EDITOR'S GATE AND THE STALE CHECK ARE RULED (2026-11-22). Step 1 designed the config (§2), tested it (§1.7) and took Tim's rulings (§3). Step 2 settled where the validator and the renderer disagree, ran the editor's rule and saw it replaced by one gate at the editor's write, and settled the stale check (rulings 12, 17 and 18, §1.10). How two people's edits combine is not designed (ruling 16). Step 3 wrote the Surfaces of the code steps (2026-11-22), which start with step 4. Step 4 gave panther the leaf schemas the config imports (2026-11-22, §2.5). Step 5 built the schema, the validator, the conversion and what §2 derives from a config in `lib/figure_config/`, which nothing the app runs reads yet (2026-11-22). The tests run before the cutover (§1.11) added step 6, on Tim's word, and the steps after it moved up by one (2026-11-23).
 
 **The objective.** [TIM, 2026-11-19] "we essentially optimise PresentationObjectConfig as the best possible stored JSON-only config object, that gives us the best possible shape for creating the figures we want in wb-fastr in a way that works for AI too". [TIM] "then the only other schema is panther's on figure schema, and we have a conversion func as part of this lib". So `PresentationObjectConfig` is redesigned as the one description of a figure in this app: what is stored, what the editor and the presets write, and what the copilot states and reads. [TIM, 2026-11-22] "this plan is about reshaping the stored poConfig type so that it the shape/type is clearer, easier to understand, and less prone to errors." Statements in this file are marked by kind (§0). Nothing here is a design decision except this objective and the rulings of §3.
 
@@ -10,7 +10,7 @@ Branch: `main`. Repos: this one; `wb-fastr-modules` (`/Users/timroberton/project
 
 ## §0 How to work this plan
 
-The instruction is "Do the next step of PLAN_03_FIGURE_CONFIG.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 8. Steps 2 and 3 write in this file. Step 4 is worked in panther and ends with a sync commit here. Step 5 is this repo. Step 6 is this repo and `wb-fastr-modules`. Steps 7 and 8 are this repo.
+The instruction is "Do the next step of PLAN_03_FIGURE_CONFIG.md." Branch, floor, conditional gates, reading order and the review cadence are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md). The log is §6. The last step is 9. Steps 2 and 3 write in this file. Step 4 is worked in panther and ends with a sync commit here. Steps 5 and 6 are this repo. Step 7 is this repo and `wb-fastr-modules`. Steps 8 and 9 are this repo.
 
 ### The kinds of statement in this file
 
@@ -24,6 +24,7 @@ The instruction is "Do the next step of PLAN_03_FIGURE_CONFIG.md." Branch, floor
 - **[RUN3]**: measured on 2026-11-22 by the agent that worked step 2 as §4 words it ("the second step-2 agent"), with step 1's prototype and scripts of its own kept outside the repos, or read in the code by that agent on that day. A count is of that day.
 - **[LISTED]**: reported on 2026-11-22 by an agent that was given no design and asked to list every place that draws a stored figure, marks one stale or writes its rows. Not read again by the second step-2 agent unless the line says [RUN3].
 - **[ATTACK3]**: reported on 2026-11-22 by an independent agent that was given the second step-2 agent's proposal and told to refute it. Not rerun by the second step-2 agent unless the line says [RUN3]. A proposal in such a line is that agent's opinion.
+- **[RUN4]**: measured on 2026-11-23, after step 5 and before step 6, by the agent that tested the cutover on Tim's word ("the pre-cutover agent"), with scripts kept outside the repos, or read in the code by that agent on that day. A count is of that day. Production was read with SELECT, `ls`, `cat` and `jq` only, and nothing read from it was kept but counts and record ids.
 - **[TIM]**: Tim's words, quoted as typed.
 - **[ACCOUNT]**: what a quote of Tim's replied to. Written by an agent that was in that conversation, and not a quote. For §1.5 it is as an earlier version of this plan recorded it (`git show 46469d6f8:PLAN_03_COPILOT_FIGURES.md`, §2.1).
 - **_(proposed)_**: written by the agent the text names, or by the writing agent where it names none, and not heard from Tim. It stands unless Tim overrules it before the step that depends on it.
@@ -39,7 +40,7 @@ A heading's mark covers everything under it. A line's own mark overrides its hea
 - **slot**: where a dimension is laid out in a figure (today `disDisplayOpt`: row, col, series, replicant and so on; in §2 a key of `layout`).
 - **value props**: the columns of a metric that hold its numbers (`valueProps`). A figure that shows two or more lays them out on a slot, as if they were a dimension.
 - **effective**: said of a dimension on a slot that today's renderer lays out. `getEffectivePOConfig` ([normalize_po_config.ts:169](lib/normalize_po_config.ts#L169)) leaves out a dimension filtered to one value, and one that holds one value or one period in the figure's rows.
-- **the conversion**: the function that turns a stored `{ d, s, t }` into §2's config (§2.6).
+- **the conversion**: the function that turns a stored `{ d, s, t }` into §2's config (§2.4).
 - **whole-figure check**: a check over a figure's config and its metric together, run on the whole figure and never only on what a call changed. §2.2 names three kinds by what each needs: the config alone, the metric, the data.
 - **the validator**: the checks that need the config alone and the metric, as one function of a config and its metric that returns its problems. [TIM] "For AI, isn't it as simple as a validator?"
 - **problem**: one thing the validator finds wrong: its kind and what it names (a dimension, a slot, a mode). Two configs' problems can be compared.
@@ -305,6 +306,35 @@ Step 2 was worked again on 2026-11-22 as §4 words it. Each line is [RUN3] unles
 - [ATTACK3] Two metrics can hold one such key: 908 of the 9,763 distinct keys of the stored figures are held by figures of two or more metrics. In the shared document the metric id is on the rows' side ([figure_entry_crdt.ts:27-31](lib/collab/figure_entry_crdt.ts#L27-L31), read by [RUN3]).
 - [ATTACK3] The editor writes the config at the press and the rows when the fetch ends ready ([figure_editor.tsx:389-429](client/src/components/_shared/figure_editor/figure_editor.tsx#L389-L429)). At Back after a failed fetch the host alerts and writes nothing ([slide_editor.tsx:1100-1103](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx#L1100-L1103), read by [RUN3]).
 - [ATTACK3] The retired-metric carry changes the key of 7,571 of the 16,674 carried figures. It runs only where a whole bundle is then written.
+
+### 1.11 What the tests before step 6 measured
+
+Run on 2026-11-23, after step 5, on Tim's word. Each line is [RUN4].
+
+**What the modules repo can copy**
+
+- For typechecking, `lib/figure_config/schema.ts` and `validate.ts` reach 87 files of `lib` and the whole panther barrel: 697 files. `lib/rollup.ts` alone reaches 81, through its type import from `_metric_installed.ts`. Their direct imports: `schema.ts` imports `@timroberton/panther`, `rollup.ts`, `disaggregation_options.ts` and `_metric_installed.ts` (`inferPeriodFormatFromValue`); `validate.ts` imports `special_chart_metrics.ts`, `types/modules.ts`, `validate_fetch_config.ts` (`FILTER_ONLY_DISAGGREGATION_OPTIONS`), `rollup.ts` and `derive.ts` (`shownValueProps`). Panther's `_150_figure_schema/leaves.ts` and `_151_long_table_schema/filters.ts` import only zod. Its `_000_utils/periods.ts` imports only `assert.ts` and `translate.ts`, which import nothing.
+- The modules repo's CI (`.github/workflows/validate.yml`) runs `.validation/validate_definitions.ts` on a checkout of that repo alone.
+- In a copy of the modules repo with zod raised from `^3.22.4` to `^4.6.0`, `deno task typecheck` passes, `deno task build` writes the 8 `definition.json` files byte for byte as before, and the validation passes. `review_ai_text/render_ai_view.ts` fails its typecheck (TS2367) under both versions.
+- `lint:structure` fails on a client file that `app.tsx` and `routes/` do not reach ([lint_structure.ts:516](lint_structure.ts#L516)). So no client file can be added before something imports it.
+
+**The copilot**
+
+- `createAITool` accepts `{ metricId, config }` with `figureConfigSchema` as the config, closed at every level. Its input schema is 16,270 characters. The API's token count accepts the tool: one such tool adds 8,922 input tokens on `claude-sonnet-5-5`, and five add 43,476.
+- `claude-sonnet-5-5` at effort high, given a preset's config in §2's shape and one request, and told to restate the whole config through that tool: 50 presets, 168 requests (a new title, a period, data labels or decimal places, and for every second preset a change to a table or a chart). 167 answers used the tool. Every one parsed and added no validator problem, and none changed a text, a colour or a style field it was not asked to. Of the 13 requests "Show only the year 2021." on yearly data, 9 answers replaced the period filter with a filter of `year` to 2021, and 1 wrote a monthly range, which the validator refuses.
+
+**What today's drawing reads that the conversion drops**
+
+- Each stored style field changed alone, on 250 configs (every preset, and each preset changed by today's `convertVisualizationType` to every other type), drawn by today's `buildFigureInputs` to a PNG over made rows. The fields whose change alters the PNG and leaves the converted config the same are `barsStacked` on a table, a map or a pie, and `seriesColorFuncPropToUse` on a pie. Today a figure of any type whose `content` is `bars` and whose `barsStacked` is true draws its legend reversed ([\_1_standard.ts:87](client/src/generate_visualization/get_style_from_po/_1_standard.ts#L87)), and a timeseries in a special mode so set stacks its rows ([build_figure_inputs.ts:187-190](client/src/generate_visualization/build_figure_inputs.ts#L187-L190)). No stored figure draws differently for either (below).
+
+**Production, 41 instances**
+
+- Live figures: 24,947. 24,945 convert and fit, and their settings key builds. The other 2 are the ghana maps of §2.4. A figure's own package (`provenance.runId`) holds its metric with data for 24,078. For 864 the package does not hold the metric, for 3 (rca) the package is gone, and for 2 (mauritanie) the metric's results object has no data.
+- The 24,078 convert to the same configs with their package's metric as with the local module definitions (step 5's source), wherever the metric is defined today. Converted from the bundle alone, 270 of them convert otherwise: 120 in `data`, 146 in `layout` and 4 in both. An afghanistan `m6-03-01` chart (slide `4gb/75d`) on yearly data has no date range in its bundle, so from the bundle alone it keeps `last 12 months`, where its metric gives `lastFull 1 year`. A burkinafaso `m6-02-01` timeseries (slide `q6q/8fy`) names its value props in its bundle by their French labels, and from the bundle alone it keeps a roll-up its metric cannot total.
+- Of the 869 whose own package lacks their metric, another package of the same instance holds it for 858, and with that package's metric 8 of them (haiti, slide deck `escb`) convert otherwise than from the bundle alone. No package of the instance holds it for 11 (demo, slide deck `4ys`). From the bundle alone, the conversion of 79 of the 869 depends on whether the data is yearly, and of 165 on whether the metric can be rolled up.
+- Version snapshots: 38,465 figures. 38,464 convert and fit after today's `transformFigureBlock`. The other is one of the ghana maps. 104 figure blocks have no bundle. For 1,419 the own package lacks the metric, and for 3 the package is gone.
+- The presets in the packages' manifests: 336 distinct. All parse with today's schema, convert and fit. 23 are on a results object with no data in their package and were not validated. 3 have a validator problem on their package's metric: liberia's `m6-02-01/coverage-bar` and `m6-03-01/coverage-bar` pool a required `year`, and sierraleone's `m11-02-01/disruption-table-admin-area-4` names `admin_area_4`, which its package does not hold. 24 manifests on disk are at schema version 11, 5 at 15 and 427 at 18.
+- Style on the stored figures' own rows: no live table or pie, no timeseries in a special mode, and no map that shows its legend holds `bars` with `barsStacked`. All 5,640 live tables hold `barsStacked: false`. The one stored pie holds the doughnut ratio the editor writes, 0.55, and draws the same coloured by series. Each style field changed alone on 30 distinct drawn figures of each type and mode (1 pie) found no other field that alters the PNG and leaves the converted config the same.
 
 ## §2 The model
 
@@ -657,7 +687,7 @@ Step 1 tested rulings 4 to 7 (§1.7). Step 2 ran the first rule of ruling 12 and
 
 ## §4 Steps
 
-Tim ruled that step 1 designs the config and writes the steps after it. What step 1 contains is the writing agent's _(proposed)_. Step 2 was added after step 1 on Tim's word, and redrawn on 2026-11-22 on his word (rulings 12, 16 and 17). Step 7 was added then (ruling 17). Step 2 was done on 2026-11-22, and the Deliverables and Gates of steps 5 to 7 were rewritten on its rulings (12, 17 and 18).
+Tim ruled that step 1 designs the config and writes the steps after it. What step 1 contains is the writing agent's _(proposed)_. Step 2 was added after step 1 on Tim's word, and redrawn on 2026-11-22 on his word (rulings 12, 16 and 17). The step of the stale check, now step 8, was added then (ruling 17). Step 2 was done on 2026-11-22, and the Deliverables and Gates of the code steps were rewritten on its rulings (12, 17 and 18). Step 6 was added on 2026-11-23 on Tim's word, after the tests of §1.11, so that the cutover builds on functions already tested: the cutover is now step 7, the stale check step 8 and the copilot's further reads step 9. The text of steps 1 to 5, which are done, names the later steps by their old numbers.
 
 ### Step 1: design the config (not code)
 
@@ -761,7 +791,7 @@ In this repo, the sync commit:
 
 ### Step 5: the schema, the checks and the conversion
 
-Repo: this one. Nothing the app runs reads the new schema until step 6.
+Repo: this one. Nothing the app runs reads the new schema until step 7.
 
 **Surface.**
 
@@ -808,7 +838,53 @@ Repo: this one. Nothing the app runs reads the new schema until step 6.
 
 **Ends with.** One commit.
 
-### Step 6: the cutover
+### Step 6: what the cutover builds on
+
+Repo: this one. Nothing the app runs reads what this step adds until step 7. It holds what step 7 needs that can be built and tested before the swap. The renderer's style from §2's config and the editor are step 7's, because `lint:structure` refuses a client file nothing imports (§1.11). The collab bridge is step 7's, because its file is today's bridge's, `lib/collab/figure_config_crdt.ts`.
+
+**Surface.**
+
+- `lib/types/period_options.ts` (new): the period option, its conversions to and from panther's period type, `inferPeriodFormatFromValue` and `inferPeriodFormatFromValuesIfTheSame`, moved out of `_metric_installed.ts`
+- `lib/types/value_func.ts` (new): `valueFuncStrict` and `ValueFunc`, moved out of `_metric_installed.ts`
+- `lib/types/_metric_installed.ts`
+- `lib/types/mod.ts`
+- `lib/types/disaggregation_options.ts` (gains `FILTER_ONLY_DISAGGREGATION_OPTIONS`)
+- `lib/validate_fetch_config.ts` (loses it)
+- `lib/rollup.ts` (`RollupEligibilityInputs` takes `ValueFunc` from its own file and reads the two expressions by presence)
+- `lib/figure_config/schema.ts` (gains `shownValueProps`)
+- `lib/figure_config/validate.ts` (`FigureMetric` written out, not picked from `ResultsValue`)
+- `lib/figure_config/derive.ts` (loses `shownValueProps`; checks that `ResultsValue` conforms to `FigureMetric`)
+- `lib/figure_config/starting_config.ts`
+- `lib/figure_config/change_type.ts` (new): §2.3's change of type
+- `lib/figure_config/describe_problem.ts` (new): the words of each problem, which the editor shows and the copilot's refusal returns
+- `lib/figure_config/diff.ts` (new): every field where two configs differ
+- `lib/figure_config/mod.ts`
+- each file that imports a name this step moves by a relative path
+- `server/runs/figure_metric_data.ts` (new): the metric data the conversion needs, for every stored figure of an instance
+- `server/db/migrations/data_transforms/figure_config.ts` (new): the conversion of a stored figure block
+- `server/tests/figure_config_closure_test.ts` (new)
+- `server/tests/figure_config_change_type_test.ts` (new)
+- `server/tests/figure_config_diff_test.ts` (new)
+- `server/tests/figure_config_block_test.ts` (new)
+- `server/tests/figure_config_render_test.ts` (new): every preset and Explore config drawn through panther's transforms
+- `SYSTEM_02_persistence.md`, `SYSTEM_08_results_packages.md`, `SYSTEM_11_viz_authoring.md` (manifests and prose for the new and moved files)
+
+**Deliverable.**
+
+- The schema and the validator import only zod, `@timroberton/panther`, each other and `lib/types/disaggregation_options.ts`, `period_options.ts`, `value_func.ts`, `lib/rollup.ts` and `lib/special_chart_metrics.ts`, which import nothing else of the app's. The panther names they import are all in panther's `_150_figure_schema/leaves.ts`, `_151_long_table_schema/filters.ts` and `_000_utils/periods.ts`. So `wb-fastr-modules` can copy them, with those three panther files, `assert.ts` and `translate.ts` (§1.11).
+- §2.3's change of type as a pure function of a config, a type and the metric.
+- The words of each problem kind, as a pure function whose switch over the kinds is exhaustive.
+- Every field where two configs differ, as a pure function.
+- The metric data of a stored figure: its own package's metric, as `enrichMetricFromManifest` reads the manifest's metric row and results object; else the newest other package of the instance that holds the metric with data; else the bundle's own value props, yearly when its date range is in years, and a roll-up kept. Each run's manifest is read once per use, not once per figure. On 2026-11-23 the three cases held 24,078, 858 and 11 of the 24,947 live figures (§1.11).
+- The conversion of a stored figure block, as a pure function of the block and its metric data: it converts the config as §2.4 says, passes a block already converted or with no bundle through unchanged, and makes a map with no admin-level `mapArea` an empty figure block, which it reports for the migration log.
+
+**Not in this step.** Any change to what is stored, read or drawn. The client. The collab bridge. The modules repo.
+
+**Gates.** The floor. The new tests: the import closure of `schema.ts` and `validate.ts` is the files above and their panther names are in the three panther files; the change of type puts each dimension where §2.3 says, and changing every preset and Explore config to every type its metric draws gives a config that fits the schema; the diff lists exactly the fields that differ; the metric data takes the own package's, else another package's, else the bundle's; the conversion of a block converts a stored one, passes a converted one and one with no bundle through unchanged, and empties a map with no area; every preset and every config `deriveViewConfig` gives, converted and laid out by `figureAxes`, drawn through panther's transforms over made rows, each also with each laid-out dimension held to one member, throws nowhere. Step 5's tests still pass.
+
+**Ends with.** One commit.
+
+### Step 7: the cutover
 
 Repos: this one and `wb-fastr-modules`.
 
@@ -816,8 +892,6 @@ Repos: this one and `wb-fastr-modules`.
 
 In this repo, `lib`:
 
-- `lib/figure_config/change_type.ts` (new): §2.3's change of type
-- `lib/figure_config/describe_problem.ts` (new): the words of each problem, which the editor shows and the copilot's refusal returns
 - `lib/figure_config/mod.ts`
 - `lib/mod.ts`
 - `lib/types/mod.ts`
@@ -918,7 +992,6 @@ In this repo, `server`, the root and the docs:
 - `server/server_only_funcs_presentation_objects/possible_values_core.ts` (a comment that names `filterBy`)
 - `server/tests/explore_query_test.ts`, `explore_views_test.ts`, `figure_bundle_schema_test.ts`, `indicator_metadata_for_read_test.ts`, `population_coverage_issue_test.ts`, `products_routes_test.ts`, `retired_metrics_test.ts`, `visualization_crdt_test.ts`, `run_manifest_transform_test.ts`, `copilot_prompt_test.ts`
 - `server/tests/figure_config_presets_test.ts` (step 5's comparison, on the app's own functions)
-- `server/tests/figure_config_render_test.ts` (new): every preset and Explore config drawn through panther's transforms
 - `server/tests/figure_editor_write_test.ts` (new): the write path and the gate
 - `server/tests/figure_config_crdt_test.ts` (new): two documents write at once, then undo
 - `query_rig/cases.ts`
@@ -936,7 +1009,7 @@ In `wb-fastr-modules`:
 - `m001/definition.json`, `m002/definition.json`, `m005/definition.json`, `m006/definition.json`, `m009/definition.json`, `m010/definition.json`, `m011/definition.json`, `m012/definition.json` (rebuilt by `deno task build`)
 - `_metrics_template.ts`
 - `.validation/_module_definition_github.ts`, `conditional_formatting_standalone.ts`, `cf_presets.ts`, `validate_definitions.ts`
-- `.validation/`: the copies `vendor_schema` makes of this app's schema and metric checks, of the files they import, and of panther's files of step 4 (new)
+- `.validation/`: the copies `vendor_schema` makes of step 6's schema, validator and the files they import, and of panther's `_150_figure_schema/leaves.ts`, `_151_long_table_schema/filters.ts`, `_000_utils/periods.ts`, `assert.ts` and `translate.ts`, with a file that exports those as `@timroberton/panther` (new)
 - `vendor_schema`
 - `build_definitions.ts`
 - `deno.json`, `deno.lock` (zod `^3.22.4` has neither `z.strictObject` nor `z.toJSONSchema`)
@@ -951,19 +1024,20 @@ In `wb-fastr-modules`:
 - The editor takes every press into the draft, shows the draft's problems in place of the preview, and writes the draft to its host and fetches rows for it only while step 5's gate passes it (ruling 12). Its controls are today's, with what §2.3 lists that the shape asks of them, and its change of type is §2.3's. The wizard inserts §2.3's starting config.
 - The renderer draws the value props on their one slot and judges an effective dimension by its members in the rows (§2.1), so the stored figures of §1.10 that throw on those two rules draw, but for the two that hold a validator problem: the chart with its value props on `series` and nothing on `indicator` still throws, and the band chart draws without its band.
 - The collab map carries the config as one value, with its metric id beside it (rulings 16 and 17). The editor's undo restores this person's last config over another writer's (`ignoreRemoteMapChanges`), so that an undo never leaves the map with no config (§1.9). `dropStorageInvalidTransients` is gone.
-- Every stored config is converted as §2.4 says: slides, reports, saved visualizations, version snapshots on read, and the presets in each package's manifest. A new migration clears stored `crdt_state`.
+- Every stored config is converted as §2.4 says, by step 6's conversion of a figure block with step 6's metric data: slides, reports, saved visualizations, version snapshots on read, and the presets in each package's manifest. A snapshot's figure block with no bundle (104 on 2026-11-23, §1.11) is passed through unchanged. A new migration clears stored `crdt_state`.
 - The fetch config carries §2's period filter, and the figure cache prefixes are bumped (ruling 10).
-- The copilot writes a figure through one input and reads back the same JSON, with a read that returns a metric's presets as configs (rulings 3 to 5). The app reads no `allowedFilters` (ruling 7).
-- In `wb-fastr-modules`: every preset is a complete config of §2's shape with translated texts and no `allowedFilters`; its vendored schema is this app's, with the panther files it imports; its build runs the schema and the metric checks on every preset; `DOC_VIZPRESET_STANDARDS.md` says so. Committed, not pushed (ruling 15).
+- The copilot writes a figure through one input and reads back the same JSON, with a read that returns a metric's presets as configs (rulings 3 to 5). A write of a figure returns every field that differs from the stored config (step 6's diff), so a change the model did not mean is seen (§1.7). The app reads no `allowedFilters` (ruling 7).
+- A package's presets, as the insert wizard lists them and as the copilot reads them, leave out a preset that has a validator problem on that package's metric (3 of 336 on 2026-11-23, §1.11).
+- In `wb-fastr-modules`: every preset is a complete config of §2's shape with translated texts and no `allowedFilters`; its vendored schema is step 6's files, with the panther files of `.validation/` above, which its import map names as `@timroberton/panther`; its build runs the schema and the metric checks on every preset; `DOC_VIZPRESET_STANDARDS.md` says so. Committed, not pushed (ruling 15).
 - The SYSTEM files and the protocols say what the code now does.
 
-**Not in this step.** The stale check of ruling 17 (step 7). The copilot's further reads and `get_metric_data`'s names (step 8). A repair of the stored figures of §1.7 that do not draw. Any other change to how the shared document or undo behaves (ruling 16).
+**Not in this step.** The stale check of ruling 17 (step 8). The copilot's further reads and `get_metric_data`'s names (step 9). A repair of the stored figures of §1.7 that do not draw. Any other change to how the shared document or undo behaves (ruling 16).
 
-**Gates.** The floor. `./validate_migrations`. `./validate_queries`. The tests the step adds or edits. Step 5's comparison test, now run on the app's own functions. Step 5's sweep. A committed test that draws every preset and every config `deriveViewConfig` gives through panther's transforms over made rows, each also with each laid-out dimension held to one member, and finds no throw. A committed test that the editor's write path passes a draft to its host only through step 5's gate. A committed test that writes a config to the collab map from two documents at once and then undoes, and finds that the map holds one of the two configs whole.
+**Gates.** The floor. `./validate_migrations`. `./validate_queries`. The tests the step adds or edits. Step 5's comparison test, now run on the app's own functions. Step 5's sweep. Step 6's tests. A committed test that the editor's write path passes a draft to its host only through step 5's gate. A committed test that writes a config to the collab map from two documents at once and then undoes, and finds that the map holds one of the two configs whole.
 
 **Ends with.** One commit here and one in `wb-fastr-modules`.
 
-### Step 7: a stored figure knows the settings its rows answer
+### Step 8: a stored figure knows the settings its rows answer
 
 Repo: this one. It follows the cutover so that it is written once, on §2's config, and it lands before anything ships (ruling 15).
 
@@ -997,7 +1071,7 @@ Repo: this one. It follows the cutover so that it is written once, on §2's conf
 
 **Ends with.** One commit.
 
-### Step 8: the copilot's further reads
+### Step 9: the copilot's further reads
 
 Repo: this one.
 
@@ -1009,15 +1083,11 @@ Repo: this one.
 - `lib/ai_tools/format_metrics_list_for_ai.ts` (its header names the read's input: "Required disaggregations are auto-included")
 - `lib/ai_tools/copilot_catalogue.ts` (the views and the gate of each new read)
 - `lib/ai_tools/build_system_prompt.ts` (the deck brief's steps for building a figure)
-- `lib/figure_config/diff.ts` (new): every field where two configs differ
-- `lib/figure_config/mod.ts`
 - `lib/ai_tools/content_validators.ts` (`validateAiMetricQuery` reads the names the input renames)
 - `client/src/components/instance/copilot_tools.ts`
-- `client/src/components/products/copilot/ai_tools/tools/figure_editor.ts`, `report_editor.ts`, `slides.tsx`, `update_figure.ts`, `update_slide.ts`, `slide_write_result.ts` (each write of a figure returns the diff)
 - `server/mcp/mcp_tools.ts`
 - `server/mcp/mcp_endpoint.ts` (its instructions name the package tools, which the two reads join)
 - `server/tests/format_metric_data_for_ai_test.ts`, `copilot_catalogue_test.ts`, `copilot_prompt_test.ts`
-- `server/tests/figure_config_diff_test.ts` (new)
 - `server/tests/figure_config_reads_for_ai_test.ts` (new): the starting config and the change of type as the copilot reads them
 - This file (§6's notes)
 - `SYSTEM_05_facilities_indicators.md` (note 2, the map areas that match no boundary), `SYSTEM_09_viz_query_cache.md` (note 13, `__BLANK`), `SYSTEM_10_figure_render_export.md` (notes 3, 4, 5, 9 and 10, which are how a figure draws), `SYSTEM_13_ai_assistant.md` (the copilot's reads, and notes 14 to 17): each where a note moves to Open items
@@ -1028,7 +1098,6 @@ Repo: this one.
 **Deliverable.**
 
 - `get_metric_data` takes `{ metricId, groupBy, valueProps, filters, periodFilter }` (ruling 6).
-- A write of a figure returns every field that differs from the stored config, so a change the model did not mean is seen (§1.7).
 - A read returns the wizard's starting config of §2.3 for a metric, a type and the dimensions chosen, and a read returns §2.3's change of type of a config to another type, so the model takes a style from the app.
 - Each of the 17 notes of §6 is closed by this plan, saying how, or moved to a SYSTEM file's Open items.
 - SYSTEM_13 and PROTOCOL_APP_AI_TOOLS.md say what the code now does.
@@ -1066,6 +1135,7 @@ Repo: this one.
 - Step 5's sweep reads slides, reports and saved visualizations and not the version tables, whose rows are older shapes that only the transform chain on read brings to today's schema.
 - Step 5's comparison counts as explained a figure on which today's renderer draws the value props on two axes, which throws today, a case §2.4 does not list, because it is one of the two renderer rules ruling 18 changes.
 - Step 5 keyed the four special-mode metric lists by mode in one `SPECIAL_CHART_METRICS` record instead of four constants, because the validator indexes the list by the config's mode.
+- Step 6 holds the cutover's functions in `lib` and `server`, and not the renderer's style from §2's config nor the collab bridge, which Tim was told on 2026-11-23 it would hold, because `lint:structure` refuses a client file nothing imports and the bridge's file is today's bridge's.
 
 ### NOTES FROM EXPERIMENT WITH AI AGENT IN sierraleone PROD INSTANCE
 
@@ -1073,40 +1143,80 @@ Developer request: figure-editor tools (AI assistant) Tested in the package figu
 
 Changes from my earlier notes:
 
-I dropped the “Mental health & psychosocial support” sub-category item and the pie-slice claims. I could not verify them. I downgraded the tall-image item, because the table is readable. I corrected the map item. A district-level map isn’t rejected for lacking a map dimension if an admin dimension is already disaggregated. It is rejected because no data areas match any boundaries. P1: Wrong or unverifiable output
+I dropped the “Mental health & psychosocial support” sub-category item and the pie-slice claims. I could not verify them. I downgraded the tall-image item, because the table is readable. I corrected the map item. A district-level map isn’t rejected for lacking a map dimension if an admin dimension is already disaggregated. It is rejected because no data areas match any boundaries.
 
-1. Roll-up is not in the config readback.
+P1: Wrong or unverifiable output
 
-Repro: with admin_area_2 as rowGroup, call update_figure_editor with {"rollupDimension":"admin_area_2","rollupPosition":"top"}. Then call get_figure_editor. Actual: the update result says “applied”. Neither the echo nor get_figure_editor shows any roll-up field. The render does show a “National” group at the top, and removing the roll-up removes it. Expected: a Roll-up: admin_area_2 (top) line, so an agent can verify state without an image. 2. HFA maps never render, although the package header says boundaries exist.
+Note 1. Roll-up is not in the config readback.
 
-Context: the header says boundary files exist for HFA at admin_area_2 and admin_area_3. Repro: set type: map with admin_area_2 as mapArea, then again with admin_area_3. Actual: “none of the 5 data areas matches one of the 16 boundaries” at district level. “none of the 16 data areas matches one of the 22 boundaries” at chiefdom level. Note: the cause is unverified. It looks like a name or ID mismatch between the HFA areas and the boundary files. Related: with an admin dimension already disaggregated, type: map auto-assigns mapArea. With none, the error is A map needs one dimension displayed as "mapArea"…. Earlier, from a pie config, the same situation gave a different message: “Map figure has no admin-area map dimension”. 3. Threshold colouring ignores indicator direction and unit.
+Repro: with admin_area_2 as rowGroup, call update_figure_editor with {"rollupDimension":"admin_area_2","rollupPosition":"top"}. Then call get_figure_editor. Actual: the update result says “applied”. Neither the echo nor get_figure_editor shows any roll-up field. The render does show a “National” group at the top, and removing the roll-up removes it. Expected: a Roll-up: admin_area_2 (top) line, so an agent can verify state without an image.
 
-Lower-is-better indicators are coloured as if higher is better: Water outage 0.0% is red. “Vaccine stockouts frequent or constant” 2.5% is red. Electricity outage 100.0% (Southern hospitals) is green. Non-percent values are coloured by the percent thresholds: “Index: PPE 66.7”, “Index: Diagnostics 47.1” and “Index: Vaccines 93.2” are all green. Expected: respect the declared direction and unit per indicator, or disable the colour scale where it can’t apply. 4. Chart type has no series key.
+Note 2. HFA maps never render, although the package header says boundaries exist.
 
-Repro: convert the table to a chart. admin_area_2 becomes series, giving five bars per panel. Actual: nothing identifies which bar is which district, and the only legend is the threshold colours. For comparison: the same config as a pie does show a district legend. Also: the x-axis label under every chart panel reads “value”. 5. Pie row labels overprint the first column of pies. For example, “Water source available” and “Water outage (last 7 days)” overlap the first pie.
+Context: the header says boundary files exist for HFA at admin_area_2 and admin_area_3. Repro: set type: map with admin_area_2 as mapArea, then again with admin_area_3. Actual: “none of the 5 data areas matches one of the 16 boundaries” at district level. “none of the 16 data areas matches one of the 22 boundaries” at chiefdom level. Note: the cause is unverified. It looks like a name or ID mismatch between the HFA areas and the boundary files. Related: with an admin dimension already disaggregated, type: map auto-assigns mapArea. With none, the error is A map needs one dimension displayed as "mapArea"…. Earlier, from a pie config, the same situation gave a different message: “Map figure has no admin-area map dimension”.
 
-P2: Behaviour that surprises 6. A stale replicant value survives a change of replicant dimension, and the error text misleads.
+Note 3. Threshold colouring ignores indicator direction and unit.
 
-Repro: replicating by hfa_category with medical_supplies selected, set disaggregateBy to replicate by hfa_sub_category without a value. Actual: Invalid replicant value "medical_supplies" (pass the id, not the label). The value is a valid id for the old dimension, so the hint is wrong. Also: sending selectedReplicantValue: null then fails with “needs a selected replicant value”. Expected: default to the first valid value, or say “the replicant dimension changed; pick one of…”. The valid-values list itself is helpful. 7. type: timeseries is accepted as an enum value but can never work on this metric.
+Lower-is-better indicators are coloured as if higher is better: Water outage 0.0% is red. “Vaccine stockouts frequent or constant” 2.5% is red. Electricity outage 100.0% (Southern hospitals) is green. Non-percent values are coloured by the percent thresholds: “Index: PPE 66.7”, “Index: Diagnostics 47.1” and “Index: Vaccines 93.2” are all green. Expected: respect the declared direction and unit per indicator, or disable the colour scale where it can’t apply.
 
-Actual: the first error is “Timeseries config missing timeseriesGrouping”. Then year, period_id and quarter_id each fail with “Available: none”. Expected: reject the type up front with “metric has no time period column”, as periodFilter already does. 8. null is rejected for footnote, caption and subCaption.
+Note 4. Chart type has no series key.
 
-Actual: each gives “expected string, received null”. "" works. Inconsistent with: selectedReplicantValue, valuesFilter, periodFilter and rollupDimension, which accept null. 9. A single-value column header is hidden. time_point has only “Round 1”. Its header disappears in both the col and colGroup slots.
+Repro: convert the table to a chart. admin_area_2 becomes series, giving five bars per panel. Actual: nothing identifies which bar is which district, and the only legend is the threshold colours. For comparison: the same config as a pie does show a district legend. Also: the x-axis label under every chart panel reads “value”.
 
-1. The legend format differs by replicant. It reads “≥ 80% / 70% – 80% / < 70%” for infrastructure, and “≥ 0.8 / 0.7 – 0.8 / < 0.7” for medical_supplies, while the cells show percentages.
+Note 5. Pie row labels overprint the first column of pies.
 
-P3: Error messages, schema and ergonomics 11. get_metric_data misreports a wrong disaggregations shape.
+For example, “Water source available” and “Water outage (last 7 days)” overlap the first pie.
 
-Repro: pass [{"disOpt":"hfa_category"}]. Actual: the error is “Invalid option: expected one of <the whole enum>”, with no hint that plain strings are expected. Context: update_figure_editor uses objects (disOpt and disDisplayOpt) in disaggregateBy and filterBy, so the two are easy to mix up. 12. A duplicated dimension gives an internal-jargon error. Using hfa_indicator in both row and col gives colProp and rowProp are both given dimension "hfa_indicator". Pre-validate on disOpt and use slot names.
+P2: Behaviour that surprises
 
-1. __BLANK leaks into user-facing values.
+Note 6. A stale replicant value survives a change of replicant dimension, and the error text misleads.
 
-Ownership: facility_ownership has the single value __BLANK. All 365 facilities for ind084 fall in it, yet it is advertised as an available dimension. Sub-category: the replicant list shows__BLANK ((Blank)), with doubled parentheses. Suggestion: hide empty dimensions and tidy the label. 14. Images are one-shot with no persistent text. The image result gives only the size (for example “1024×1198 px”). Please add a short text record, such as row and column counts, legend present or not, and truncated or scaled.
+Repro: replicating by hfa_category with medical_supplies selected, set disaggregateBy to replicate by hfa_sub_category without a value. Actual: Invalid replicant value "medical_supplies" (pass the id, not the label). The value is a valid id for the old dimension, so the hint is wrong. Also: sending selectedReplicantValue: null then fails with “needs a selected replicant value”. Expected: default to the first valid value, or say “the replicant dimension changed; pick one of…”. The valid-values list itself is helpful.
 
-1. Tall images are capped.
+Note 7. type: timeseries is accepted as an enum value but can never work on this metric.
 
-Repro: a 70-row table came back at 915×2046, narrower than the usual 1024. Actual: it was complete and legible, but it will degrade for longer tables. Suggestion: an option to paginate or crop. 16. There is no reset-to-preset or undo tool. After heavy testing the draft stays modified. The draft is currently a chart of medical supplies with the caption “TEST: tall table”. Closing the viewer discards it.
+Actual: the first error is “Timeseries config missing timeseriesGrouping”. Then year, period_id and quarter_id each fail with “Available: none”. Expected: reject the type up front with “metric has no time period column”, as periodFilter already does.
 
-1. The dimension enums are global. The tool schema lists year, month and so on for every metric. Per-metric validation exists and its message is good: “Disaggregation(s) not available for metric… Available: …”. Low priority.
+Note 8. null is rejected for footnote, caption and subCaption.
+
+Actual: each gives “expected string, received null”. "" works. Inconsistent with: selectedReplicantValue, valuesFilter, periodFilter and rollupDimension, which accept null.
+
+Note 9. A single-value column header is hidden.
+
+time_point has only “Round 1”. Its header disappears in both the col and colGroup slots.
+
+Note 10. The legend format differs by replicant.
+
+It reads “≥ 80% / 70% – 80% / < 70%” for infrastructure, and “≥ 0.8 / 0.7 – 0.8 / < 0.7” for medical_supplies, while the cells show percentages.
+
+P3: Error messages, schema and ergonomics
+
+Note 11. get_metric_data misreports a wrong disaggregations shape.
+
+Repro: pass [{"disOpt":"hfa_category"}]. Actual: the error is “Invalid option: expected one of <the whole enum>”, with no hint that plain strings are expected. Context: update_figure_editor uses objects (disOpt and disDisplayOpt) in disaggregateBy and filterBy, so the two are easy to mix up.
+
+Note 12. A duplicated dimension gives an internal-jargon error.
+
+Using hfa_indicator in both row and col gives colProp and rowProp are both given dimension "hfa_indicator". Pre-validate on disOpt and use slot names.
+
+Note 13. __BLANK leaks into user-facing values.
+
+Ownership: facility_ownership has the single value __BLANK. All 365 facilities for ind084 fall in it, yet it is advertised as an available dimension. Sub-category: the replicant list shows__BLANK ((Blank)), with doubled parentheses. Suggestion: hide empty dimensions and tidy the label.
+
+Note 14. Images are one-shot with no persistent text.
+
+The image result gives only the size (for example “1024×1198 px”). Please add a short text record, such as row and column counts, legend present or not, and truncated or scaled.
+
+Note 15. Tall images are capped.
+
+Repro: a 70-row table came back at 915×2046, narrower than the usual 1024. Actual: it was complete and legible, but it will degrade for longer tables. Suggestion: an option to paginate or crop.
+
+Note 16. There is no reset-to-preset or undo tool.
+
+After heavy testing the draft stays modified. The draft is currently a chart of medical supplies with the caption “TEST: tall table”. Closing the viewer discards it.
+
+Note 17. The dimension enums are global.
+
+The tool schema lists year, month and so on for every metric. Per-metric validation exists and its message is good: “Disaggregation(s) not available for metric… Available: …”. Low priority.
 
 Confirmed working, no change needed Atomic failures: a failed update leaves the draft unchanged (“No changes were applied”), and a following read confirmed it. Type conversion remaps slots and reports them: table to chart gave rowGroup → series and colGroup → cell chart to pie gave colGroup → indicator Per-type slot validation: each type gets its own valid-slot list. Valid values on rejection: errors list valid values for filters, replicants and dimensions, and replicant validation respects filters in the same call. Updates report no-ops explicitly: an identical update returns “no change (the stored config already matched)”. Guards that reject correctly: removing a required dimension valuesDisDisplayOpt on a single-value figure (chart type) periodFilter on a non-time metric a roll-up on a dimension that isn’t disaggregated Roll-up rendering: adding and removing a roll-up renders correctly. Parallel calls: several updates in one reply run in order and return separate results.
