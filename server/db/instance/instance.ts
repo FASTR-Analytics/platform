@@ -39,6 +39,7 @@ import {
 } from "./hfa_verification.ts";
 import { getIcehCacheHash } from "./dataset_iceh.ts";
 import { getScopeGrantsByEmail, otherUserFromRow } from "./users.ts";
+import { getTeamIdsByEmail } from "./teams.ts";
 
 export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
@@ -107,11 +108,18 @@ export async function getCountIndicatorsVersion(
 }
 
 export async function getInstanceUsers(mainDb: Sql): Promise<OtherUser[]> {
-  const [rows, grants] = await Promise.all([
+  const [rows, grants, teams] = await Promise.all([
     mainDb<DBUser[]>`SELECT * FROM users ORDER BY email`,
     getScopeGrantsByEmail(mainDb),
+    getTeamIdsByEmail(mainDb),
   ]);
-  return rows.map((row) => otherUserFromRow(row, grants.get(row.email) ?? []));
+  return rows.map((row) =>
+    otherUserFromRow(
+      row,
+      grants.get(row.email) ?? [],
+      teams.get(row.email) ?? [],
+    )
+  );
 }
 
 export async function getInstanceIndicatorsSummary(

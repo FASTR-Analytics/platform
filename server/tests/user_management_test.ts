@@ -345,6 +345,7 @@ Deno.test("the instance stream ends when an approved connection's user leaves th
     isGlobalAdmin: false,
     isHUser: false,
     scopeAccess: ALL_SCOPES,
+    teamIds: [],
     unlimitedAi: false,
     isContactPerson: false,
     lastActiveAt: null,
@@ -356,6 +357,7 @@ Deno.test("the instance stream ends when an approved connection's user leaves th
     currentUserIsGlobalAdmin: false,
     currentUserPermissions: userPermissions(false),
     currentUserScopeAccess: ALL_SCOPES,
+    currentUserTeamIds: [],
     products: [],
     folders: [],
   }, { allFolders: [] });

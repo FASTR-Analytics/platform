@@ -29,5 +29,7 @@ export const ADMIN_ROW_NEEDS_ADMIN =
 export const OWN_ROW_REFUSED =
   "You cannot change your own account. Ask an admin to do this.";
 export const SCOPE_ACCESS_ADMIN = "A global admin always has every scope";
+export const TEAM_SELF_ADD_REFUSED =
+  "You cannot add yourself to a team. Ask another user manager or an admin to do this.";
 export const COUNTRY_PROMPT_NEEDS_CONFIGURE =
   "Country prompts need the configure data permission";

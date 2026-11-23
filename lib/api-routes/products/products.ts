@@ -8,11 +8,17 @@ import { route } from "../route-utils.ts";
 // pre-restructure 3-char ids keep working beside newly minted 4-char ones.
 export const productIdParamsSchema = z.object({ product_id: z.string() });
 
-// A general access and a list of people, as the access dialog sends them.
+// A general access, a list of people and a list of teams, as the access
+// dialog sends them. `teamGrants` is required, never defaulted: a client that
+// does not know teams would otherwise replace a product's team grants with
+// none.
 export const productAccessBodySchema = z.object({
   defaultAccess: z.enum(["none", "view", "edit"]),
   grants: z.array(
     z.object({ email: z.string(), level: z.enum(["view", "edit"]) }),
+  ),
+  teamGrants: z.array(
+    z.object({ teamId: z.uuid(), level: z.enum(["view", "edit"]) }),
   ),
 });
 
@@ -102,9 +108,10 @@ export const productRouteRegistry = {
     response: {} as { productId: string; lastUpdated: string },
   }),
 
-  // Replaces the general access and the whole grant list in one
-  // transaction. Refuses a grant naming the owner, a grant naming an email
-  // with no users row, and a list naming one email twice.
+  // Replaces the general access and both grant lists, people and teams, in
+  // one transaction. Refuses a grant naming the owner, a grant naming an
+  // email with no users row or a team that does not exist, and a list naming
+  // one email or one team twice.
   setProductAccess: route({
     path: "/products/:product_id/access",
     method: "PUT",

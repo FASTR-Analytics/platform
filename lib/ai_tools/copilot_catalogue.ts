@@ -42,6 +42,7 @@ export const COPILOT_VIEW_IDS = [
   "assets",
   "users",
   "user",
+  "teams",
   "shell",
 ] as const;
 
@@ -334,6 +335,7 @@ export const COPILOT_VIEW_IDENTITY_PARTS = {
   assets: [],
   users: [],
   user: [],
+  teams: [],
   shell: [],
 } as const satisfies Record<CopilotViewId, readonly CopilotIdentityPart[]>;
 

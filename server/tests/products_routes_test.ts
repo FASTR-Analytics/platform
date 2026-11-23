@@ -81,6 +81,7 @@ function testGlobalUser(email: string, approved: boolean): GlobalUser {
     thisUserPermissions: userPermissions(false),
     unlimitedAi: false,
     scopeAccess: ALL_SCOPES,
+    teamIds: [],
   };
 }
 
@@ -287,15 +288,22 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       "owner",
       "runId",
       "scopeId",
+      "teamGrants",
       "type",
     ]);
     assertEquals(
       {
         owner: deckSummary.owner,
         defaultAccess: deckSummary.defaultAccess,
+        teamGrants: deckSummary.teamGrants,
         grants: deckSummary.grants,
       },
-      { owner: APPROVED_EMAIL, defaultAccess: "none", grants: [] },
+      {
+        owner: APPROVED_EMAIL,
+        defaultAccess: "none",
+        teamGrants: [],
+        grants: [],
+      },
     );
     const harnessScope = approvedState.data.scopes.find((sc) =>
       sc.id === areaScopeId

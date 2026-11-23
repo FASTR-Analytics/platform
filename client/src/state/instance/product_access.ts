@@ -2,6 +2,8 @@ import {
   type ProductLevel,
   productLevelAtLeast,
   productLevelFor,
+  productLevelTeamIds,
+  type ProductLevelUser,
   type ProductSummary,
 } from "lib";
 import { instanceState, productById } from "./t1_store";
@@ -18,10 +20,25 @@ export function productLevel(productId: string): ProductLevel {
 // For a caller that already holds the summary, such as a walk over the
 // products list, which would otherwise look each product up again.
 export function productSummaryLevel(product: ProductSummary): ProductLevel {
-  return productLevelFor(product, {
+  return productLevelFor(product, currentProductLevelUser());
+}
+
+// The connection's own user as productLevelFor reads one.
+export function currentProductLevelUser(): ProductLevelUser {
+  return {
     email: instanceState.currentUserEmail,
     isGlobalAdmin: instanceState.currentUserIsGlobalAdmin,
-  });
+    teamIds: instanceState.currentUserTeamIds,
+  };
+}
+
+// The names of the teams the connection's level on a product comes from, and
+// none when it holds the level without them (productLevelTeamIds).
+export function productLevelTeamLabels(product: ProductSummary): string[] {
+  const ids = productLevelTeamIds(product, currentProductLevelUser());
+  return instanceState.teams
+    .filter((team) => ids.includes(team.id))
+    .map((team) => team.label);
 }
 
 export function canEditProduct(productId: string): boolean {

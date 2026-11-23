@@ -81,6 +81,7 @@ import {
   getOpeningProductInstructions,
   getProductsInstructions,
   getResultsFileInstructions,
+  getTeamsInstructions,
   getUserInstructions,
   getUsersInstructions,
   PRODUCT_VIEW_ONLY_LINE,
@@ -772,6 +773,7 @@ export const copilotViews = defineAIViews(
     }),
     users: view({ label: "Users", instructions: () => getUsersInstructions() }),
     user: view({ label: "User", instructions: () => getUserInstructions() }),
+    teams: view({ label: "Teams", instructions: () => getTeamsInstructions() }),
     shell: view({ label: "No page open" }),
   } satisfies Record<CopilotViewId, AnyAIView>,
 );
@@ -813,6 +815,7 @@ export function restoreCopilotView(state: CopilotViewState): void {
     case "assets":
     case "users":
     case "user":
+    case "teams":
       copilotViewController.setView(state.id);
       return;
     case "opening_product":

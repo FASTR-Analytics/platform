@@ -86,12 +86,19 @@ export async function productAccessPolicy(
   return true;
 }
 
+// All a product's level and visibility read of a user: who they are, the
+// scopes they hold and the teams they are in.
+export type ProductViewer = Pick<
+  GlobalUser,
+  "email" | "isGlobalAdmin" | "scopeAccess" | "teamIds"
+>;
+
 // A user holds a level on a product when they hold its scope (an
 // unrestricted user holds every scope) and productLevelFor reaches the level:
 // scope and level are both required, the owner included. Seeing a product
 // is holding view.
 export function holdsProductLevel(
-  user: Pick<GlobalUser, "email" | "isGlobalAdmin" | "scopeAccess">,
+  user: ProductViewer,
   scopeId: ScopeId,
   access: ProductAccess,
   required: ProductLevel,

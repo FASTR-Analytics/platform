@@ -4,7 +4,6 @@ import {
   canUserSeeAsset,
   effectivePermissions,
   type Folder,
-  type GlobalUser,
   type InstanceSseMessage,
   type InstanceState,
   isRosterRow,
@@ -12,9 +11,11 @@ import {
   rosterForViewer,
   scopeAccessEqual,
   type ScopeId,
+  teamIdsEqual,
 } from "lib";
 import {
   holdsProductLevel,
+  type ProductViewer,
   visibleFolderIds,
 } from "../../auth/product_access.ts";
 import { listFolders } from "../../db/products/folders.ts";
@@ -32,9 +33,9 @@ export type InstanceSseFilterDeps = {
 export type InstanceSseFilterResult = {
   messages: InstanceSseMessage[];
   // The stream ends after these messages, and the client's reconnect
-  // rebuilds its payload: the connection's own scope access or admin flag
-  // changed, or a product it lost became visible again while its slide stamps
-  // were withheld.
+  // rebuilds its payload: the connection's own scope access, admin flag or
+  // teams changed, or a product it lost became visible again while its slide
+  // stamps were withheld.
   close: boolean;
 };
 
@@ -54,8 +55,8 @@ export type InstanceSseFilterResult = {
 //     flips them approved and fills the roster in one step. The starting
 //     payload applies the same rule (buildInstanceState).
 //   - Grounding: the same absent-from-roster test blanks `aiContext` on
-//     `config_updated` and drops `geojson_maps_updated`, as the starting
-//     payload withholds both.
+//     `config_updated` and drops `geojson_maps_updated` and `teams_updated`,
+//     as the starting payload withholds all three.
 //   - Product plane: the same absent-from-roster test drops
 //     `products_upserted` / `products_deleted` / `folders_updated` /
 //     `scopes_updated` / `last_updated`, matching the withholding
@@ -77,9 +78,11 @@ export type InstanceSseFilterResult = {
 //     (canUserSeeAsset, off the live admin flag), as buildInstanceState
 //     applies to the starting payload.
 //   - Grants: a RESTRICTED connection's scopes are cut to the granted ones.
-//   - A change to the connection's own scope access or admin flag ends the
-//     stream, and so does an approved connection's user leaving the roster
-//     (deleted): its reconnect is unapproved.
+//   - A change to the connection's own scope access, admin flag or teams
+//     ends the stream, and so does an approved connection's user leaving the
+//     roster (deleted): its reconnect is unapproved. A team change moves the
+//     level on every product that grants the team one, so the products the
+//     connection may see are rebuilt, as for a scope change.
 export type InstanceSseFilterStart = Pick<
   InstanceState,
   | "currentUserEmail"
@@ -87,6 +90,7 @@ export type InstanceSseFilterStart = Pick<
   | "currentUserIsGlobalAdmin"
   | "currentUserPermissions"
   | "currentUserScopeAccess"
+  | "currentUserTeamIds"
   | "products"
   | "folders"
 >;
@@ -95,10 +99,11 @@ export function createInstanceSseFilter(
   start: InstanceSseFilterStart,
   deps: InstanceSseFilterDeps,
 ): (msg: InstanceSseMessage) => InstanceSseFilterResult {
-  let viewer: Pick<GlobalUser, "email" | "isGlobalAdmin" | "scopeAccess"> = {
+  let viewer: ProductViewer = {
     email: start.currentUserEmail,
     isGlobalAdmin: start.currentUserIsGlobalAdmin,
     scopeAccess: start.currentUserScopeAccess,
+    teamIds: start.currentUserTeamIds,
   };
   let canSeeRunMessages = start.currentUserPermissions.can_view_data;
   let isApproved = start.currentUserApproved;
@@ -134,6 +139,7 @@ export function createInstanceSseFilter(
         email: viewer.email,
         isGlobalAdmin: me?.isGlobalAdmin ?? viewer.isGlobalAdmin,
         scopeAccess: me?.scopeAccess ?? viewer.scopeAccess,
+        teamIds: me?.teamIds ?? viewer.teamIds,
       };
       canSeeRunMessages = me !== undefined &&
         effectivePermissions(me).can_view_data;
@@ -141,7 +147,8 @@ export function createInstanceSseFilter(
       isApproved = me !== undefined;
       const changed = removed ||
         !scopeAccessEqual(next.scopeAccess, viewer.scopeAccess) ||
-        next.isGlobalAdmin !== viewer.isGlobalAdmin;
+        next.isGlobalAdmin !== viewer.isGlobalAdmin ||
+        !teamIdsEqual(next.teamIds, viewer.teamIds);
       viewer = next;
       return {
         messages: [
@@ -159,7 +166,9 @@ export function createInstanceSseFilter(
         data: { ...msg.data, aiContext: "" },
       });
     }
-    if (msg.type === "geojson_maps_updated") {
+    if (
+      msg.type === "geojson_maps_updated" || msg.type === "teams_updated"
+    ) {
       return isApproved ? pass(msg) : drop;
     }
     if (msg.type === "assets_updated") {

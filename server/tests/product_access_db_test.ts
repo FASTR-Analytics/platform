@@ -101,6 +101,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     return {
       owner: summary.owner,
       defaultAccess: summary.defaultAccess,
+      teamGrants: summary.teamGrants,
       grants: summary.grants,
     };
   }
@@ -118,12 +119,14 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
       assertEquals(await accessOf(id), {
         owner: OWNER,
         defaultAccess: "none",
+        teamGrants: [],
         grants: [],
       });
     }
     data(
       await setProductAccess(mainDb, report, {
         defaultAccess: "view",
+        teamGrants: [],
         grants: [{ email: VIEWER, level: "view" }],
       }),
     );
@@ -180,6 +183,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
       assertEquals(await accessOf(id), {
         owner: COPIER,
         defaultAccess: "none",
+        teamGrants: [],
         grants: [],
       });
     }
@@ -190,6 +194,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     const replaced = data(
       await setProductAccess(mainDb, report, {
         defaultAccess: "edit",
+        teamGrants: [],
         grants: [
           { email: VIEWER, level: "edit" },
           { email: EDITOR, level: "view" },
@@ -199,6 +204,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     const expected: ProductAccess = {
       owner: OWNER,
       defaultAccess: "edit",
+      teamGrants: [],
       grants: [
         { email: EDITOR, level: "view" },
         { email: VIEWER, level: "edit" },
@@ -214,12 +220,17 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
       string,
     ][] = [
       [
-        { defaultAccess: "none", grants: [{ email: OWNER, level: "edit" }] },
+        {
+          defaultAccess: "none",
+          teamGrants: [],
+          grants: [{ email: OWNER, level: "edit" }],
+        },
         PRODUCT_GRANT_IS_OWNER,
       ],
       [
         {
           defaultAccess: "none",
+          teamGrants: [],
           grants: [{ email: email("nobody"), level: "view" }],
         },
         PRODUCT_ACCESS_UNKNOWN_USER,
@@ -227,6 +238,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
       [
         {
           defaultAccess: "none",
+          teamGrants: [],
           grants: [
             { email: EDITOR, level: "view" },
             { email: EDITOR, level: "edit" },
@@ -244,6 +256,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     }
     const missing = await setProductAccess(mainDb, "zzzz", {
       defaultAccess: "none",
+      teamGrants: [],
       grants: [],
     });
     assertEquals(missing, { success: false, err: PRODUCT_NOT_FOUND });
@@ -257,6 +270,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     assertEquals(data(await setProductOwner(mainDb, report, EDITOR)), {
       owner: EDITOR,
       defaultAccess: "edit",
+      teamGrants: [],
       grants: [
         { email: OWNER, level: "edit" },
         { email: VIEWER, level: "edit" },
@@ -267,6 +281,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     assertEquals(data(await setProductOwner(mainDb, deck, VIEWER)), {
       owner: VIEWER,
       defaultAccess: "none",
+      teamGrants: [],
       grants: [],
     });
 
@@ -284,6 +299,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
       access: {
         owner: EDITOR,
         defaultAccess: "edit",
+        teamGrants: [],
         grants: [{ email: VIEWER, level: "edit" }],
       },
     }]);
@@ -314,12 +330,14 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     data(
       await setProductAccess(mainDb, inTop, {
         defaultAccess: "edit",
+        teamGrants: [],
         grants: [{ email: VIEWER, level: "edit" }],
       }),
     );
     const topStamp = await lastUpdatedOf(inTop);
     const bulk = {
       defaultAccess: "view" as const,
+      teamGrants: [],
       grants: [
         { email: VIEWER, level: "view" as const },
         { email: EDITOR, level: "edit" as const },
@@ -329,6 +347,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     assertEquals(
       await raiseFolderProductsAccess(mainDb, top, {
         ...bulk,
+        teamGrants: [],
         grants: [...bulk.grants, { email: email("nobody"), level: "view" }],
       }),
       { success: false, err: PRODUCT_ACCESS_UNKNOWN_USER },
@@ -336,6 +355,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     assertEquals(
       await raiseFolderProductsAccess(mainDb, top, {
         ...bulk,
+        teamGrants: [],
         grants: [...bulk.grants, { email: VIEWER, level: "edit" }],
       }),
       { success: false, err: PRODUCT_GRANT_DUPLICATE },
@@ -345,6 +365,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     assertEquals(await accessOf(inTop), {
       owner: OWNER,
       defaultAccess: "edit",
+      teamGrants: [],
       grants: [
         { email: COPIER, level: "edit" },
         { email: EDITOR, level: "edit" },
@@ -354,6 +375,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     assertEquals(await accessOf(inSub), {
       owner: EDITOR,
       defaultAccess: "view",
+      teamGrants: [],
       grants: [
         { email: COPIER, level: "edit" },
         { email: VIEWER, level: "view" },
@@ -362,6 +384,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     assertEquals(await accessOf(outside), {
       owner: OWNER,
       defaultAccess: "none",
+      teamGrants: [],
       grants: [],
     });
     assertEquals(await lastUpdatedOf(inTop), topStamp);
@@ -385,6 +408,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     data(
       await setProductAccess(mainDb, outside, {
         defaultAccess: "none",
+        teamGrants: [],
         grants: [{ email: GONE, level: "edit" }],
       }),
     );

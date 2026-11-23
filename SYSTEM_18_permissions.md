@@ -4,10 +4,14 @@ name: Permissions & Identity
 globs:
   - client/src/state/instance/permissions.ts
   - client/src/state/instance/product_access.ts
+  - client/src/state/instance/teams.ts
   - lib/permissions/**
+  - lib/types/teams.ts
   - server/auth/**
   - server/db/instance/rename_user_email.ts
+  - server/db/instance/teams.ts
   - server/db/instance/users.ts
+  - server/routes/instance/teams.ts
   - server/routes/instance/users.ts
   - server/tests/_harness/route_app.ts
   - server/tests/approval_test.ts
@@ -18,6 +22,7 @@ globs:
   - server/tests/product_level_test.ts
   - server/tests/project_access_match_test.ts
   - server/tests/scope_grants_routes_test.ts
+  - server/tests/teams_routes_test.ts
   - server/tests/user_management_test.ts
 docs_absorbed:
 ---
@@ -81,11 +86,11 @@ One module, exported through `lib/permissions/mod.ts` and the `lib` barrel, hold
 | `_labels.ts`           | `INSTANCE_PERMISSION_LABELS`                                                                                                                                                                                                         |
 | `_scope_access.ts`     | `ScopeAccess`, `ALL_SCOPES`, `scopeAccessOf(isAdmin, allScopes, grants)`, `canUseScope`, `scopeAccessEqual`                                                                                                                          |
 | `_user.ts`             | `GlobalUser`, `OtherUser`, `createDevGlobalUser`                                                                                                                                                                                     |
-| `_product_level.ts`    | `PRODUCT_LEVELS`, `ProductLevel`, `ProductAccessLevel`, `ProductAccess`, `ProductGrant`, `productLevelAtLeast`, `productLevelFor`                                                                                                    |
+| `_product_level.ts`    | `PRODUCT_LEVELS`, `ProductLevel`, `ProductAccessLevel`, `ProductAccess`, `ProductGrant`, `ProductTeamGrant`, `ProductLevelUser`, `productLevelAtLeast`, `productLevelFor`, `productLevelTeamIds`, `teamIdsEqual` ("Teams", below)    |
 | `_route_guard.ts`      | `RouteGuard`, `RouteGuardKind`, `GUARD`                                                                                                                                                                                              |
 | `_asset_visibility.ts` | `AssetPrivacy`, `canUserSeeAsset`, `canUserManagePrivateAsset`                                                                                                                                                                       |
 
-Four instance permissions: `can_configure_users`, `can_view_users`, `can_configure_data`, `can_view_data` (migration 046 removed `can_configure_assets`; 226 folded `can_configure_settings` into `can_configure_data` and `can_view_logs` into the two view flags: a package's module logs are package contents, the user activity log is the Users tab's). Product access is not one of them: it is per product, a level derived from the product's owner, general access and grants (`productLevelFor`), enforced by `productAccessPolicy` above.
+Four instance permissions: `can_configure_users`, `can_view_users`, `can_configure_data`, `can_view_data` (migration 046 removed `can_configure_assets`; 226 folded `can_configure_settings` into `can_configure_data` and `can_view_logs` into the two view flags: a package's module logs are package contents, the user activity log is the Users tab's). Product access is not one of them: it is per product, a level derived from the product's owner, general access, grants and team grants (`productLevelFor`), enforced by `productAccessPolicy` above.
 
 **`effectivePermissions` is the one derivation** of what a user may do from what is stored: a global admin holds every flag; configure implies view (`can_configure_data` implies `can_view_data`, `can_configure_users` implies `can_view_users`); a restricted user holds no flag, since every flag reaches instance-wide data or the roster. It is applied wherever a row becomes a user: `buildGlobalUserFromDb` (so `GlobalUser.thisUserPermissions` is effective), `buildInstanceState` and the SSE filter (the connection's `currentUserPermissions` and its run-telemetry entitlement) and the client's `updateCurrentUser`. A roster row (`OtherUser`, `otherUserFromRow`) carries the STORED bits, which is what the Users tab edits; a reader derives the effective ones. No file spells the key set: `userPermissions(false)` is the no-access object, `userPermissions(true)` the full one, and `pickUserPermissions(row)` reads the stored bits off any row-shaped source, with a missing or non-boolean column reading as false. Add a key in `_flags.ts` (the exhaustiveness check and every builder follow), never inline a permission string elsewhere.
 
@@ -118,9 +123,25 @@ The roster row reports a global admin as the guard derives one: on an open-acces
 
 Product ownership and grants (S12) name users by email with no foreign key, and the three paths that remove or move a `users` row keep them consistent. `deleteUser` deletes the rows and runs `dropAccessOfMissingUsers` in one transaction, so a deleted user's products become ownerless (admins still own every product) and their grants go. `batchUploadUsers` with replace-all deletes only the rows the file does not name and upserts the named ones, so a user it names keeps their flags, scope access, grants, tokens, prompts, asset metadata and logs, then runs the same sweep in its transaction; without replace-all it deletes no row and sweeps nothing. `renameUserEmailInMainDb` moves `products.owner` and `product_access.email` in the transaction that moves the users row, through `repointUserEmail`, which reads every foreign key to `users(email)` from `pg_constraint`. Each path returns the products it changed and its route re-broadcasts their summaries (`notifyInstanceProductsUpserted`).
 
+## Teams
+
+A team is a named group of users that a product can grant a level to (migration 231: `teams`, `team_members`, `product_team_access`). The grant belongs to the team, never to its members, so a member's level follows their membership: joining a team gives every level it holds, leaving it takes them away, and no write to a product is involved. A team carries levels only, never a scope and never ownership.
+
+**The level rule.** `productLevelFor(access, user)` is still the one derivation: a global admin and the owner hold `own`; everyone else holds the highest of the general access, their own grant and the grant of every team they are in (`ProductAccess.teamGrants`, `ProductTeamGrant`). The highest always wins, so a personal grant never holds a member below their team's level. `user` is a `ProductLevelUser`: the email, the admin flag and `teamIds`, the teams the user is in. The scope rule is untouched (`holdsProductLevel`): a restricted member who lacks the product's scope gets nothing from a team's grant. `productLevelTeamIds` names the teams a level comes from, and none when the owner, an admin, the general access or the user's own grant already gives it; the level badge's hover reads it.
+
+**Membership rides the roster.** `GlobalUser`, every `OtherUser` row and every `UserDirectoryEntry` carry `teamIds` (`getTeamIdsByEmail`, read for an admin too), and the client's `currentUserTeamIds` follows the connection's own row. So a membership change is a roster change, and every path that already reacts to a user's scope access reacts to their teams: `broadcastRosterAndCloseStaleCollab` closes a collab socket whose teams are no longer its user's (`closeConnectionsWithChangedAccess`, `teamIdsEqual`), and the instance stream ends when its own user's teams change, so its reconnect rebuilds the products the user may see (S3). The server's per-user level read (`getProductLevelRows`) returns the user's own grant and, in the same statement, the grants of the teams they are in. The team list itself (`Team`: id, label, description and `productCount`, the products that grant it a level across the instance) is `instanceState.teams`, whole on `teams_updated` (`notifyInstanceTeamsChanged`), sent to every approved connection: there is no list route.
+
+**Who writes a team.** Five routes (`lib/api-routes/instance/teams.ts`, `server/routes/instance/teams.ts`, `server/db/instance/teams.ts`), each `GUARD.permission("can_configure_users")`, which a restricted user never holds: `createTeam`, `updateTeam` (the label, the description and the whole member list), `deleteTeam`, `addTeamMembers` (adds only) and `removeTeamMembers`. A caller who is not a global admin never adds themselves to a team, by any of the three writes that add (403 `TEAM_SELF_ADD_REFUSED`); removing themselves is allowed, since it only lowers their access. The user-management rule's other half does not apply: a manager may name an admin's row, because membership changes nothing for an admin. Names are unique, case-insensitively (`TEAM_LABEL_TAKEN`), and a member is a `users` row (`TEAM_UNKNOWN_USER`). Every refusal is returned through the envelope before the transaction writes anything.
+
+**What a product grants a team.** `setProductAccess` and `setFolderProductsAccess` take `teamGrants` beside `grants` (S12 "Contract"); the body field is required, so a client that does not know teams gets a 400 instead of replacing a product's team grants with none. A grant naming a team that does not exist is refused (`PRODUCT_ACCESS_UNKNOWN_TEAM`), and so is a list naming one team twice (`PRODUCT_TEAM_GRANT_DUPLICATE`).
+
+**What keeps membership and grants consistent.** `team_members.email` is a foreign key to `users(email)` with a cascading delete, so a deleted user leaves every team and a rename moves the rows (`repointUserEmail` reads every foreign key to `users`). `product_team_access` cascades from both the product and the team: deleting a product drops its grants, and `deleteTeam` drops the team's memberships and every grant a product gave it, returning the products to re-broadcast. Every route that changes a team grant or deletes a product re-broadcasts the team list, whose `productCount` reads the grants.
+
+**The client.** `client/src/state/instance/teams.ts` holds the reads (`teamsOf`, `teamLabelsOf`, `teamMembers`, `personLabel`); the Teams editor, the users table's Teams column and bulk action and the user page's Teams card are S15's; the access dialog's team rows are S12's.
+
 ## The roster
 
-`rosterForViewer(users, viewerEmail)` (`lib/permissions/_roster.ts`) is the one projection of the roster for a connection: nothing while the viewer's row is absent (unapproved); every `OtherUser` row, stored flags included, for a holder of `can_view_users` (an admin included); otherwise `UserDirectoryEntry` rows (email, names, admin flag, scope access) with the viewer's own row whole, so the client derives its own permissions from it (`isRosterRow` tells the two apart). `buildInstanceState` applies it to the `starting` payload and the SSE forward filter to every `users_updated` (S3); the client store holds the union, the people pickers and sharing lists read directory fields (S12, S4), and the Users tab, which only roster-row holders reach, reads the roster rows. The `/mcp` grounding (`buildInstanceGrounding`) carries no roster at all (S13).
+`rosterForViewer(users, viewerEmail)` (`lib/permissions/_roster.ts`) is the one projection of the roster for a connection: nothing while the viewer's row is absent (unapproved); every `OtherUser` row, stored flags included, for a holder of `can_view_users` (an admin included); otherwise `UserDirectoryEntry` rows (email, names, admin flag, scope access, team ids) with the viewer's own row whole, so the client derives its own permissions from it (`isRosterRow` tells the two apart). `buildInstanceState` applies it to the `starting` payload and the SSE forward filter to every `users_updated` (S3); the client store holds the union, the people pickers and sharing lists read directory fields (S12, S4), and the Users tab, which only roster-row holders reach, reads the roster rows. The `/mcp` grounding (`buildInstanceGrounding`) carries no roster at all (S13).
 
 ## Permissions (write side)
 

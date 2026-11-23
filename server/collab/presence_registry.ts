@@ -10,6 +10,7 @@ import {
   type ScopeAccess,
   scopeAccessEqual,
   type ScopeId,
+  teamIdsEqual,
 } from "lib";
 
 // In-process presence registry for the collab WebSocket. Single-process only
@@ -33,6 +34,7 @@ type Conn = {
   // Fixed at connect time, like the rest of the socket's authorization.
   scopeAccess: ScopeAccess;
   isGlobalAdmin: boolean;
+  teamIds: string[];
   // The level this connection holds on each product it opened, view or
   // above, resolved once (routes/instance/collab.ts). Rooms do not check
   // membership on an update, so its edits and awareness are gated on this.
@@ -46,6 +48,7 @@ type Identity = {
   color: string;
   scopeAccess: ScopeAccess;
   isGlobalAdmin: boolean;
+  teamIds: string[];
 };
 
 /** How long after the last applied doc update a connection still counts as
@@ -97,6 +100,7 @@ export function addConnection(
     ws,
     scopeAccess: identity.scopeAccess,
     isGlobalAdmin: identity.isGlobalAdmin,
+    teamIds: identity.teamIds,
     productLevels: new Map(),
     entry: {
       connectionId,
@@ -305,6 +309,7 @@ export function closeConnectionsWhoseLevelChanged(
             productLevelFor(access, {
               email: conn.entry.email,
               isGlobalAdmin: conn.isGlobalAdmin,
+              teamIds: conn.teamIds,
             }),
           );
     },
@@ -313,12 +318,19 @@ export function closeConnectionsWhoseLevelChanged(
   );
 }
 
-/** Closes every connection whose scope access or admin flag differs from its
- *  user's row in `users`: a grant change, or an admin flag change, which
- *  changes the scope access and every product level. A connection whose user
- *  has no row was deleted, and closes too: its reconnect is refused. */
+/** Closes every connection whose scope access, admin flag or teams differ
+ *  from its user's row in `users`: a grant change, an admin flag change,
+ *  which changes the scope access and every product level, or a team
+ *  membership change, which changes the level on every product that grants
+ *  the team one. A connection whose user has no row was deleted, and closes
+ *  too: its reconnect is refused. */
 export function closeConnectionsWithChangedAccess(
-  users: { email: string; scopeAccess: ScopeAccess; isGlobalAdmin: boolean }[],
+  users: {
+    email: string;
+    scopeAccess: ScopeAccess;
+    isGlobalAdmin: boolean;
+    teamIds: string[];
+  }[],
   closeCode: number,
   reason: string,
 ): void {
@@ -328,7 +340,8 @@ export function closeConnectionsWithChangedAccess(
       const current = byEmail.get(conn.entry.email);
       return current === undefined ||
         !scopeAccessEqual(current.scopeAccess, conn.scopeAccess) ||
-        current.isGlobalAdmin !== conn.isGlobalAdmin;
+        current.isGlobalAdmin !== conn.isGlobalAdmin ||
+        !teamIdsEqual(current.teamIds, conn.teamIds);
     },
     closeCode,
     reason,

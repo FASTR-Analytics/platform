@@ -21,6 +21,7 @@ import {
 } from "../db/instance/config.ts";
 import { getStoredDhis2CredentialsInfo } from "../db/instance/instance_dhis2_credentials.ts";
 import { listScopes } from "../db/instance/scopes.ts";
+import { listTeams } from "../db/instance/teams.ts";
 import { getProductSummaries } from "../db/products/products.ts";
 import { _INSTANCE_COUNTRY_ISO3 } from "../exposed_env_vars.ts";
 
@@ -115,6 +116,20 @@ export async function notifyInstanceScopesChanged(mainDb: Sql): Promise<void> {
     return;
   }
   notifyInstanceUpdate({ type: "scopes_updated", data: { scopes: res.data } });
+}
+
+// Teams are few, so the whole list rides each change. The list is re-read
+// here, since each row carries the number of products that grant it a level:
+// every team write fires this, and so does every product route that changes a
+// team grant or deletes a product. The write has already committed, so a
+// failed re-read is logged and swallowed, as notifyInstanceScopesChanged does.
+export async function notifyInstanceTeamsChanged(mainDb: Sql): Promise<void> {
+  const res = await listTeams(mainDb);
+  if (!res.success) {
+    console.error(`[notify] team list broadcast failed: ${res.err}`);
+    return;
+  }
+  notifyInstanceUpdate({ type: "teams_updated", data: { teams: res.data } });
 }
 
 export function notifyInstanceFoldersUpdated(folders: Folder[]) {

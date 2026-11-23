@@ -10,6 +10,7 @@ import {
   type ProductGrant,
   type ProductGrantLevel,
   type ProductSummary,
+  type ProductTeamGrant,
   type ProductType,
   type ScopeId,
   t3,
@@ -19,6 +20,7 @@ import { tryCatchDatabaseAsync } from "../utils.ts";
 import {
   type DBProduct,
   type DBProductAccess,
+  type DBProductTeamAccess,
 } from "../instance/_main_database_types.ts";
 import { SCOPE_NOT_FOUND } from "../instance/scopes.ts";
 import { FOLDER_NOT_FOUND, requireFolderExists } from "./folders.ts";
@@ -57,6 +59,9 @@ export const PRODUCT_OWNER_LACKS_SCOPE =
   "The owner must have access to the product's scope";
 export const PRODUCT_ACCESS_UNKNOWN_USER =
   "Access can be given only to a user of this instance";
+export const PRODUCT_TEAM_GRANT_DUPLICATE = "Each team can be listed only once";
+export const PRODUCT_ACCESS_UNKNOWN_TEAM =
+  "Access can be given only to a team of this instance";
 
 const NEW_PRODUCT_LABELS: Record<ProductType, TranslatableString> = {
   slide_deck: {
@@ -144,11 +149,13 @@ const SUMMARY_BY_TYPE: Record<
 function rowToProductSummary(
   row: DBProductSummaryRow,
   grants: ProductGrant[],
+  teamGrants: ProductTeamGrant[],
 ): ProductSummary {
   return SUMMARY_BY_TYPE[row.type](rowToProductBase(row), row, {
     owner: row.owner,
     defaultAccess: row.default_access,
     grants,
+    teamGrants,
   });
 }
 
@@ -166,6 +173,30 @@ async function selectGrantsByProduct(
   const grants = new Map<string, ProductGrant[]>();
   for (const row of rows) {
     const grant = { email: row.email, level: row.level };
+    const held = grants.get(row.product_id);
+    if (held === undefined) {
+      grants.set(row.product_id, [grant]);
+    } else {
+      held.push(grant);
+    }
+  }
+  return grants;
+}
+
+// Each product's team grants, ordered by team id, read as selectGrantsByProduct
+// reads the people's.
+async function selectTeamGrantsByProduct(
+  sql: Sql,
+  productIds: string[],
+): Promise<Map<string, ProductTeamGrant[]>> {
+  const rows = await sql<DBProductTeamAccess[]>`
+    SELECT product_id, team_id, level FROM product_team_access
+    WHERE product_id = ANY(${productIds})
+    ORDER BY team_id
+  `;
+  const grants = new Map<string, ProductTeamGrant[]>();
+  for (const row of rows) {
+    const grant = { teamId: row.team_id, level: row.level };
     const held = grants.get(row.product_id);
     if (held === undefined) {
       grants.set(row.product_id, [grant]);
@@ -198,11 +229,18 @@ async function selectProductSummaries(
     ${productIds === null ? mainDb`` : mainDb`WHERE p.id = ANY(${productIds})`}
     ORDER BY p.last_updated DESC
   `;
-  const grants = await selectGrantsByProduct(
-    mainDb,
-    rows.map((r) => r.id),
+  const ids = rows.map((r) => r.id);
+  const [grants, teamGrants] = await Promise.all([
+    selectGrantsByProduct(mainDb, ids),
+    selectTeamGrantsByProduct(mainDb, ids),
+  ]);
+  return rows.map((row) =>
+    rowToProductSummary(
+      row,
+      grants.get(row.id) ?? [],
+      teamGrants.get(row.id) ?? [],
+    )
   );
-  return rows.map((row) => rowToProductSummary(row, grants.get(row.id) ?? []));
 }
 
 export async function listProducts(
@@ -578,6 +616,17 @@ function hasDuplicateEmail(grants: ProductGrant[]): boolean {
   return new Set(grants.map((g) => g.email)).size !== grants.length;
 }
 
+function hasDuplicateTeam(grants: ProductTeamGrant[]): boolean {
+  return new Set(grants.map((g) => g.teamId)).size !== grants.length;
+}
+
+// What both access writes take: a general access, the people and the teams.
+type ProductAccessArgs = {
+  defaultAccess: ProductDefaultAccess;
+  grants: ProductGrant[];
+  teamGrants: ProductTeamGrant[];
+};
+
 // The same test canUseScope applies to a user's scope access: an admin, an
 // open-access instance's every user and an unrestricted user hold every
 // scope; a restricted user holds their grants.
@@ -606,6 +655,16 @@ async function allUsersExist(sql: Sql, emails: string[]): Promise<boolean> {
   return known.length === new Set(emails).size;
 }
 
+// Share-locks the named teams rows, so a team deleted alongside cannot turn
+// the grant insert into a raw foreign-key error; true when every id names
+// one.
+async function allTeamsExist(sql: Sql, teamIds: string[]): Promise<boolean> {
+  const known = await sql<{ id: string }[]>`
+    SELECT id FROM teams WHERE id = ANY(${teamIds}) FOR SHARE
+  `;
+  return known.length === new Set(teamIds).size;
+}
+
 async function readProductAccess(
   sql: Sql,
   productId: string,
@@ -619,27 +678,33 @@ async function readProductAccess(
     throw new Error(PRODUCT_NOT_FOUND);
   }
   const grants = await selectGrantsByProduct(sql, [productId]);
+  const teamGrants = await selectTeamGrantsByProduct(sql, [productId]);
   return {
     owner: row.owner,
     defaultAccess: row.default_access,
     grants: grants.get(productId) ?? [],
+    teamGrants: teamGrants.get(productId) ?? [],
   };
 }
 
-// The general access and the whole grant list, replaced in one
-// transaction. The product row is locked, so the owner check and the write
-// see the same owner. No access write bumps last_updated: the content
+// The general access and both whole grant lists, people and teams, replaced
+// in one transaction. The product row is locked, so the owner check and the
+// write see the same owner. No access write bumps last_updated: the content
 // did not change.
 export async function setProductAccess(
   mainDb: Sql,
   productId: string,
-  args: { defaultAccess: ProductDefaultAccess; grants: ProductGrant[] },
+  args: ProductAccessArgs,
 ): Promise<APIResponseWithData<ProductAccess>> {
   return await tryCatchDatabaseAsync(async () => {
     if (hasDuplicateEmail(args.grants)) {
       return { success: false, err: PRODUCT_GRANT_DUPLICATE };
     }
+    if (hasDuplicateTeam(args.teamGrants)) {
+      return { success: false, err: PRODUCT_TEAM_GRANT_DUPLICATE };
+    }
     const emails = args.grants.map((g) => g.email);
+    const teamIds = args.teamGrants.map((g) => g.teamId);
     const result = await mainDb.begin(async (sql) => {
       const product = (
         await sql<Pick<DBProduct, "owner">[]>`
@@ -655,6 +720,9 @@ export async function setProductAccess(
       if (!(await allUsersExist(sql, emails))) {
         return PRODUCT_ACCESS_UNKNOWN_USER;
       }
+      if (!(await allTeamsExist(sql, teamIds))) {
+        return PRODUCT_ACCESS_UNKNOWN_TEAM;
+      }
       await sql`
         UPDATE products SET default_access = ${args.defaultAccess}
         WHERE id = ${productId}
@@ -663,6 +731,22 @@ export async function setProductAccess(
       if (args.grants.length > 0) {
         await sql`
           INSERT INTO product_access ${sql(grantRows(productId, args.grants))}
+        `;
+      }
+      await sql`
+        DELETE FROM product_team_access WHERE product_id = ${productId}
+      `;
+      if (args.teamGrants.length > 0) {
+        await sql`
+          INSERT INTO product_team_access ${
+          sql(
+            args.teamGrants.map((g): DBProductTeamAccess => ({
+              product_id: productId,
+              team_id: g.teamId,
+              level: g.level,
+            })),
+          )
+        }
         `;
       }
       return await readProductAccess(sql, productId);
@@ -721,16 +805,20 @@ export async function setProductOwner(
 // The bulk action: raises access on every product in the folder's
 // subtree at this moment, in one transaction, and never lowers it. General
 // access becomes the higher of its value and the chosen one, and each chosen
-// person's grant the higher of theirs and the chosen level; a person who owns
-// a product is skipped for it. Returns the products whose access changed.
+// person's or team's grant the higher of theirs and the chosen level; a
+// person who owns a product is skipped for it. Returns the products whose
+// access changed.
 export async function raiseFolderProductsAccess(
   mainDb: Sql,
   folderId: string,
-  args: { defaultAccess: ProductDefaultAccess; grants: ProductGrant[] },
+  args: ProductAccessArgs,
 ): Promise<APIResponseWithData<{ productIds: string[] }>> {
   return await tryCatchDatabaseAsync(async () => {
     if (hasDuplicateEmail(args.grants)) {
       return { success: false, err: PRODUCT_GRANT_DUPLICATE };
+    }
+    if (hasDuplicateTeam(args.teamGrants)) {
+      return { success: false, err: PRODUCT_TEAM_GRANT_DUPLICATE };
     }
     const lowerDefaults = PRODUCT_LEVELS.slice(
       0,
@@ -745,6 +833,9 @@ export async function raiseFolderProductsAccess(
       }
       if (!(await allUsersExist(sql, args.grants.map((g) => g.email)))) {
         return PRODUCT_ACCESS_UNKNOWN_USER;
+      }
+      if (!(await allTeamsExist(sql, args.teamGrants.map((g) => g.teamId)))) {
+        return PRODUCT_ACCESS_UNKNOWN_TEAM;
       }
       // Locked, so an owner cannot change between the skip and the insert.
       const subtree = await sql<{ id: string }[]>`
@@ -783,10 +874,26 @@ export async function raiseFolderProductsAccess(
             WHERE product_access.level = 'view' AND EXCLUDED.level = 'edit'
           RETURNING product_id
         `;
+      const raisedTeamGrants = args.teamGrants.length === 0
+        ? []
+        : await sql<{ product_id: string }[]>`
+          INSERT INTO product_team_access (product_id, team_id, level)
+          SELECT p.id, g.team_id, g.level
+          FROM products p,
+            unnest(
+              ${args.teamGrants.map((g) => g.teamId)}::text[],
+              ${args.teamGrants.map((g) => g.level)}::text[]
+            ) AS g(team_id, level)
+          WHERE p.id = ANY(${productIds})
+          ON CONFLICT (product_id, team_id) DO UPDATE SET level = EXCLUDED.level
+            WHERE product_team_access.level = 'view' AND EXCLUDED.level = 'edit'
+          RETURNING product_id
+        `;
       return [
         ...new Set([
           ...raisedDefaults.map((r) => r.id),
           ...raisedGrants.map((r) => r.product_id),
+          ...raisedTeamGrants.map((r) => r.product_id),
         ]),
       ];
     });
@@ -797,8 +904,8 @@ export async function raiseFolderProductsAccess(
 }
 
 // One product as one user's level needs it: its folder and scope, and its
-// access carrying only that user's grant, which is all productLevelFor reads
-// for them.
+// access carrying only that user's grant and the grants of the teams they are
+// in, which is all productLevelFor reads for them.
 export type ProductLevelRow = {
   productId: string;
   folderId: string | null;
@@ -811,7 +918,11 @@ type DBProductLevelRow =
     DBProduct,
     "id" | "folder_id" | "scope_id" | "owner" | "default_access"
   >
-  & { grant_level: ProductGrantLevel | null };
+  & {
+    grant_level: ProductGrantLevel | null;
+    team_view_ids: string[];
+    team_edit_ids: string[];
+  };
 
 function productLevelRowFromDb(
   row: DBProductLevelRow,
@@ -827,8 +938,41 @@ function productLevelRowFromDb(
       grants: row.grant_level === null
         ? []
         : [{ email, level: row.grant_level }],
+      teamGrants: [
+        ...row.team_view_ids.map((teamId): ProductTeamGrant => ({
+          teamId,
+          level: "view",
+        })),
+        ...row.team_edit_ids.map((teamId): ProductTeamGrant => ({
+          teamId,
+          level: "edit",
+        })),
+      ],
     },
   };
+}
+
+// The user's own grant and, as two arrays, the teams they are in that the
+// product grants view and edit: one statement, so a level is read from one
+// snapshot. Callers append their own WHERE over the alias `p`.
+function selectProductLevelRows(sql: Sql, email: string) {
+  const teamIdsAt = (level: ProductGrantLevel) =>
+    sql`
+      ARRAY(
+        SELECT pta.team_id FROM product_team_access pta
+        JOIN team_members tm
+          ON tm.team_id = pta.team_id AND tm.email = ${email}
+        WHERE pta.product_id = p.id AND pta.level = ${level}
+      )
+    `;
+  return sql`
+    SELECT p.id, p.folder_id, p.scope_id, p.owner, p.default_access,
+      pa.level AS grant_level,
+      ${teamIdsAt("view")} AS team_view_ids,
+      ${teamIdsAt("edit")} AS team_edit_ids
+    FROM products p
+    LEFT JOIN product_access pa ON pa.product_id = p.id AND pa.email = ${email}
+  `;
 }
 
 // The named products; an id that names no row is absent.
@@ -841,10 +985,7 @@ export async function getProductLevelRows(
     return [];
   }
   const rows = await mainDb<DBProductLevelRow[]>`
-    SELECT p.id, p.folder_id, p.scope_id, p.owner, p.default_access,
-      pa.level AS grant_level
-    FROM products p
-    LEFT JOIN product_access pa ON pa.product_id = p.id AND pa.email = ${email}
+    ${selectProductLevelRows(mainDb, email)}
     WHERE p.id = ANY(${productIds})
   `;
   return rows.map((row) => productLevelRowFromDb(row, email));
@@ -860,10 +1001,7 @@ export async function getProductLevelRowsInScopes(
     return [];
   }
   const rows = await mainDb<DBProductLevelRow[]>`
-    SELECT p.id, p.folder_id, p.scope_id, p.owner, p.default_access,
-      pa.level AS grant_level
-    FROM products p
-    LEFT JOIN product_access pa ON pa.product_id = p.id AND pa.email = ${email}
+    ${selectProductLevelRows(mainDb, email)}
     WHERE p.scope_id = ANY(${scopeIds})
   `;
   return rows.map((row) => productLevelRowFromDb(row, email));

@@ -38,6 +38,7 @@ import { routesIndicatorsDhis2 } from "./server/routes/instance/indicators_dhis2
 import { routesInstance } from "./server/routes/instance/instance.ts";
 import { routesRunGeneration } from "./server/routes/instance/run_generation.ts";
 import { routesScopes } from "./server/routes/instance/scopes.ts";
+import { routesTeams } from "./server/routes/instance/teams.ts";
 import { routesStructure } from "./server/routes/instance/structure.ts";
 import { routesUpload } from "./server/routes/instance/upload.ts";
 import { routesUsers } from "./server/routes/instance/users.ts";
@@ -161,6 +162,7 @@ app.route("/", routesCollab);
 app.route("/", routesStructure);
 app.route("/", routesRunGeneration);
 app.route("/", routesScopes);
+app.route("/", routesTeams);
 app.route("/", routesAssets);
 app.route("/", routesGeoJsonMaps);
 app.route("/", routesPopulation);

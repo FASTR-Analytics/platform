@@ -3,13 +3,15 @@ import type { ScopeAccess } from "./_scope_access.ts";
 import type { OtherUser } from "./_user.ts";
 
 // What every approved connection receives about a user: enough to name them
-// in a picker and to say whether a grant reaches them.
+// in a picker, to say whether a grant reaches them, and to say which teams
+// they are in.
 export type UserDirectoryEntry = {
   email: string;
   isGlobalAdmin: boolean;
   firstName?: string;
   lastName?: string;
   scopeAccess: ScopeAccess;
+  teamIds: string[];
 };
 
 export type RosterEntry = OtherUser | UserDirectoryEntry;
@@ -19,8 +21,9 @@ export function isRosterRow(entry: RosterEntry): entry is OtherUser {
 }
 
 export function directoryEntry(user: OtherUser): UserDirectoryEntry {
-  const { email, isGlobalAdmin, firstName, lastName, scopeAccess } = user;
-  return { email, isGlobalAdmin, firstName, lastName, scopeAccess };
+  const { email, isGlobalAdmin, firstName, lastName, scopeAccess, teamIds } =
+    user;
+  return { email, isGlobalAdmin, firstName, lastName, scopeAccess, teamIds };
 }
 
 // The roster a connection receives: nothing while its user is absent from

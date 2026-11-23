@@ -24,6 +24,7 @@ import type {
 } from "./population.ts";
 import type { Scope } from "./scope.ts";
 import type { AdminAreaLevel } from "./structure.ts";
+import type { Team } from "./teams.ts";
 import type {
   ReadyPackage,
   RunCatalogItem,
@@ -42,6 +43,7 @@ type PerConnectionKey =
   | "folders"
   | "readyPackages"
   | "scopes"
+  | "teams"
   | "lastUpdated"
   | "users"
   | "assets"
@@ -51,7 +53,8 @@ type PerConnectionKey =
   | "currentUserApproved"
   | "currentUserIsGlobalAdmin"
   | "currentUserPermissions"
-  | "currentUserScopeAccess";
+  | "currentUserScopeAccess"
+  | "currentUserTeamIds";
 
 // The instance facts every connection shares, and all the /mcp context cache
 // grounds on: no roster, no catalogue, no product plane.
@@ -96,6 +99,10 @@ export type InstanceState = {
   // and the client resolves the label, the area and the definition hash (the
   // cache-key token and the stale check) from here.
   scopes: Scope[];
+  // Every team, whole on `teams_updated`, for every approved connection: a
+  // product names the teams it grants by id, and the client resolves the
+  // name from here. Who is in a team is on the roster (`users[].teamIds`).
+  teams: Team[];
   lastUpdated: Record<LastUpdateTableName, Record<string, string>>;
   // Projected per connection by rosterForViewer (lib/permissions): [] for
   // an unapproved connection, directory rows for an approved one with its
@@ -181,6 +188,8 @@ export type InstanceState = {
   // The effective permissions (effectivePermissions), never the stored bits.
   currentUserPermissions: UserPermissions;
   currentUserScopeAccess: ScopeAccess;
+  // The teams the connection's user is in, which productLevelFor reads.
+  currentUserTeamIds: string[];
 };
 
 // ============================================================================
@@ -270,6 +279,9 @@ export type InstanceSseMessage =
   | { type: "products_deleted"; data: { ids: string[] } }
   | { type: "folders_updated"; data: { folders: Folder[] } }
   | { type: "scopes_updated"; data: { scopes: Scope[] } }
+  // Every team write, and every product write that changes how many products
+  // grant a team a level. Dropped for an unapproved connection.
+  | { type: "teams_updated"; data: { teams: Team[] } }
   | {
     type: "last_updated";
     data: {

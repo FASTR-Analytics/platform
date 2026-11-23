@@ -239,6 +239,7 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
     for (const product of [inside, outside]) {
       await ok(open, "PUT", `/products/${product.productId}/access`, {
         defaultAccess: "edit",
+        teamGrants: [],
         grants: [],
       });
     }

@@ -247,6 +247,12 @@ export function getUserInstructions(): string {
 The user is on one user's detail page (permissions and scope access). You are told nothing of that user: no name, no email. ${NO_PACKAGE_LINE}`;
 }
 
+export function getTeamsInstructions(): string {
+  return `# Current View: Teams
+
+The user is on the Teams page, where user managers group people into teams. A product can give a team view or edit access in its "Manage access" dialog, and every member holds that access for as long as they are in the team; a person's level on a product is the highest of the product's general access, their own grant and their teams' grants. You are told nothing of the teams or their members: no team names, no people. ${NO_PACKAGE_LINE}`;
+}
+
 // The HFA indicators manager's view: its own lines, then the guidance S5
 // supplies through the view's context (lib/hfa_indicator_guidance.ts).
 export function getHfaIndicatorsInstructions(guidance: string): string {

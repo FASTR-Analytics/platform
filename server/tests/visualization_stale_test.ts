@@ -25,6 +25,7 @@ function viz(
     lastUpdated: "1",
     owner: null,
     defaultAccess: "none",
+    teamGrants: [],
     grants: [],
     resolvedUnder,
   };

@@ -1,5 +1,5 @@
 import type { Folder, ProductSummary, ProductType } from "../types/products.ts";
-import { productLevelFor } from "../permissions/mod.ts";
+import { productLevelFor, type ProductLevelUser } from "../permissions/mod.ts";
 
 // The Products page as the model reads it (`list_products`): every product
 // the user can see, where it sits, what it renders from and what the user may
@@ -12,7 +12,7 @@ export type ProductsListForAI = {
   readyPackages: { id: string; label: string }[];
   // Each scope under the label the app shows it.
   scopes: { id: string; label: string }[];
-  user: { email: string; isGlobalAdmin: boolean };
+  user: ProductLevelUser;
 };
 
 const TYPE_LABELS: Record<ProductType, string> = {

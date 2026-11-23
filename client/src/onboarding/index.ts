@@ -22,6 +22,7 @@ import {
   buildInstanceResultsPackagesCatalogueTour,
   buildInstanceResultsPackagesTour,
   buildInstanceScopesTour,
+  buildInstanceUsersTeamsTour,
   buildInstanceUsersTour,
   buildInstanceWelcomeTour,
   buildModuleDefaultsTour,
@@ -35,12 +36,14 @@ import {
   buildSlideContentTour,
   buildSlideCoverTour,
   buildSlideSectionTour,
+  buildTeamsTour,
   buildVisualizationHistoryTour,
   buildVizEditorTour,
   tourLabels,
 } from "./tours";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
+import { can } from "~/state/instance/permissions";
 import { copilotViewController } from "~/components/instance/copilot/mod.ts";
 import {
   openVisualizationEditors,
@@ -101,6 +104,7 @@ export function setupTours(opts: {
     "hfa-indicator-editor": onPage("hfa_indicator_editor"),
     "instance-assets": onPage("assets"),
     "instance-users": onPage("users"),
+    teams: onPage("teams"),
     // Ahead of the product editors: the visualization editor opens over a
     // slide or a report and leaves the copilot's view as it was, so its
     // page reads the count the editor keeps while it is open for editing.
@@ -174,6 +178,14 @@ export function setupTours(opts: {
     { page: "hfa-indicator-editor", tour: buildHfaIndicatorEditorTour() },
     { page: "instance-assets", tour: buildInstanceAssetsTour() },
     { page: "instance-users", tour: buildInstanceUsersTour() },
+    // After the Users tour, so a new user manager gets both in one run; the
+    // button it points at renders only for a holder of can_configure_users.
+    {
+      page: "instance-users",
+      when: () => can("can_configure_users"),
+      tour: buildInstanceUsersTeamsTour(),
+    },
+    { page: "teams", tour: buildTeamsTour() },
     { page: "viz-editor", tour: buildVizEditorTour() },
     // A visualization product's own history: the editor over a slide or a
     // report has no History button.

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { COPILOT_TOOL_VIEWS, formatProductsListForAI } from "lib";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
+import { currentProductLevelUser } from "~/state/instance/product_access";
 import { instanceState } from "~/state/instance/t1_store";
 
 // The Products group: the products the user can see, which is what
@@ -29,10 +30,7 @@ export function getClientToolsForProducts() {
               id: s.id,
               label: scopeDisplayLabel(s),
             })),
-            user: {
-              email: instanceState.currentUserEmail,
-              isGlobalAdmin: instanceState.currentUserIsGlobalAdmin,
-            },
+            user: currentProductLevelUser(),
           }),
         ),
       inProgressLabel: () => "Listing products...",

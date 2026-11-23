@@ -92,6 +92,20 @@ export type DBProductAccess = {
   level: ProductGrantLevel;
 };
 
+export type DBTeam = {
+  id: string;
+  label: string;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type DBProductTeamAccess = {
+  product_id: string;
+  team_id: string;
+  level: ProductGrantLevel;
+};
+
 export type DBScope = {
   id: ScopeId;
   label: string;

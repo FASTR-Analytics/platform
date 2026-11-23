@@ -1900,6 +1900,134 @@ export function buildInstanceUsersTour(): TourDefinition {
   };
 }
 
+// ------------------------------------------------------------------ Teams
+
+// The Teams button on the Users page, as a tour of its own rather than a step
+// of the Users tour: a user manager who took that tour before teams existed
+// still gets this once, and a new one gets both in one run. The button
+// renders only for a holder of can_configure_users.
+export function buildInstanceUsersTeamsTour(): TourDefinition {
+  return {
+    id: "instance-users-teams",
+    steps: [
+      {
+        id: "teams",
+        target: tourTarget("instance-users-teams"),
+        title: t3({ en: "Teams", fr: "Équipes", pt: "Equipas" }),
+        body: t3({
+          en:
+            "Group people into teams here. You can then share a product with a whole team, and everyone in the team can open it, including people who join the team later. The Teams column shows which teams each user is in.",
+          fr:
+            "Regroupez ici des personnes en équipes. Vous pouvez ensuite partager un produit avec toute une équipe : tous ses membres peuvent l'ouvrir, y compris ceux qui la rejoignent plus tard. La colonne Équipes indique les équipes de chaque utilisateur.",
+          pt:
+            "Agrupe aqui pessoas em equipas. Pode depois partilhar um produto com uma equipa inteira, e todos os seus membros podem abri-lo, incluindo quem entrar na equipa mais tarde. A coluna Equipas mostra as equipas de cada utilizador.",
+        }),
+        placement: "bottom",
+        ...SKIP_IF_MISSING,
+      },
+    ],
+  };
+}
+
+// The Teams page, opened from the Users page as a full page of its own (view
+// `teams`). The member and product steps point at the selected team, so they
+// are skipped while no team exists.
+export function buildTeamsTour(): TourDefinition {
+  return {
+    id: "teams-intro",
+    steps: [
+      {
+        id: "list",
+        target: tourTarget("teams-list"),
+        title: t3({ en: "Teams", fr: "Équipes", pt: "Equipas" }),
+        body: t3({
+          en:
+            "A team is a group of people. Every team is listed here with the number of people in it. Click a team to open it.",
+          fr:
+            "Une équipe est un groupe de personnes. Chaque équipe est listée ici avec son nombre de membres. Cliquez sur une équipe pour l'ouvrir.",
+          pt:
+            "Uma equipa é um grupo de pessoas. Cada equipa está listada aqui com o número de membros. Clique numa equipa para a abrir.",
+        }),
+        placement: "right",
+      },
+      {
+        id: "new",
+        target: tourTarget("teams-new"),
+        title: t3({
+          en: "Create a team",
+          fr: "Créer une équipe",
+          pt: "Criar uma equipa",
+        }),
+        body: t3({
+          en:
+            "Click New team, give it a name, add the people who belong in it, then save.",
+          fr:
+            "Cliquez sur Nouvelle équipe, donnez-lui un nom, ajoutez les personnes qui en font partie, puis enregistrez.",
+          pt:
+            "Clique em Nova equipa, dê-lhe um nome, adicione as pessoas que dela fazem parte e depois guarde.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "members",
+        target: tourTarget("teams-members"),
+        title: t3({
+          en: "Add and remove people",
+          fr: "Ajouter et retirer des personnes",
+          pt: "Adicionar e remover pessoas",
+        }),
+        body: t3({
+          en:
+            "Add people with the search box and remove them with the cross. Nothing changes until you save. A person you add can open every product the team can access. A person you remove loses that access straight away, even in a document they have open.",
+          fr:
+            "Ajoutez des personnes avec la zone de recherche et retirez-les avec la croix. Rien ne change tant que vous n'avez pas enregistré. Une personne ajoutée peut ouvrir tous les produits accessibles à l'équipe. Une personne retirée perd cet accès immédiatement, même dans un document ouvert.",
+          pt:
+            "Adicione pessoas com a caixa de pesquisa e remova-as com a cruz. Nada muda até guardar. Uma pessoa adicionada pode abrir todos os produtos a que a equipa tem acesso. Uma pessoa removida perde esse acesso de imediato, mesmo num documento aberto.",
+        }),
+        placement: "left",
+        ...SKIP_IF_MISSING,
+      },
+      {
+        id: "products",
+        target: tourTarget("teams-products"),
+        title: t3({
+          en: "Share a product with a team",
+          fr: "Partager un produit avec une équipe",
+          pt: "Partilhar um produto com uma equipa",
+        }),
+        body: t3({
+          en:
+            "These are the products the team can open, with what it can do in each. To share a product with a team, open the product, choose Manage access and add the team the same way you add a person. If someone has access in more than one way, they get the highest.",
+          fr:
+            "Voici les produits que l'équipe peut ouvrir, avec ce qu'elle peut y faire. Pour partager un produit avec une équipe, ouvrez le produit, choisissez Gérer l'accès et ajoutez l'équipe comme vous ajoutez une personne. Si quelqu'un a accès de plusieurs façons, il obtient l'accès le plus élevé.",
+          pt:
+            "Estes são os produtos que a equipa pode abrir, com o que pode fazer em cada um. Para partilhar um produto com uma equipa, abra o produto, escolha Gerir o acesso e adicione a equipa tal como adiciona uma pessoa. Se alguém tiver acesso de mais de uma forma, fica com o mais elevado.",
+        }),
+        placement: "left",
+        ...SKIP_IF_MISSING,
+      },
+      {
+        id: "save",
+        target: tourTarget("teams-header"),
+        title: t3({
+          en: "Save or cancel",
+          fr: "Enregistrer ou annuler",
+          pt: "Guardar ou cancelar",
+        }),
+        body: t3({
+          en:
+            "Save appears here once you have changed a team; Cancel leaves it as it was. Deleting a team removes the access it gave to its members.",
+          fr:
+            "Enregistrer apparaît ici dès que vous avez modifié une équipe ; Annuler la laisse telle quelle. Supprimer une équipe retire l'accès qu'elle donnait à ses membres.",
+          pt:
+            "Guardar aparece aqui assim que altera uma equipa; Cancelar deixa-a como estava. Eliminar uma equipa remove o acesso que ela dava aos seus membros.",
+        }),
+        placement: "bottom",
+      },
+    ],
+  };
+}
+
 // ------------------------------------------------- Visualization history
 
 // A visualization product's own History button, beside Download in the

@@ -63,6 +63,7 @@ function product(
   const access: ProductAccess = {
     owner: null,
     defaultAccess: "view",
+    teamGrants: [],
     grants: [],
   };
   if (type === "slide_deck") {

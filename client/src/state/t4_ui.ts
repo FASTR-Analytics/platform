@@ -293,9 +293,9 @@ export const [pendingVisualizationOpen, setPendingVisualizationOpen] =
   createSignal(false);
 
 // The same pattern for the full-page views a tab opens over itself, which a
-// tour replay has to reach: module defaults (from the Results tab), and the
-// HFA indicators manager and its first indicator's code editor (from the Data
-// tab). The tab consumes the request by opening the view; the view itself
+// tour replay has to reach: module defaults (from the Results tab), the HFA
+// indicators manager and its first indicator's code editor (from the Data
+// tab), and Teams (from the Users tab). The tab consumes the request by opening the view; the view itself
 // clears it once its copilot view is set, so the manager's replay wait
 // (onboarding/index.ts) never sees the request gone before the page is
 // active. A request the tab cannot honour (no indicators to open) is cleared
@@ -303,7 +303,8 @@ export const [pendingVisualizationOpen, setPendingVisualizationOpen] =
 export type PendingSubPageOpen =
   | "module_defaults"
   | "hfa_indicators"
-  | "hfa_indicator_editor";
+  | "hfa_indicator_editor"
+  | "teams";
 export const [pendingSubPageOpen, setPendingSubPageOpen] = createSignal<
   PendingSubPageOpen | null
 >(null);

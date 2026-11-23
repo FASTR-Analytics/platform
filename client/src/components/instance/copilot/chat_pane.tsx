@@ -111,6 +111,7 @@ const PLACEHOLDERS: Record<CopilotViewId, TranslatableString> = {
   assets: ASK_ANYTHING,
   users: ASK_ANYTHING,
   user: ASK_ANYTHING,
+  teams: ASK_ANYTHING,
   shell: ASK_ANYTHING,
 };
 

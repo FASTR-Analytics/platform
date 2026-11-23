@@ -36,6 +36,7 @@ import {
 } from "~/components/instance/copilot/mod.ts";
 import { EditUserNameForm } from "./edit_user_name_form";
 import { UserScopesCard } from "./user_scopes";
+import { UserTeamsCard } from "./user_teams";
 import { can, canCallRoute, isGlobalAdmin } from "~/state/instance/permissions";
 
 type Props = {
@@ -312,6 +313,7 @@ function UserDetail(p: DetailProps) {
       >
         <UserScopesCard user={p.user} />
       </Show>
+      <UserTeamsCard user={p.user} />
       <Show when={canCallRoute("setUserUnlimitedAi")}>
         <Card
           header={t3({

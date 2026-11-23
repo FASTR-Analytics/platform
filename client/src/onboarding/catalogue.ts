@@ -903,5 +903,21 @@ export function getTourCatalogue(
       unavailableReason: reasonNoPageAccess,
       navigate: openTabOnly("users"),
     },
+    {
+      id: "teams-intro",
+      area: "instance",
+      label: t3({ en: "Teams", fr: "Équipes", pt: "Equipas" }),
+      description: t3({
+        en:
+          "Grouping people into teams and sharing a product with a whole team. Opens Teams on the Users tab.",
+        fr:
+          "Regrouper des personnes en équipes et partager un produit avec toute une équipe. Ouvre Équipes dans l'onglet Utilisateurs.",
+        pt:
+          "Agrupar pessoas em equipas e partilhar um produto com uma equipa inteira. Abre Equipas no separador Utilizadores.",
+      }),
+      available: () => can("can_configure_users"),
+      unavailableReason: reasonNoPageAccess,
+      navigate: openSubPage("users", "teams"),
+    },
   ];
 }

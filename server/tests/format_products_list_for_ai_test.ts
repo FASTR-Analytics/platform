@@ -50,12 +50,13 @@ function product(
     lastUpdated: "1",
     owner: null,
     defaultAccess: "view",
+    teamGrants: [],
     grants: [],
     ...overrides,
   };
 }
 
-const USER = { email: "ana@example.org", isGlobalAdmin: false };
+const USER = { email: "ana@example.org", isGlobalAdmin: false, teamIds: [] };
 const READY = [{ id: "run_a", label: "Package Jan 2026" }];
 const SCOPES = [{ id: ALL_DATA_SCOPE_ID, label: "All data" }];
 
@@ -72,6 +73,7 @@ Deno.test("a product row names its folder path, package, scope and level", () =>
         id: "p_nested",
         label: "Annual review",
         folderId: "f_2026",
+        teamGrants: [],
         grants: [{ email: USER.email, level: "edit" }],
       }),
       product({ id: "p_root", label: "Root deck" }),

@@ -106,6 +106,7 @@ export async function getScopeGrantsByEmail(
 export function otherUserFromRow(
   row: DBUser,
   grantedScopeIds: ScopeUuid[],
+  teamIds: string[],
 ): OtherUser {
   const isGlobalAdmin = _OPEN_ACCESS || row.is_admin;
   return {
@@ -119,6 +120,7 @@ export function otherUserFromRow(
     isContactPerson: row.is_contact_person,
     lastActiveAt: row.last_active_at?.toISOString() ?? null,
     scopeAccess: scopeAccessOf(isGlobalAdmin, row.all_scopes, grantedScopeIds),
+    teamIds,
     ...pickUserPermissions(row),
   };
 }

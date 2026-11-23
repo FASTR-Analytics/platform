@@ -25,6 +25,8 @@ export type GlobalUser = {
   thisUserPermissions: UserPermissions;
   unlimitedAi: boolean;
   scopeAccess: ScopeAccess;
+  // The teams the user is a member of, an admin included.
+  teamIds: string[];
 };
 
 // A roster row. It carries the STORED permission bits; a reader derives the
@@ -40,6 +42,7 @@ export type OtherUser = {
   isContactPerson: boolean;
   lastActiveAt: string | null;
   scopeAccess: ScopeAccess;
+  teamIds: string[];
 } & UserPermissions;
 
 export function createDevGlobalUser(
@@ -64,5 +67,6 @@ export function createDevGlobalUser(
     thisUserPermissions: userPermissions(true),
     unlimitedAi: false,
     scopeAccess: ALL_SCOPES,
+    teamIds: [],
   };
 }

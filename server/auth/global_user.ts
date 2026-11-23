@@ -23,6 +23,7 @@ import {
   getPgConnectionFromCacheOrNew,
   getScopeGrantsByEmail,
 } from "../db/mod.ts";
+import { getTeamIdsByEmail } from "../db/instance/teams.ts";
 import { notifyInstanceUsersUpdated } from "../task_management/notify_instance_updated.ts";
 import type { GlobalUser } from "lib";
 import {
@@ -128,6 +129,11 @@ export async function buildGlobalUserFromDb(
         ? []
         : (await getScopeGrantsByEmail(mainDb, [email])).get(email) ?? [],
     );
+    // Read for an admin too: every level is theirs already, but the roster row
+    // carries their teams and a connection is compared with it.
+    const teamIds = rawUser
+      ? (await getTeamIdsByEmail(mainDb, [email])).get(email) ?? []
+      : [];
     const operator = isHUser(email);
     const thisUserPermissions = effectivePermissions({
       isGlobalAdmin,
@@ -151,6 +157,7 @@ export async function buildGlobalUserFromDb(
       thisUserPermissions,
       unlimitedAi: operator || (rawUser?.unlimited_ai ?? false),
       scopeAccess,
+      teamIds,
     };
     return globalUser;
   } catch (error) {

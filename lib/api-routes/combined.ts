@@ -13,6 +13,7 @@ import { populationRouteRegistry } from "./instance/population.ts";
 import { runGenerationRouteRegistry } from "./instance/run_generation.ts";
 import { scopeRouteRegistry } from "./instance/scopes.ts";
 import { structureRouteRegistry } from "./instance/structure.ts";
+import { teamRouteRegistry } from "./instance/teams.ts";
 import { userRouteRegistry } from "./instance/users.ts";
 import { emailRouteRegistry } from "./instance/emails.ts";
 import { productRouteRegistry } from "./products/products.ts";
@@ -44,6 +45,7 @@ export const routeRegistryIndividualCount =
   Object.keys(runGenerationRouteRegistry).length +
   Object.keys(scopeRouteRegistry).length +
   Object.keys(structureRouteRegistry).length +
+  Object.keys(teamRouteRegistry).length +
   Object.keys(userRouteRegistry).length +
   Object.keys(emailRouteRegistry).length +
   Object.keys(productRouteRegistry).length +
@@ -73,6 +75,7 @@ export const routeRegistry = {
   ...runGenerationRouteRegistry,
   ...scopeRouteRegistry,
   ...structureRouteRegistry,
+  ...teamRouteRegistry,
   ...userRouteRegistry,
   ...emailRouteRegistry,
   ...productRouteRegistry,

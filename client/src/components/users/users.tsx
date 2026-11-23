@@ -18,16 +18,31 @@ import {
   openComponent,
   plural,
 } from "panther";
-import { createMemo, createSignal, type JSX, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  type JSX,
+  Show,
+  untrack,
+} from "solid-js";
 import { AddUserForm } from "./add_user_form";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { BulkEditPermissionsForm } from "./bulk_edit_permissions_form";
 import { BulkEditScopesForm } from "./bulk_edit_scopes_form";
+import { AddToTeamForm } from "./add_to_team_form";
+import { teamsLabel } from "./team_text";
+import { TeamsEditor } from "./teams";
 import { User } from "./user";
 import { BulkAction, createTableConfig, Table, TableColumn } from "panther";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { openShellEditor } from "~/state/t4_ui";
+import { teamLabelsOf } from "~/state/instance/teams";
+import {
+  openShellEditor,
+  pendingSubPageOpen,
+  setPendingSubPageOpen,
+} from "~/state/t4_ui";
 import {
   copilotViewController,
   holdCopilotView,
@@ -63,13 +78,29 @@ export function InstanceUsers() {
     });
   }
 
+  async function openTeams(): Promise<void> {
+    await openShellEditor({
+      element: TeamsEditor,
+      props: {},
+    });
+  }
+
+  // A tour replay into Teams: open it; the editor clears the request once its
+  // view is set.
+  createEffect(() => {
+    const request = pendingSubPageOpen();
+    if (request !== "teams") return;
+    if (!canCallRoute("createTeam")) {
+      setPendingSubPageOpen(null);
+      return;
+    }
+    untrack(() => void openTeams());
+  });
+
   function downloadUsersCSV() {
     const csv = new Csv({
-      colHeaders: ["email", "is_global_admin"],
-      aoa: visibleUsers().map((user) => [
-        user.email,
-        String(user.isGlobalAdmin),
-      ]),
+      colHeaders: USERS_CSV_HEADERS,
+      aoa: visibleUsers().map(userCsvRow),
     });
     const today = new Date().toISOString().split("T")[0].replace(/-/g, "_");
     const filename = `users_export_${today}.csv`;
@@ -137,6 +168,16 @@ export function InstanceUsers() {
                     </Button>
                   </Show>
                 </div>
+                <Show when={canCallRoute("createTeam")}>
+                  <Button
+                    data-tour="instance-users-teams"
+                    onClick={openTeams}
+                    iconName="users"
+                    outline
+                  >
+                    {teamsLabel()}
+                  </Button>
+                </Show>
                 <Show when={canCallRoute("addUsers")}>
                   <Button
                     data-tour="instance-users-add"
@@ -230,6 +271,26 @@ function getScopesLabel(user: OtherUser): string {
     return t3({ en: "No scopes", fr: "Aucune portée", pt: "Nenhum âmbito" });
   }
   return summariseLabels(labels);
+}
+
+// A user's teams by name, in the team list's own order (alphabetical).
+function getTeamLabels(user: OtherUser): string[] {
+  return teamLabelsOf(user.teamIds);
+}
+
+const noTeamLabel = () =>
+  t3({ en: "No team", fr: "Aucune équipe", pt: "Sem equipa" });
+
+// The users export: one row per user, the teams separated by semicolons, since
+// a team's name may hold a comma.
+const USERS_CSV_HEADERS = ["email", "is_global_admin", "teams"];
+
+function userCsvRow(user: OtherUser): string[] {
+  return [
+    user.email,
+    String(user.isGlobalAdmin),
+    getTeamLabels(user).join("; "),
+  ];
 }
 
 function formatTimeAgo(date: Date): string {
@@ -347,6 +408,31 @@ function UserTable(p: {
         </span>
       ),
     },
+    // Sorted by the names as shown, so users group by their first team; a
+    // user in no team has no sort value and comes last either way. The filter
+    // takes each team as its own value, so one team's filter keeps every
+    // member whatever else they are in.
+    {
+      key: "teamIds",
+      header: teamsLabel(),
+      sortable: true,
+      sortValue: (user) => {
+        const labels = getTeamLabels(user);
+        return labels.length === 0 ? undefined : labels.join(", ");
+      },
+      filterable: true,
+      filterValue: (user) => {
+        const labels = getTeamLabels(user);
+        return labels.length === 0 ? [noTeamLabel()] : labels;
+      },
+      searchValue: (user) => getTeamLabels(user).join(" "),
+      render: (user) => {
+        const labels = getTeamLabels(user);
+        return labels.length === 0
+          ? <span class="text-base-content-muted">—</span>
+          : <span>{labels.join(", ")}</span>;
+      },
+    },
   ]);
 
   // toggleUserAdmin refuses any batch that names the caller, so their own
@@ -432,13 +518,26 @@ function UserTable(p: {
     });
   }
 
+  // A caller who is not a global admin cannot add themselves to a team, so
+  // their own row is left out and counted.
+  async function handleBulkAddToTeam(selectedUsers: OtherUser[]) {
+    const skipSelf = !isGlobalAdmin() &&
+      selectedUsers.some((u) => u.email === instanceState.currentUserEmail);
+    const emails = selectedUsers
+      .map((u) => u.email)
+      .filter((email) =>
+        isGlobalAdmin() || email !== instanceState.currentUserEmail
+      );
+    await openComponent({
+      element: AddToTeamForm,
+      props: { emails, skippedSelf: skipSelf },
+    });
+  }
+
   function handleBulkDownloadCSV(selectedUsers: OtherUser[]) {
     const csv = new Csv({
-      colHeaders: ["email", "is_global_admin"],
-      aoa: selectedUsers.map((user) => [
-        user.email,
-        String(user.isGlobalAdmin),
-      ]),
+      colHeaders: USERS_CSV_HEADERS,
+      aoa: selectedUsers.map(userCsvRow),
     });
     const today = new Date().toISOString().split("T")[0].replace(/-/g, "_");
     const filename = `selected_users_export_${today}.csv`;
@@ -498,6 +597,18 @@ function UserTable(p: {
         intent: "primary" as const,
         outline: true,
         onClick: handleBulkEditScopes,
+      }]
+      : []),
+    ...(canCallRoute("addTeamMembers")
+      ? [{
+        label: t3({
+          en: "Add to team",
+          fr: "Ajouter à une équipe",
+          pt: "Adicionar a uma equipa",
+        }),
+        intent: "primary" as const,
+        outline: true,
+        onClick: handleBulkAddToTeam,
       }]
       : []),
     {

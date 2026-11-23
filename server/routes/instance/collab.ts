@@ -98,6 +98,7 @@ type CollabAuth = {
   color: string;
   scopeAccess: ScopeAccess;
   isGlobalAdmin: boolean;
+  teamIds: string[];
 };
 
 // The level a connection holds on a product: own for a global admin, with no
@@ -106,7 +107,8 @@ type CollabAuth = {
 // the first subscribe or presence naming the product, then recorded in the
 // registry for the socket's life, so the routes that change the answer close
 // the sockets it no longer holds for: setProductScope, the three access
-// routes, and every route that changes a user's scope access or admin flag.
+// routes, and every route that changes a user's scope access, admin flag or
+// team membership.
 async function readProductLevel(
   productId: string,
   auth: CollabAuth,
@@ -317,6 +319,7 @@ routesCollab.get(
       color: presenceColorForKey(globalUser.email),
       scopeAccess: globalUser.scopeAccess,
       isGlobalAdmin: globalUser.isGlobalAdmin,
+      teamIds: globalUser.teamIds,
     });
     await next();
   },

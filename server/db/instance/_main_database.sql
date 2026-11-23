@@ -209,6 +209,39 @@ CREATE TABLE product_access (
 
 CREATE INDEX idx_product_access_email ON product_access(email);
 
+-- A team is a named group of users (migration 231). Labels are how a person
+-- picks a team, so they are unique per instance, case-insensitively.
+CREATE TABLE teams (
+  id text PRIMARY KEY NOT NULL,        -- uuid
+  label text NOT NULL CHECK (label <> ''),
+  description text,
+  created_by text,                     -- email
+  created_at text NOT NULL
+);
+
+CREATE UNIQUE INDEX teams_label_unique ON teams (lower(label));
+
+-- Membership names a users row by foreign key, so a deleted user leaves
+-- every team and a rename moves the rows (repointUserEmail).
+CREATE TABLE team_members (
+  team_id text NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  email text NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+  PRIMARY KEY (team_id, email)
+);
+
+CREATE INDEX idx_team_members_email ON team_members(email);
+
+-- A product's per-team grants: every member of the team holds the level for
+-- as long as they are a member. Deleting the team deletes its grants.
+CREATE TABLE product_team_access (
+  product_id text NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  team_id text NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  level text NOT NULL CHECK (level IN ('view', 'edit')),
+  PRIMARY KEY (product_id, team_id)
+);
+
+CREATE INDEX idx_product_team_access_team_id ON product_team_access(team_id);
+
 CREATE TABLE slide_decks (
   id text PRIMARY KEY NOT NULL,
   type text NOT NULL DEFAULT 'slide_deck' CHECK (type = 'slide_deck'),

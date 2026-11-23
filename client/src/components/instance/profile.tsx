@@ -19,6 +19,7 @@ import { clerkActive } from "~/state/_infra/auth_mode";
 import { confirmReloadUnderTurn } from "./copilot/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+import { teamLabelsOf } from "~/state/instance/teams";
 import { createSignal, type JSX, onCleanup, Show } from "solid-js";
 
 // The one panther dark palette: same source as the CSS pairs and the canvas
@@ -323,6 +324,19 @@ export function ProfileForm(p: AlertComponentProps<object, undefined>) {
               {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
             </Button>
           </Show>
+        </SettingRow>
+        {/* Read-only: a user manager changes who is in a team. */}
+        <SettingRow
+          label={t3({
+            en: "Your teams",
+            fr: "Vos équipes",
+            pt: "As suas equipas",
+          })}
+        >
+          <span class="text-base-content-muted min-w-0 flex-1 text-right text-sm">
+            {teamLabelsOf(instanceState.currentUserTeamIds).join(", ") ||
+              t3({ en: "None", fr: "Aucune", pt: "Nenhuma" })}
+          </span>
         </SettingRow>
         <SettingRow
           label={t3({ en: "Email", fr: "E-mail", pt: "E-mail" })}

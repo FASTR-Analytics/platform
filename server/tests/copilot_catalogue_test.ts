@@ -176,6 +176,7 @@ const VIEWS: {
   { id: "assets", hasPackage: false, groups: [] },
   { id: "users", hasPackage: false, groups: [] },
   { id: "user", hasPackage: false, groups: [] },
+  { id: "teams", hasPackage: false, groups: [] },
   { id: "shell", hasPackage: false, groups: [] },
 ];
 

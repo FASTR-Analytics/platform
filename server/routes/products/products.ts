@@ -30,6 +30,7 @@ import {
   notifyInstanceProductsUpserted,
   notifyInstanceRunsCatalogUpdated,
   notifyInstanceScopesChanged,
+  notifyInstanceTeamsChanged,
 } from "../../task_management/notify_instance_updated.ts";
 import { COLLAB_CLOSE_ACCESS_CHANGED } from "../instance/collab.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -164,6 +165,9 @@ defineRoute(
     }
     notifyInstanceProductsDeleted(deletedIds);
     await notifyInstanceScopesChanged(c.var.mainDb);
+    // The delete cascaded the products' team grants, which each team's
+    // product count reads.
+    await notifyInstanceTeamsChanged(c.var.mainDb);
     // A delete frees the packages it pointed at: the catalogue's "in use by"
     // and delete guard change.
     notifyInstanceRunsCatalogUpdated();
@@ -255,6 +259,7 @@ defineRoute(
       return respond(c, res);
     }
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
+    await notifyInstanceTeamsChanged(c.var.mainDb);
     closeConnectionsWhoseLevelChanged(
       params.product_id,
       res.data,

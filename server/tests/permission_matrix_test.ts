@@ -67,6 +67,7 @@ import { routesOnboarding } from "../routes/instance/onboarding.ts";
 import { routesPopulation } from "../routes/instance/population.ts";
 import { routesRunGeneration } from "../routes/instance/run_generation.ts";
 import { routesScopes } from "../routes/instance/scopes.ts";
+import { routesTeams } from "../routes/instance/teams.ts";
 import { routesStructure } from "../routes/instance/structure.ts";
 import { routesUpload } from "../routes/instance/upload.ts";
 import { routesUsers } from "../routes/instance/users.ts";
@@ -204,6 +205,7 @@ const open = (guard: GuardClass): Expectation => ({ guard, headless: "open" });
 
 const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   addStructureUploadAttempt: closed("can_configure_data", "refusals_only"),
+  addTeamMembers: closed("can_configure_users"),
   addUsers: closed("can_configure_users"),
   analyzeGeoJsonUpload: closed("can_configure_data"),
   batchUploadHfaIndicators: closed("can_configure_data"),
@@ -237,6 +239,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   createReportStyle: closed("product:edit"),
   createScope: closed("unrestricted"),
   createSlide: closed("product:edit"),
+  createTeam: closed("can_configure_users"),
   createVisualization: closed("product:edit"),
   deleteAllDatasetHmisData: closed("can_configure_data"),
   deleteAllHfaFacilityWeights: closed("can_configure_data", "refusals_only"),
@@ -271,6 +274,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   deleteScope: closed("unrestricted"),
   deleteSlides: closed("product:edit"),
   deleteStructureUploadAttempt: closed("can_configure_data", "refusals_only"),
+  deleteTeam: closed("can_configure_users"),
   deleteUser: closed("can_configure_users"),
   dhis2AnalyzeGeoJson: closed("can_configure_data"),
   dhis2GetOrgUnitLevels: closed("can_configure_data", "refusals_only"),
@@ -377,6 +381,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   recordWhatsNewEvent: closed("approved"),
   refreshDhis2Labels: closed("can_configure_data", "refusals_only"),
   remapGeoJson: closed("can_configure_data"),
+  removeTeamMembers: closed("can_configure_users"),
   removeUnreferencedHfaFacilities: closed(
     "can_configure_data",
     "refusals_only",
@@ -484,6 +489,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   updateSlideDeckConfig: closed("product:edit"),
   updateSlideDeckPlan: closed("product:edit"),
   updateStructureSchema: closed("can_configure_data"),
+  updateTeam: closed("can_configure_users"),
   updateUserPermissions: closed("can_configure_users"),
   updateVisualization: closed("product:edit"),
 };
@@ -791,6 +797,7 @@ async function createSeedProduct(
   data(
     await setProductAccess(mainDb, productId, {
       defaultAccess: "none",
+      teamGrants: [],
       grants: [
         { email: EDITOR.email, level: "edit" },
         { email: VIEWER.email, level: "view" },
@@ -817,6 +824,7 @@ function mainApp(session: Session): Hono {
     routesStructure,
     routesRunGeneration,
     routesScopes,
+    routesTeams,
     routesAssets,
     routesGeoJsonMaps,
     routesPopulation,

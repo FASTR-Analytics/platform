@@ -13,6 +13,7 @@ import { log } from "../../middleware/logging.ts";
 import {
   notifyInstanceFoldersUpdated,
   notifyInstanceProductsUpserted,
+  notifyInstanceTeamsChanged,
 } from "../../task_management/notify_instance_updated.ts";
 import { COLLAB_CLOSE_ACCESS_CHANGED } from "../instance/collab.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -120,6 +121,7 @@ defineRoute(
       c.var.mainDb,
       res.data.productIds,
     );
+    await notifyInstanceTeamsChanged(c.var.mainDb);
     for (const product of changed) {
       closeConnectionsWhoseLevelChanged(
         product.id,

@@ -110,16 +110,22 @@ For each persona with the Users tab, open it and then one user's detail (pick `p
 | Add users, Batch import                    | no            | yes     | yes   |
 | Bulk Edit permissions, Remove              | no            | yes     | yes   |
 | Bulk Edit scopes                           | no            | yes     | yes   |
+| The Teams column                           | yes           | yes     | yes   |
+| The Teams button, bulk Add to team         | no            | yes     | yes   |
 | Bulk Make admin, Make non-admin            | no            | no      | yes   |
 | Detail: Instance permissions card and Save | no            | yes     | yes   |
 | Detail: Make admin or Make non-admin       | no            | no      | yes   |
 | Detail: Scopes card                        | no            | yes     | yes   |
+| Detail: Teams card, the user's teams       | yes           | yes     | yes   |
+| Detail: Teams card, add to and remove from | no            | yes     | yes   |
 | Detail: Contact person card                | no            | no      | yes   |
 | Detail: Remove this user                   | no            | yes     | yes   |
 | Detail: AI usage card (unlimited AI)       | operator only |         |       |
 | Show system users, Hide system users       | operator only |         |       |
 
 Then, as the manager, open `persona-admin@example.com`'s detail and the manager's own, and tick each row in the table for Edit permissions and Remove. Expected: the detail page offers neither action for those rows. In bulk, with only those rows ticked, the action sends nothing and no refusal appears; with other rows ticked too, it acts on the others alone. A refusal is a FAIL by rule 1.
+
+As the manager, open Teams: "Add a person…" does not offer the manager's own name, and the manager's own detail page has no "Add to a team…" box (a caller who is not an administrator never adds themselves to a team). With the manager's own row among the ticked rows, bulk Add to team says the row is left out and adds the others. As the admin, both offer the admin's own name.
 
 As the manager, toggle one flag on `persona-none@example.com`'s detail and Save. Confirm the other flags kept their values (reopen the detail).
 
@@ -133,7 +139,7 @@ Open Products as each persona and find `Persona test deck` in `Persona test fold
 - **The open deck**: every level has Present (when the deck has slides), History, and File → Download…, Share… and Copy to deck…. An editor also has File → Name and folder… and Manage access…, Add slide, the Deck menu, Update all visualizations (N) when a figure is stale and a clickable package and scope chip. A viewer's chip renders but opens nothing, and the deck is read-only: no Add slide, no Deck menu.
 - **Restricted** (view, scope held): as the viewer.
 
-In the access dialog as the editor: the general access select, the grants and Add person work; the owner row offers no owner change. As the admin: Transfer ownership… lists `persona-restricted@example.com`, who holds the deck's scope, and every unrestricted user, and does not list `persona-restricted-other@example.com`, who lacks it. Cancel without saving.
+In the access dialog as the editor: the general access select, the grants and "Add a person or team…" work, and the box lists every team, each with its size; the owner row offers no owner change. As the admin: Transfer ownership… lists `persona-restricted@example.com`, who holds the deck's scope, and every unrestricted user, and does not list `persona-restricted-other@example.com`, who lacks it. Cancel without saving.
 
 ## 7. Folder affordances
 

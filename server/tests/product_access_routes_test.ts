@@ -242,6 +242,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     call(app, "PUT", `/products/${productId}/access`, {
       defaultAccess,
       grants,
+      teamGrants: [],
     });
   async function startingPlane(email: string) {
     const state = await buildInstanceState(
@@ -266,6 +267,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     return {
       owner: summary.owner,
       defaultAccess: summary.defaultAccess,
+      teamGrants: summary.teamGrants,
       grants: summary.grants,
     };
   }
@@ -288,6 +290,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     assertEquals(
       (await call(stranger, "PUT", `/products/${report}/access`, {
         defaultAccess: "edit",
+        teamGrants: [],
         grants: [],
         parentId: null,
       })).status,
@@ -302,6 +305,8 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       brief: "b",
       referenceCss: null,
       colors: null,
+      // Every library style is a report backbone; the smallest valid one.
+      backbone: { version: 1, look: {} },
       productIds,
     });
     const style = await ok<{ id: string }>(
@@ -416,6 +421,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       assertEquals(await accessOf(id), {
         owner: VIEWER,
         defaultAccess: "none",
+        teamGrants: [],
         grants: [],
       });
     }
@@ -437,6 +443,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       ],
       ["PUT", `/products/${report}/access`, {
         defaultAccess: "none",
+        teamGrants: [],
         grants: sharing,
       }],
     ];
@@ -598,6 +605,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     assertEquals(await accessOf(report), {
       owner: EDITOR,
       defaultAccess: "none",
+      teamGrants: [],
       grants: [
         { email: OWNER, level: "edit" },
         { email: VIEWER, level: "view" },
@@ -662,6 +670,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     );
     const bulk = {
       defaultAccess: "view",
+      teamGrants: [],
       grants: [
         { email: STRANGER, level: "view" },
         { email: VIEWER, level: "view" },
@@ -696,6 +705,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     assertEquals(await accessOf(privateInSub), {
       owner: OWNER,
       defaultAccess: "view",
+      teamGrants: [],
       grants: [
         { email: EDITOR, level: "edit" },
         { email: STRANGER, level: "view" },
@@ -705,6 +715,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     assertEquals(await accessOf(openInTop), {
       owner: OWNER,
       defaultAccess: "edit",
+      teamGrants: [],
       grants: [
         { email: STRANGER, level: "view" },
         { email: VIEWER, level: "edit" },
@@ -727,6 +738,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     await raisedOwner.next("report_sync");
     await ok(admin, "PUT", `/folders/${raisedFolder}/products/access`, {
       defaultAccess: "none",
+      teamGrants: [],
       grants: [{ email: VIEWER, level: "edit" }],
     });
     assertEquals(await raisedViewer.closeCode(), COLLAB_CLOSE_ACCESS_CHANGED);

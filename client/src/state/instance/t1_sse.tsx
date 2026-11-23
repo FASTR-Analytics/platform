@@ -31,6 +31,7 @@ import {
   updateInstanceRunsCatalog,
   updateInstanceScopes,
   updateInstanceStructure,
+  updateInstanceTeams,
   updateInstanceUsers,
   updatePinnedRunId,
   updateRunsCatalogSignal,
@@ -128,6 +129,9 @@ let shouldBeConnected = false;
 let connectedAsApproved = false;
 // The scope access the current connection was built under. The server filters
 // the product plane by it, so a change needs a new connection too.
+// A change to the user's own teams needs no reset here: the server ends the
+// stream on it, and the retry's `starting` payload reconciles the products the
+// user may now see while the screen they are on stays up.
 let connectedScopeAccess: ScopeAccess = ALL_SCOPES;
 
 const [connectionDown, setConnectionDown] = createSignal(false);
@@ -221,6 +225,9 @@ export function connectInstanceSSE(): void {
           break;
         case "scopes_updated":
           updateInstanceScopes(msg.data.scopes);
+          break;
+        case "teams_updated":
+          updateInstanceTeams(msg.data.teams);
           break;
         case "folders_updated":
           updateInstanceFolders(msg.data.folders);

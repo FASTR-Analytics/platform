@@ -23,6 +23,7 @@ import type {
   RunCatalogItem,
   Scope,
   StructureSchema,
+  Team,
 } from "lib";
 import {
   ALL_SCOPES,
@@ -57,6 +58,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   folders: [],
   readyPackages: [],
   scopes: [],
+  teams: [],
   lastUpdated: { products: {}, slides: {} },
   users: [],
   assets: [],
@@ -93,6 +95,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   currentUserApproved: false,
   currentUserIsGlobalAdmin: false,
   currentUserScopeAccess: ALL_SCOPES,
+  currentUserTeamIds: [],
   currentUserPermissions: userPermissions(false),
 };
 
@@ -239,6 +242,10 @@ export function updateInstanceReadyPackages(packages: ReadyPackage[]): void {
 
 export function updateInstanceScopes(scopes: Scope[]): void {
   setInstanceState("scopes", reconcile(scopes));
+}
+
+export function updateInstanceTeams(teams: Team[]): void {
+  setInstanceState("teams", reconcile(teams));
 }
 
 // A pair with its scope read from T1. Reactive where it is called in a
@@ -399,5 +406,6 @@ export function updateCurrentUser(me: RosterEntry | undefined): void {
   setInstanceState("currentUserApproved", !!me);
   setInstanceState("currentUserIsGlobalAdmin", me?.isGlobalAdmin ?? false);
   setInstanceState("currentUserScopeAccess", reconcile(scopeAccess));
+  setInstanceState("currentUserTeamIds", reconcile(me?.teamIds ?? []));
   setInstanceState("currentUserPermissions", reconcile(permissions));
 }

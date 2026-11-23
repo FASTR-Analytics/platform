@@ -43,6 +43,7 @@ function folder(id: string, parentId: string | null): Folder {
 const OPEN_VIEW: ProductAccess = {
   owner: null,
   defaultAccess: "view",
+  teamGrants: [],
   grants: [],
 };
 
@@ -80,6 +81,7 @@ function rosterRow(
     isContactPerson: false,
     lastActiveAt: null,
     scopeAccess,
+    teamIds: [],
     ...NO_PERMISSIONS,
     can_view_data: true,
   };
@@ -98,6 +100,7 @@ function restrictedFilter(products: ProductSummary[]) {
     currentUserIsGlobalAdmin: false,
     currentUserPermissions: NO_PERMISSIONS,
     currentUserScopeAccess: RESTRICTED,
+    currentUserTeamIds: [],
     products,
     folders: FOLDERS.filter((f) => f.id === "root-a" || f.id === "child-a"),
   };
@@ -245,16 +248,23 @@ const VIEWER = "viewer@example.com";
 const PRIVATE: ProductAccess = {
   owner: "owner@example.com",
   defaultAccess: "none",
+  teamGrants: [],
   grants: [],
 };
 const GRANTED_VIEW: ProductAccess = {
   ...PRIVATE,
+  teamGrants: [],
   grants: [{ email: VIEWER, level: "view" }],
 };
 
 function levelsFilter() {
   const plane = restrictProductPlane(
-    { email: VIEWER, isGlobalAdmin: false, scopeAccess: ALL_SCOPES },
+    {
+      email: VIEWER,
+      isGlobalAdmin: false,
+      scopeAccess: ALL_SCOPES,
+      teamIds: [],
+    },
     {
       products: [
         product("hidden", GRANTED, "root-a", PRIVATE),
@@ -272,6 +282,7 @@ function levelsFilter() {
     currentUserIsGlobalAdmin: false,
     currentUserPermissions: NO_PERMISSIONS,
     currentUserScopeAccess: ALL_SCOPES,
+    currentUserTeamIds: [],
     products: plane.products,
     folders: plane.folders,
   };
@@ -324,7 +335,12 @@ Deno.test("a product held at none is withheld until a grant, and leaves with it"
 Deno.test("an unrestricted viewer sees only folders it holds something in, or made", () => {
   const mine = { ...folder("mine", null), createdBy: VIEWER };
   const plane = restrictProductPlane(
-    { email: VIEWER, isGlobalAdmin: false, scopeAccess: ALL_SCOPES },
+    {
+      email: VIEWER,
+      isGlobalAdmin: false,
+      scopeAccess: ALL_SCOPES,
+      teamIds: [],
+    },
     {
       products: [
         product("hidden", GRANTED, "root-a", PRIVATE),
@@ -339,7 +355,12 @@ Deno.test("an unrestricted viewer sees only folders it holds something in, or ma
 
 Deno.test("a global admin's plane keeps every folder", () => {
   const plane = restrictProductPlane(
-    { email: VIEWER, isGlobalAdmin: true, scopeAccess: ALL_SCOPES },
+    {
+      email: VIEWER,
+      isGlobalAdmin: true,
+      scopeAccess: ALL_SCOPES,
+      teamIds: [],
+    },
     {
       products: [product("hidden", GRANTED, "root-a", PRIVATE)],
       folders: FOLDERS,
@@ -378,6 +399,7 @@ Deno.test("the roster is projected per connection", () => {
     currentUserIsGlobalAdmin: false,
     currentUserPermissions: NO_PERMISSIONS,
     currentUserScopeAccess: ALL_SCOPES,
+    currentUserTeamIds: [],
     products: [],
     folders: [],
   };
@@ -399,4 +421,108 @@ Deno.test("the roster is projected per connection", () => {
   const gone = filter({ type: "users_updated", data: [other] });
   assertEquals(gone.messages, [{ type: "users_updated", data: [] }]);
   assertEquals(gone.close, true);
+});
+
+// Teams: a team's grant reaches the connection's user through their team ids,
+// the roster's own row carries those ids, and a change to them ends the
+// stream so the reconnect rebuilds the products the user may see.
+
+const TEAM = "33333333-3333-4333-8333-333333333333";
+const TEAM_ONLY: ProductAccess = {
+  owner: "owner@example.com",
+  defaultAccess: "none",
+  teamGrants: [{ teamId: TEAM, level: "edit" }],
+  grants: [],
+};
+
+function teamFilter(teamIds: string[]) {
+  const start: InstanceSseFilterStart = {
+    currentUserEmail: VIEWER,
+    currentUserApproved: true,
+    currentUserIsGlobalAdmin: false,
+    currentUserPermissions: NO_PERMISSIONS,
+    currentUserScopeAccess: ALL_SCOPES,
+    currentUserTeamIds: teamIds,
+    products: [],
+    folders: [],
+  };
+  return createInstanceSseFilter(start, { allFolders: [] });
+}
+
+Deno.test("a product shared with a team reaches a member's stream and nobody else's", () => {
+  const shared = product("team-only", GRANTED, null, TEAM_ONLY);
+  const upsert: InstanceSseMessage = {
+    type: "products_upserted",
+    data: { products: [shared] },
+  };
+  assertEquals(teamFilter([TEAM])(upsert).messages, [upsert]);
+  assertEquals(teamFilter([])(upsert).messages, []);
+  assertEquals(
+    restrictProductPlane(
+      {
+        email: VIEWER,
+        isGlobalAdmin: false,
+        scopeAccess: ALL_SCOPES,
+        teamIds: [TEAM],
+      },
+      { products: [shared], folders: [], scopes: [] },
+    ).products.map((p) => p.id),
+    ["team-only"],
+  );
+});
+
+Deno.test("the stream ends when the connection's user joins or leaves a team", () => {
+  const row = (teamIds: string[]): OtherUser => ({
+    ...rosterRow(ALL_SCOPES, VIEWER),
+    teamIds,
+  });
+  const filter = teamFilter([]);
+  // Somebody else's membership is not this connection's business.
+  const other = {
+    ...rosterRow(ALL_SCOPES, "other@example.com"),
+    teamIds: [TEAM],
+  };
+  assertEquals(
+    filter({ type: "users_updated", data: [other, row([])] }).close,
+    false,
+  );
+  assertEquals(
+    filter({ type: "users_updated", data: [other, row([TEAM])] }).close,
+    true,
+  );
+  // The filter now holds the new teams: the same roster again changes nothing.
+  assertEquals(
+    filter({ type: "users_updated", data: [other, row([TEAM])] }).close,
+    false,
+  );
+  assertEquals(
+    filter({ type: "users_updated", data: [other, row([])] }).close,
+    true,
+  );
+});
+
+Deno.test("the team list goes to approved connections only", () => {
+  const teams: InstanceSseMessage = {
+    type: "teams_updated",
+    data: {
+      teams: [{
+        id: TEAM,
+        label: "Malaria",
+        description: null,
+        productCount: 1,
+      }],
+    },
+  };
+  assertEquals(teamFilter([])(teams).messages, [teams]);
+  const unapproved = createInstanceSseFilter({
+    currentUserEmail: VIEWER,
+    currentUserApproved: false,
+    currentUserIsGlobalAdmin: false,
+    currentUserPermissions: NO_PERMISSIONS,
+    currentUserScopeAccess: ALL_SCOPES,
+    currentUserTeamIds: [],
+    products: [],
+    folders: [],
+  }, { allFolders: [] });
+  assertEquals(unapproved(teams).messages, []);
 });

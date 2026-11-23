@@ -37,6 +37,7 @@ export * from "./presentation_objects.ts";
 export * from "./last_updated_tables.ts";
 export * from "./products.ts";
 export * from "./scope.ts";
+export * from "./teams.ts";
 export * from "./reports.ts";
 export * from "./report_styles.ts";
 export * from "./report_backbone.ts";

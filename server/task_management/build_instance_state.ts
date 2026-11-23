@@ -10,7 +10,11 @@ import {
   userPermissions,
 } from "lib";
 import type { Sql } from "postgres";
-import { holdsProductLevel, visibleFolderIds } from "../auth/product_access.ts";
+import {
+  holdsProductLevel,
+  type ProductViewer,
+  visibleFolderIds,
+} from "../auth/product_access.ts";
 import {
   getInstanceDatasetsSummary,
   getInstanceDetail,
@@ -25,6 +29,7 @@ import {
   listRunCatalog,
 } from "../db/instance/run_generation.ts";
 import { listScopes } from "../db/instance/scopes.ts";
+import { listTeams } from "../db/instance/teams.ts";
 import { listFolders } from "../db/products/folders.ts";
 import { listProducts } from "../db/products/products.ts";
 import { listSlideLastUpdated } from "../db/products/slides.ts";
@@ -150,6 +155,7 @@ export async function buildInstanceState(
     folders: [],
     readyPackages: [],
     scopes: [],
+    teams: [],
     lastUpdated: { products: {}, slides: {} },
     // The roster, projected for this connection (rosterForViewer); the SSE
     // forward filter applies the same projection to every users_updated.
@@ -164,26 +170,35 @@ export async function buildInstanceState(
     currentUserApproved: me !== undefined,
     currentUserIsGlobalAdmin: me?.isGlobalAdmin ?? false,
     currentUserScopeAccess: me?.scopeAccess ?? ALL_SCOPES,
+    currentUserTeamIds: me?.teamIds ?? [],
     currentUserPermissions: myPermissions,
   };
   if (me === undefined) {
     return { success: true, data: state };
   }
 
-  const [productsRes, foldersRes, packagesRes, scopesRes, slideStampsRes] =
-    await Promise.all([
-      listProducts(mainDb),
-      listFolders(mainDb),
-      listReadyPackages(mainDb),
-      listScopes(mainDb),
-      listSlideLastUpdated(mainDb),
-    ]);
+  const [
+    productsRes,
+    foldersRes,
+    packagesRes,
+    scopesRes,
+    teamsRes,
+    slideStampsRes,
+  ] = await Promise.all([
+    listProducts(mainDb),
+    listFolders(mainDb),
+    listReadyPackages(mainDb),
+    listScopes(mainDb),
+    listTeams(mainDb),
+    listSlideLastUpdated(mainDb),
+  ]);
   for (
     const [name, r] of [
       ["products", productsRes],
       ["folders", foldersRes],
       ["readyPackages", packagesRes],
       ["scopes", scopesRes],
+      ["teams", teamsRes],
       ["slide stamps", slideStampsRes],
     ] as const
   ) {
@@ -197,6 +212,7 @@ export async function buildInstanceState(
       email: state.currentUserEmail,
       isGlobalAdmin: state.currentUserIsGlobalAdmin,
       scopeAccess: state.currentUserScopeAccess,
+      teamIds: state.currentUserTeamIds,
     },
     {
       products: productsRes.success ? productsRes.data : [],
@@ -225,6 +241,7 @@ export async function buildInstanceState(
       ...state,
       ...plane,
       readyPackages: packagesRes.success ? packagesRes.data : [],
+      teams: teamsRes.success ? teamsRes.data : [],
       lastUpdated: { products: productStamps, slides: slideStamps },
     },
   };
@@ -238,7 +255,7 @@ type ProductPlane = Pick<InstanceState, "products" | "folders" | "scopes">;
 // connection also keeps only its granted scopes. A global admin's plane is
 // whole.
 export function restrictProductPlane(
-  viewer: Pick<GlobalUser, "email" | "isGlobalAdmin" | "scopeAccess">,
+  viewer: ProductViewer,
   plane: ProductPlane,
 ): ProductPlane {
   if (viewer.isGlobalAdmin) return plane;
