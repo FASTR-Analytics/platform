@@ -25,20 +25,18 @@
 import postgres from "postgres";
 import type { Sql } from "postgres";
 import {
+  type ConversionFailure,
+  convertStoredConfig,
   type FigureBundle,
   figureBundleSchema,
+  figureConfigSchema,
   getSingleValueDimsFromItems,
   inferPeriodFormatFromValue,
   type MetricWithStatus,
   presentationObjectConfigSchema,
+  problemKey,
   resolveFigureMetric,
 } from "lib";
-import {
-  type ConversionFailure,
-  convertStoredConfig,
-  figureConfigSchema,
-  problemKey,
-} from "./lib/figure_config/mod.ts";
 import {
   compareWithToday,
   type Difference,
@@ -222,7 +220,7 @@ function sweepBundle(
   }
 }
 
-export async function sweepDatabase(
+async function sweepDatabase(
   sql: Sql,
   instance: string,
   metrics: MetricWithStatus[],
@@ -298,7 +296,7 @@ function total<K>(map: Map<K, number>): number {
   return [...map.values()].reduce((a, b) => a + b, 0);
 }
 
-export function formatSweep(
+function formatSweep(
   name: string,
   sweep: Sweep,
   full: boolean,

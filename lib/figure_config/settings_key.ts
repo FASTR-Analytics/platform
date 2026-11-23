@@ -5,8 +5,10 @@ import type { FigureConfigBody, FigurePeriodFilter } from "./schema.ts";
 // reads and nothing of how the rows are laid out or drawn. It is built from
 // the metric id and the config alone, so a place that holds only a stored
 // figure can build it. Two configs of one metric that read two queries hold
-// two keys; two that read one query hold two keys only where one names every
-// value prop and the other none, or where the package cannot total a roll-up.
+// two keys; two that read one query hold two keys where one names every value
+// prop and the other none, where they name different value props of a metric
+// whose query reads all of them (one with a post-aggregation expression or
+// catalog evaluation), or where the package cannot total a roll-up.
 export function settingsKey(
   metricId: string,
   config: FigureConfigBody,

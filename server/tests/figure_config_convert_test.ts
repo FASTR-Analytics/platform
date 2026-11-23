@@ -6,19 +6,17 @@
 
 import { assert, assertEquals } from "@std/assert";
 import {
-  DEFAULT_S_CONFIG,
-  DEFAULT_T_CONFIG,
-  type DisaggregationOption,
-  type PresentationObjectConfig,
-} from "lib";
-import {
   type ConversionContext,
   convertFigureConfig,
   convertStoredConfig,
+  DEFAULT_S_CONFIG,
+  DEFAULT_T_CONFIG,
+  type DisaggregationOption,
   type FigureConfig,
   figureConfigSchema,
   groupedDims,
-} from "../../lib/figure_config/mod.ts";
+  type PresentationObjectConfig,
+} from "lib";
 
 type D = PresentationObjectConfig["d"];
 type S = PresentationObjectConfig["s"];

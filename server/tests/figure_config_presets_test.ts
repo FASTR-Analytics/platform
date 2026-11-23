@@ -17,20 +17,18 @@ import {
   EXPLORE_VIEWS,
   type ExplorePeriod,
   type ExplorePossibleValues,
+  type FigureConfig,
+  figureFetchConfig,
   get_PRESENTATION_SELECT_OPTIONS,
   type MetricWithStatus,
   type PresentationObjectConfig,
   resolveView,
   type RunAuthoringContext,
-  vizPresetInstalled,
-} from "lib";
-import {
-  type FigureConfig,
-  figureFetchConfig,
   settingsKey,
   startingFigureConfig,
   validateFigureConfig,
-} from "../../lib/figure_config/mod.ts";
+  vizPresetInstalled,
+} from "lib";
 import { canonical, compareWithToday } from "./_figure_config_comparison.ts";
 import {
   EVERY_FACILITY_COLUMN,
@@ -217,7 +215,10 @@ Deno.test({
             failures.push(`${item.id}: ${canonical(c.problems)}`);
           }
           for (const d of c.differences) {
-            if (d.listed === undefined) {
+            if (
+              d.listed !== "filteredDimGrouped" &&
+              d.listed !== "valuePropsOnTwoAxesToday"
+            ) {
               failures.push(
                 `${item.id}: ${d.aspect} today ${d.today}, converted ${d.next}`,
               );

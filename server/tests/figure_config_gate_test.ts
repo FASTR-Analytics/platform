@@ -10,7 +10,7 @@ import {
   isDraftWritable,
   startingFigureConfig,
   validateFigureConfig,
-} from "../../lib/figure_config/mod.ts";
+} from "lib";
 
 const METRIC: FigureMetric = {
   id: "m-test",

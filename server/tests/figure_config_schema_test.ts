@@ -14,7 +14,7 @@ import {
   type FigureConfigProblem,
   figureConfigSchema,
   figureConfigShapeSchema,
-} from "../../lib/figure_config/mod.ts";
+} from "lib";
 
 const TEXT = { title: "", subtitle: "", footnote: "" };
 
@@ -74,6 +74,26 @@ const MAP: FigureConfig = {
   text: TEXT,
 };
 
+const PIE: FigureConfig = {
+  type: "pie",
+  data: { filters: [] },
+  layout: { series: "admin_area_2" },
+  style: {
+    shape: "pie",
+    showCenterValue: false,
+    valueAgainst100Percent: false,
+    sortByValue: "none",
+    groupSlicesBelow: 0,
+    seriesColors: "pastel-discrete",
+    showDataLabels: false,
+    hideLegend: false,
+    decimalPlaces: 0,
+    paneColumns: "auto",
+    memberOrder: [],
+  },
+  text: TEXT,
+};
+
 function fits(value: unknown): boolean {
   return figureConfigSchema.safeParse(value).success;
 }
@@ -122,12 +142,22 @@ Deno.test("the shape", async (t) => {
     assert(!fits({ ...MAP, layout: { mapArea: "facility_type" } }));
     assert(fits({ ...MAP, layout: { mapArea: "admin_area_3" } }));
   });
-  await t.step("a roll-up on a map", () => {
+  await t.step("a roll-up on a map or a pie", () => {
     assert(
       !fits({
         ...MAP,
         layout: {
           ...MAP.layout,
+          rollup: { dim: "admin_area_2", position: "top" },
+        },
+      }),
+    );
+    assert(fits(PIE));
+    assert(
+      !fits({
+        ...PIE,
+        layout: {
+          ...PIE.layout,
           rollup: { dim: "admin_area_2", position: "top" },
         },
       }),

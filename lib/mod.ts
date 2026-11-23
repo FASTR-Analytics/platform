@@ -41,6 +41,7 @@ export * from "./slide_text_offsets.ts";
 export * from "./group_metrics.ts";
 export * from "./explore_query.ts";
 export * from "./explore_views.ts";
+export * from "./figure_config/mod.ts";
 export * from "./grid_items.ts";
 export * from "./permissions/mod.ts";
 export * from "./help/mod.ts";

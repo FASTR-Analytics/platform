@@ -24,7 +24,8 @@ import {
 
 // One thing the validator finds wrong: its kind and what it names. Two
 // configs' problems compare by `problemKey`, so a problem names only what
-// makes it the same problem in both: a dimension, a value prop, a mode.
+// makes it the same problem in both: a dimension, a slot, a value prop, a
+// mode, or a shape issue's path and code.
 export type FigureConfigProblem =
   // The config alone.
   | { kind: "shape"; path: string; code: string }

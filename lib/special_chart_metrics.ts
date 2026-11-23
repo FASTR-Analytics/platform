@@ -1,11 +1,4 @@
-export const SPECIAL_CHART_MODES = [
-  "coverage",
-  "percentChange",
-  "disruptions",
-  "disruptionsBand",
-] as const;
-
-export type SpecialChartMode = (typeof SPECIAL_CHART_MODES)[number];
+import type { TimeseriesMode } from "./figure_config/schema.ts";
 
 // The metrics each special timeseries mode draws: the editor offers a mode
 // only on these, and the figure validator refuses a mode on any other.
@@ -15,7 +8,7 @@ export type SpecialChartMode = (typeof SPECIAL_CHART_MODES)[number];
 // unlike M3's expected-volume model, the M11 NegBin model and its credible
 // bounds are non-negative by construction.
 export const SPECIAL_CHART_METRICS: Record<
-  SpecialChartMode,
+  Exclude<TimeseriesMode, "standard">,
   readonly string[]
 > = {
   coverage: ["m4-01-01", "m6-01-01", "m6-02-01", "m6-03-01"],

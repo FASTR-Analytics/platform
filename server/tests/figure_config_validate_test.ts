@@ -10,7 +10,7 @@ import {
   type FigureMetric,
   startingFigureConfig,
   validateFigureConfig,
-} from "../../lib/figure_config/mod.ts";
+} from "lib";
 
 const TIME_BASED = ["table", "chart"] as const;
 

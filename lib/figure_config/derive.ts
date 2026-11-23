@@ -226,8 +226,8 @@ export function figureFetchConfig(
 }
 
 // The periods a filter selects, given the bounds of the data. On yearly data
-// every filter but a range selects the latest year, and on quarterly data every
-// relative filter selects all of it.
+// every filter but a range selects the latest year, and on quarterly data a
+// `last` or `lastFull` filter selects all of it.
 export function periodFilterBounds(
   filter: FigurePeriodFilter | undefined,
   dataBounds: PeriodBounds | undefined,
