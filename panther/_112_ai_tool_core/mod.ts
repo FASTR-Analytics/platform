@@ -21,9 +21,12 @@ export { AIToolFailure, toolThrowToResultParts } from "./tool_failure.ts";
 export {
   aiToolFactory,
   buildAITool,
+  CLOSED_INPUT_RULE,
   createAITool,
+  findOpenObjectPath,
   getHeadlessCapability,
   runAIToolWithView,
+  wireInputSchema,
 } from "./tool_helpers.ts";
 export {
   AIToolOutput,

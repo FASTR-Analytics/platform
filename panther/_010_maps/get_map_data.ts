@@ -32,6 +32,11 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
     lane: config.laneProp,
   };
   validateDimensionProps(data.jsonArray, dimensionProps);
+  for (const key of ["pane", "tier", "lane"] as const) {
+    if (dimensionProps[key] === "--v") {
+      throw new Error(`A map takes one value, so ${key}Prop cannot be "--v"`);
+    }
+  }
 
   // A row whose map area is the blank member has nothing to colour.
   const jsonArray = data.jsonArray.filter((row) =>
@@ -69,6 +74,9 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
     const it = getMemberIndex(tier, config.valueProp, row);
     const il = getMemberIndex(lane, config.valueProp, row);
 
+    if (Object.hasOwn(valueMaps[ip][it][il], mapAreaId)) {
+      throw new Error(`Duplicate value for map area "${mapAreaId}"`);
+    }
     valueMaps[ip][it][il][mapAreaId] = value;
     if (value !== undefined) {
       if (value < globalMin) globalMin = value;

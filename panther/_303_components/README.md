@@ -9,7 +9,6 @@ Complete set of production-ready SolidJS components:
 - Form inputs (buttons, inputs, selects, sliders, file input, etc.)
 - Display components (badges, cards, empty states)
 - Layout components (frames, heading bars, tabs, steppers)
-- Chart and page holders for panther figures
 - Modals, editors, and async-state containers
 - Data tables with sorting, grouping, and controlled selection
 - Icon system with swappable sets (Tabler default, Phosphor opt-in)

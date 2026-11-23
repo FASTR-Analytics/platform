@@ -21,6 +21,7 @@ import type {
 import {
   detachedCallContext,
   getHeadlessCapability,
+  parseToolInput,
   runAIToolWithView,
 } from "./tool_helpers.ts";
 import { type AIToolRun, resolveAIToolReturn } from "./tool_output.ts";
@@ -45,6 +46,7 @@ const OVERVIEW_TOOL_NAME = "get_overview";
 const OVERVIEW_RESOURCE_URI = "panther://overview";
 const OVERVIEW_TOOL_DESCRIPTION =
   "Read the overview document: what exists in the app right now (live ids), the rules for operating it, and how to use the other tools. Call this before doing other work.";
+const OVERVIEW_INPUT = z.strictObject({});
 
 // Spec: tool names SHOULD be 1–128 chars from [A-Za-z0-9_.-]. Panther's
 // snake_case names comply; this catches a consumer inventing one with a
@@ -566,7 +568,11 @@ export function buildMCPServerCore(
     toolDefs.push({
       name: OVERVIEW_TOOL_NAME,
       description: OVERVIEW_TOOL_DESCRIPTION,
-      inputSchema: { type: "object", properties: {} },
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
       annotations: { readOnlyHint: true },
     });
   }
@@ -728,6 +734,7 @@ export function buildMCPServerCore(
         name === OVERVIEW_TOOL_NAME && config.groundingResource !== undefined
       ) {
         try {
+          parseToolInput(OVERVIEW_INPUT, args);
           return completeText(await resolveGrounding());
         } catch (error) {
           return completeFromThrow(error);

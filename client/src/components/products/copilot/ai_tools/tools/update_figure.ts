@@ -8,6 +8,7 @@ import {
   type PeriodBounds,
   periodFilterHasBounds,
   type ResultsValueInfoForPresentationObject,
+  t3,
   validateMetricInputs,
 } from "lib";
 import { AIToolFailure, createAITool, type LayoutNode } from "panther";
@@ -61,7 +62,7 @@ export function createUpdateFigureTool(
     name: "update_figure",
     description:
       "Edit an existing FIGURE block in place: THE tool for changing anything about a figure already on a slide (the replicant, filters, disaggregation, period, captions), however it was created. Give the slideId and the figure's blockId (from get_slides, or from the result of the write that made the block) and only the fields to change (e.g. selectedReplicantValue, filterBy, disaggregateBy, periodFilter, caption); everything else is preserved and the data is re-queried automatically. To CHANGE A REPLICANT, always use this: it validates the value against the available options and errors clearly. The figure's chart type cannot be changed here (replace the block with a new from_metric figure to change it). An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately. To edit a figure embedded in a REPORT, use update_report_figure instead.",
-    inputSchema: z.object({
+    inputSchema: z.strictObject({
       slideId: z.string().describe(
         "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
       ),
@@ -73,9 +74,8 @@ export function createUpdateFigureTool(
     availableIn: COPILOT_TOOL_VIEWS.update_figure,
     kind: "write",
     handler: async (input, view) => {
-      // metricId/type are not in the patch schema (silently stripped), so an
-      // all-unsupported patch arrives empty: reject it instead of
-      // re-resolving the bundle unchanged and falsely reporting success.
+      // An empty patch would re-resolve the bundle unchanged and falsely
+      // report success.
       if (Object.keys(input.patch).length === 0) {
         throw new AIToolFailure(
           "No editable fields were provided. update_figure changes a figure's " +
@@ -238,7 +238,15 @@ export function createUpdateFigureTool(
         }`,
       );
     },
-    inProgressLabel: "Updating figure...",
-    completionMessage: "Updated figure",
+    inProgressLabel: t3({
+      en: "Updating a slide's visualization...",
+      fr: "Mise à jour de la visualisation d'une diapositive...",
+      pt: "A atualizar a visualização de um diapositivo...",
+    }),
+    successMessage: t3({
+      en: "Updated a slide's visualization",
+      fr: "Visualisation d'une diapositive mise à jour",
+      pt: "Visualização de um diapositivo atualizada",
+    }),
   });
 }

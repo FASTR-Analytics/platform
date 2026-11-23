@@ -16,6 +16,7 @@ A plan is a contract between contexts that share no memory. The whole instructio
 - **§2 The model.** The end state in the plan's own vocabulary.
 - **§3 Rulings.** Numbered, decided. A ruling the author derived rather than heard is marked _(proposed)_ and stands unless overruled before `Do 1`. A plan that ships something states what and when as a ruling.
 - **§4 Steps.** One section per step, with five parts in this order: **Surface**, every file the step may touch, which is what the review diffs against; **Deliverable**, what must be true in the code when the step is done; **Not in this step**, the neighbouring work a reader would expect here; **Gates**, on top of the floor; **Ends with**, one commit or several, each green.
+- **Step 0, ground.** A plan that waits in the queue is written against code that will have changed by the time it starts. So its steps carry no Surface, each saying `written in step 0`, and its first step is step 0, which reads the code as it then is and writes each step's Surface. It also corrects in place any file, line or claim about the code it finds wrong, and changes nothing else: where the code no longer admits a ruling or a Deliverable, it stops with the question for Tim. Its own Surface is the plan file, its Deliverable is the Surfaces, its gate is that a reviewer who derives a step's Surface from the step's Deliverable and the code finds no file missing and none surplus, and it ends with one commit.
 - **§5 Out of scope.** Named, so it is not reopened.
 - **§6 Log.** Departures. Numbering is a convention; §0 names the log's section.
 
@@ -31,7 +32,7 @@ Unless Tim says otherwise, a plan is done from start to finish by one agent, whi
 
 **Review.** Spawn an independent review agent in a fresh context. It reads and runs, never writes. Its instruction, and nothing else:
 
-> Read PLAN_NAME.md from disk and the commits of step N (`git log --grep "PLAN_NAME step N"`). Check three things: nothing outside the step's Surface changed (every file outside it is a finding); every item of the step's Deliverable is in the code, read in the code and never in a commit message; every gate in the step's Gates and in the floor passes when you run it (a gate you cannot run is itself a finding). Read the whole surface once and report every defect in that one pass, each as a stated edit: file, line, the edit. Change nothing.
+> Read PLAN_NAME.md from disk and the commits of step N (`git log --grep "PLAN_NAME step N"`). Check three things: nothing outside the step's Surface changed (every file outside it is a finding, and so is a file the step added to its Surface that the step's change does not reach); every item of the step's Deliverable is in the code, read in the code and never in a commit message; every gate in the step's Gates and in the floor passes when you run it (a gate you cannot run is itself a finding). Read the whole surface once and report every defect in that one pass, each as a stated edit: file, line, the edit. Change nothing.
 
 **Fix.** Apply every finding as stated. A finding is not argued with: one that contradicts a ruling stops the plan with the question for Tim, and one whose edit fails a gate is reported with the gate's output. Run the floor and the step's gates, and commit.
 
@@ -41,7 +42,7 @@ Unless Tim says otherwise, a plan is done from start to finish by one agent, whi
 
 ## What an agent may change in the plan
 
-The **Next step** line, the log, and a fact shown wrong (a line number, a moved file, a claim about the code), corrected in place, the commit subject saying so. A ruling, a Surface or a Deliverable changes only on Tim's word.
+The **Next step** line, the log, in step 0 every step's Surface, and a fact shown wrong (a line number, a moved file, a claim about the code), corrected in place, the commit subject saying so. A Surface is a fact of this kind: a file the step's change reaches that the Surface does not list (a caller, an import or export, a manifest, a test or a doc line of what the step changes, or a leftover the change makes unused) is added to the Surface in the commit that touches it, without asking. A file the change does not reach stays out: work another step or "Not in this step" names, a cleanup nearby, a typecheck error from other work. A ruling or a Deliverable changes only on Tim's word.
 
 ## The log
 
@@ -50,7 +51,7 @@ A list of departures and nothing else: "built X instead of Y because Z", one ite
 ## Rules that bind every step
 
 - **The step ends green.** The app's floor plus the step's own gates. Every gate is something a review agent can run: a script in the repo, a task, or a harness file the step committed. Never a one-off the agent ran and described.
-- **Touch only the Surface the step names.** A typecheck error outside it is reported, not fixed; an unlisted cleanup waits for the step that lists it.
+- **Touch only the Surface the step names**, with any file the step's change reaches added to it ("What an agent may change in the plan"). A typecheck error outside it is reported, not fixed; an unlisted cleanup waits for the step that lists it.
 - **Where the plan and the code disagree, the code wins.** A ruling is overruled only by the person whose plan it is, in the rulings section, before the step that depends on it.
 - **Docs move with the code.** Prose describing a contract the step changes is rewritten in the same step, never deferred to the closing step.
 - **Nothing outside the plan cites it.** Code, comments and the standing docs never name a plan, a ruling, a section or a step: a comment that needs a reason states the reason. A citation outlives the plan and then points nowhere, and while the plan is open it makes a ruling the code has since moved past read as current.

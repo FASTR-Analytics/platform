@@ -208,10 +208,10 @@ export function ModalContainer(p: ModalContainerProps) {
     >
       <Show when={p.title || hasTopPanel()}>
         {
-          /* A topPanel header is floored at a form control's height, as in
-            HeadingBar, so a header whose controls come and go (a stepper
-            that appears once loaded) does not jump. A title-only header
-            keeps its natural height. */
+          /* A topPanel header is floored at a form control's height, so a
+            header whose controls come and go (a stepper that appears once
+            loaded) does not jump. A title-only header keeps its natural
+            height. */
         }
         <div class="ui-pad border-b leading-none">
           <div

@@ -34,9 +34,9 @@ type Props = {
 };
 
 // One row per orderable dimension. A row stays visible whenever a stored
-// order exists, even when the dimension's values are unavailable
-// (too_many_values / error) or the dimension is no longer displayed, because
-// the stored order still applies at render and this row's clear button is the
+// order exists, even when the dimension's values are unavailable (error /
+// no_values_available) or the dimension is no longer displayed, because the
+// stored order still applies at render and this row's clear button is the
 // only way to remove it (same trap the filters panel guards against).
 type OrderRow = {
   disOpt: DisaggregationOption;
@@ -54,11 +54,6 @@ const NOTE_NO_SLOT: TranslatableString = {
   en: "Not applied — no display position",
   fr: "Non appliqué — pas de position d'affichage",
   pt: "Não aplicado — sem posição de apresentação",
-};
-const NOTE_TOO_MANY: TranslatableString = {
-  en: "Too many values to set a custom order",
-  fr: "Trop de valeurs pour définir un ordre personnalisé",
-  pt: "Demasiados valores para definir uma ordem personalizada",
 };
 const NOTE_VALUES_UNAVAILABLE: TranslatableString = {
   en: "Values unavailable — the saved order still applies",
@@ -135,13 +130,6 @@ export function CustomValueOrderSection(p: Props) {
           canEdit: possibleValues.values.length > 1,
           hasOrder,
           note: getInertNote(dis.disOpt),
-        });
-      } else if (possibleValues?.status === "too_many_values") {
-        result.push({
-          disOpt: dis.disOpt,
-          canEdit: false,
-          hasOrder,
-          note: hasOrder ? NOTE_VALUES_UNAVAILABLE : NOTE_TOO_MANY,
         });
       } else if (hasOrder) {
         result.push({

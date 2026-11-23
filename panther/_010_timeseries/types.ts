@@ -25,9 +25,7 @@ export type TimeseriesInputs = FigureInputsBase & {
   data: TimeseriesData;
 };
 
-export type TimeseriesData =
-  // | TimeseriesDataCsv
-  TimeseriesDataJson | TimeseriesDataTransformed;
+export type TimeseriesData = TimeseriesDataJson | TimeseriesDataTransformed;
 
 ////////////////
 //            //
@@ -94,10 +92,6 @@ export type TimeseriesDataTransformed = {
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
-
-// export function isTimeseriesDataCsv(d: TimeseriesData): d is TimeseriesDataCsv {
-//   return (d as TimeseriesDataCsv).csv !== undefined;
-// }
 
 export function isTimeseriesDataJson(
   d: TimeseriesData,

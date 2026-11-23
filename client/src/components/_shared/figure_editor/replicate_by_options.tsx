@@ -10,31 +10,31 @@ import {
   TC,
 } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
+import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 import {
+  Button,
   getSelectOptionsFromIdLabel,
-  SelectList,
-  selectOptionToListItem,
   SelectSearch,
   StateHolder,
   StateHolderWrapper,
 } from "panther";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/products/t2_replicant_options";
-import { createEffect, createSignal, Match, onCleanup, Switch } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  Match,
+  onCleanup,
+  Switch,
+} from "solid-js";
 import { trackDeep } from "@solid-primitives/deep";
 
-// The replicant picker: which values of the replicated dimension a figure can be
-// pinned to, under one PackageScope. Two presentations of the same data, a
-// full-height list beside the editor preview, and a compact Select, so the
-// load is written once here and shared.
-//
-// There is no version-key read any more: the options cache is keyed by
-// `(runId, scopeToken, …)`, so a scope or package change lands on a DIFFERENT
-// entry rather than invalidating this one. Re-reading `p.scope` inside the
-// tracked effect is what makes a mid-edit reattach re-query.
+// The replicant strip above the editor preview: which value of the replicated
+// dimension the figure shows, under one PackageScope.
 
 // Replicant picker options with Nigeria admin-area labels cleaned for display
 // (raw id/value untouched). Re-sorts by cleaned label only when cleaning
-// changed something, so the server's ORDER BY ordering is preserved otherwise.
+// changed something, so the server's order is kept otherwise.
 function cleanedReplicantSelectOptions(
   possibleValues: { id: string; label: string }[],
   replicateBy: DisaggregationOption,
@@ -59,12 +59,11 @@ type ReplicateByOptionsProps = {
   config: PresentationObjectConfig;
   metric: ResultsValue;
   selectedReplicantValue: string | undefined;
-  setSelectedReplicant: (v: string, allOptions?: string[]) => void;
-  fullWidth?: boolean;
+  setSelectedReplicant: (v: string) => void;
 };
 
-// The one loader both presentations use. Aborts a superseded in-flight load so
-// an older filter's option list can never land after a newer one.
+// Aborts a superseded in-flight load so an older filter's option list can
+// never land after a newer one.
 function createReplicantOptions(p: ReplicateByOptionsProps) {
   const [replicantOptions, setReplicantOptions] = createSignal<
     StateHolder<RunReplicantOptions>
@@ -128,26 +127,13 @@ function createReplicantOptions(p: ReplicateByOptionsProps) {
   return replicantOptions;
 }
 
-// The non-"ok" statuses, rendered identically by both presentations.
 function ReplicantOptionsMessage(mp: {
   status: RunReplicantOptions["status"];
 }) {
   return (
     <Switch>
-      <Match when={mp.status === "too_many_values"}>
-        <div class="w-36 text-sm">
-          {t3({
-            en:
-              "Too many replicant values (over 500). Use filter options to narrow down.",
-            fr:
-              "Trop de valeurs de réplicant (plus de 500). Utilisez les options de filtre pour affiner.",
-            pt:
-              "Demasiados valores de replicante (mais de 500). Utilize as opções de filtro para restringir.",
-          })}
-        </div>
-      </Match>
       <Match when={mp.status === "no_values_available"}>
-        <div class="w-36 text-sm">
+        <div>
           {t3({
             en: "No data available with current filter selection.",
             fr:
@@ -157,7 +143,7 @@ function ReplicantOptionsMessage(mp: {
         </div>
       </Match>
       <Match when={mp.status === "error"}>
-        <div class="text-danger w-36 text-sm">
+        <div class="text-danger">
           {t3({
             en: "Could not load values.",
             fr: "Impossible de charger les valeurs.",
@@ -169,11 +155,13 @@ function ReplicantOptionsMessage(mp: {
   );
 }
 
-export function ReplicateByOptionsList(p: ReplicateByOptionsProps) {
+export function ReplicateByOptionsSelect(p: ReplicateByOptionsProps) {
   const replicantOptions = createReplicantOptions(p);
+  const dimensionLabel = () =>
+    t3(getDisplayDisaggregationLabel(p.replicateBy, p.metric.datasetFamily));
 
   return (
-    <div class="max-w-[25rem]">
+    <div class="ui-pad ui-gap flex flex-wrap items-end border-b">
       <StateHolderWrapper state={replicantOptions()}>
         {(keyedReplicantOptions) => (
           <Switch
@@ -186,86 +174,62 @@ export function ReplicateByOptionsList(p: ReplicateByOptionsProps) {
                 keyedReplicantOptions}
               keyed
             >
-              {(ok) => (
-                <SelectList
-                  items={cleanedReplicantSelectOptions(
-                    (ok as Extract<typeof ok, { status: "ok" }>).possibleValues,
+              {(ok) => {
+                const options = createMemo(() =>
+                  cleanedReplicantSelectOptions(
+                    (ok as Extract<typeof ok, { status: "ok" }>)
+                      .possibleValues,
                     p.replicateBy,
-                  ).map(selectOptionToListItem)}
-                  value={p.selectedReplicantValue}
-                  onChange={(v: string) => p.setSelectedReplicant(v)}
-                  emptyMessage={t3({
-                    en: "No replicant options",
-                    fr: "Aucune option de réplicant",
-                    pt: "Nenhuma opção de replicante",
-                  })}
-                />
-              )}
+                  )
+                );
+                const index = () =>
+                  options().findIndex((opt) =>
+                    opt.value === p.selectedReplicantValue
+                  );
+                const stepTo = (i: number) =>
+                  p.setSelectedReplicant(options()[i].value);
+                return (
+                  <>
+                    <div class="w-96">
+                      <SelectSearch
+                        label={<span class="font-700">{dimensionLabel()}</span>}
+                        options={options()}
+                        value={p.selectedReplicantValue}
+                        onChange={p.setSelectedReplicant}
+                        fullWidth
+                      />
+                    </div>
+                    <div class="ui-gap-sm flex items-center">
+                      <Button
+                        iconName="chevronLeft"
+                        outline
+                        ariaLabel={t3({
+                          en: `Previous value of ${dimensionLabel()}`,
+                          fr: `Valeur précédente pour ${dimensionLabel()}`,
+                          pt: `Valor anterior de ${dimensionLabel()}`,
+                        })}
+                        disabled={index() <= 0}
+                        onClick={() => stepTo(index() - 1)}
+                      />
+                      <Button
+                        iconName="chevronRight"
+                        outline
+                        ariaLabel={t3({
+                          en: `Next value of ${dimensionLabel()}`,
+                          fr: `Valeur suivante pour ${dimensionLabel()}`,
+                          pt: `Valor seguinte de ${dimensionLabel()}`,
+                        })}
+                        disabled={index() === options().length - 1}
+                        onClick={() => stepTo(index() + 1)}
+                      />
+                    </div>
+                  </>
+                );
+              }}
             </Match>
           </Switch>
         )}
       </StateHolderWrapper>
     </div>
-  );
-}
-
-export function ReplicateByOptionsSelect(p: ReplicateByOptionsProps) {
-  const replicantOptions = createReplicantOptions(p);
-
-  // Report the full option list back to the host as soon as it resolves, so a
-  // caller that needs to fan out over every replicant (or validate a stored
-  // pick) does not have to re-query it.
-  createEffect(() => {
-    const state = replicantOptions();
-    if (state.status === "ready" && state.data.status === "ok") {
-      p.setSelectedReplicant(
-        p.selectedReplicantValue || "",
-        state.data.possibleValues.map((pv) => pv.id),
-      );
-    }
-  });
-
-  return (
-    <StateHolderWrapper state={replicantOptions()}>
-      {(keyedReplicantOptions) => (
-        <Switch
-          fallback={
-            <ReplicantOptionsMessage status={keyedReplicantOptions.status} />
-          }
-        >
-          <Match
-            when={keyedReplicantOptions.status === "ok" &&
-              keyedReplicantOptions}
-            keyed
-          >
-            {(ok) => {
-              const possibleValues =
-                (ok as Extract<typeof ok, { status: "ok" }>)
-                  .possibleValues;
-              return (
-                <SelectSearch
-                  options={cleanedReplicantSelectOptions(
-                    possibleValues,
-                    p.replicateBy,
-                  )}
-                  value={p.selectedReplicantValue}
-                  onChange={(v) =>
-                    p.setSelectedReplicant(
-                      v,
-                      possibleValues.map((pv) => pv.id),
-                    )}
-                  fullWidth={p.fullWidth}
-                  placeholder={t3({
-                    en: "Needs selection",
-                    fr: "Nécessite une sélection",
-                    pt: "Requer seleção",
-                  })}
-                />
-              );
-            }}
-          </Match>
-        </Switch>
-      )}
-    </StateHolderWrapper>
   );
 }

@@ -28,6 +28,7 @@ import {
 import {
   computeResultsObjectColumnsToExclude,
   executeSqlOverParquet,
+  moduleFamilyFromDefinition,
   writeNormalizedResultsObjectParquet,
 } from "../run_query/mod.ts";
 import { getStructureSchema } from "../db/instance/config.ts";
@@ -245,7 +246,9 @@ export async function buildRunPackageIntoTmp(
   // built now and a package transformed forward carry an identical catalog.
   const inputRowsReader = runDirInputRowsReader(tmpDir, inputFiles);
   const indicators = await buildRunIndicatorCatalog(
-    runModules,
+    familiesOfDatasetTypes(
+      runModules.map((mod) => moduleFamilyFromDefinition(mod.moduleDefinition)),
+    ),
     inputRowsReader,
   );
   const hmisIndicators = await buildRunHmisIndicators(inputRowsReader);

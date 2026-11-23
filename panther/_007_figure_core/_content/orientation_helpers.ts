@@ -13,11 +13,10 @@ import type {
   ChartValueInfo,
   ColorKeyOrString,
   DataLabel,
-  LabelHalo,
-  MeasuredText,
   PrimitiveItem,
 } from "../deps.ts";
 import { Coordinates, RectCoordsDims } from "../deps.ts";
+import type { ResolvedDataLabel } from "./content_generation_types.ts";
 
 export type Orientation = "vertical" | "horizontal";
 
@@ -58,6 +57,31 @@ export function valueExtendDir(orientation: Orientation): 1 | -1 {
   return orientation === "horizontal" ? 1 : -1;
 }
 
+export function withValueCoord(
+  c: Coordinates,
+  value: number,
+  orientation: Orientation,
+): Coordinates {
+  return orientation === "horizontal"
+    ? new Coordinates([value, c.y()])
+    : new Coordinates([c.x(), value]);
+}
+
+export function withValueExtentOf(
+  rect: RectCoordsDims,
+  from: RectCoordsDims,
+  orientation: Orientation,
+): RectCoordsDims {
+  return orientation === "horizontal"
+    ? new RectCoordsDims({ x: from.x(), y: rect.y(), w: from.w(), h: rect.h() })
+    : new RectCoordsDims({
+      x: rect.x(),
+      y: from.y(),
+      w: rect.w(),
+      h: from.h(),
+    });
+}
+
 // Extent of a rect along the category axis.
 // Vertical: width (bars stand side-by-side horizontally).
 // Horizontal: height (bars stack vertically).
@@ -68,12 +92,28 @@ export function catExtentOfRect(
   return orientation === "horizontal" ? rect.h() : rect.w();
 }
 
+export function valueAxisExtentOfRect(
+  rect: RectCoordsDims,
+  orientation: Orientation,
+): number {
+  return orientation === "horizontal" ? rect.w() : rect.h();
+}
+
 // Center of a rect along the category axis.
 export function catCenterOfRect(
   rect: RectCoordsDims,
   orientation: Orientation,
 ): number {
   return orientation === "horizontal" ? rect.centerY() : rect.centerX();
+}
+
+export function endSideEdgeCenterOfRect(
+  rect: RectCoordsDims,
+  orientation: Orientation,
+): Coordinates {
+  return orientation === "horizontal"
+    ? new Coordinates([rect.rightX(), rect.centerY()])
+    : new Coordinates([rect.centerX(), rect.y()]);
 }
 
 // Build a bar rectangle from logical extents.
@@ -170,38 +210,26 @@ export function makeErrorBarPrimitive(params: {
   };
 }
 
-// Build a bar's data-label. The label sits past the value-end of the bar
-// (above in vertical, to the right in horizontal).
-// textMaxWidth: pass barRcd.w() in vertical (labels wrap to bar width) or
-// 9999 in horizontal (labels overflow short bars — same treatment as line
-// labels).
-export function makeBarDataLabel(params: {
-  barRcd: RectCoordsDims;
-  mText: MeasuredText;
-  offset: number;
-  halo: LabelHalo | undefined;
-  orientation: Orientation;
-}): DataLabel {
-  if (params.orientation === "horizontal") {
-    return {
-      mText: params.mText,
-      position: new Coordinates([
-        params.barRcd.rightX() + params.offset,
-        params.barRcd.centerY(),
-      ]),
+// `anchor` is the mark's value end: the middle of a bar's end-side edge, or a
+// line's point.
+export function makeValueEndDataLabel(
+  label: ResolvedDataLabel,
+  anchor: Coordinates,
+  orientation: Orientation,
+): DataLabel {
+  return orientation === "horizontal"
+    ? {
+      mText: label.mText,
+      position: new Coordinates([anchor.x() + label.offset, anchor.y()]),
       alignH: "left",
       alignV: "middle",
-      halo: params.halo,
+      halo: label.halo,
+    }
+    : {
+      mText: label.mText,
+      position: new Coordinates([anchor.x(), anchor.y() - label.offset]),
+      alignH: "center",
+      alignV: "bottom",
+      halo: label.halo,
     };
-  }
-  return {
-    mText: params.mText,
-    position: new Coordinates([
-      params.barRcd.centerX(),
-      params.barRcd.y() - params.offset,
-    ]),
-    alignH: "center",
-    alignV: "bottom",
-    halo: params.halo,
-  };
 }

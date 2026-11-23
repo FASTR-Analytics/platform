@@ -145,12 +145,16 @@ export function msPadding(
   return result;
 }
 
-function overlayPadding(base: Padding, over: PaddingOptions): Padding {
+export function overlayPadding(
+  base: Padding,
+  over: PaddingOptions,
+  overScale = 1,
+): Padding {
   if (over === undefined) return base;
   if (
     typeof over !== "object" || over instanceof Array || over instanceof Padding
   ) {
-    return new Padding(over);
+    return new Padding(over).toScaled(overScale);
   }
   const ht = over.top !== undefined || over.py !== undefined ||
     over.y !== undefined;
@@ -160,7 +164,7 @@ function overlayPadding(base: Padding, over: PaddingOptions): Padding {
     over.y !== undefined;
   const hl = over.left !== undefined || over.px !== undefined ||
     over.x !== undefined;
-  const o = new Padding(over);
+  const o = new Padding(over).toScaled(overScale);
   return new Padding({
     top: ht ? o.pt() : base.pt(),
     right: hr ? o.pr() : base.pr(),

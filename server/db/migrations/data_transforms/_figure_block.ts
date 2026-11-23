@@ -23,9 +23,12 @@
 // =============================================================================
 
 import {
+  type FigureBundle,
+  figureBundleSchema,
   geographyOnlyScopeDefinition,
   getRollupPosition,
   INDICATOR_FORMAT_METRIC_IDS,
+  indicatorMetadataForRead,
   isRollupActive,
   type Language,
   presentationObjectConfigSchema,
@@ -233,6 +236,28 @@ export function rawJsonNeedsFigureBlockTransform(raw: string): boolean {
   );
 }
 
+// The entries of a stored bundle's catalog that its rows, its filter values
+// and its selected replicant value name.
+function namedIndicatorMetadata(
+  bundle: FigureBundle,
+): FigureBundle["indicatorMetadata"] {
+  const { filterBy, selectedReplicantValue } = bundle.config.d;
+  return indicatorMetadataForRead(bundle.indicatorMetadata, bundle.items, [
+    ...filterBy.flatMap((f) => f.values),
+    ...(selectedReplicantValue === undefined ? [] : [selectedReplicantValue]),
+  ]);
+}
+
+// The third forced gate of the figure sweeps: a bundle that holds a catalog
+// entry it does not name parses cleanly, so neither the parse nor a string
+// scan can see it.
+export function bundleHoldsUnnamedIndicatorMetadata(
+  bundle: FigureBundle,
+): boolean {
+  return namedIndicatorMetadata(bundle).length <
+    bundle.indicatorMetadata.length;
+}
+
 // The traffic-light pair a legacy metadata entry carries → the rule it
 // meant (lib trafficLightThresholdsToRule, the same conversion migration 079
 // runs on the dictionary). Runs BEFORE the allow-list strip, on both the
@@ -372,6 +397,16 @@ export function transformFigureBlock(block: FigureBlockMut): void {
     bundle.scope = scopeStampForArea(
       (bundle.scope as { adminArea2?: unknown }).adminArea2,
     );
+  }
+
+  // Block: a bundle holds the catalog entries it names, not its module's
+  // whole catalog. Last, so it reads the bundle the blocks above brought
+  // current; one the schema still rejects is left to the sweep's final parse.
+  if (bundle) {
+    const current = figureBundleSchema.safeParse(bundle);
+    if (current.success) {
+      bundle.indicatorMetadata = namedIndicatorMetadata(current.data);
+    }
   }
 }
 

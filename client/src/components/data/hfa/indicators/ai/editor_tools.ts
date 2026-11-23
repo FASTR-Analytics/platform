@@ -30,9 +30,11 @@ import { loadDisplayRows, validateHfaIndicatorPatch } from "../_shared/mod.ts";
 // first and only then awaits the display rows.
 
 const field = hfaIndicatorEditSchema.shape;
-const codeRoundSchema = hfaIndicatorCodeSchema.omit({ indicatorId: true });
+const codeRoundSchema = z.strictObject(
+  hfaIndicatorCodeSchema.omit({ indicatorId: true }).shape,
+);
 
-const patchSchema = z.object({
+const patchSchema = z.strictObject({
   shortLabel: field.shortLabel.optional(),
   definition: field.definition.optional().describe("Long label."),
   type: field.type.optional(),
@@ -54,7 +56,9 @@ const patchSchema = z.object({
       "Rounds to patch; a round not listed is kept. An omitted code or filter code is kept and an empty string clears it.",
     ),
   variantCode: z.array(
-    hfaIndicatorVariantCodeSchema.omit({ indicatorId: true }),
+    z.strictObject(
+      hfaIndicatorVariantCodeSchema.omit({ indicatorId: true }).shape,
+    ),
   ).optional().describe(
     "Variant rows to set, for items of the group the patch leaves; an empty code removes the row.",
   ),
@@ -216,7 +220,7 @@ export function getClientToolsForHfaIndicatorEditor() {
       availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicator_editor,
       description:
         "Read the HFA indicator open in the code editor as its unsaved draft stands, in full: both labels, the measure, type and aggregation, categories, the variant group and its items, and per round the code, the filter, each item's variant code, the round status and its issues; then every survey variable and every other indicator the code names, once. Also names the round the user is looking at. Call this before update_hfa_indicator_editor.",
-      inputSchema: z.object({}),
+      inputSchema: z.strictObject({}),
       kind: "read",
       handler: async (_input, view) => {
         const indicatorId = view.params.indicatorId;
@@ -234,18 +238,16 @@ export function getClientToolsForHfaIndicatorEditor() {
           formatHfaIndicatorDetailsForAI(input, [indicatorId]),
         ].join("\n");
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Reading the indicator editor...",
-          fr: "Lecture de l'éditeur d'indicateur...",
-          pt: "A ler o editor de indicador...",
-        }),
-      completionMessage: () =>
-        t3({
-          en: "Read the indicator editor",
-          fr: "Éditeur d'indicateur lu",
-          pt: "Editor de indicador lido",
-        }),
+      inProgressLabel: t3({
+        en: "Getting the indicator editor...",
+        fr: "Récupération de l'éditeur d'indicateur...",
+        pt: "A obter o editor de indicador...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the indicator editor",
+        fr: "Éditeur d'indicateur récupéré",
+        pt: "Editor de indicador obtido",
+      }),
     }),
     createAITool({
       viewRegistry: copilotViews,
@@ -281,18 +283,16 @@ export function getClientToolsForHfaIndicatorEditor() {
           ]),
         ].join("\n");
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Updating the indicator editor...",
-          fr: "Mise à jour de l'éditeur d'indicateur...",
-          pt: "A atualizar o editor de indicador...",
-        }),
-      completionMessage: () =>
-        t3({
-          en: "Updated the indicator editor",
-          fr: "Éditeur d'indicateur mis à jour",
-          pt: "Editor de indicador atualizado",
-        }),
+      inProgressLabel: t3({
+        en: "Updating the indicator editor...",
+        fr: "Mise à jour de l'éditeur d'indicateur...",
+        pt: "A atualizar o editor de indicador...",
+      }),
+      successMessage: t3({
+        en: "Updated the indicator editor",
+        fr: "Éditeur d'indicateur mis à jour",
+        pt: "Editor de indicador atualizado",
+      }),
     }),
   ];
 }

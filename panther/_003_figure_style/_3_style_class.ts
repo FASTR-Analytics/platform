@@ -1225,11 +1225,21 @@ export class CustomFigureStyle {
           g.content?.bars?.stacking,
           d.content.bars.stacking,
         ),
-        maxBarWidth: ms(
+        barGroupThicknessFractionOfSlot: m(
+          c.content?.bars?.barGroupThicknessFractionOfSlot,
+          g.content?.bars?.barGroupThicknessFractionOfSlot,
+          d.content.bars.barGroupThicknessFractionOfSlot,
+        ),
+        barThicknessFractionOfSeriesOuterThickness: m(
+          c.content?.bars?.barThicknessFractionOfSeriesOuterThickness,
+          g.content?.bars?.barThicknessFractionOfSeriesOuterThickness,
+          d.content.bars.barThicknessFractionOfSeriesOuterThickness,
+        ),
+        maxBarThickness: ms(
           sf,
-          c.content?.bars?.maxBarWidth,
-          g.content?.bars?.maxBarWidth,
-          d.content.bars.maxBarWidth,
+          c.content?.bars?.maxBarThickness,
+          g.content?.bars?.maxBarThickness,
+          d.content.bars.maxBarThickness,
         ),
       },
       lines: {

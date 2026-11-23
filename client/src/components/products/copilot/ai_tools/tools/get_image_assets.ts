@@ -1,6 +1,6 @@
 import { createAITool } from "panther";
 import { z } from "zod";
-import { COPILOT_TOOL_VIEWS } from "lib";
+import { COPILOT_TOOL_VIEWS, t3 } from "lib";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import { imageAssetFileNames } from "../../_shared/mod.ts";
 
@@ -14,7 +14,7 @@ export function getClientToolsForImageAssets() {
       availableIn: COPILOT_TOOL_VIEWS.get_image_assets,
       description:
         "List the file names of the instance's image assets: the files an image block or a content slide's image split panel can show. Call it only when an image is asked for. Assets are uploaded by users on the Assets page; no tool uploads one.",
-      inputSchema: z.object({}),
+      inputSchema: z.strictObject({}),
       kind: "read",
       handler: () => {
         const files = imageAssetFileNames();
@@ -24,8 +24,16 @@ export function getClientToolsForImageAssets() {
             : `Image assets (${files.length}):\n${files.join("\n")}`,
         );
       },
-      inProgressLabel: () => "Listing image assets...",
-      completionMessage: () => "Listed image assets",
+      inProgressLabel: t3({
+        en: "Getting the image assets...",
+        fr: "Récupération des ressources image...",
+        pt: "A obter os recursos de imagem...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the image assets",
+        fr: "Ressources image récupérées",
+        pt: "Recursos de imagem obtidos",
+      }),
     }),
   ];
 }

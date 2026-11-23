@@ -7,17 +7,10 @@ import type {
   AlignH,
   AlignV,
   ChartAxisPrimitive,
-  DimensionMember,
   ItemCoordinate,
   LineStyle,
   MergedGridStyle,
-  MergedXPeriodAxisStyle,
-  MergedXTextAxisStyle,
-  MergedXValueAxisStyle,
-  MergedYTextAxisStyle,
-  MergedYValueAxisStyle,
   NestedIdentity,
-  PeriodType,
   RectCoordsDims,
   RenderContext,
 } from "../deps.ts";
@@ -35,11 +28,9 @@ import {
   type ChartItemDataDimensions,
   periodCoordinate,
 } from "../chart_items.ts";
-import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
-import type { XPeriodAxisMeasuredInfo } from "./x_period/types.ts";
-import type { XValueAxisHeightInfo } from "./x_value/types.ts";
-import type { YTextAxisWidthInfo } from "./y_text/types.ts";
-import type { OverhangClearance, YValueAxisWidthInfo } from "../types.ts";
+import type { SubChart } from "../sub_charts.ts";
+import type { MeasuredXAxis } from "./measure_x_axis.ts";
+import type { MeasuredYAxis } from "./measure_y_axis.ts";
 import { getValueAxisTickPositions } from "./value_axis_tick_positions.ts";
 import {
   getLargePeriodLabel,
@@ -82,63 +73,47 @@ function getValueAxisTickLabelAlignment(
   return { alignH: "right", alignV: "middle" };
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    X-Text Axis Primitive Generation                                       //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
 export function generateXTextAxisPrimitive(
   rc: RenderContext,
-  itemDataDimensions: ChartItemDataDimensions,
-  i_pane: number,
-  i_lane: number,
-  subChartX: number,
-  mx: XTextAxisMeasuredInfo,
-  indicatorMembers: DimensionMember[],
-  axisStyle: MergedXTextAxisStyle,
+  subChart: Extract<SubChart, { kind: "category-and-value" }>,
+  xAxis: Extract<MeasuredXAxis, { type: "text" }>,
   gridStyle: MergedGridStyle,
-  // Proportional lane layout: this lane's own width (lanes are unequal, so
-  // the shared mx.uniformSubChartWidth is wrong for the axis line).
-  laneWidthOverride?: number,
+  itemDataDimensions: ChartItemDataDimensions,
 ): ChartAxisPrimitive {
-  const sx = axisStyle;
+  const mx = xAxis.info;
+  const sx = xAxis.config.axisStyle;
   const sg = gridStyle;
-  const identity = xAxisIdentity(itemDataDimensions, i_pane, i_lane);
+  const { rcd, slotExtent, isCentered } = subChart;
+  const identity = xAxisIdentity(
+    itemDataDimensions,
+    subChart.i_pane,
+    subChart.i_lane,
+  );
 
   const axisY = mx.xAxisRcd.y() + sg.axisStrokeWidth / 2;
-  const centeredTicks = sx.tickPosition === "center";
   const ticks: ChartAxisPrimitive["ticks"] = [];
 
-  let currentX = centeredTicks
-    ? subChartX
-    : subChartX + sg.gridLineStrokeWidth / 2;
+  let currentX = isCentered ? rcd.x() : rcd.x() + sg.gridLineStrokeWidth / 2;
   const tickY = mx.xAxisRcd.y() + sg.axisStrokeWidth;
 
-  // Generate ticks for each indicator
-  for (
-    let i_indicator = 0;
-    i_indicator < indicatorMembers.length;
-    i_indicator++
-  ) {
-    const tickX = centeredTicks ? currentX + mx.slotExtent / 2 : currentX;
+  for (const i_value of subChart.slotOrder) {
+    const indicatorMember = xAxis.config.indicatorMembers[i_value];
+    const tickX = isCentered ? currentX + slotExtent / 2 : currentX;
 
-    // Measure tick label
     const mText = rc.mText(
-      indicatorMembers[i_indicator].label,
+      indicatorMember.label,
       sx.text.xTextAxisTickLabels,
-      sx.verticalTickLabels ? mx.verticalTickLabelMaxHeight : mx.slotExtent,
+      sx.verticalTickLabels ? mx.verticalTickLabelMaxHeight : slotExtent,
       { rotation: sx.verticalTickLabels ? "anticlockwise" : undefined },
     );
 
-    // Calculate label position
-    const labelPosition = centeredTicks
+    const labelPosition = isCentered
       ? new Coordinates([
-        currentX + mx.slotExtent / 2,
+        currentX + slotExtent / 2,
         tickY + sx.tickLength + sx.tickLabelGap,
       ])
       : new Coordinates([
-        currentX + (sg.gridLineStrokeWidth + mx.slotExtent) / 2,
+        currentX + (sg.gridLineStrokeWidth + slotExtent) / 2,
         tickY + sx.tickLabelGap,
       ]);
 
@@ -155,24 +130,18 @@ export function generateXTextAxisPrimitive(
         end: new Coordinates([tickX, tickY + sx.tickLength]),
       },
       label,
-      value: indicatorMembers[i_indicator],
+      value: indicatorMember,
       ...tickIdentity(
         identity.coordinates,
-        itemCoordinate(
-          itemDataDimensions.indicator?.name,
-          indicatorMembers[i_indicator],
-        ),
+        itemCoordinate(itemDataDimensions.indicator?.name, indicatorMember),
         label,
       ),
     });
 
-    currentX += centeredTicks
-      ? mx.slotExtent
-      : sg.gridLineStrokeWidth + mx.slotExtent;
+    currentX += isCentered ? slotExtent : sg.gridLineStrokeWidth + slotExtent;
   }
 
-  // Add final tick if not centered
-  if (!centeredTicks) {
+  if (!isCentered) {
     ticks.push({
       position: new Coordinates([currentX, tickY]),
       tickLine: {
@@ -183,14 +152,10 @@ export function generateXTextAxisPrimitive(
     });
   }
 
-  // Axis line
   const axisLine: { coords: Coordinates[]; style: LineStyle } = {
     coords: [
-      new Coordinates([subChartX, axisY]),
-      new Coordinates([
-        subChartX + (laneWidthOverride ?? mx.uniformSubChartWidth),
-        axisY,
-      ]),
+      new Coordinates([rcd.x(), axisY]),
+      new Coordinates([rcd.rightX(), axisY]),
     ],
     style: {
       strokeColor: sg.axisColor,
@@ -201,7 +166,7 @@ export function generateXTextAxisPrimitive(
 
   return withPaintedBounds({
     type: "chart-axis",
-    key: `x-text-axis-${i_pane}-${i_lane}`,
+    key: `x-text-axis-${subChart.i_pane}-${subChart.i_lane}`,
     item: buildItem(identity.coordinates),
     meta: { axisType: "x-text", ...identity.meta },
     ticks,
@@ -215,32 +180,23 @@ export function generateXTextAxisPrimitive(
   });
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    X-Period Axis Primitive Generation                                     //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
 export function generateXPeriodAxisPrimitive(
   rc: RenderContext,
-  itemDataDimensions: ChartItemDataDimensions,
-  i_pane: number,
-  i_lane: number,
-  subChartX: number,
-  mx: XPeriodAxisMeasuredInfo,
-  period: {
-    name: string;
-    periodType: PeriodType;
-    timeMin: number;
-    nTimePoints: number;
-  },
-  axisStyle: MergedXPeriodAxisStyle,
+  subChart: Extract<SubChart, { kind: "category-and-value" }>,
+  xAxis: Extract<MeasuredXAxis, { type: "period" }>,
   gridStyle: MergedGridStyle,
+  itemDataDimensions: ChartItemDataDimensions,
 ): ChartAxisPrimitive {
-  const sx = axisStyle;
+  const mx = xAxis.info;
+  const sx = xAxis.config.axisStyle;
   const sg = gridStyle;
-  const { periodType, timeMin, nTimePoints } = period;
-  const identity = xAxisIdentity(itemDataDimensions, i_pane, i_lane);
+  const { periodType, timeMin, nTimePoints } = xAxis.config;
+  const { rcd, slotExtent } = subChart;
+  const identity = xAxisIdentity(
+    itemDataDimensions,
+    subChart.i_pane,
+    subChart.i_lane,
+  );
 
   const axisY = mx.xAxisRcd.y() + sg.axisStrokeWidth / 2;
   const ticks: ChartAxisPrimitive["ticks"] = [];
@@ -253,7 +209,7 @@ export function generateXPeriodAxisPrimitive(
       label,
       ...tickIdentity(
         identity.coordinates,
-        periodCoordinate(period.name, periodId),
+        periodCoordinate(xAxis.config.dimension, periodId),
         label,
       ),
     };
@@ -263,8 +219,8 @@ export function generateXPeriodAxisPrimitive(
   // every year start gets one and spans are single years (labelled every Nth);
   // otherwise only labelled starts get one and each span covers N years.
   let currentX = mx.periodAxisType === "year-centered"
-    ? subChartX
-    : subChartX + sg.gridLineStrokeWidth / 2;
+    ? rcd.x()
+    : rcd.x() + sg.gridLineStrokeWidth / 2;
   let prevLargeTickX: number | undefined = undefined;
   let prevLargeTickPeriodId: number | undefined = undefined;
   let prevLargeTickIValue = 0;
@@ -327,7 +283,7 @@ export function generateXPeriodAxisPrimitive(
         } else {
           // Year-centered: centered ticks
           if (i_value % mx.yearSkipInterval === 0) {
-            const tickX = currentX + mx.slotExtent / 2;
+            const tickX = currentX + slotExtent / 2;
             ticks.push({
               position: new Coordinates([tickX, tickY]),
               tickLine: {
@@ -352,10 +308,10 @@ export function generateXPeriodAxisPrimitive(
         const mText = rc.mText(
           smallLabel,
           sx.text.xPeriodAxisTickLabels,
-          mx.slotExtent,
+          slotExtent,
         );
         const labelPos = new Coordinates([
-          currentX + (sg.gridLineStrokeWidth + mx.slotExtent) / 2,
+          currentX + (sg.gridLineStrokeWidth + slotExtent) / 2,
           tickY + sx.periodLabelSmallTopPadding,
         ]);
         labelLastTick({
@@ -377,10 +333,10 @@ export function generateXPeriodAxisPrimitive(
           const mText = rc.mText(
             yearLabel,
             sx.text.xPeriodAxisTickLabels,
-            mx.slotExtent * mx.yearSkipInterval,
+            slotExtent * mx.yearSkipInterval,
           );
           const labelPos = new Coordinates([
-            currentX + mx.slotExtent / 2,
+            currentX + slotExtent / 2,
             tickY + mx.periodAxisSmallTickH + sx.periodLabelSmallTopPadding,
           ]);
           labelLastTick({
@@ -394,8 +350,8 @@ export function generateXPeriodAxisPrimitive(
     }
 
     currentX += mx.periodAxisType === "year-centered"
-      ? mx.slotExtent
-      : sg.gridLineStrokeWidth + mx.slotExtent;
+      ? slotExtent
+      : sg.gridLineStrokeWidth + slotExtent;
   }
 
   if (prevLargeTickX !== undefined && prevLargeTickPeriodId !== undefined) {
@@ -470,18 +426,17 @@ export function generateXPeriodAxisPrimitive(
       ...(periodType === "year" && yearSpan.nPoints === 1
         ? tickIdentity(
           identity.coordinates,
-          periodCoordinate(period.name, yearSpan.periodId),
+          periodCoordinate(xAxis.config.dimension, yearSpan.periodId),
           label,
         )
         : {}),
     });
   }
 
-  // Axis line
   const axisLine: { coords: Coordinates[]; style: LineStyle } = {
     coords: [
-      new Coordinates([subChartX, axisY]),
-      new Coordinates([subChartX + mx.uniformSubChartWidth, axisY]),
+      new Coordinates([rcd.x(), axisY]),
+      new Coordinates([rcd.rightX(), axisY]),
     ],
     style: {
       strokeColor: sg.axisColor,
@@ -492,7 +447,7 @@ export function generateXPeriodAxisPrimitive(
 
   return withPaintedBounds({
     type: "chart-axis",
-    key: `x-period-axis-${i_pane}-${i_lane}`,
+    key: `x-period-axis-${subChart.i_pane}-${subChart.i_lane}`,
     item: buildItem(identity.coordinates),
     meta: { axisType: "x-period", ...identity.meta },
     ticks,
@@ -506,37 +461,32 @@ export function generateXPeriodAxisPrimitive(
   });
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    Y-Scale Axis Primitive Generation                                      //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
 export function generateYValueAxisPrimitive(
   rc: RenderContext,
-  itemDataDimensions: ChartItemDataDimensions,
-  i_pane: number,
-  i_tier: number,
-  yValueAxisWidthInfo: YValueAxisWidthInfo,
+  subChart: Extract<SubChart, { kind: "category-and-value" }>,
+  yAxis: Extract<MeasuredYAxis, { type: "value" }>,
   yAxisRcd: RectCoordsDims,
-  subChartY: number,
-  uniformSubChartHeight: number,
-  clearance: OverhangClearance,
-  axisLabelText: string | undefined,
-  sy: MergedYValueAxisStyle,
-  sg: MergedGridStyle,
+  gridStyle: MergedGridStyle,
+  itemDataDimensions: ChartItemDataDimensions,
 ): ChartAxisPrimitive {
-  const my = yValueAxisWidthInfo;
-  const identity = yAxisIdentity(itemDataDimensions, i_pane, i_tier);
+  const my = yAxis.info;
+  const sy = yAxis.config.axisStyle;
+  const sg = gridStyle;
+  const { rcd } = subChart;
+  const identity = yAxisIdentity(
+    itemDataDimensions,
+    subChart.i_pane,
+    subChart.i_tier,
+  );
   const axisX = yAxisRcd.rightX() - sg.axisStrokeWidth / 2;
   const ticks: ChartAxisPrimitive["ticks"] = [];
 
-  const tickValues = my.yAxisTickValues[i_tier];
+  const tickValues = my.yAxisTickValues[subChart.i_tier];
   const tickPositions = getValueAxisTickPositions(
-    subChartY,
-    uniformSubChartHeight,
+    rcd.y(),
+    rcd.h(),
     tickValues.length,
-    clearance,
+    subChart.valueClearance,
     "y",
   );
 
@@ -577,14 +527,10 @@ export function generateYValueAxisPrimitive(
     });
   }
 
-  // Axis line (vertical line for y-axis)
   const axisLine: { coords: Coordinates[]; style: LineStyle } = {
     coords: [
-      new Coordinates([axisX, subChartY - sg.gridLineStrokeWidth / 2]),
-      new Coordinates([
-        axisX,
-        subChartY + uniformSubChartHeight + sg.gridLineStrokeWidth / 2,
-      ]),
+      new Coordinates([axisX, rcd.y() - sg.gridLineStrokeWidth / 2]),
+      new Coordinates([axisX, rcd.bottomY() + sg.gridLineStrokeWidth / 2]),
     ],
     style: {
       show: true,
@@ -595,9 +541,9 @@ export function generateYValueAxisPrimitive(
   };
 
   let axisLabel: ChartAxisPrimitive["axisLabel"];
-  if (axisLabelText) {
+  if (yAxis.config.axisLabel) {
     const mLabel = rc.mText(
-      axisLabelText,
+      yAxis.config.axisLabel,
       sy.text.yValueAxisLabel,
       Number.POSITIVE_INFINITY,
       { rotation: "anticlockwise" },
@@ -606,7 +552,7 @@ export function generateYValueAxisPrimitive(
       mText: mLabel,
       position: new Coordinates([
         yAxisRcd.x() + my.tierHeaderAndLabelGapWidth,
-        subChartY + uniformSubChartHeight / 2,
+        rcd.centerY(),
       ]),
       alignH: "left",
       alignV: "middle",
@@ -615,7 +561,7 @@ export function generateYValueAxisPrimitive(
 
   return withPaintedBounds({
     type: "chart-axis",
-    key: `y-value-axis-${i_pane}-${i_tier}`,
+    key: `y-value-axis-${subChart.i_pane}-${subChart.i_tier}`,
     item: buildItem(identity.coordinates),
     meta: { axisType: "y-value", ...identity.meta },
     ticks,
@@ -630,36 +576,31 @@ export function generateYValueAxisPrimitive(
   });
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    X-Scale Axis Primitive Generation                                       //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
 export function generateXValueAxisPrimitive(
   rc: RenderContext,
+  subChart: Extract<SubChart, { kind: "category-and-value" }>,
+  xAxis: Extract<MeasuredXAxis, { type: "value" }>,
+  gridStyle: MergedGridStyle,
   itemDataDimensions: ChartItemDataDimensions,
-  i_pane: number,
-  i_lane: number,
-  xValueAxisHeightInfo: XValueAxisHeightInfo,
-  xAxisRcd: RectCoordsDims,
-  subChartX: number,
-  uniformSubChartWidth: number,
-  clearance: OverhangClearance,
-  axisLabelText: string | undefined,
-  sx: MergedXValueAxisStyle,
-  sg: MergedGridStyle,
 ): ChartAxisPrimitive {
-  const identity = xAxisIdentity(itemDataDimensions, i_pane, i_lane);
+  const { xAxisRcd, xValueAxisHeightInfo } = xAxis.info;
+  const sx = xAxis.config.axisStyle;
+  const sg = gridStyle;
+  const { rcd } = subChart;
+  const identity = xAxisIdentity(
+    itemDataDimensions,
+    subChart.i_pane,
+    subChart.i_lane,
+  );
   const axisY = xAxisRcd.y() + sg.axisStrokeWidth / 2;
   const ticks: ChartAxisPrimitive["ticks"] = [];
 
-  const tickValues = xValueAxisHeightInfo.xAxisTickValues[i_lane];
+  const tickValues = xValueAxisHeightInfo.xAxisTickValues[subChart.i_lane];
   const tickPositions = getValueAxisTickPositions(
-    subChartX,
-    uniformSubChartWidth,
+    rcd.x(),
+    rcd.w(),
     tickValues.length,
-    clearance,
+    subChart.valueClearance,
     "x",
   );
 
@@ -698,14 +639,10 @@ export function generateXValueAxisPrimitive(
     });
   }
 
-  // Axis line (horizontal at top of xAxisRcd)
   const axisLine: { coords: Coordinates[]; style: LineStyle } = {
     coords: [
-      new Coordinates([subChartX - sg.gridLineStrokeWidth / 2, axisY]),
-      new Coordinates([
-        subChartX + uniformSubChartWidth + sg.gridLineStrokeWidth / 2,
-        axisY,
-      ]),
+      new Coordinates([rcd.x() - sg.gridLineStrokeWidth / 2, axisY]),
+      new Coordinates([rcd.rightX() + sg.gridLineStrokeWidth / 2, axisY]),
     ],
     style: {
       show: true,
@@ -716,16 +653,16 @@ export function generateXValueAxisPrimitive(
   };
 
   let axisLabel: ChartAxisPrimitive["axisLabel"];
-  if (axisLabelText) {
+  if (xAxis.config.axisLabel) {
     const mLabel = rc.mText(
-      axisLabelText,
+      xAxis.config.axisLabel,
       sx.text.xValueAxisLabel,
       Number.POSITIVE_INFINITY,
     );
     axisLabel = {
       mText: mLabel,
       position: new Coordinates([
-        subChartX + uniformSubChartWidth / 2,
+        rcd.centerX(),
         xAxisRcd.bottomY() - mLabel.dims.h(),
       ]),
       alignH: "center",
@@ -735,7 +672,7 @@ export function generateXValueAxisPrimitive(
 
   return withPaintedBounds({
     type: "chart-axis",
-    key: `x-value-axis-${i_pane}-${i_lane}`,
+    key: `x-value-axis-${subChart.i_pane}-${subChart.i_lane}`,
     item: buildItem(identity.coordinates),
     meta: { axisType: "x-value", ...identity.meta },
     ticks,
@@ -750,52 +687,40 @@ export function generateXValueAxisPrimitive(
   });
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    Y-Text Axis Primitive Generation                                        //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
 export function generateYTextAxisPrimitive(
   rc: RenderContext,
-  itemDataDimensions: ChartItemDataDimensions,
-  i_pane: number,
-  i_tier: number,
-  yAxisWidthInfo: YTextAxisWidthInfo,
+  subChart: Extract<SubChart, { kind: "category-and-value" }>,
+  yAxis: Extract<MeasuredYAxis, { type: "text" }>,
   yAxisRcd: RectCoordsDims,
-  subChartY: number,
-  uniformSubChartHeight: number,
-  indicatorMembers: DimensionMember[],
-  sy: MergedYTextAxisStyle,
-  sg: MergedGridStyle,
+  gridStyle: MergedGridStyle,
+  itemDataDimensions: ChartItemDataDimensions,
 ): ChartAxisPrimitive {
-  const identity = yAxisIdentity(itemDataDimensions, i_pane, i_tier);
+  const sy = yAxis.config.axisStyle;
+  const sg = gridStyle;
+  const { rcd, slotExtent, isCentered } = subChart;
+  const identity = yAxisIdentity(
+    itemDataDimensions,
+    subChart.i_pane,
+    subChart.i_tier,
+  );
   const axisX = yAxisRcd.rightX() - sg.axisStrokeWidth / 2;
-  const centeredTicks = sy.tickPosition === "center";
   const ticks: ChartAxisPrimitive["ticks"] = [];
 
-  const nIndicators = indicatorMembers.length;
-  const slotExtent = centeredTicks
-    ? uniformSubChartHeight / Math.max(1, nIndicators)
-    : (uniformSubChartHeight - sg.gridLineStrokeWidth * (nIndicators + 1)) /
-      Math.max(1, nIndicators);
-
-  let currentY = centeredTicks
-    ? subChartY
-    : subChartY + sg.gridLineStrokeWidth / 2;
+  let currentY = isCentered ? rcd.y() : rcd.y() + sg.gridLineStrokeWidth / 2;
 
   const tickX = yAxisRcd.rightX() - sg.axisStrokeWidth;
 
-  for (let i_indicator = 0; i_indicator < nIndicators; i_indicator++) {
-    const tickY = centeredTicks ? currentY + slotExtent / 2 : currentY;
+  for (const i_value of subChart.slotOrder) {
+    const indicatorMember = yAxis.config.indicatorMembers[i_value];
+    const tickY = isCentered ? currentY + slotExtent / 2 : currentY;
 
     const mText = rc.mText(
-      indicatorMembers[i_indicator].label,
+      indicatorMember.label,
       sy.text.yTextAxisTickLabels,
-      yAxisWidthInfo.maxTickLabelW,
+      yAxis.info.maxTickLabelW,
     );
 
-    const labelPosition = centeredTicks
+    const labelPosition = isCentered
       ? new Coordinates([
         tickX - sy.tickLength - sy.tickLabelGap,
         currentY + slotExtent / 2,
@@ -818,24 +743,18 @@ export function generateYTextAxisPrimitive(
         end: new Coordinates([tickX, tickY]),
       },
       label,
-      value: indicatorMembers[i_indicator],
+      value: indicatorMember,
       ...tickIdentity(
         identity.coordinates,
-        itemCoordinate(
-          itemDataDimensions.indicator?.name,
-          indicatorMembers[i_indicator],
-        ),
+        itemCoordinate(itemDataDimensions.indicator?.name, indicatorMember),
         label,
       ),
     });
 
-    currentY += centeredTicks
-      ? slotExtent
-      : slotExtent + sg.gridLineStrokeWidth;
+    currentY += isCentered ? slotExtent : slotExtent + sg.gridLineStrokeWidth;
   }
 
-  // Final tick at bottom boundary when sides mode
-  if (!centeredTicks) {
+  if (!isCentered) {
     ticks.push({
       position: new Coordinates([axisX, currentY]),
       tickLine: {
@@ -846,14 +765,10 @@ export function generateYTextAxisPrimitive(
     });
   }
 
-  // Axis line (vertical at the right edge of the y axis's rect)
   const axisLine: { coords: Coordinates[]; style: LineStyle } = {
     coords: [
-      new Coordinates([axisX, subChartY - sg.gridLineStrokeWidth / 2]),
-      new Coordinates([
-        axisX,
-        subChartY + uniformSubChartHeight + sg.gridLineStrokeWidth / 2,
-      ]),
+      new Coordinates([axisX, rcd.y() - sg.gridLineStrokeWidth / 2]),
+      new Coordinates([axisX, rcd.bottomY() + sg.gridLineStrokeWidth / 2]),
     ],
     style: {
       show: true,
@@ -865,7 +780,7 @@ export function generateYTextAxisPrimitive(
 
   return withPaintedBounds({
     type: "chart-axis",
-    key: `y-text-axis-${i_pane}-${i_tier}`,
+    key: `y-text-axis-${subChart.i_pane}-${subChart.i_tier}`,
     item: buildItem(identity.coordinates),
     meta: { axisType: "y-text", ...identity.meta },
     ticks,

@@ -2,14 +2,24 @@
 // prompt is instance level, with no date and no tool catalogue, which only
 // /mcp's one-shot get_overview asks for; the chat's own principles, which
 // /mcp does not pass; the deck brief's rule for when a slide is read; the
-// FASTR brief rides rewrite_report's description alone; and the package
-// block names the package, the scope and each family's limits.
+// FASTR brief rides rewrite_report's description alone; the package block
+// names the package, the scope and each family's limits; and its indicator
+// lists and scope limits are written whole up to the inline cap and as a
+// count that names get_dimension_values over it; an HMIS indicator's line
+// states a direction only where it declares one, and the base instructions
+// say so.
 //
 //   deno test -A --no-check server/tests/copilot_prompt_test.ts
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-import type { RunDataset, ScopeDefinition } from "lib";
+import type {
+  PackageGrounding,
+  RunDataset,
+  RunHmisIndicator,
+  ScopeDefinition,
+} from "lib";
 import {
+  AI_INLINE_LIST_MAX,
   buildMapCoverageLines,
   buildPackageBlock,
   buildSystemPrompt,
@@ -223,31 +233,23 @@ Deno.test("the FASTR editing instructions do not carry the syntax doc", () => {
   );
 });
 
-const DEFINITION: ScopeDefinition = {
-  hmis: {
-    include: true,
-    adminArea2: "Kano",
-    years: { start: 2022, end: 2024 },
-    modules: null,
-    indicators: ["anc1", "anc4"],
-  },
-  hfa: { include: false },
-  iceh: { include: true, years: null, modules: null, indicators: null },
-};
-
-const HMIS_DATASET: RunDataset = {
-  datasetType: "hmis",
-  info: {
-    version: {
-      id: 3,
-      nRowsTotalImported: 0,
-      nRowsInserted: undefined,
-      nRowsUpdated: undefined,
-      stagingResult: undefined,
+function definitionWith(hmisIndicators: string[]): ScopeDefinition {
+  return {
+    hmis: {
+      include: true,
+      adminArea2: "Kano",
+      years: { start: 2022, end: 2024 },
+      modules: null,
+      indicators: hmisIndicators,
     },
-  },
-  dateExported: "2026-01-01T00:00:00.000Z",
-};
+    hfa: { include: false },
+    iceh: { include: true, years: null, modules: null, indicators: null },
+  };
+}
+
+const DEFINITION = definitionWith(["anc1", "anc4"]);
+
+const HMIS_DATASET: RunDataset = { datasetType: "hmis", versionId: 3 };
 
 Deno.test("the package block names the package, the scope and each family's limits", () => {
   const block = buildPackageBlock({
@@ -314,6 +316,140 @@ Deno.test("the package block says when the scope is not listed", () => {
     "**Package:** 00000000-0000-4000-8000-000000000000\n**Scope:** not listed",
   );
   assert(!block.includes("generated"));
+});
+
+const EMPTY_GROUNDING: PackageGrounding = {
+  calendar: "gregorian",
+  datasets: [],
+  hmisIndicators: [],
+  icehIndicators: [],
+  mapLevels: [],
+};
+
+function blockWith(
+  grounding: Partial<PackageGrounding>,
+  definition: ScopeDefinition = DEFINITION,
+): string {
+  return buildPackageBlock({
+    packageLabel: "Package",
+    createdAt: null,
+    scope: { label: "Scope", definition },
+    grounding: { ...EMPTY_GROUNDING, ...grounding },
+  });
+}
+
+function hmisIndicators(n: number): RunHmisIndicator[] {
+  return Array.from({ length: n }, (_, i) => ({
+    id: `hmis_${i}`,
+    label: `HMIS indicator ${i}`,
+    format_as: "number",
+    direction: "higher-is-better",
+  }));
+}
+
+function icehIndicators(n: number) {
+  return Array.from(
+    { length: n },
+    (_, i) => ({ id: `iceh_${i}`, label: `ICEH indicator ${i}` }),
+  );
+}
+
+Deno.test("the package block lists every HMIS indicator up to the inline cap", () => {
+  const block = blockWith({
+    hmisIndicators: hmisIndicators(AI_INLINE_LIST_MAX),
+  });
+  assertStringIncludes(
+    block,
+    `**HMIS indicators (${AI_INLINE_LIST_MAX}):** id: label [format; direction;`,
+  );
+  assertStringIncludes(
+    block,
+    "Read every value against its declared direction, where its indicator declares one.",
+  );
+  for (let i = 0; i < AI_INLINE_LIST_MAX; i++) {
+    assertStringIncludes(
+      block,
+      `\n- hmis_${i}: HMIS indicator ${i} [number; higher is better]`,
+    );
+  }
+});
+
+Deno.test("over the inline cap the package block writes the HMIS count and names the lookup", () => {
+  const n = AI_INLINE_LIST_MAX + 1;
+  const block = blockWith({ hmisIndicators: hmisIndicators(n) });
+  assertStringIncludes(
+    block,
+    `**HMIS indicators (${n}):** more than ${AI_INLINE_LIST_MAX}, too many to list here. get_dimension_values with a metric's id and disOpt "indicator_common_id" lists the ones the metric holds, each with its format, direction, thresholds, target and formula, and its search finds them by name. Read every value against its declared direction, where its indicator declares one.`,
+  );
+  assert(!block.includes("hmis_0"));
+  assert(!block.includes("\n- hmis_"));
+});
+
+Deno.test("the HMIS line of an indicator that declares no direction states none", () => {
+  const block = blockWith({
+    hmisIndicators: [
+      { id: "anc1", label: "ANC 1", format_as: "number" },
+      {
+        id: "mmr",
+        label: "Maternal deaths",
+        format_as: "number",
+        direction: "lower-is-better",
+      },
+    ],
+  });
+  assertStringIncludes(block, "\n- anc1: ANC 1 [number]\n");
+  assertStringIncludes(
+    block,
+    "\n- mmr: Maternal deaths [number; lower is better]",
+  );
+});
+
+Deno.test("the package block lists every ICEH indicator up to the inline cap", () => {
+  const block = blockWith({
+    icehIndicators: icehIndicators(AI_INLINE_LIST_MAX),
+  });
+  assertStringIncludes(block, `**ICEH indicators (${AI_INLINE_LIST_MAX}):**\n`);
+  for (let i = 0; i < AI_INLINE_LIST_MAX; i++) {
+    assertStringIncludes(block, `\n- iceh_${i}: ICEH indicator ${i}`);
+  }
+});
+
+Deno.test("over the inline cap the package block writes the ICEH count and names the lookup", () => {
+  const n = AI_INLINE_LIST_MAX + 1;
+  const block = blockWith({ icehIndicators: icehIndicators(n) });
+  assertStringIncludes(
+    block,
+    `**ICEH indicators (${n}):** more than ${AI_INLINE_LIST_MAX}, too many to list here. get_dimension_values with a metric's id and disOpt "iceh_indicator" lists the ones the metric holds, each with its category, and its search finds them by name.`,
+  );
+  assert(!block.includes("iceh_0"));
+});
+
+Deno.test("a scope limit over the inline cap is written as its count and names the lookup", () => {
+  const atCap = Array.from(
+    { length: AI_INLINE_LIST_MAX },
+    (_, i) => `ind_${i}`,
+  );
+  const overCap = [...atCap, "ind_extra"];
+  const whole = blockWith({}, definitionWith(atCap));
+  assertStringIncludes(whole, `indicators ${atCap.join(", ")}.`);
+  const counted = blockWith({}, definitionWith(overCap));
+  assertStringIncludes(
+    counted,
+    `- HMIS: included, limited to admin area 2 "Kano"; years 2022 to 2024; ${overCap.length} indicators (more than ${AI_INLINE_LIST_MAX}, too many to list here: get_dimension_values with a metric's id and disOpt "indicator_common_id" lists the ones the metric holds under this scope).`,
+  );
+  assert(!counted.includes("ind_0"));
+});
+
+Deno.test("the base instructions say where an HMIS indicator's direction is written, and to infer one it does not declare", () => {
+  const prompt = buildSystemPrompt(PARTS);
+  assertStringIncludes(
+    prompt,
+    `**Use the declared direction first.** An HMIS indicator declares "higher is better" or "lower is better", with its thresholds and target where it has them, or declares no direction. A declaration is written in three places: the results package's list of HMIS indicators, when the package has few enough to list there; get_metric_data's Dimension Summary; and get_dimension_values, beside each indicator_common_id value. An indicator whose line states no direction declares none. A declaration is the instance's own reading of the indicator and overrides any guess from the name.`,
+  );
+  assertStringIncludes(
+    prompt,
+    `**Only where nothing is declared** (an HMIS indicator that declares no direction, HFA and ICEH indicators, module metrics such as outlier, completeness or dropout rates), infer the direction from what the indicator measures:`,
+  );
 });
 
 Deno.test("the map coverage line names each registry's levels, or says there are none", () => {

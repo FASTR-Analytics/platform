@@ -6,6 +6,7 @@
 import {
   clamp,
   getColor,
+  overlayPadding,
   Padding,
   PANTHER_DEBUG,
   RectCoordsDims,
@@ -17,7 +18,9 @@ import type {
   ContainerStyleOptions,
   HeightConstraints,
   ItemHeightMeasurer,
+  ItemLayoutNode,
   LayoutNode,
+  LayoutNodeBase,
   MeasuredColsLayoutNode,
   MeasuredItemLayoutNode,
   MeasuredLayoutNode,
@@ -49,9 +52,10 @@ function resolveContainerStyle(
   const sf = layoutStyle.alreadyScaledValue ?? 1;
   const defaults = layoutStyle.containerDefaults;
 
+  const defaultPadding = defaults?.padding ?? new Padding(0);
   const padding = nodeStyle?.padding
-    ? new Padding(nodeStyle.padding).toScaled(sf)
-    : (defaults?.padding ?? new Padding(0));
+    ? overlayPadding(defaultPadding, nodeStyle.padding, sf)
+    : defaultPadding;
 
   const borderWidth = nodeStyle?.borderWidth
     ? nodeStyle.borderWidth * sf
@@ -110,25 +114,8 @@ export function getHeightConstraints<T, U>(
   availableColumns: number,
   startColumn: number,
 ): HeightConstraints {
-  let minH: number;
-  let idealH: number;
-  let maxH: number;
-
   if (node.type === "item") {
-    const resolved = resolveContainerStyle(node.style, mctx.layoutStyle);
-    const pad = resolved.padding;
-    const borderWidth = resolved.borderWidth;
-    const borderTotal = borderWidth * 2;
-    const paddingAndBorder = pad.totalPy() + borderTotal;
-    const innerW = width - pad.totalPx() - borderTotal;
-
-    const result = mctx.itemMeasurer(mctx.renderCtx, node, innerW);
-    // Add padding to convert content heights to total heights
-    minH = result.minH + paddingAndBorder;
-    idealH = result.idealH + paddingAndBorder;
-    maxH = node.alignV || resolved.backgroundExtent === "fill"
-      ? Infinity
-      : result.maxH + paddingAndBorder;
+    const { minH, idealH, maxH } = measureItemConstraints(mctx, node, width);
     if (PANTHER_DEBUG) {
       console.log(
         `  ITEM: minH=${minH.toFixed(1)}, idealH=${idealH.toFixed(1)}, maxH=${
@@ -138,7 +125,14 @@ export function getHeightConstraints<T, U>(
         }`,
       );
     }
-  } else if (node.type === "rows") {
+    return { minH, idealH, maxH };
+  }
+
+  let minH: number;
+  let idealH: number;
+  let maxH: number;
+
+  if (node.type === "rows") {
     if (node.children.length === 0) {
       minH = 0;
       idealH = 0;
@@ -200,19 +194,52 @@ export function getHeightConstraints<T, U>(
     }
   }
 
-  // Apply node-level overrides
-  if (node.minH !== undefined) {
-    minH = node.minH;
-  }
-  if (node.maxH !== undefined) {
-    maxH = node.maxH;
-  }
-  // Ensure maxH >= minH after overrides
-  maxH = Math.max(minH, maxH);
-  // Ensure idealH is within bounds
-  idealH = clamp(idealH, minH, maxH);
+  return withNodeOverrides(node, { minH, idealH, maxH });
+}
 
-  return { minH, idealH, maxH };
+function withNodeOverrides(
+  node: LayoutNodeBase,
+  heights: { minH: number; idealH: number; maxH: number },
+): { minH: number; idealH: number; maxH: number } {
+  const minH = node.minH ?? heights.minH;
+  const maxH = Math.max(minH, node.maxH ?? heights.maxH);
+  return { minH, idealH: clamp(heights.idealH, minH, maxH), maxH };
+}
+
+// An item's content constraints, read at the width its padding and border
+// leave, and its total heights: padding and border added, maxH unbounded when
+// it aligns its content or fills its background, and its own minH and maxH
+// applied.
+function measureItemConstraints<T, U>(
+  mctx: MeasureContext<T, U>,
+  node: ItemLayoutNode<U>,
+  width: number,
+): {
+  resolved: ResolvedContainerStyle;
+  content: HeightConstraints;
+  minH: number;
+  idealH: number;
+  maxH: number;
+} {
+  const resolved = resolveContainerStyle(node.style, mctx.layoutStyle);
+  const borderTotal = resolved.borderWidth * 2;
+  const paddingAndBorder = resolved.padding.totalPy() + borderTotal;
+  const content = mctx.itemMeasurer(
+    mctx.renderCtx,
+    node,
+    width - resolved.padding.totalPx() - borderTotal,
+  );
+  return {
+    resolved,
+    content,
+    ...withNodeOverrides(node, {
+      minH: content.minH + paddingAndBorder,
+      idealH: content.idealH + paddingAndBorder,
+      maxH: node.alignV || resolved.backgroundExtent === "fill"
+        ? Infinity
+        : content.maxH + paddingAndBorder,
+    }),
+  };
 }
 
 // =============================================================================
@@ -343,12 +370,6 @@ function measureRowNode<T, U>(
   const calculatedSpan = Math.max(...measuredChildren.map((c) => c.span), 1);
   const span = node.span ?? calculatedSpan;
 
-  // Calculate minimum span (max of children's minimums since rows stack)
-  const minimumSpanIfAllChildrenWere1 = Math.max(
-    ...measuredChildren.map((c) => c.minimumSpanIfAllChildrenWere1),
-    1,
-  );
-
   return {
     ...node,
     rpd,
@@ -356,7 +377,6 @@ function measureRowNode<T, U>(
     absoluteStartColumn: mctx.parentStartColumn,
     absoluteEndColumn: mctx.parentStartColumn + span,
     span,
-    minimumSpanIfAllChildrenWere1,
   };
 }
 
@@ -453,12 +473,6 @@ function measureColNode<T, U>(
   const calculatedSpan = measuredChildren.reduce((sum, c) => sum + c.span, 0);
   const span = node.span ?? calculatedSpan;
 
-  // Calculate minimum span (sum of children's minimums since cols are horizontal)
-  const minimumSpanIfAllChildrenWere1 = measuredChildren.reduce(
-    (sum, c) => sum + c.minimumSpanIfAllChildrenWere1,
-    0,
-  );
-
   return {
     ...node,
     rpd,
@@ -466,7 +480,6 @@ function measureColNode<T, U>(
     absoluteStartColumn: mctx.parentStartColumn,
     absoluteEndColumn: mctx.parentStartColumn + span,
     span,
-    minimumSpanIfAllChildrenWere1,
   };
 }
 
@@ -475,30 +488,16 @@ function measureItemNode<T, U>(
   node: LayoutNode<U> & { type: "item" },
   bounds: RectCoordsDims,
 ): MeasuredItemLayoutNode<U> {
-  const resolved = resolveContainerStyle(node.style, mctx.layoutStyle);
+  const { resolved, content, idealH, maxH } = measureItemConstraints(
+    mctx,
+    node,
+    bounds.w(),
+  );
   const pad = resolved.padding;
   const borderWidth = resolved.borderWidth;
-  const borderTotal = borderWidth * 2;
 
   const boundsAfterBorder = bounds.getPadded(new Padding(borderWidth));
   const innerBounds = boundsAfterBorder.getPadded(pad);
-
-  const constraints = mctx.itemMeasurer(mctx.renderCtx, node, innerBounds.w());
-
-  // Convert content heights to total heights by adding padding
-  let minH = constraints.minH + pad.totalPy() + borderTotal;
-  let idealH = constraints.idealH + pad.totalPy() + borderTotal;
-  let maxH = constraints.maxH + pad.totalPy() + borderTotal;
-
-  // Apply node-level overrides (overrides are total heights)
-  if (node.minH !== undefined) {
-    minH = node.minH;
-  }
-  if (node.maxH !== undefined) {
-    maxH = node.maxH;
-  }
-  maxH = Math.max(minH, maxH);
-  idealH = clamp(idealH, minH, maxH);
 
   const span = node.span ?? mctx.parentAvailableSpan;
   const { style: _style, ...nodeWithoutStyle } = node;
@@ -507,7 +506,7 @@ function measureItemNode<T, U>(
   let styleRpd: RectCoordsDims;
 
   if (node.alignV) {
-    const contentH = constraints.idealH;
+    const contentH = content.idealH;
     const availableH = innerBounds.h();
     const yOffset = node.alignV === "middle"
       ? Math.max(0, (availableH - contentH) / 2)
@@ -548,11 +547,10 @@ function measureItemNode<T, U>(
     styleRpd,
     idealH,
     maxH,
-    neededScalingToFitWidth: constraints.neededScalingToFitWidth,
+    neededScalingToFitWidth: content.neededScalingToFitWidth,
     absoluteStartColumn: mctx.parentStartColumn,
     absoluteEndColumn: mctx.parentStartColumn + span,
     span,
-    minimumSpanIfAllChildrenWere1: 1,
   };
 }
 

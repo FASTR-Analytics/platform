@@ -134,7 +134,6 @@ export function measureXValueAxisLayout(
   innerRcd: RectCoordsDims,
   yAxisWidth: number,
   xValueAxisHeightInfo: XValueAxisHeightInfo,
-  uniformSubChartWidth: number,
 ): XValueAxisMeasuredInfo {
   const xStart = innerRcd.x() + yAxisWidth;
   const xAxisRcd = innerRcd.getAdjusted(() => ({
@@ -144,5 +143,5 @@ export function measureXValueAxisLayout(
     w: innerRcd.rightX() - xStart,
     h: xValueAxisHeightInfo.heightIncludingXAxisStrokeWidth,
   }));
-  return { xAxisRcd, uniformSubChartWidth, xValueAxisHeightInfo };
+  return { xAxisRcd, xValueAxisHeightInfo };
 }

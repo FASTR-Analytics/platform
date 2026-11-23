@@ -10,11 +10,10 @@ import {
   ResultsValueInfoForPresentationObject,
   type ThresholdsRule,
 } from "lib";
-import { exceedsMaxReplicantOptions } from "./consts.ts";
 import type { RunVersionInfo } from "./types.ts";
 
-// The status loop: one source for the ok / too_many_values /
-// no_values_available / error thresholds.
+// The status loop: one source for the ok / no_values_available / error
+// statuses.
 export async function buildResultsValueInfo(
   metricId: string,
   resultsObjectId: string,
@@ -50,12 +49,7 @@ export async function buildResultsValueInfo(
 
       const vals = resDisPossibleVals.data;
 
-      // Build discriminated union status
-      if (exceedsMaxReplicantOptions(vals)) {
-        disaggregationPossibleValues[disOpt] = {
-          status: "too_many_values",
-        };
-      } else if (vals.length === 0) {
+      if (vals.length === 0) {
         disaggregationPossibleValues[disOpt] = {
           status: "no_values_available",
         };

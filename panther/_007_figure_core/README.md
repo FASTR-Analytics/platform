@@ -12,7 +12,7 @@ The heart of the Panther visualization system, providing shared infrastructure f
 - **Surrounds**: Titles, subtitles, footnotes (shared by all figures)
 - **Legend**: Measurement and primitive generation for legends
 
-**Chart-specific features** (used by Timeseries and ChartOV):
+**Chart-specific features** (used by ChartOV, ChartOH, Timeseries, Map and Pie; a Map and a Pie have no axes):
 
 - Multi-pane/tier/lane layouts
 - Axis systems (X/Y, categorical/continuous/period)
@@ -25,7 +25,7 @@ The heart of the Panther visualization system, providing shared infrastructure f
 
 **Chart** is a specific type of Figure that uses a grid-based coordinate system with panes, tiers, and lanes:
 
-- **Chart types**: Timeseries (`_010_timeseries/`), ChartOV (`_010_chartov/`)
+- **Chart types**: ChartOV (`_010_chartov/`), ChartOH (`_010_chartoh/`), Timeseries (`_010_timeseries/`), Map (`_010_maps/`), Pie (`_010_pie/`)
 - **Non-Chart Figures**: Table (`_010_table/`), Scene and Diagram (`_010_scene/`)
 
 See `DOC_FIGURE_ARCHITECTURE.md` for detailed taxonomy.
@@ -53,7 +53,7 @@ renderFigurePrimitives(rc, measured.primitives);
 
 ### Primitive Types
 
-**Chart primitives** (ChartOV, Timeseries):
+**Chart primitives** (ChartOV, ChartOH and Timeseries; a Map and a Pie emit the grid and header primitives beside their own `MapAreaPrimitive` and `PieSlicePrimitive`):
 
 - `ChartAxisPrimitive`, `ChartGridPrimitive`, `ChartHeaderPrimitive`, `ChartDataPointPrimitive`, `ChartLineSeriesPrimitive`, `ChartAreaSeriesPrimitive`, `ChartConnectorPrimitive`, `ChartBarPrimitive`, `ChartErrorBarPrimitive`, `ChartErrorBandPrimitive`, `ChartCascadeArrowPrimitive`
 
@@ -95,12 +95,14 @@ This pane/tier/lane system is what distinguishes Charts from other Figures.
 
 ### Chart Measurement
 
+The stages: `measureChart` → `resolvePaneGridLayout` → `measurePane` → `buildSubCharts` → `generatePaneContentPrimitives`. `buildSubCharts` resolves each sub-chart's content (`resolveSubChartContent`: the info and the styles of every series, drawn value, connector and cascade arrow, and every data label and cascade arrow label measured) before its end clearance, which folds over the labels.
+
 ```typescript
 measureChart<TInputs, TData, TStyle>(
   rc: RenderContext,
   rcdWithSurrounds: RectCoordsDims,
   inputs: TInputs,
-  config: SimplifiedChartConfig<TInputs, TData, TStyle>,
+  config: SimplifiedChartConfig<TData, TStyle>,
   fitScale?: number,
   layoutOnly?: boolean,
 ): MeasuredChartBase<TInputs, TData, TStyle>
@@ -130,15 +132,22 @@ renderFigurePrimitives(
 ### Axes (Measurement Only)
 
 ```typescript
+// A measured axis: its type, config and measured info under one tag
+type MeasuredXAxis =
+  | { type: "text"; config; info: XTextAxisMeasuredInfo }
+  | { type: "period"; config; info: XPeriodAxisMeasuredInfo }
+  | { type: "value"; config; info: XValueAxisMeasuredInfo };
+type MeasuredYAxis =
+  | { type: "value"; config; info: YValueAxisWidthInfo }
+  | { type: "text"; config; info: YTextAxisWidthInfo };
+
 // X-axis measurement
-measureXAxis(...): MeasuredXAxis
+measureXCategoryAxis(...): Extract<MeasuredXAxis, { type: "text" | "period" }>
+measureXValueAxis(...): Extract<MeasuredXAxis, { type: "value" }>
 
 // Y-axis measurement
-measureYValueAxis(...): MeasuredYValueAxis
-
-// Axis types
-type XAxisType = "period" | "text" | "scale";
-type YAxisType = "scale";
+measureYCategoryAxis(...): Extract<MeasuredYAxis, { type: "text" }>
+measureYValueAxis(...): Extract<MeasuredYAxis, { type: "value" }>
 ```
 
 Note: Axis rendering is now handled via primitives (no direct rendering functions).
@@ -212,7 +221,7 @@ Axis measurement and primitive generation for period, text, and value axes.
 
 ### `_content/`
 
-Content primitive generation (points, lines, areas, bars) and coordinate mapping.
+Content resolution (`resolve_sub_chart_content.ts`), the data-label clearance that folds over it (`measure_data_label_clearance.ts`), content primitive generation (points, lines, areas, bars) and coordinate mapping.
 
 ### `_legend/`
 
@@ -226,4 +235,6 @@ Surrounds measurement and primitive generation (figure texts + legend).
 
 - `render_primitives.ts` - Primitive rendering dispatcher
 - `measure_chart.ts` / `measure_pane.ts` - Chart/pane measurement
+- `pane_grid_layout.ts` - Each pane's place in the pane grid, the pane headers, and the proportional panes solve
+- `sub_charts.ts` - Each sub-chart's record: its rect, its slots, its value range, its content and its value clearance
 - `common_data_transform.ts` - Data transformation utilities

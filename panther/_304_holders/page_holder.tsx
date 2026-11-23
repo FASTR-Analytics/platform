@@ -75,6 +75,8 @@ type Props = {
   pageHeightDu: number;
   fitWithin?: boolean;
   simpleError?: boolean;
+  // The overflow notice is for the page's author, not an audience.
+  hideOverflowNotice?: boolean;
   externalError?: string;
   // Sharpness only (Stage 2). 1 = native-crisp on screen. Never changes layout.
   resolution?: number;
@@ -622,7 +624,7 @@ export function PageHolder(p: Props) {
       class="relative w-full data-[fitWithin=true]:h-full"
       data-fitWithin={!!p.fitWithin}
     >
-      <Show when={err() || overflow()}>
+      <Show when={err() || (overflow() && !p.hideOverflowNotice)}>
         <Switch>
           <Match when={p.simpleError}>
             <div class="absolute inset-0 flex items-center justify-center">

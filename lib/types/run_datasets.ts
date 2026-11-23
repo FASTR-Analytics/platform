@@ -1,31 +1,24 @@
 import type { DatasetHmisVersion } from "./dataset_hmis.ts";
 
-// The dataset captures a results package carries: what was exported into the
-// run workspace at generation time, plus the metadata snapshots a reader
-// compares against the live instance to judge staleness. Read from the run
-// manifest (getRunDatasetsFromManifest), never from a database.
+// RunDataset is what a reader of a results package carries of each dataset
+// it captured: the family and, for HMIS, the import version's id (the authoring
+// context and the package grounding, read from the run manifest by
+// getRunDatasetsFromManifest, never from a database).
+//
+// The RunDataset*Info types are what capture writes into a manifest dataset
+// entry's `info`: what was exported into the run workspace at generation
+// time, plus the instance's metadata stamps at capture time.
 
 export type RunDataset =
-  | {
-    datasetType: "hmis";
-    info: RunDatasetHmisInfo;
-    dateExported: string;
-  }
-  | {
-    datasetType: "hfa";
-    info: RunDatasetHfaInfo;
-    dateExported: string;
-  }
-  | {
-    datasetType: "iceh";
-    info: RunDatasetIcehInfo;
-    dateExported: string;
-  };
+  | { datasetType: "hmis"; versionId: number }
+  | { datasetType: "hfa" }
+  | { datasetType: "iceh" };
 
-// Capture is always the full dataset. Manifest transform block 9 holds every
-// stored info to exactly these keys.
+// Capture is always the full dataset. Manifest transform blocks 9 and 15 hold
+// every stored info to exactly these keys.
 export type RunDatasetHmisInfo = {
-  version: DatasetHmisVersion;
+  // The import ledger keeps the staging result under the version id.
+  version: Omit<DatasetHmisVersion, "stagingResult">;
   totalRows?: number;
   // Metadata snapshots for staleness detection
   structureLastUpdated?: string;
@@ -34,8 +27,7 @@ export type RunDatasetHmisInfo = {
 };
 
 export type RunDatasetHfaInfo = {
-  // Optional because captures that predate staleness tracking stored '{}',
-  // and the client compares missing-vs-present uniformly.
+  // Optional because captures that predate staleness tracking stored '{}'.
   hfaCacheHash?: string;
   hfaIndicatorsVersion?: string;
   structureLastUpdated?: string;

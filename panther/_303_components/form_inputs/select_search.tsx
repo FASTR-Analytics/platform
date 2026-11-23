@@ -57,7 +57,7 @@ export function SelectSearch<T extends string>(p: SelectSearchProps<T>) {
   function selectValue(value: T) {
     batch(() => {
       p.onChange(value);
-      panel.closePanel();
+      panel.dismissPanel();
     });
   }
 

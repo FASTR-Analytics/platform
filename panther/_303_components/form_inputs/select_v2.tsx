@@ -83,6 +83,7 @@ export function SelectV2<T extends string, M = never>(
   let closedLabelRef: HTMLSpanElement | undefined;
   let typeAheadBuffer = "";
   let typeAheadTimer: ReturnType<typeof setTimeout> | undefined;
+  let pressedPointerId: number | undefined;
 
   const selectedIndex = createMemo(() => {
     const i = p.items.findIndex((e) => isListItem(e) && e.id === p.value);
@@ -189,19 +190,47 @@ export function SelectV2<T extends string, M = never>(
 
   // Safari does not focus a button on click, and blur is what closes the
   // panel when the pointer goes elsewhere, so the trigger takes focus itself
-  // before toggling.
-  function handleTriggerPointerDown(
-    e: PointerEvent & { currentTarget: HTMLButtonElement },
-  ) {
-    if (p.disabled) {
-      return;
-    }
-    e.currentTarget.focus({ preventScroll: true });
+  // before toggling. WebKit's mousedown default action then clears focus from
+  // a button, which it does not treat as mouse-focusable, and that blur would
+  // close the panel just opened, so the trigger prevents the default too.
+  function toggleFromPointer(trigger: HTMLButtonElement) {
+    trigger.focus({ preventScroll: true });
     if (panel.open()) {
       panel.closePanel();
     } else {
       panel.openPanel();
     }
+  }
+
+  // A mouse toggles on press, as the native control does. Touch and pen
+  // toggle on release: their press may be the start of a scroll, which ends
+  // in pointercancel and never reaches pointerup. Control held with the
+  // primary button is the secondary click on macOS, which opens the context
+  // menu, so it toggles nothing.
+  function handleTriggerPointerDown(
+    e: PointerEvent & { currentTarget: HTMLButtonElement },
+  ) {
+    if (p.disabled || e.button !== 0 || e.ctrlKey) {
+      return;
+    }
+    if (e.pointerType === "mouse") {
+      toggleFromPointer(e.currentTarget);
+    } else {
+      pressedPointerId = e.pointerId;
+    }
+  }
+
+  // A release toggles only for the pointer that pressed on the trigger and
+  // has not left it since. A pen is not captured by the element it pressed
+  // on, so a drag that began elsewhere can end on the trigger.
+  function handleTriggerPointerUp(
+    e: PointerEvent & { currentTarget: HTMLButtonElement },
+  ) {
+    if (e.pointerId !== pressedPointerId) {
+      return;
+    }
+    pressedPointerId = undefined;
+    toggleFromPointer(e.currentTarget);
   }
 
   // Keeps the active row visible without delegating to scrollIntoView, whose
@@ -282,6 +311,9 @@ export function SelectV2<T extends string, M = never>(
           data-panel-side={panel.open() ? panel.side() : undefined}
           disabled={p.disabled}
           onPointerDown={handleTriggerPointerDown}
+          onPointerUp={handleTriggerPointerUp}
+          onPointerLeave={() => pressedPointerId = undefined}
+          onMouseDown={(e) => e.preventDefault()}
           onBlur={panel.handleBlur}
           on:keydown={handleTriggerKeyDown}
           onMouseEnter={(e) =>

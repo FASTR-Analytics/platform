@@ -461,7 +461,7 @@ export async function applyDhis2IdFix(
         include_in_analysis: false,
         format_as: "number",
         thresholds: null,
-        direction: "higher-is-better",
+        direction: null,
         target: null,
         expected_low_counts: false,
       })),

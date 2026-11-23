@@ -1,5 +1,5 @@
 // Pins the dictionary's tables and constraints as _main_database.sql
-// declares them, fourteen cases each in its own rolled-back transaction on a
+// declares them, twenty cases each in its own rolled-back transaction on a
 // throwaway database built from _main_database.sql on the dev postgres (the
 // .env the test task loads), dropped afterwards.
 //
@@ -330,10 +330,10 @@ Deno.test("the count thresholds rule holds in the table", async () => {
     await refused(
       sql,
       () =>
-        sql`UPDATE indicators SET thresholds = '{}' WHERE indicator_common_id = 'total'`,
+        sql`UPDATE indicators SET thresholds = '{}', direction = 'higher-is-better' WHERE indicator_common_id = 'total'`,
       "indicators_count_thresholds_check",
     );
-    await sql`UPDATE indicators SET thresholds = '{}' WHERE indicator_common_id = 'rate'`;
+    await sql`UPDATE indicators SET thresholds = '{}', direction = 'higher-is-better' WHERE indicator_common_id = 'rate'`;
     assert(true);
   });
 });
@@ -351,7 +351,7 @@ Deno.test("the count target rule holds in the table", async () => {
   });
 });
 
-Deno.test("the calculated low-counts rule and the direction vocabulary hold in the table", async () => {
+Deno.test("the calculated low-counts rule holds in the table", async () => {
   await rolledBack(async (sql) => {
     await refused(
       sql,
@@ -360,6 +360,16 @@ Deno.test("the calculated low-counts rule and the direction vocabulary hold in t
       "indicators_calculated_low_counts_check",
     );
     await sql`UPDATE indicators SET expected_low_counts = TRUE WHERE indicator_common_id = 'total'`;
+    assert(true);
+  });
+});
+
+Deno.test("a direction may be undeclared, holds the vocabulary when declared, and a rule needs one", async () => {
+  await rolledBack(async (sql) => {
+    const rows = await sql<{ direction: string | null }[]>`
+      SELECT direction FROM indicators WHERE indicator_common_id = 'rate'
+    `;
+    assertEquals(rows.map((r) => r.direction), [null]);
     await refused(
       sql,
       () =>
@@ -367,7 +377,13 @@ Deno.test("the calculated low-counts rule and the direction vocabulary hold in t
       "indicators_direction_check",
     );
     await sql`UPDATE indicators SET direction = 'lower-is-better' WHERE indicator_common_id = 'elem'`;
-    assert(true);
+    await refused(
+      sql,
+      () =>
+        sql`UPDATE indicators SET thresholds = '{}' WHERE indicator_common_id = 'rate'`,
+      "indicators_rule_direction_check",
+    );
+    await sql`UPDATE indicators SET direction = NULL WHERE indicator_common_id = 'elem'`;
   });
 });
 

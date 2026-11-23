@@ -10,7 +10,13 @@
 // construction: no Request, no path, no framework type appears in any
 // signature here.
 
-import { stableStringify, z } from "./deps.ts";
+import {
+  CLOSED_INPUT_RULE,
+  findOpenObjectPath,
+  stableStringify,
+  wireInputSchema,
+  z,
+} from "./deps.ts";
 import type {
   Guard,
   GuardDecision,
@@ -536,6 +542,14 @@ function validateRegistry<TIdentity>(
       op.exposure.headless.excluded.trim() === ""
     ) {
       fail(`op "${name}": headless exclusion must state a reason (R9)`);
+    }
+    if (op.exposure.ai || op.exposure.headless === true) {
+      const openPath = findOpenObjectPath(wireInputSchema(op.input));
+      if (openPath !== null) {
+        fail(
+          `op "${name}" is exposed to AI or MCP and its input leaves extra keys undeclared at ${openPath}. ${CLOSED_INPUT_RULE}`,
+        );
+      }
     }
     if (op.kind === "nav") {
       if (impls[name] !== undefined) {

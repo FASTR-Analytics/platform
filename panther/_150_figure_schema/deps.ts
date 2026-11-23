@@ -4,7 +4,10 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export type { PeriodType } from "../_000_utils/mod.ts";
-export type { ColorKeyOrString } from "../_001_color/mod.ts";
+export type {
+  ColorKeyOrString,
+  ContinuousPaletteName,
+} from "../_001_color/mod.ts";
 export { getDimensionMembers } from "../_001_render_system/mod.ts";
 export type {
   DataDimension,
@@ -14,7 +17,11 @@ export type {
   MemberSortFunc,
   PointType,
 } from "../_001_render_system/mod.ts";
-export type { CustomFigureStyleOptions } from "../_003_figure_style/mod.ts";
+export type {
+  CustomFigureStyleOptions,
+  MapDataLabelMode,
+  MapProjection,
+} from "../_003_figure_style/mod.ts";
 export type {
   AnnotationRectStyle,
   ChartValueAxisLimits,

@@ -12,8 +12,9 @@
 // before touching this.
 //
 // TRANSFORM BLOCKS:
-//   1. indicators[]: the per-module resolved indicator catalog (schema v3),
-//      recomputed from the package's own input mirrors.
+//   1. indicators[]: the resolved indicator catalog of each family the
+//      package's modules have (schema v3), recomputed from the package's own
+//      input mirrors.
 //   2. metrics[].format_as → "indicator" for the 8 pre-declaration metrics
 //      (schema v4): the declared-format migration.
 //   3. facilityColumnsConfig → per-family structureSchemaHmis/Hfa slots
@@ -57,6 +58,16 @@
 //      metrics[].datasetFamily recomputed from the module's family.
 //  12. indicators[] sort_order is the rank within the entry's dimension
 //      (schema v14): block 1 recomputes it, so this block only stamps.
+//  13. `geojsonMaps` carried forward as null for a package written before
+//      the boundary-file capture (schema v15).
+//  14. datasets[] entries lose `lastUpdated`, the capture time no reader
+//      consumes (schema v16). Key delete, no recompute.
+//  15. an HMIS entry's info.version loses `stagingResult`, which the import
+//      ledger keeps under the version id (schema v17). Key delete, no
+//      recompute.
+//  16. indicators[] holds one catalog per family, not one per module (schema
+//      v18): block 1's recompute writes the shape, so this block only
+//      stamps.
 //
 // The input mirrors' own blocks are listed in input_transform.ts
 // (INPUT TRANSFORM BLOCKS); they run behind this file's version gate.
@@ -65,6 +76,7 @@
 
 import {
   type DatasetType,
+  familiesOfDatasetTypes,
   INDICATOR_FORMAT_METRIC_IDS,
   type ModuleTier,
   RUN_MANIFEST_SCHEMA_VERSION,
@@ -86,6 +98,12 @@ import {
 } from "./input_transform.ts";
 import { runManifestPath } from "./run_paths.ts";
 
+type ModulePresentation = {
+  family: DatasetType;
+  tier: ModuleTier;
+  sortOrder: number;
+};
+
 // The presentation facts of every module that ever shipped, as block 11
 // stamps them into a blob written before the definition declared them.
 // FROZEN here rather than read from the modules repo: the transform backfills
@@ -93,10 +111,7 @@ import { runManifestPath } from "./run_paths.ts";
 // module (m003, m004, m007, m008) has no live declaration at all. Complete
 // by construction, so an id outside it is a code defect and throws. The
 // precedent is LEGACY_SEED_ORDER in indicator_catalog.ts.
-const LEGACY_MODULE_PRESENTATION: Record<
-  string,
-  { family: DatasetType; tier: ModuleTier; sortOrder: number }
-> = {
+const LEGACY_MODULE_PRESENTATION: Record<string, ModulePresentation> = {
   m001: { family: "hmis", tier: "secondary", sortOrder: 1 },
   m002: { family: "hmis", tier: "secondary", sortOrder: 2 },
   m003: { family: "hmis", tier: "secondary", sortOrder: 6 },
@@ -110,6 +125,34 @@ const LEGACY_MODULE_PRESENTATION: Record<
   m011: { family: "hmis", tier: "secondary", sortOrder: 3 },
   m012: { family: "hmis", tier: "primary", sortOrder: 1 },
 };
+
+function declaresPresentation(blob: Record<string, unknown>): boolean {
+  return blob.family !== undefined && blob.tier !== undefined &&
+    blob.sortOrder !== undefined;
+}
+
+function legacyPresentation(moduleId: string): ModulePresentation {
+  const legacy = LEGACY_MODULE_PRESENTATION[moduleId];
+  if (legacy === undefined) {
+    throw new Error(
+      `manifest transform: module ${moduleId} has no legacy presentation entry`,
+    );
+  }
+  return legacy;
+}
+
+// A module's family as block 11 stamps it: the blob's own when the blob
+// declares its presentation facts, else the frozen map's. Block 1 runs before
+// block 11 and reads a module's family through this too, so the catalog it
+// composes and the family block 11 stamps cannot disagree.
+function moduleFamily(
+  moduleId: string,
+  blob: Record<string, unknown>,
+): DatasetType {
+  return declaresPresentation(blob)
+    ? blob.family as DatasetType
+    : legacyPresentation(moduleId).family;
+}
 
 // A package directory can be missing, half-written, or written by a newer
 // server, and none of those are "invalid data": only the last two rows of
@@ -165,14 +208,18 @@ async function transformRunManifest(
   // boot where the manifest is already current), so fixing a bad derivation
   // requires a RUN_MANIFEST_SCHEMA_VERSION bump to reach existing packages.
 
-  // 1. indicators[]: the per-module resolved indicator catalog. A pure
-  //    recompute from inputs/*.json through the SAME function the finalize
-  //    writer uses, so this is not a second derivation that could drift.
-  //    Unconditional rather than "only when absent": re-running the recompute
-  //    is free correctness on any forced pass, and the no-op write guard
-  //    keeps an unchanged package from churning.
+  // 1. indicators[]: the resolved indicator catalog of each family the
+  //    modules have. A pure recompute from inputs/*.json through the SAME
+  //    function the finalize writer uses, so this is not a second derivation
+  //    that could drift. Unconditional rather than "only when absent":
+  //    re-running the recompute is free correctness on any forced pass, and
+  //    the no-op write guard keeps an unchanged package from churning.
   m.indicators = await buildRunIndicatorCatalog(
-    z.array(runModuleSchema).parse(m.modules ?? []),
+    familiesOfDatasetTypes(
+      z.array(runModuleSchema).parse(m.modules ?? []).map((mod) =>
+        moduleFamily(mod.id, JSON.parse(mod.moduleDefinition))
+      ),
+    ),
     readRows,
   );
   m.manifestSchemaVersion = 3;
@@ -325,25 +372,18 @@ async function transformRunManifest(
   const familyByModuleId = new Map<string, DatasetType>();
   if (Array.isArray(m.modules)) {
     for (const mod of m.modules as Record<string, unknown>[]) {
+      const id = String(mod.id);
       const blob = JSON.parse(String(mod.moduleDefinition)) as Record<
         string,
         unknown
       >;
-      if (
-        blob.family === undefined || blob.tier === undefined ||
-        blob.sortOrder === undefined
-      ) {
-        const legacy = LEGACY_MODULE_PRESENTATION[String(mod.id)];
-        if (legacy === undefined) {
-          throw new Error(
-            `manifest transform block 11: module ${mod.id} has no legacy presentation entry`,
-          );
-        }
-        mod.moduleDefinition = JSON.stringify({ ...blob, ...legacy });
-        familyByModuleId.set(String(mod.id), legacy.family);
-      } else {
-        familyByModuleId.set(String(mod.id), blob.family as DatasetType);
+      if (!declaresPresentation(blob)) {
+        mod.moduleDefinition = JSON.stringify({
+          ...blob,
+          ...legacyPresentation(id),
+        });
       }
+      familyByModuleId.set(id, moduleFamily(id, blob));
     }
   }
   if (Array.isArray(m.metrics)) {
@@ -367,6 +407,34 @@ async function transformRunManifest(
   //     a package written before the capture carries null.
   if (m.geojsonMaps === undefined) m.geojsonMaps = null;
   m.manifestSchemaVersion = 15;
+
+  // 14. A dataset entry's `lastUpdated`: no reader consumes it. Idempotent.
+  if (Array.isArray(m.datasets)) {
+    for (const dataset of m.datasets as Record<string, unknown>[]) {
+      delete dataset.lastUpdated;
+    }
+  }
+  m.manifestSchemaVersion = 16;
+
+  // 15. An HMIS entry's info.version.stagingResult: no reader consumes it,
+  //     and the import ledger keeps it under the version id. Touches no
+  //     other key of info. Idempotent.
+  if (Array.isArray(m.datasets)) {
+    for (const dataset of m.datasets as Record<string, unknown>[]) {
+      if (dataset.datasetType !== "hmis") continue;
+      const info = dataset.info;
+      if (info === null || typeof info !== "object") continue;
+      const version = (info as Record<string, unknown>).version;
+      if (version === null || typeof version !== "object") continue;
+      delete (version as Record<string, unknown>).stagingResult;
+    }
+  }
+  m.manifestSchemaVersion = 17;
+
+  // 16. indicators[] holds one catalog per family the modules have, not one
+  //     per module: block 1's recompute writes that shape, so the stamp is
+  //     the whole block.
+  m.manifestSchemaVersion = 18;
 
   const validated = runManifestSchema.parse(m);
   // The schema deliberately accepts ANY integer version: it has to, so a

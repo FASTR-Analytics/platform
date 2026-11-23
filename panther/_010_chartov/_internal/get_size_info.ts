@@ -6,6 +6,7 @@
 import {
   calculateMinSubChartHeight,
   type ChartComponentSizes,
+  computeTotalGridLineStrokeWidth,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
   estimateMinYValueAxisWidth,
@@ -120,10 +121,13 @@ export function getChartOVComponentSizes(
       ms.xTextAxis.tickPosition === "center",
       gridLineStrokeWidth,
     ) / Math.max(1, nLanes)
-    : ms.xTextAxis.tickPosition === "center"
-    ? nSlots * minSlotExtent
     : nSlots * minSlotExtent +
-      gridLineStrokeWidth * (nSlots + 1);
+      computeTotalGridLineStrokeWidth(
+        nSlots,
+        1,
+        ms.xTextAxis.tickPosition === "center",
+        gridLineStrokeWidth,
+      );
 
   const resolvedLegendLabels = resolveDefaultLegend(
     inputs.legend,

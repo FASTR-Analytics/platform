@@ -1,9 +1,9 @@
-import { AIToolOutput, createAITool, IMAGE_LIMITS } from "panther";
+import { AIToolOutput, createAITool, IMAGE_LIMITS, plural } from "panther";
 import { z } from "zod";
-import { COPILOT_TOOL_VIEWS } from "lib";
+import { COPILOT_TOOL_VIEWS, t3 } from "lib";
 import { describeSlideOverflow, renderSlideImage } from "../../slide_ai/mod.ts";
 import { describeToolImage, MAX_LOOK_SUBJECTS } from "../../_shared/mod.ts";
-import { slidesLabel } from "./tool_labels.ts";
+import { asImagesLabel, slidesLabel } from "./tool_labels.ts";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import { assertSlidesInDeck, readSlideTarget } from "./slide_target.ts";
 
@@ -12,8 +12,8 @@ export function createGetSlideImagesTool() {
     viewRegistry: copilotViews,
     name: "get_slide_images",
     description:
-      `Look at one to ${MAX_LOOK_SUBJECTS} slides of the open deck as images, each drawn as the PDF export draws its page: the open slide as it stands on the canvas (including edits not yet saved), any other slide as saved. Use it to judge what a slide's text, and whether it overflows the page, cannot tell you: whether a dense table can be read, whether several blocks sit well together. The images come back in the order asked, and the result gives each one's size in pixels and, for each content slide, whether it overflows the page. You see an image for the rest of this turn and not after, so say in your reply what it showed. Looking again is one call and shows the slide as it is then. A turn takes at most ${IMAGE_LIMITS.MAX_PER_TURN} images.`,
-    inputSchema: z.object({
+      `Look at one to ${MAX_LOOK_SUBJECTS} slides of the open deck as images, each drawn as the PDF export draws its page: the open slide as it stands on the canvas (including edits not yet saved), any other slide as saved. Use it to judge what a slide's text, and whether it overflows the page, cannot tell you: whether a dense table can be read, whether several blocks sit well together. The images come back in the order asked, and the result gives each one's size in pixels and, for each slide, whether it overflows the page. You see an image for the rest of this turn and not after, so say in your reply what it showed. Looking again is one call and shows the slide as it is then. A turn takes at most ${IMAGE_LIMITS.MAX_PER_TURN} images.`,
+    inputSchema: z.strictObject({
       slideIds: z
         .array(z.string())
         .min(1)
@@ -31,32 +31,53 @@ export function createGetSlideImagesTool() {
       const looks = await Promise.all(
         slideIds.map(async (slideId) => {
           const { slide } = await readSlideTarget(view, slideId);
-          const { toolImage, overflow } = await renderSlideImage(
-            slide,
-            deckConfig,
-          );
+          const look = await renderSlideImage(slide, deckConfig);
           return {
-            toolImage,
-            overflowLine: slide.type === "content"
-              ? describeSlideOverflow(slideId, overflow)
-              : undefined,
+            slideId,
+            toolImage: look.toolImage,
+            overflowLine: describeSlideOverflow(slideId, look.overflow),
           };
         }),
       );
+      const imaged = looks.flatMap((l) =>
+        l.toolImage ? [{ slideId: l.slideId, toolImage: l.toolImage }] : []
+      );
       return new AIToolOutput({
         text: [
-          `Images of slides, in this order: ${
-            slideIds.map((id, i) => describeToolImage(id, looks[i].toolImage))
-              .join(", ")
-          }`,
-          ...looks.flatMap((l) => l.overflowLine ? [l.overflowLine] : []),
+          imaged.length > 0
+            ? `Images of slides, in this order: ${
+              imaged.map((l) => describeToolImage(l.slideId, l.toolImage))
+                .join(", ")
+            }`
+            : "No slide could be drawn.",
+          ...looks.map((l) => l.overflowLine),
         ].join("\n"),
-        images: looks.map((l) => l.toolImage.image),
+        images: imaged.map((l) => l.toolImage.image),
       });
     },
-    inProgressLabel: (input) =>
-      `Looking at ${slidesLabel(new Set(input.slideIds).size)}...`,
-    completionMessage: (input) =>
-      `Looked at ${slidesLabel(new Set(input.slideIds).size)}`,
+    inProgressLabel: (input) => {
+      const n = new Set(input.slideIds).size;
+      const slides = slidesLabel(n);
+      const asImages = asImagesLabel(n);
+      return t3({
+        en: `Getting ${slides} ${asImages}...`,
+        fr: `Récupération de ${slides} ${asImages}...`,
+        pt: `A obter ${slides} ${asImages}...`,
+      });
+    },
+    successMessage: (input) => {
+      const n = new Set(input.slideIds).size;
+      const slides = slidesLabel(n);
+      const asImages = asImagesLabel(n);
+      return t3({
+        en: `Retrieved ${slides} ${asImages}`,
+        fr: `${slides} ${
+          plural(n, { one: "récupérée", other: "récupérées" })
+        } ${asImages}`,
+        pt: `${slides} ${
+          plural(n, { one: "obtido", other: "obtidos" })
+        } ${asImages}`,
+      });
+    },
   });
 }

@@ -32,10 +32,11 @@
 // =============================================================================
 
 import { slideConfigSchema, TEXT_SIZE_KEYS, TEXT_SIZE_REL } from "lib";
-import type { TextSizeKey } from "lib";
+import type { FigureBlock, TextSizeKey } from "lib";
 import type { Sql } from "postgres";
 import {
   adminArea2OfStoredScope,
+  bundleHoldsUnnamedIndicatorMetadata,
   type FigureLocalizationForTransform,
   type FigurePairForTransform,
   getTransformLocalization,
@@ -111,6 +112,25 @@ function getFigureInputsInConfig(
     collectFigureInputs(config.layout as LayoutNode, out);
   }
   return out;
+}
+
+function slideHoldsUnnamedIndicatorMetadata(
+  slide: { type: string; layout?: unknown },
+): boolean {
+  if (slide.type !== "content") return false;
+  let holds = false;
+  walkSlideLayoutNodes(slide.layout as SlideLayoutNodeLike, (node) => {
+    const block = node.data as FigureBlock | undefined;
+    if (
+      node.type === "item" &&
+      block?.type === "figure" &&
+      block.bundle !== undefined &&
+      bundleHoldsUnnamedIndicatorMetadata(block.bundle)
+    ) {
+      holds = true;
+    }
+  });
+  return holds;
 }
 
 function transformLayoutNode(
@@ -204,13 +224,16 @@ export async function migrateSlideConfigs(
     const storedCanonical = JSON.stringify(config);
 
     // Already valid? Skip: unless legacy keys (which safeParse silently
-    // strips) still need the embedded-config rename. figureInputs drift is
+    // strips) still need the embedded-config rename, or a figure holds
+    // catalog entries it does not name. figureInputs drift is
     // covered by this same safeParse: figureBlockSchema validates figureInputs
     // against panther's zFigureInputs (lib/types figureInputsSchema).
+    const current = slideConfigSchema.safeParse(config);
     if (
-      slideConfigSchema.safeParse(config).success &&
+      current.success &&
       !rawJsonNeedsForcedTransform(row.config) &&
-      !rawJsonNeedsFigureBlockTransform(row.config)
+      !rawJsonNeedsFigureBlockTransform(row.config) &&
+      !slideHoldsUnnamedIndicatorMetadata(current.data)
     ) {
       continue;
     }

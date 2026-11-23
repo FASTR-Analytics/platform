@@ -17,7 +17,6 @@ type DBIcehIndicator = {
 
 export type DatasetIcehRunCapture = {
   info: RunDatasetIcehInfo;
-  lastUpdated: string;
   indicators: DBIcehIndicator[];
 };
 
@@ -67,7 +66,6 @@ export async function computeDatasetIcehRunCapture(
       success: true,
       data: {
         info: { icehCacheHash },
-        lastUpdated: new Date().toISOString(),
         indicators,
       },
     };

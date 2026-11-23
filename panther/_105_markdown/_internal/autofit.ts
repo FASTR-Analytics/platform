@@ -43,17 +43,25 @@ export function resolveAutofitOptions(
   };
 }
 
-// shrink-to-fit only: generate scales smaller than 1.0, down by 1pt at a time
-// (14/14=1.0, 13/14≈0.929, 12/14≈0.857, …), stopping at the minScale / min-font
-// floor. There is no grow path.
+// The rungs below the top one (maxScale): the whole point sizes under the
+// top's (with base 14 and maxScale 1, 13/14≈0.929, 12/14≈0.857, …), stopping
+// at the minScale / min-font floor. There is no grow path.
 export function getDiscreteScales(
   baseFontSize: number,
   options: ResolvedAutofitOptions,
 ): number[] {
   const shrinkScales: number[] = [];
 
-  for (let pt = baseFontSize - 1; pt >= 1; pt--) {
+  for (
+    let pt = Math.ceil(baseFontSize * options.maxScale) - 1;
+    pt >= 1;
+    pt--
+  ) {
     const scale = pt / baseFontSize;
+
+    // A top that floating point puts a hair above a whole point
+    // (15 × 0.2 = 3.0000000000000004) would otherwise repeat the top rung.
+    if (scale >= options.maxScale) continue;
 
     // Stop if below minScale
     if (scale < options.minScale) break;
@@ -100,17 +108,14 @@ export function findOptimalScale(
 ): number {
   const shrinkScales = getDiscreteScales(baseFontSize, options);
 
-  // First, try scale 1.0
-  const heightAt1 = getHeightAtScale(rc, width, input, 1.0);
-
-  if (heightAt1 <= availableHeight) {
-    // Content fits at scale 1.0 - shrink-to-fit never grows
-    return 1.0;
+  if (
+    getHeightAtScale(rc, width, input, options.maxScale) <= availableHeight
+  ) {
+    return options.maxScale;
   }
 
-  // Content doesn't fit at scale 1.0 - need to shrink
   if (shrinkScales.length === 0) {
-    return 1.0; // Can't shrink, return 1.0
+    return options.maxScale;
   }
 
   // Binary search for largest shrink scale that fits
@@ -145,7 +150,7 @@ export function getAutofitHeightConstraints(
   baseFontSize: number,
   options: ResolvedAutofitOptions,
 ): AutofitHeightConstraints {
-  const idealH = getHeightAtScale(rc, width, input, 1.0);
+  const idealH = getHeightAtScale(rc, width, input, options.maxScale);
 
   // Calculate minH (height at minimum allowed scale)
   let minScale = options.minScale;
@@ -159,10 +164,12 @@ export function getAutofitHeightConstraints(
     minScale = 1 / baseFontSize; // Effectively 1pt font
   }
 
-  const minH = minScale < 1
+  minScale = Math.min(minScale, options.maxScale);
+
+  const minH = minScale < options.maxScale
     ? getHeightAtScale(rc, width, input, minScale)
     : idealH;
-  // shrink-to-fit never grows, so maxH is the ideal (full-size) height.
+  // shrink-to-fit never grows, so maxH is the height at the top rung.
   let maxH = idealH;
 
   // Empty markdown should be growable (like placeholder)

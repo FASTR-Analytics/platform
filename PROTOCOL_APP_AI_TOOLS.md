@@ -10,9 +10,11 @@ Source of truth: `configDStrict` in [lib/types/_metric_installed.ts](lib/types/_
 
 ```ts
 // lib/types/ai_input.ts
-const aiFilterElementSchema = configDStrict.shape.filterBy.element;
+const aiFilterElementSchema = z.strictObject(
+  configDStrict.shape.filterBy.element.shape,
+);
 
-export const AiMetricQuerySchema = z.object({
+export const AiMetricQuerySchema = z.strictObject({
   metricId: z.string(),
   disaggregations: z.array(
     configDStrict.shape.disaggregateBy.element.shape.disOpt,
@@ -105,20 +107,45 @@ A turn is everything from one user message to the reply that calls no tool. A ro
 - **A write's result states what the write left.** Whatever the write decided that the model did not send comes back in its result: the ids it minted, the layout it chose, a flag it measured, the config a preset resolved to. What the model sent is never echoed (a block's text), nor what it has already read (a figure's data). Everything the result needs is computed before the write, so a throw still means nothing changed.
 - **No result invites a read-back.** A read-back is a read whose only purpose is to learn what the model's own write just did. A write's result never names a read tool. A failure message may name the read that corrects the call.
 
-The reference implementations are the deck's tools. `get_slides({ slideIds })` reads any number of slides in one round. The four slide writes (`create_slide`, `replace_slide`, `update_slide`, `update_figure`) return one result composed by `prepareSlideWriteResult` (`client/src/components/products/copilot/ai_tools/tools/slide_write_result.ts`): the sentence saying what was done, then, for a content slide, its blocks by id and type, its layout, whether it overflows the page and the config of each figure the write built or changed. The three figure patch tools (`update_figure`, `update_report_figure`, `update_figure_editor`) return their per-field report and then the config that resulted, as the matching read prints it.
+The reference implementations are the deck's tools. `get_slides({ slideIds })` reads any number of slides in one round. The four slide writes (`create_slide`, `replace_slide`, `update_slide`, `update_figure`) return one result composed by `prepareSlideWriteResult` (`client/src/components/products/copilot/ai_tools/tools/slide_write_result.ts`): the sentence saying what was done, then, for a content slide, its blocks by id and type and its layout, then whether the slide overflows the page, then the config of each figure the write built or changed. The three figure patch tools (`update_figure`, `update_report_figure`, `update_figure_editor`) return their per-field report and then the config that resulted, as the matching read prints it.
+
+## Bounded reads
+
+A list or a read whose size follows the instance's data (its indicators, areas, facilities, products, a module's files) is bounded wherever the copilot is given it without asking, and is complete only where the copilot asks for it, in bounded pages. It binds a tool's result, description and errors, a view's state and a consumer block.
+
+The bounds and the one paging helper live in [lib/ai_tools/read_bounds.ts](lib/ai_tools/read_bounds.ts). `pageForAI` takes the entries, the offset and the page size, refuses an offset past the entries, and returns the page with the sentence that says which entries are written, how many there are and the offset of the next page.
+
+| Constant                   | Value  | Bounds                                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AI_INLINE_LIST_MAX`       | 100    | the entries of a pushed list: the package block's indicator lists and scope limits, `get_overview`'s indicator lists, the metrics listing's HFA indicators and variant group members, Explore's chosen category values, the value lists of the validator's and the replicant check's errors, and each dimension's values in `get_dimension_values`'s listing of every dimension |
+| `AI_VALUE_PAGE_MAX`        | 500    | the values one call of `get_dimension_values` writes for a named dimension                                                                                                                                                                                                                                                                                                      |
+| `AI_DATA_ROWS_MAX`         | 1,000  | the CSV rows one read of a metric's data writes (`formatItemsAsMarkdown`): `get_metric_data`, a slide figure's data in `get_slides` and a new report figure's excerpt                                                                                                                                                                                                           |
+| `AI_TEXT_WINDOW_MAX_CHARS` | 40,000 | the characters one window of a file writes, in whole lines (`formatTextWindowForAI`): `get_module_r_script` and `get_module_log`                                                                                                                                                                                                                                                |
+| `AI_TEXT_LINE_MAX_CHARS`   | 2,000  | the characters of one line a window writes before it cuts the line and states its length                                                                                                                                                                                                                                                                                        |
+| `AI_RECORD_PAGE_MAX`       | 100    | the one-line records one call of a record list writes: `get_hfa_indicators`, `get_hfa_variables` and `list_products`                                                                                                                                                                                                                                                            |
+
+**Pushed lists.** A pushed list is one the copilot is given without asking for it: a consumer block, a view's state, an overview, a listing, an error. It is written whole up to `AI_INLINE_LIST_MAX`. Over it the text states the count and names the tool that lists the entries, with the metric and the dimension to pass where the text has them, so the model reads the list when it needs it and the text does not grow with the data. A list whose length does not follow the data (a package's modules, the ICEH stratifiers) is written whole. An error that refuses a value lists the valid values whole up to the cap, and over it the count and at most `AI_INLINE_LIST_MAX` values near the one sent (`formatValueListForAI`), then the sentence that names the lookup for the metric and the dimension (`dimensionLookupSentence`). A read-back of something already chosen writes the choice and the count of its alternatives, never their list: `get_slides` writes one read-back per figure.
+
+**The lookup.** `get_dimension_values({ metricId, disOpt?, search?, offset? })` is where the copilot reads a dimension's values. Without `disOpt` it writes every dimension of the metric with its count and, up to `AI_INLINE_LIST_MAX`, its values; with `disOpt` that dimension in pages of `AI_VALUE_PAGE_MAX`. `search` narrows by the copilot's terms (`requiredSearchForAI`, which refuses terms with no word) before paging. A text that tells the model where a filter value comes from names the lookup, never `get_metric_data`.
+
+**Data reads.** A read of a metric's data is refused whole over `AI_DATA_ROWS_MAX`, never cut: it writes its header, its row count and the Dimension Summary's counts, then one line that says how to narrow the read and names the lookup, and no rows. A part of the rows would be read as all of them.
+
+**File reads.** A read of a file is a window, never the file: `formatTextWindowForAI` writes whole lines up to `AI_TEXT_WINDOW_MAX_CHARS`, each cut at `AI_TEXT_LINE_MAX_CHARS`, from a script's first line or to a log's last when the call gives neither `fromLine` nor `search`, from `fromLine`, or the lines that match `search`. Each result opens with the file's counts and the lines written, and names the `fromLine` of the next window.
+
+**Record lists.** A list of one-line records pages: it takes `offset` and writes `AI_RECORD_PAGE_MAX` records a call through `pageForAI`, after its filters and its search. Its count line states how many records match, how many exist, which the page writes and the offset of the next page. A block every page would repeat, such as `get_hfa_indicators`' taxonomy, is written on the first page alone. `get_deck`'s outline and `get_image_assets` do not page: on 2026-11-18 the longest deck on nigeria, ethiopia, ghana and sierraleone held 156 slides and no instance held more than 13 image assets. `get_reference_docs` follows no instance's data.
 
 ## Gotchas
 
-- **Never `z.strictObject()`.** It rejects instead of strips unknown properties; Claude sometimes adds underscore-prefixed metadata keys, which then throw on every call. Empty-input tools use `z.object({})`.
-- **Never `strict: true` on tool definitions.** Anthropic's grammar-constrained mode rejects `minItems`/`maxItems`/`minLength`/ `maxLength`/`minimum`/`maximum` (which `.min()`/`.max()` emit) with a 400. Our schemas rely on those constraints.
+- **Closed schemas and strict tool use:** see [panther/protocols/PROTOCOL_UI_AI_CHAT.md](panther/protocols/PROTOCOL_UI_AI_CHAT.md), "Input schemas: two decisions".
 
 ## Checklist for a new AI tool schema
 
 1. Check storage schemas first: does `configDStrict` (or another) already have the fields?
-2. Derive with `.shape.fieldName`; keep storage field names.
+2. Derive with `.shape.fieldName`; keep storage field names. A borrowed field whose value is an object is rebuilt closed at the AI layer (`z.strictObject(Storage.shape.field.shape)`, each nested object included), and the storage schema is left open, because stored rows that still carry a retired key would throw.
 3. Simplifying? Document the exception in a comment, localize the conversion.
 4. Inclusion list? Add `.min(1)`.
 5. Data-dependent checks go in `content_validators.ts` (or `report_validators.ts`), called before any mutation.
-6. Handlers throw on failure; never return error strings; never `z.strictObject` / `strict: true`.
+6. Handlers throw on failure; never return error strings.
 7. If the tool's _output_ prints a schema example, it must match the real schema exactly.
 8. A read that can be asked for many takes an array, and a write's result states what the write left: "The round budget".
+9. A list whose length follows the instance's data is bounded where the copilot did not ask for it and paged where it did: "Bounded reads".

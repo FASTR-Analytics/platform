@@ -10,8 +10,13 @@ import {
   t3,
   TC,
 } from "lib";
-import { AlertComponentProps, createQuery, StateHolderWrapper } from "panther";
-import type { JSX } from "solid-js";
+import {
+  AlertComponentProps,
+  createQuery,
+  FrameTop,
+  StateHolderWrapper,
+} from "panther";
+import { children, type JSX, Show } from "solid-js";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
@@ -20,6 +25,7 @@ import {
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
 import { VisualizationEditorInner } from "./figure_editor";
+import { FigureEditorHeader } from "./editor_header";
 
 // The embedded figure editor. A figure is `{ metricId, config }` inside a
 // product: a host (slide editor, report editor) hands it a metric, a config and
@@ -97,13 +103,15 @@ export type VisualizationEditorProps = {
   chartPalette?: () => FastrChartPalette | undefined;
   /** A host whose document IS this figure (a visualization product) puts its
    *  own chrome in the editor's header: `title` replaces the label and
-   *  `actions` lead the right-hand buttons. Built once by the host. */
+   *  `actions` lead the right-hand buttons. */
   productChrome?: VizEditorProductChrome;
 };
 
+// Builders, not elements: every stage of opening the editor shows its own
+// header (FigureEditorHeader), and a node can sit in only one of them.
 export type VizEditorProductChrome = {
-  title: JSX.Element;
-  actions: JSX.Element;
+  title: () => JSX.Element;
+  actions: () => JSX.Element;
   /** Swaps the figure for one on another metric: offered beside the metric
    *  in the Data tab, never to a viewer. Only a host whose document is the
    *  figure can, since nothing carries over from the old figure. */
@@ -125,28 +133,46 @@ export function VisualizationEditor(
     t3(TC.loading),
   );
 
+  // The editor's header while the metric's shape loads or fails, so the bar
+  // is there from the first frame and Back works on an error; the editor
+  // brings its own. Built inside the Show, so it is disposed once the editor
+  // is in. Resolved because FrameTop draws a panel for any truthy prop, and
+  // an unresolved Show always is.
+  const loadingPanel = children(() => (
+    <Show when={resultsValueInfo.state().status !== "ready"}>
+      <FigureEditorHeader
+        onBack={() =>
+          p.close(undefined)}
+        label={p.label}
+        productChrome={p.productChrome}
+      />
+    </Show>
+  ));
+
   return (
-    <StateHolderWrapper
-      state={resultsValueInfo.state()}
-      loadingAndErrorPad="md"
-    >
-      {(keyedResultsValueInfo: ResultsValueInfoForPresentationObject) => (
-        <VisualizationEditorInner
-          scope={p.scope}
-          label={p.label}
-          metric={p.metric}
-          configSnapshot={p.configSnapshot}
-          localization={p.localization}
-          aiView={p.aiView}
-          authoringContext={p.authoringContext}
-          resultsValueInfo={keyedResultsValueInfo}
-          collabBinding={p.collabBinding}
-          viewOnly={p.viewOnly}
-          chartPalette={p.chartPalette}
-          productChrome={p.productChrome}
-          onClose={p.close}
-        />
-      )}
-    </StateHolderWrapper>
+    <FrameTop panelChildren={loadingPanel()}>
+      <StateHolderWrapper
+        state={resultsValueInfo.state()}
+        loadingAndErrorPad="md"
+      >
+        {(keyedResultsValueInfo: ResultsValueInfoForPresentationObject) => (
+          <VisualizationEditorInner
+            scope={p.scope}
+            label={p.label}
+            metric={p.metric}
+            configSnapshot={p.configSnapshot}
+            localization={p.localization}
+            aiView={p.aiView}
+            authoringContext={p.authoringContext}
+            resultsValueInfo={keyedResultsValueInfo}
+            collabBinding={p.collabBinding}
+            viewOnly={p.viewOnly}
+            chartPalette={p.chartPalette}
+            productChrome={p.productChrome}
+            onClose={p.close}
+          />
+        )}
+      </StateHolderWrapper>
+    </FrameTop>
   );
 }

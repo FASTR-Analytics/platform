@@ -54,9 +54,6 @@ export type DisaggregationPossibleValuesStatus =
     values: { id: string; label: string }[];
   }
   | {
-    status: "too_many_values";
-  }
-  | {
     status: "no_values_available";
   }
   | {
@@ -85,8 +82,9 @@ export type ResultsValueInfoForPresentationObject = {
   //
   // FLAT, not `format_as` added to the `{ id, label }` entries in
   // disaggregationPossibleValues: those entries are absent whenever a
-  // dimension came back `too_many_values`, and a filterBy can still name
-  // specific indicators on such a dimension. A flat map has no such hole.
+  // dimension came back `error` or `no_values_available`, and a filterBy can
+  // still name specific indicators on such a dimension. A flat map has no
+  // such hole.
   indicatorFormats: Record<string, IndicatorFormat>;
   // Indicator id → its own CF rule, for every indicator that declares one.
   // Flat beside indicatorFormats for the same reason; the other input the
@@ -109,9 +107,6 @@ export type RunReplicantOptions =
     | {
       status: "ok";
       possibleValues: { id: string; label: string }[];
-    }
-    | {
-      status: "too_many_values";
     }
     | {
       status: "no_values_available";

@@ -102,12 +102,10 @@ export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type {
   AreaDiffPair,
   ArrowheadFitFallback,
-  CascadeArrowStyle,
   CustomFigureStyleOptions,
   DataLabelStyle,
   FigureValuesColorFunc,
   LabelCollisionConfig,
-  MergedCascadeArrowStyle,
   MergedChartStyleBase,
   MergedContentStyle,
   MergedGridStyle,

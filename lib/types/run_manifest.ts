@@ -66,7 +66,16 @@ import {
 // 15: `geojsonMaps` stamps the boundary files a generation copied into
 // inputs/geojson/; null in every package written before the capture, since a
 // generation-time fact cannot be invented. Block 13.
-export const RUN_MANIFEST_SCHEMA_VERSION = 15;
+// 16: `datasets[]` entries carry no `lastUpdated`, the capture time no reader
+// consumes. Block 14.
+// 17: an HMIS entry's `info.version` holds the import version's id and row
+// counts, not its staging result, which the import ledger keeps under that
+// id. Block 15.
+// 18: `indicators[]` holds one catalog per dataset family the package's
+// modules have, `{ family, indicators }`, in place of one per module: every
+// module of a family read the same mirrors, so its copies were identical.
+// Block 1's recompute produces it; block 16 only stamps.
+export const RUN_MANIFEST_SCHEMA_VERSION = 18;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([
@@ -149,12 +158,12 @@ export const runMetricAvailabilitySchema = z.object({
 });
 export type RunMetricAvailability = z.infer<typeof runMetricAvailabilitySchema>;
 
-// Inputs record per dataset family, captured at finalize. The raw manifest
-// row: `info` is opaque here and typed per family by the RunDataset
-// projection (lib/types/run_datasets.ts) that readers consume.
+// Inputs record per dataset family, captured by
+// generate_run/prepare_inputs.ts. The raw manifest row: `info` is opaque
+// here, written per family as a RunDataset*Info (lib/types/run_datasets.ts),
+// and readers consume its RunDataset summary.
 export const runManifestDatasetSchema = z.object({
   datasetType: z.string(),
-  lastUpdated: z.string(),
   info: z.unknown(),
 });
 export type RunManifestDataset = z.infer<typeof runManifestDatasetSchema>;
@@ -177,9 +186,9 @@ export const runFacilitiesTableSchema = z.object({
 });
 export type RunFacilitiesTable = z.infer<typeof runFacilitiesTableSchema>;
 
-// Resolved indicator metadata per module: labels, formats, thresholds and
-// sort order, composed at finalize from the input mirrors the module's dataset
-// family uses. Typed against IndicatorMetadata so the two cannot drift.
+// Resolved indicator metadata per dataset family: labels, formats, thresholds
+// and sort order, composed at finalize from the input mirrors the family
+// uses. Typed against IndicatorMetadata so the two cannot drift.
 //
 // This is the manifest's own doctrine applied to the last per-request
 // derivation on the read path: before this, every metric-info, items and
@@ -201,11 +210,13 @@ export const runIndicatorMetadataSchema: z.ZodType<IndicatorMetadata> = z
     slot_map: z.record(z.string(), z.string()).optional(),
   });
 
-export const runModuleIndicatorsSchema = z.object({
-  moduleId: z.string(),
+// The derivation reads nothing of a module but its family, so every module of
+// a family shares one catalog and a module reads its family's.
+export const runFamilyIndicatorsSchema = z.object({
+  family: runDatasetFamilySchema,
   indicators: z.array(runIndicatorMetadataSchema),
 });
-export type RunModuleIndicators = z.infer<typeof runModuleIndicatorsSchema>;
+export type RunFamilyIndicators = z.infer<typeof runFamilyIndicatorsSchema>;
 
 // The package's HMIS indicator dictionary as a reader needs it: the AI
 // copilot's grounding (lib/ai_tools/build_system_prompt.ts) and the authoring
@@ -314,7 +325,7 @@ export const runManifestSchema = z.object({
   metrics: z.array(runMetricSchema),
   resultsObjects: z.array(runResultsObjectSchema),
   metricAvailability: z.array(runMetricAvailabilitySchema),
-  indicators: z.array(runModuleIndicatorsSchema),
+  indicators: z.array(runFamilyIndicatorsSchema),
   hmisIndicators: z.array(runHmisIndicatorSchema),
   population: runPopulationSchema.nullable(),
   geojsonMaps: z.array(runGeoJsonMapSchema).nullable(),

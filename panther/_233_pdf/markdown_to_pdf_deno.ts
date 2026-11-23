@@ -22,7 +22,6 @@ export type MarkdownToPdfDenoConfig = {
 
   pageWidth?: number;
   pageHeight?: number;
-  pagePadding?: number;
 
   header?: string;
   subHeader?: string;
@@ -75,16 +74,13 @@ export async function markdownToPdfDeno(
     mergedPageStyle,
   );
 
-  // Use page style's content padding for actual layout width
-  const contentPadding = mergedPageStyle.content.padding;
-
   const pageContents = buildMarkdownPageContents(
     markdown,
     {
       asSlides: config.asSlides,
       pageWidth: width,
       pageHeight: height,
-      pagePadding: contentPadding.totalPx() / 2, // Use page style's content padding
+      pagePadding: mergedPageStyle.content.padding,
       headerHeight,
       footerHeight,
       gapY: mergedPageStyle.content.gapY,

@@ -163,11 +163,10 @@ export const runGenerationRouteRegistry = {
     body: z.object({ metricId: z.string(), scopeId: scopeIdSchema }),
     response: {} as ResultsValueInfoForPresentationObject,
   }),
-  // The replicant dimension's option list: what bounds the per-value figure
-  // fan-out before any items query runs. `replicateBy` becomes a column
-  // reference in the generated SQL, so it is validated against the
-  // disaggregation enum; the results object is the metric's, resolved from
-  // the manifest server-side.
+  // The replicant dimension's value list under the figure's filters and
+  // period. `replicateBy` becomes a column reference in the generated SQL,
+  // so it is validated against the disaggregation enum; the results object
+  // is the metric's, resolved from the manifest server-side.
   getRunReplicantOptions: route({
     path: "/run_generation/run/:run_id/replicant_options",
     method: "POST",

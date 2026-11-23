@@ -134,6 +134,22 @@ export function Button(p: ButtonProps) {
   const isLoading = () => p.loading || p.state?.status === "loading";
   const iconPos = () => p.iconPosition ?? "left";
 
+  // A loading button stays enabled (disabling it would drop focus and dim
+  // it), so it drops clicks instead. preventDefault also stops a submit
+  // button submitting its form, including Enter's implicit submission.
+  const onClick: JSX.EventHandler<HTMLButtonElement, MouseEvent> = (e) => {
+    if (isLoading()) {
+      e.preventDefault();
+      return;
+    }
+    const handler = p.onClick;
+    if (typeof handler === "function") {
+      handler(e);
+    } else if (handler) {
+      handler[0](handler[1], e);
+    }
+  };
+
   const content = () => (
     <>
       <Show when={isLoading()}>
@@ -212,7 +228,7 @@ export function Button(p: ButtonProps) {
             p.ghost,
             p.flushEdge,
           )}
-          onClick={p.onClick}
+          onClick={onClick}
           onPointerDown={p.onPointerDown}
           id={p.id}
           type={p.type}

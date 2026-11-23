@@ -1,5 +1,6 @@
 import { AIToolFailure, createAITool } from "@timroberton/panther";
 import { z } from "zod";
+import { t3 } from "../translate/mod.ts";
 import type { Language } from "../translate/types.ts";
 import type { DatasetType } from "../types/datasets.ts";
 import type { ServerActionTransport } from "../server_actions/transport.ts";
@@ -214,7 +215,7 @@ export function getSharedToolsForReferenceDocs(
     createAITool({
       name: "get_reference_docs",
       description: describeReferenceDocsList(entries),
-      inputSchema: z.object({}),
+      inputSchema: z.strictObject({}),
       handler: async () => {
         const instance = await surface.instance();
         return buildReferenceCatalog(
@@ -222,8 +223,16 @@ export function getSharedToolsForReferenceDocs(
           await readHubIndex(instance.instanceLanguage),
         );
       },
-      inProgressLabel: "Listing reference documents...",
-      completionMessage: "Listed reference documents",
+      inProgressLabel: t3({
+        en: "Getting the reference documents...",
+        fr: "Récupération des documents de référence...",
+        pt: "A obter os documentos de referência...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the reference documents",
+        fr: "Documents de référence récupérés",
+        pt: "Documentos de referência obtidos",
+      }),
       kind: "read",
       headless: true,
     }),
@@ -231,7 +240,7 @@ export function getSharedToolsForReferenceDocs(
       name: "get_reference_doc",
       description:
         "Read one reference document, by the id get_reference_docs lists: an app document's id (for example 'iceh') or a methodology hub path (for example '04_data_quality_assessment.md', or 'fr/04_data_quality_assessment.md' for its French mirror). Returns the document's markdown.",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         id: z.string().describe(
           "The document id, as get_reference_docs lists it.",
         ),
@@ -242,8 +251,18 @@ export function getSharedToolsForReferenceDocs(
           ? await readHubDoc(input.id)
           : await readAppDoc(entry, surface.transport);
       },
-      inProgressLabel: (input) => `Reading "${docLabel(input.id)}"...`,
-      completionMessage: (input) => `Read "${docLabel(input.id)}"`,
+      inProgressLabel: (input) =>
+        t3({
+          en: `Getting "${docLabel(input.id)}"...`,
+          fr: `Récupération de « ${docLabel(input.id)} »...`,
+          pt: `A obter "${docLabel(input.id)}"...`,
+        }),
+      successMessage: (input) =>
+        t3({
+          en: `Retrieved "${docLabel(input.id)}"`,
+          fr: `« ${docLabel(input.id)} » récupéré`,
+          pt: `"${docLabel(input.id)}" obtido`,
+        }),
       kind: "read",
       headless: true,
     }),

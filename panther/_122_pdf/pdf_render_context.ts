@@ -31,14 +31,11 @@ import {
   type TextInfoUnkeyed,
 } from "./deps.ts";
 
-// jsPDF ships these at runtime, but its published types don't expose them: the
-// GState constructor (fill/stroke/text opacity) and the even-odd path-painting
-// operators ("f*" / "B*").
+// jsPDF ships the GState constructor (fill/stroke/text opacity) at runtime,
+// but its published types don't expose it on the document.
 type JsPdfGStateOpacity = { opacity?: number; "stroke-opacity"?: number };
 type JsPdfUntyped = {
   GState: new (parameters: JsPdfGStateOpacity) => unknown;
-  fill: (style: string) => void;
-  fillStroke: (style: string) => void;
 };
 
 // jsPDF picks its image decoder by SNIFFING the bytes; the format arg is only a
@@ -766,13 +763,13 @@ export class PdfRenderContext implements RenderContext {
 
     if (hasFill && hasStroke) {
       if (style.fill!.fillRule === "evenodd") {
-        this._ext.fillStroke("B*");
+        this._jsPdf.fillStrokeEvenOdd();
       } else {
         this._jsPdf.fillStroke();
       }
     } else if (hasFill) {
       if (style.fill!.fillRule === "evenodd") {
-        this._ext.fill("f*");
+        this._jsPdf.fillEvenOdd();
       } else {
         this._jsPdf.fill();
       }

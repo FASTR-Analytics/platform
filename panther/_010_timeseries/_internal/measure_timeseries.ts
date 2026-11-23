@@ -42,7 +42,6 @@ export function measureTimeseries(
   );
 
   const config: SimplifiedChartConfig<
-    TimeseriesInputs,
     TimeseriesDataTransformed,
     MergedTimeseriesStyle
   > = {
@@ -54,21 +53,24 @@ export function measureTimeseries(
       lane: transformedData.lane,
       series: transformedData.series,
     },
-    xAxisConfig: {
-      type: "period",
-      dimension: transformedData.period.name,
-      periodType: transformedData.period.periodType,
-      nTimePoints: transformedData.period.nTimePoints,
-      timeMin: transformedData.period.timeMin,
-      axisStyle: mergedStyle.xPeriodAxis,
+    axes: {
+      kind: "category-and-value",
+      orientation: "vertical",
+      x: {
+        type: "period",
+        dimension: transformedData.period.name,
+        periodType: transformedData.period.periodType,
+        nTimePoints: transformedData.period.nTimePoints,
+        timeMin: transformedData.period.timeMin,
+        axisStyle: mergedStyle.xPeriodAxis,
+      },
+      y: {
+        type: "value",
+        axisStyle: mergedStyle.yValueAxis,
+        axisData: transformedData.valueAxisLimits,
+        axisLabel: transformedData.yValueAxisLabel,
+      },
     },
-    yAxisConfig: {
-      type: "value",
-      axisStyle: mergedStyle.yValueAxis,
-      axisData: transformedData.valueAxisLimits,
-      axisLabel: transformedData.yValueAxisLabel,
-    },
-    orientation: "vertical",
     paneGrid,
   };
 

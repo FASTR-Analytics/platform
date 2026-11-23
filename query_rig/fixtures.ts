@@ -750,25 +750,19 @@ export const F8_HFA_FACILITY_BLANKS: Fixture = {
   firstPeriodOption: undefined,
 };
 
-// F9: the replicant-options cap boundary. The cap counts NAMED values, and
-// the query budget is MAX + 2, so the sentinel can neither displace a named
-// value nor tip a dimension holding exactly MAX into too_many_values (which
-// would make the filter disappear, the very failure the blank fold prevents).
-//
-//   source_indicator  : 500 named + a blank  → ok  (blank does not count)
-//   target_population : 501 named            → too_many_values
-const CAP_ROWS = Array.from({ length: 501 }, (_, i) => ({
-  admin_area_2: "A2_north",
-  source_indicator: i < 500 ? `si_${String(i).padStart(3, "0")}` : null,
-  target_population: `tp_${String(i).padStart(3, "0")}`,
-  value: 1,
-}));
+// F9: a dimension longer than any instance holds, 10,000 named values plus a
+// blank, more than Nigeria's 8,809 wards. Every possible-values read returns
+// the whole list, so a LIMIT on the query fails both of F9's cases.
+export const LONG_DIMENSION_IDS = Array.from(
+  { length: 10000 },
+  (_, i) => `si_${String(i).padStart(5, "0")}`,
+);
 
-export const F9_HMIS_OPTION_CAP: Fixture = {
-  name: "hmis_option_cap",
+export const F9_HMIS_LONG_DIMENSION: Fixture = {
+  name: "hmis_long_dimension",
   family: "hmis",
   adminDepth: 4,
-  moduleId: "m_cap",
+  moduleId: "m_long",
   moduleDefinition: hmisModule(),
   resultsObjectId: "22222222-3333-4444-5555-666666666666",
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
@@ -776,14 +770,17 @@ export const F9_HMIS_OPTION_CAP: Fixture = {
   roColumns: [
     { name: "admin_area_2", type: "TEXT" },
     { name: "source_indicator", type: "TEXT" },
-    { name: "target_population", type: "TEXT" },
     { name: "value", type: "NUMERIC" },
   ],
-  roRows: CAP_ROWS,
+  roRows: [...LONG_DIMENSION_IDS, null].map((id) => ({
+    admin_area_2: "A2_north",
+    source_indicator: id,
+    value: 1,
+  })),
   indicators: [],
   metric: {
-    id: "metric_cap",
-    label: "Cap metric",
+    id: "metric_long",
+    label: "Long dimension metric",
     value_func: "SUM",
     format_as: "number",
     value_props: ["value"],
@@ -1335,7 +1332,7 @@ export const ALL_FIXTURES: Fixture[] = [
   F6_HMIS_QUARTERLY,
   F7_HMIS_YEARLY,
   F8_HFA_FACILITY_BLANKS,
-  F9_HMIS_OPTION_CAP,
+  F9_HMIS_LONG_DIMENSION,
   F10_HFA_AREA_ONLY,
   F11_HFA_VARIANTS,
   F12_HMIS_SCORECARD,

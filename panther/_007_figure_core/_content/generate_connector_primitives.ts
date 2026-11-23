@@ -6,58 +6,52 @@
 import {
   type Arrowhead,
   type ArrowheadFitFallback,
-  type ChartConnectorInfo,
-  type ChartSeriesInfo,
   computeBoundsForPath,
   Coordinates,
-  type DimensionMember,
   type LineStyle,
   type Primitive,
   Z_INDEX,
 } from "../deps.ts";
 import { chartConnectorItem } from "../chart_items.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
-import {
-  buildSeriesInfo,
-  buildValueInfo,
-  type ContentGenerationContext,
+import type {
+  ContentGenerationContext,
+  SubChartContent,
 } from "./content_generation_types.ts";
 
 const MIN_VISIBLE_LINE = 2;
 
 type Endpoint = {
   coord: Coordinates;
-  value: number;
-  i_series: number;
-  seriesMember: DimensionMember | undefined;
   pointRadius: number;
 };
 
 export function generateConnectorPrimitives(
   mapped: MappedValueCoordinate[][],
+  content: SubChartContent,
   ctx: ContentGenerationContext,
 ): Primitive[] {
   const primitives: Primitive[] = [];
-  const s = ctx.contentStyle;
-  const cs = s.connectors;
-  const seriesInfos = Array.from(
-    { length: ctx.nSerieses },
-    (_, i) => buildSeriesInfo(ctx, i, mapped),
-  );
+  const { i_pane, i_tier, i_lane } = ctx.subChart;
 
-  for (let i_value = 0; i_value < ctx.nValues; i_value++) {
-    const endpoints = collectEndpoints(mapped, i_value, ctx, seriesInfos);
-    if (endpoints.length < 2) continue;
-
-    const info = buildConnectorInfo(endpoints, i_value, ctx);
-    const style = cs.getStyle(info);
-    if (!style.show) continue;
+  for (const { info, style } of content.resolvedConnectors) {
+    const endpoints = info.seriesIndices.flatMap((i_series): Endpoint[] => {
+      const mappedValue = mapped[i_series][info.i_value];
+      const point = content.resolvedValues[i_series][info.i_value]?.point;
+      if (mappedValue === undefined || point === undefined) {
+        return [];
+      }
+      return [{
+        coord: mappedValue.coords,
+        pointRadius: point.show ? point.radius : 0,
+      }];
+    });
 
     const heads = computeArrowheads(
       endpoints,
       style.arrowhead,
       style.arrowHeadLength,
-      cs.arrowheadFitFallback,
+      ctx.contentStyle.connectors.arrowheadFitFallback,
     );
     if (heads === "skip-connector") continue;
 
@@ -71,8 +65,7 @@ export function generateConnectorPrimitives(
 
     primitives.push({
       type: "chart-connector",
-      key:
-        `connector-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_value}`,
+      key: `connector-${i_pane}-${i_tier}-${i_lane}-${info.i_value}`,
       item: chartConnectorItem(ctx.itemDataDimensions, info),
       part: "link",
       bounds,
@@ -87,70 +80,6 @@ export function generateConnectorPrimitives(
   }
 
   return primitives;
-}
-
-function collectEndpoints(
-  mapped: MappedValueCoordinate[][],
-  i_value: number,
-  ctx: ContentGenerationContext,
-  seriesInfos: ChartSeriesInfo[],
-): Endpoint[] {
-  const endpoints: Endpoint[] = [];
-  const s = ctx.contentStyle;
-  const joinAcrossGaps = s.connectors.joinAcrossGaps;
-
-  for (let i_series = 0; i_series < ctx.nSerieses; i_series++) {
-    const m = mapped[i_series][i_value];
-    if (m === undefined) {
-      if (!joinAcrossGaps && endpoints.length > 0) break;
-      continue;
-    }
-    const valueInfo = buildValueInfo(
-      ctx,
-      seriesInfos[i_series],
-      m.value,
-      i_value,
-    );
-    const pointStyle = s.points.getStyle(valueInfo);
-    endpoints.push({
-      coord: m.coords,
-      value: m.value,
-      i_series,
-      seriesMember: ctx.itemDataDimensions.series?.members[i_series],
-      pointRadius: pointStyle.show ? pointStyle.radius : 0,
-    });
-  }
-
-  return endpoints;
-}
-
-function buildConnectorInfo(
-  endpoints: Endpoint[],
-  i_value: number,
-  ctx: ContentGenerationContext,
-): ChartConnectorInfo {
-  return {
-    i_value,
-    isFirstValue: i_value === ctx.slotOrder[0],
-    isLastValue: i_value === ctx.slotOrder[ctx.slotOrder.length - 1],
-    valueMin: ctx.valueRange.valueMin,
-    valueMax: ctx.valueRange.valueMax,
-    nValues: ctx.nValues,
-    nSerieses: ctx.subChartInfo.nSerieses,
-    seriesValueArrays: ctx.subChartInfo.seriesValueArrays,
-    i_pane: ctx.subChartInfo.i_pane,
-    nPanes: ctx.subChartInfo.nPanes,
-    paneMember: ctx.subChartInfo.paneMember,
-    i_tier: ctx.subChartInfo.i_tier,
-    nTiers: ctx.subChartInfo.nTiers,
-    tierMember: ctx.subChartInfo.tierMember,
-    i_lane: ctx.subChartInfo.i_lane,
-    nLanes: ctx.subChartInfo.nLanes,
-    laneMember: ctx.subChartInfo.laneMember,
-    seriesIndices: endpoints.map((e) => e.i_series),
-    seriesMembers: endpoints.map((e) => e.seriesMember),
-    values: endpoints.map((e) => e.value),
-  };
 }
 
 function computeArrowheads(

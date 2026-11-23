@@ -162,7 +162,7 @@ export async function buildFixturePackage(
     }]
     : [];
   const datasets: RunManifestDataset[] = [
-    { datasetType: fx.family, lastUpdated: now, info: {} },
+    { datasetType: fx.family, info: {} },
   ];
 
   const { manifest } = await buildRunPackageIntoTmp(mainDb, runId, tmpDir, {

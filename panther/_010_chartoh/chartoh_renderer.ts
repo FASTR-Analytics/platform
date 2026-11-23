@@ -11,6 +11,7 @@ import {
 } from "./_internal/get_size_info.ts";
 import {
   type ChartComponentSizes,
+  computeTotalGridLineStrokeWidth,
   countProportionalSlots,
   getChartHeightConstraintsByMeasure,
   getDimensionMembers,
@@ -70,9 +71,13 @@ function ohSubChartHeight(
 ): number {
   const ohStyle = info.mergedStyle as MergedChartOHStyle;
   const gridLineStrokeWidth = info.mergedStyle.grid.gridLineStrokeWidth;
-  return ohStyle.yTextAxis.tickPosition === "center"
-    ? nIndicators * targetSlotExtent
-    : nIndicators * targetSlotExtent + gridLineStrokeWidth * (nIndicators + 1);
+  return nIndicators * targetSlotExtent +
+    computeTotalGridLineStrokeWidth(
+      nIndicators,
+      1,
+      ohStyle.yTextAxis.tickPosition === "center",
+      gridLineStrokeWidth,
+    );
 }
 
 // Do series occupy separate vertical sub-rows? Only for GROUPED bars: the

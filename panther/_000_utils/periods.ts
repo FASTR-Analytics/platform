@@ -28,7 +28,7 @@ export type CalendarType =
 ////////////////////////////////////////////////////////////////////////////////
 
 export const _GLOBAL_MIN_YEAR_FOR_PERIODS = 1900;
-export const _GLOBAL_MAX_YEAR_FOR_PERIODS = 2050;
+export const _GLOBAL_MAX_YEAR_FOR_PERIODS = 2100;
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
@@ -143,9 +143,9 @@ export function getPeriodIdFromTime(v: number, periodType: PeriodType): number {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Period values are self-identifying by magnitude once quarter_id is YYYYQ:
-//   year       YYYY    1900–2050
-//   quarter_id YYYYQ   19001–20504
-//   period_id  YYYYMM  190001–205012
+//   year       YYYY    1900–2100
+//   quarter_id YYYYQ   19001–21004
+//   period_id  YYYYMM  190001–210012
 // These ranges are disjoint, so a single value maps to at most one PeriodType.
 // Strings are coerced only if canonical decimal (no leading zeros, sign,
 // whitespace, decimal point, or exponent) so length stays in step with magnitude.

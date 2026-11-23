@@ -11,8 +11,6 @@ import type {
 } from "./deps.ts";
 import type { LegendEntry } from "./_legend/types.ts";
 import type { LegendInput } from "./_legend/scale_legend_types.ts";
-import type { YTextAxisWidthInfo } from "./_axes/y_text/types.ts";
-export type { YTextAxisWidthInfo };
 
 export type JsonArrayItem = {
   [key: string]: string | number | undefined | null;
@@ -88,12 +86,6 @@ export type YValueAxisWidthInfo = YAxisWidthInfoBase & {
   tickLabelFormatter: (v: number) => string;
 };
 
-export type YNoneAxisWidthInfo = YAxisWidthInfoBase;
-export type YAxisWidthInfo =
-  | YValueAxisWidthInfo
-  | YTextAxisWidthInfo
-  | YNoneAxisWidthInfo;
-
 export type ValueRange = { valueMin: number; valueMax: number };
 
 // Inset applied to a value axis's value range WITHIN the sub-chart, so
@@ -105,8 +97,6 @@ export type OverhangClearance = {
   start: number;
   end: number;
 };
-
-export const NO_OVERHANG_CLEARANCE: OverhangClearance = { start: 0, end: 0 };
 
 // Never let clearance consume more than this fraction of the value axis extent
 // per side (pathologically small plots / huge labels).

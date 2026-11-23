@@ -91,7 +91,6 @@ export type MeasuredRowsLayoutNode<U> = RowsLayoutNode<U> & {
   absoluteStartColumn: number;
   absoluteEndColumn: number;
   span: number;
-  minimumSpanIfAllChildrenWere1: number;
 };
 
 export type MeasuredColsLayoutNode<U> = ColsLayoutNode<U> & {
@@ -100,7 +99,6 @@ export type MeasuredColsLayoutNode<U> = ColsLayoutNode<U> & {
   absoluteStartColumn: number;
   absoluteEndColumn: number;
   span: number;
-  minimumSpanIfAllChildrenWere1: number;
 };
 
 export type MeasuredItemLayoutNode<U> = Omit<ItemLayoutNode<U>, "style"> & {
@@ -115,7 +113,6 @@ export type MeasuredItemLayoutNode<U> = Omit<ItemLayoutNode<U>, "style"> & {
   absoluteStartColumn: number;
   absoluteEndColumn: number;
   span: number;
-  minimumSpanIfAllChildrenWere1: number;
 };
 
 export type MeasuredLayoutNode<U> =

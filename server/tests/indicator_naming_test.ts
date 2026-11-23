@@ -2,10 +2,11 @@
 // under the chosen id; an existing id of any type is refused; an element
 // whose UID some indicator already holds creates nothing; a decomposed DHIS2
 // indicator becomes DHIS2 elements for its operands and a calculated over
-// their ids; createIndicatorsFromDhis2 refuses a refused element or indicator
-// and creates nothing. Runs on a throwaway database built from
-// _main_database.sql on the dev postgres (the .env the test task loads),
-// dropped afterwards.
+// their ids, every one of them undeclared; createIndicatorsFromDhis2 refuses
+// a refused element or indicator and creates nothing; and a save refuses a
+// rule on an indicator that declares no direction. Runs on a throwaway
+// database built from _main_database.sql on the dev postgres (the .env the
+// test task loads), dropped afterwards.
 //
 //   deno test -A --env-file server/tests/indicator_naming_test.ts
 
@@ -14,6 +15,8 @@ import {
   type Dhis2ElementVerdict,
   type Dhis2IndicatorDecomposition,
   type HmisIndicator,
+  INDICATOR_RULE_NEEDS_DIRECTION,
+  t3,
 } from "lib";
 import { getPgConnection } from "../db/postgres/connection_manager.ts";
 import {
@@ -195,7 +198,10 @@ Deno.test("dhis2: a decomposed indicator creates its elements and the calculated
     expression: "(anc4 / (anc1 + anc1_repeat))",
   });
   assertEquals(d.get("anc4_rate")!.format_as, "percent");
-  for (const i of d.values()) assertEquals(i.include_in_analysis, true);
+  for (const i of d.values()) {
+    assertEquals(i.include_in_analysis, true);
+    assertEquals(i.direction, null);
+  }
 });
 
 Deno.test("dhis2: two elements cannot share one new indicator", async () => {
@@ -587,6 +593,43 @@ Deno.test("naming: a calculated naming a DHIS2 id that was not listed is refused
   assert(!res.success);
   assertStringIncludes(res.err, `not named: ${ANC1_ELEMENT}`);
   assertEquals((await dictionary()).size, 0);
+});
+
+Deno.test("save: a rule on an indicator that declares no direction is refused with the editor's message", async () => {
+  await reset();
+  await seed("anc1", { type: "dhis2_element", data_id: ANC1_ELEMENT });
+  const rated: NewIndicator = {
+    indicator_common_id: "anc1_share",
+    indicator_common_label: "ANC 1 share",
+    definition: { type: "calculated", expression: "anc1 / 2" },
+    include_in_analysis: true,
+    format_as: "percent",
+    thresholds: {
+      cutoffs: [0.5],
+      buckets: [{ color: "#ff0000" }, { color: "#00ff00" }],
+    },
+    direction: null,
+    target: null,
+    expected_low_counts: false,
+  };
+  const refusal = t3(INDICATOR_RULE_NEEDS_DIRECTION);
+  const created = await createIndicators(db, [rated], ACCEPT_ALL);
+  assert(!created.success);
+  assertEquals(created.err, `anc1_share: ${refusal}`);
+  await seed("anc1_share", rated.definition);
+  const updated = await updateIndicator(db, "anc1_share", rated, ACCEPT_ALL);
+  assert(!updated.success);
+  assertEquals(updated.err, refusal);
+  const declared = await updateIndicator(
+    db,
+    "anc1_share",
+    { ...rated, direction: "lower-is-better" },
+    ACCEPT_ALL,
+  );
+  assert(declared.success, declared.success ? "" : declared.err);
+  const stored = (await dictionary()).get("anc1_share")!;
+  assertEquals(stored.direction, "lower-is-better");
+  assertEquals(stored.thresholds?.direction, "lower-is-better");
 });
 
 Deno.test("cleanup: drop the throwaway database", async () => {

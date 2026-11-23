@@ -10,6 +10,7 @@ export * from "./_axes/y_text/types.ts";
 export { measureXValueAxisHeight } from "./_axes/x_value/measure.ts";
 export { estimateMinYValueAxisWidth } from "./_axes/y_value/measure.ts";
 export { estimateMinYTextAxisWidth } from "./_axes/y_text/measure.ts";
+export { computeTotalGridLineStrokeWidth } from "./_axes/slot_layout.ts";
 export { estimateTierHeaderAndLabelGapWidth } from "./measure_pane.ts";
 export { buildDataLabelTextStyle } from "./_content/content_generation_types.ts";
 export * from "./_labels/mod.ts";

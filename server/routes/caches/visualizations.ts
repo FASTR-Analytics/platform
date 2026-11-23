@@ -108,7 +108,22 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "29" (2026-11-08): the blank fold trims every character JavaScript's trim()
 // strips, where "28" trimmed only space, tab, CR and LF. A cell of only a
 // no-break space was a named group in "28" entries and is the blank group now.
-const PO_CACHE_VERSION = "29";
+// "30" (2026-11-18): possible values carry every value of a dimension.
+// metric_info and replicant_opts "29" entries hold a `too_many_values` status
+// for a dimension over 500 values, which no code handles.
+// "31" (2026-11-18): manifest schema v16 (datasets[] entries carry no
+// `lastUpdated`). No cached payload carries a dataset entry; the bump is the
+// protocol's per-block rule.
+// "32" (2026-11-18): manifest schema v17 (an HMIS dataset entry holds no
+// staging result). No cached payload carries a dataset entry; the bump is the
+// protocol's per-block rule.
+// "33" (2026-11-18): manifest schema v18 (one indicator catalog per family,
+// not per module). Every module of a family held the same catalog, so no
+// cached payload changes; the bump is the protocol's per-block rule.
+// "34" (2026-11-18): an items read carries the catalog entries it names, an
+// id equal to a returned row's cell or a filter value. po_items and grid_items
+// "33" entries hold the module's whole catalog.
+const PO_CACHE_VERSION = "34";
 
 // The immutable run id is the uniqueness scope for the four data caches, so two
 // products on the same run share entries. The scopeToken rides beside it: the

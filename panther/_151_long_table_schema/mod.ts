@@ -4,6 +4,12 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export {
+  zFullPeriodUnit,
+  zLongTableFilter,
+  zPeriodFilter,
+  zPeriodUnit,
+} from "./filters.ts";
+export {
   zDescribedColumn,
   zDimensionValuesResult,
   zFiscalYearRule,
@@ -13,7 +19,6 @@ export {
   zLongTableColumnType,
   zLongTableDimension,
   zLongTableExpression,
-  zLongTableFilter,
   zLongTableOrder,
   zLongTableQuery,
   zLongTableRange,
@@ -22,6 +27,5 @@ export {
   zLongTableTime,
   zLongTableValue,
   zPeriodBounds,
-  zPeriodFilter,
   zRowsResult,
 } from "./schema.ts";

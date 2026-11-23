@@ -14,7 +14,9 @@ import type {
 } from "./deps.ts";
 import type { LegendInput } from "./_legend/scale_legend_types.ts";
 import type { MeasuredSurrounds } from "./_surrounds/measure_surrounds.ts";
-import type { XAxisConfig, YAxisConfig } from "./_axes/axis_configs.ts";
+import type { ChartAxesConfig } from "./_axes/axis_configs.ts";
+import type { MeasuredXAxis } from "./_axes/measure_x_axis.ts";
+import type { MeasuredYAxis } from "./_axes/measure_y_axis.ts";
 import type { PaneGrid } from "./dimension_helpers.ts";
 
 export type { MeasuredSurrounds };
@@ -57,7 +59,6 @@ export type PaneTierOrLaneLayout = {
 };
 
 export type SimplifiedChartConfig<
-  TInputs,
   TData,
   TStyle extends MergedChartStyleBase,
 > = {
@@ -71,6 +72,8 @@ export type SimplifiedChartConfig<
     lane?: DataDimension;
     series?: DataDimension;
     indicator?: DataDimension;
+  };
+  masks?: {
     // Per-pane masks (global indices, array order = slot order). Absent =
     // balanced and no value sort (every pane shows the full global set in
     // storage order). Only the categorical-direction dims are ever masked:
@@ -86,9 +89,7 @@ export type SimplifiedChartConfig<
     // Cross-pane proportional pane sizing requested (proportional.panes).
     proportionalPanes?: boolean;
   };
-  xAxisConfig: XAxisConfig;
-  yAxisConfig: YAxisConfig;
-  orientation: "vertical" | "horizontal";
+  axes: ChartAxesConfig;
   resolvedLegend?: LegendInput;
   // Resolved by the caller (resolvePaneGrid at the applied fit scale and the
   // frame width), never here: the measured content width would not match
@@ -97,43 +98,33 @@ export type SimplifiedChartConfig<
 };
 
 export type MeasurePaneConfig<TData> = {
-  indices: {
-    pane: number;
-    row: number;
-    col: number;
-  };
+  i_pane: number;
   geometry: {
     outerRcd: RectCoordsDims;
     innerRcd: RectCoordsDims;
   };
-  paneHeader: MeasuredText | undefined;
-  dataDimensions: {
-    // With no prop there is no dimension; a timeseries has no indicator dimension, its
-    // period being the x-axis.
-    pane?: DataDimension;
-    tier?: DataDimension;
-    lane?: DataDimension;
-    series?: DataDimension;
-    indicator?: DataDimension;
-    // Per-pane masks (global indices, array order = slot order). Absent =
-    // balanced and no value sort.
-    visibleIndicatorsByPane?: number[][];
-    visibleTiersByPane?: number[][];
-    visibleLanesByPane?: number[][];
-    // Per-(pane, tier or lane) visible indicator subsets (proportional tier-or-lane layout).
-    visibleIndicatorsByPaneTierOrLane?: number[][][];
-    proportionalPanes?: boolean;
-  };
-  data: TData;
-  baseStyle: MergedChartStyleBase;
-  xAxisConfig: XAxisConfig;
-  yAxisConfig: YAxisConfig;
-  orientation: "vertical" | "horizontal";
+  paneHeader?: MeasuredText;
   // Chart-global slot thickness threaded in by measureChart's panes-mode
   // pass 2. Absent = measurePane solves its own per-pane slotExtent locally
   // (tiers-or-lanes mode, and every pass-1/layoutOnly probe).
   slotExtent?: number;
+  chart: SimplifiedChartConfig<TData, MergedChartStyleBase>;
 };
+
+export type MeasuredAxes =
+  | {
+    kind: "category-and-value";
+    orientation: "vertical";
+    x: Extract<MeasuredXAxis, { type: "text" | "period" }>;
+    y: Extract<MeasuredYAxis, { type: "value" }>;
+  }
+  | {
+    kind: "category-and-value";
+    orientation: "horizontal";
+    x: Extract<MeasuredXAxis, { type: "value" }>;
+    y: Extract<MeasuredYAxis, { type: "text" }>;
+  }
+  | { kind: "none"; xAxisRcd: RectCoordsDims };
 
 export type MeasuredChartBase<TInputs, TData, TStyle> = {
   inputs: TInputs;

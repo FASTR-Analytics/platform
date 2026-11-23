@@ -14,7 +14,7 @@ import { buildDiagramBundle } from "./bundle.ts";
 import { diagramScene } from "./adapter.ts";
 import type { SceneFit } from "./measure.ts";
 import { resolveConnectors, resolveNodes, resolveTexts } from "./resolve.ts";
-import type { ResolvedNode } from "./resolve.ts";
+import type { ResolvedDiagramNode } from "./resolve.ts";
 import { bracketSideFor, placeDiagram } from "../placer.ts";
 import type { PlacerMeasure, PlacerSpacing } from "../placer.ts";
 
@@ -113,7 +113,7 @@ function textDims(
 function boxHeight(
   rc: RenderContext,
   s: MergedSceneStyle,
-  node: ResolvedNode,
+  node: ResolvedDiagramNode,
   w: number,
 ): number {
   const { style } = node;

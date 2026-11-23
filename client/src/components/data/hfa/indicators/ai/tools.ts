@@ -10,6 +10,7 @@ import {
 } from "panther";
 import { z } from "zod";
 import {
+  AI_RECORD_PAGE_MAX,
   composeHfaIndicatorLabel,
   composeHfaVariantColumnName,
   COPILOT_TOOL_VIEWS,
@@ -133,13 +134,15 @@ function countIndicators(n: number): string {
 
 // The write tools' inputs derive from the contract's schemas: a round of main
 // code, a variant row, and the indicator's own fields.
-const codeRoundSchema = hfaIndicatorCodeSchema.omit({ indicatorId: true });
-const variantRowSchema = hfaIndicatorVariantCodeSchema.omit({
-  indicatorId: true,
-});
+const codeRoundSchema = z.strictObject(
+  hfaIndicatorCodeSchema.omit({ indicatorId: true }).shape,
+);
+const variantRowSchema = z.strictObject(
+  hfaIndicatorVariantCodeSchema.omit({ indicatorId: true }).shape,
+);
 const field = hfaIndicatorEditSchema.shape;
 
-const updateEntrySchema = z.object({
+const updateEntrySchema = z.strictObject({
   indicatorId: z.string(),
   shortLabel: field.shortLabel.optional(),
   definition: field.definition.optional().describe("Long label."),
@@ -654,9 +657,9 @@ export function buildHfaIndicatorTools() {
       name: "get_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicators,
       description:
-        "List HFA indicators, one line each: id, long label, type and aggregation, category, sub-category and service categories, variant group, rounds with code, round status and whether the rounds agree, under the taxonomy (categories, sub-categories, service categories, variant groups and items, each id: label). The ids it prints are what every other HFA tool takes. Filter rather than list everything: the default workbook holds hundreds of indicators. Filtering by status also prints each round's issues. withCode ends each line with the main code and filter, printed once when every round holds the same; it says 'differs by round' when they differ, 'none' without code, and leaves out variant code: read those with get_hfa_indicator_details. The search reads labels and ids, not code: namesVariable finds the indicators whose code names given variables.",
+        `List HFA indicators, ${AI_RECORD_PAGE_MAX} a call, one line each: id, long label, type and aggregation, category, sub-category and service categories, variant group, rounds with code, round status and whether the rounds agree, under the taxonomy (categories, sub-categories, service categories, variant groups and items, each id: label), which the first page alone writes. The count line states how many indicators match the filters, how many exist, which are written and the offset of the next page. The ids it prints are what every other HFA tool takes. Filter rather than page through everything: the default workbook holds hundreds of indicators. Filtering by status also prints each round's issues. withCode ends each line with the main code and filter, printed once when every round holds the same; it says 'differs by round' when they differ, 'none' without code, and leaves out variant code: read those with get_hfa_indicator_details. The search reads labels and ids, not code: namesVariable finds the indicators whose code names given variables.`,
       kind: "read",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         search: z.string().optional().describe(
           "Only indicators whose id, short and long labels and category, sub-category and service-category labels together contain every word of this text, in any order (case- and accent-insensitive).",
         ),
@@ -682,6 +685,9 @@ export function buildHfaIndicatorTools() {
         ),
         withCode: z.boolean().optional().describe(
           "End each line with the main code and filter: once when the rounds agree, else 'differs by round', 'none' without code. Variant code is not shown.",
+        ),
+        offset: z.number().int().min(0).optional().describe(
+          "Optional: how many of the matching indicators to skip. Each page names the offset of the next.",
         ),
       }),
       handler: async (input) => {
@@ -711,20 +717,19 @@ export function buildHfaIndicatorTools() {
         return formatHfaIndicatorListForAI(read, listed, {
           withIssues: input.status !== undefined,
           withCode: input.withCode === true,
+          offset: input.offset ?? 0,
         });
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Reading HFA indicators...",
-          fr: "Lecture des indicateurs HFA...",
-          pt: "A ler os indicadores HFA...",
-        }),
-      completionMessage: () =>
-        t3({
-          en: "Read HFA indicators",
-          fr: "Indicateurs HFA lus",
-          pt: "Indicadores HFA lidos",
-        }),
+      inProgressLabel: t3({
+        en: "Getting the HFA indicators...",
+        fr: "Récupération des indicateurs HFA...",
+        pt: "A obter os indicadores HFA...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the HFA indicators",
+        fr: "Indicateurs HFA récupérés",
+        pt: "Indicadores HFA obtidos",
+      }),
     }),
 
     createAITool({
@@ -734,7 +739,7 @@ export function buildHfaIndicatorTools() {
       description:
         `Read HFA indicators in full, up to ${DETAIL_CAP} per call: both labels, the measure, type and aggregation, categories, the variant group and its items, and per round the code, the filter, each item's variant code, the round status and its issues. Then, once for the whole set, every survey variable the code names (per round its label, type, options with their sentinel class, and the facility counts and values present) and every other indicator the code names (its code and status per round). Use it to judge whether an indicator's code measures what its labels say.`,
       kind: "read",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         indicatorIds: z.array(z.string()).min(1).describe(
           "The indicator ids to read, as get_hfa_indicators prints them.",
         ),
@@ -754,30 +759,19 @@ export function buildHfaIndicatorTools() {
         }
         return formatHfaIndicatorDetailsForAI(read, ids);
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Reading HFA indicator details...",
-          fr: "Lecture du détail des indicateurs HFA...",
-          pt: "A ler o detalhe dos indicadores HFA...",
-        }),
-      completionMessage: (input) =>
-        t3({
-          en: `Read ${
-            countIndicators(new Set(input.indicatorIds).size)
-          } in detail`,
-          fr: `${countIndicators(new Set(input.indicatorIds).size)} ${
-            plural(new Set(input.indicatorIds).size, {
-              one: "lu",
-              other: "lus",
-            })
-          } en détail`,
-          pt: `${countIndicators(new Set(input.indicatorIds).size)} ${
-            plural(new Set(input.indicatorIds).size, {
-              one: "lido",
-              other: "lidos",
-            })
-          } em detalhe`,
-        }),
+      inProgressLabel: t3({
+        en: "Getting the details of HFA indicators...",
+        fr: "Récupération du détail d'indicateurs HFA...",
+        pt: "A obter o detalhe de indicadores HFA...",
+      }),
+      successMessage: (input) => {
+        const indicators = countIndicators(new Set(input.indicatorIds).size);
+        return t3({
+          en: `Retrieved the details of ${indicators}`,
+          fr: `Détail de ${indicators} récupéré`,
+          pt: `Detalhe de ${indicators} obtido`,
+        });
+      },
     }),
 
     createAITool({
@@ -785,9 +779,9 @@ export function buildHfaIndicatorTools() {
       name: "get_hfa_variables",
       availableIn: COPILOT_TOOL_VIEWS.get_hfa_variables,
       description:
-        "List the HFA survey variables, one line each: id, label and type, and per round it is in, how many indicators' code of that round names it. Filter rather than list everything: a survey has hundreds of variables. To see a variable's options, counts and values, and which indicators name it, use get_hfa_variable_details.",
+        `List the HFA survey variables, ${AI_RECORD_PAGE_MAX} a call, one line each: id, label and type, and per round it is in, how many indicators' code of that round names it. The count line states how many variables match the filters, how many exist, which are written and the offset of the next page. Filter rather than page through everything: a survey has hundreds of variables. To see a variable's options, counts and values, and which indicators name it, use get_hfa_variable_details.`,
       kind: "read",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         search: z.string().optional().describe(
           "Only variables whose id and labels together contain every word of this text, in any order (case- and accent-insensitive).",
         ),
@@ -796,6 +790,9 @@ export function buildHfaIndicatorTools() {
         ),
         unusedOnly: z.boolean().optional().describe(
           "Only variables that no indicator's code names in some round they are in (in the given round, when one is given). Structural columns are never listed.",
+        ),
+        offset: z.number().int().min(0).optional().describe(
+          "Optional: how many of the matching variables to skip. Each page names the offset of the next.",
         ),
       }),
       handler: async (input) => {
@@ -824,20 +821,18 @@ export function buildHfaIndicatorTools() {
           (!input.unusedOnly ||
             (unusedIn.has(id) && !HFA_STRUCTURAL_VARIABLE_IDS.has(id)))
         ).map(([id]) => id);
-        return formatHfaVariableListForAI(read, ids);
+        return formatHfaVariableListForAI(read, ids, input.offset ?? 0);
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Reading the HFA survey variables...",
-          fr: "Lecture des variables de l'enquête HFA...",
-          pt: "A ler as variáveis do inquérito HFA...",
-        }),
-      completionMessage: () =>
-        t3({
-          en: "Read the HFA survey variables",
-          fr: "Variables de l'enquête HFA lues",
-          pt: "Variáveis do inquérito HFA lidas",
-        }),
+      inProgressLabel: t3({
+        en: "Getting the HFA survey variables...",
+        fr: "Récupération des variables de l'enquête HFA...",
+        pt: "A obter as variáveis do inquérito HFA...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the HFA survey variables",
+        fr: "Variables de l'enquête HFA récupérées",
+        pt: "Variáveis do inquérito HFA obtidas",
+      }),
     }),
 
     createAITool({
@@ -847,7 +842,7 @@ export function buildHfaIndicatorTools() {
       description:
         `Read HFA survey variables in full, up to ${DETAIL_CAP} per call: per round the label and type, the options (code: label, with the sentinel class of a don't-know, refused, other, not-applicable or question-specific code, and a mark on a text code, which the run reads as missing), the facilities with a row, blank and non-blank, the values present, and the indicators whose code names it. Read a variable here before comparing it to a code.`,
       kind: "read",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         variableIds: z.array(z.string()).min(1).describe(
           "The survey variable ids to read.",
         ),
@@ -866,18 +861,22 @@ export function buildHfaIndicatorTools() {
           input.timePoint,
         );
       },
-      inProgressLabel: (input) =>
-        t3({
-          en: `Reading ${[...new Set(input.variableIds)].join(", ")}...`,
-          fr: `Lecture de ${[...new Set(input.variableIds)].join(", ")}...`,
-          pt: `A ler ${[...new Set(input.variableIds)].join(", ")}...`,
-        }),
-      completionMessage: () =>
-        t3({
-          en: "Read HFA variable details",
-          fr: "Détail des variables HFA lu",
-          pt: "Detalhe das variáveis HFA lido",
-        }),
+      inProgressLabel: (input) => {
+        const ids = [...new Set(input.variableIds)].join(", ");
+        return t3({
+          en: `Getting the details of ${ids}...`,
+          fr: `Récupération du détail de ${ids}...`,
+          pt: `A obter o detalhe de ${ids}...`,
+        });
+      },
+      successMessage: (input) => {
+        const ids = [...new Set(input.variableIds)].join(", ");
+        return t3({
+          en: `Retrieved the details of ${ids}`,
+          fr: `Détail de ${ids} récupéré`,
+          pt: `Detalhe de ${ids} obtido`,
+        });
+      },
     }),
 
     createAITool({
@@ -887,8 +886,8 @@ export function buildHfaIndicatorTools() {
       description:
         'Create new HFA indicators, in a batch. For each: the long label (definition), an optional short label, type and aggregation (usually binary and avg, "% of facilities"), optional category, sub-category and service categories, an optional variant group, per-round code and an optional filter code (the code and filterCode fields) and, for a variant group, per-round code for each item. The app assigns each id and returns it. Every id is checked against the taxonomy and the rounds, and code with an error (syntax, unknown variable, a filter or variant code without code, a cycle) is refused before anything is proposed; a result-type mismatch is a warning. The user confirms the batch in a dialog.',
       kind: "write",
-      inputSchema: z.object({
-        indicators: z.array(z.object({
+      inputSchema: z.strictObject({
+        indicators: z.array(z.strictObject({
           definition: field.definition.describe(
             "Long label: the full descriptive text.",
           ),
@@ -1042,18 +1041,16 @@ export function buildHfaIndicatorTools() {
         },
         presentation: "modal",
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Proposing new HFA indicators...",
-          fr: "Proposition de nouveaux indicateurs HFA...",
-          pt: "A propor novos indicadores HFA...",
-        }),
-      completionMessage: (input) =>
-        t3({
-          en: `Create ${countIndicators(input.indicators.length)}`,
-          fr: `Créer ${countIndicators(input.indicators.length)}`,
-          pt: `Criar ${countIndicators(input.indicators.length)}`,
-        }),
+      inProgressLabel: t3({
+        en: "Proposing new HFA indicators...",
+        fr: "Proposition de nouveaux indicateurs HFA...",
+        pt: "A propor novos indicadores HFA...",
+      }),
+      successMessage: t3({
+        en: "Not proposed: no indicator to create",
+        fr: "Non proposé : aucun indicateur à créer",
+        pt: "Não proposto: nenhum indicador a criar",
+      }),
     }),
 
     createAITool({
@@ -1063,7 +1060,7 @@ export function buildHfaIndicatorTools() {
       description:
         "Change existing HFA indicators, in a batch: any of the labels, type, aggregation, category, sub-category, service categories, variant group, per-round code and per-item variant code, in one call. Give only the fields to change. Code is patched: a round or variant row not listed is kept; in a listed round an omitted code or filter code is kept and an empty string clears it; clearing the code removes the round's code; a variant row with empty code is removed. Changing the category clears a sub-category that no longer fits; changing the variant group drops the previous group's variant code. Ids are checked against the taxonomy and the rounds, and code you write with an error is refused before anything is proposed. The user confirms the batch in a dialog.",
       kind: "write",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         updates: z.array(updateEntrySchema).min(1),
       }),
       approval: {
@@ -1253,18 +1250,24 @@ export function buildHfaIndicatorTools() {
         },
         presentation: "modal",
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Proposing HFA indicator changes...",
-          fr: "Proposition de modifications d'indicateurs HFA...",
-          pt: "A propor alterações de indicadores HFA...",
-        }),
-      completionMessage: (input) =>
-        t3({
-          en: `Changes for ${countIndicators(input.updates.length)}`,
-          fr: `Modifications pour ${countIndicators(input.updates.length)}`,
-          pt: `Alterações para ${countIndicators(input.updates.length)}`,
-        }),
+      inProgressLabel: t3({
+        en: "Proposing changes to HFA indicators...",
+        fr: "Proposition de modifications d'indicateurs HFA...",
+        pt: "A propor alterações de indicadores HFA...",
+      }),
+      successMessage: (input) =>
+        t3(plural(input.updates.length, {
+          one: {
+            en: "Not proposed: the indicator would not change",
+            fr: "Non proposé : l'indicateur ne changerait pas",
+            pt: "Não proposto: o indicador não mudaria",
+          },
+          other: {
+            en: "Not proposed: the indicators would not change",
+            fr: "Non proposé : les indicateurs ne changeraient pas",
+            pt: "Não proposto: os indicadores não mudariam",
+          },
+        })),
     }),
 
     createAITool({
@@ -1274,7 +1277,7 @@ export function buildHfaIndicatorTools() {
       description:
         "Permanently delete HFA indicators by indicator id (and their indicator code). Use with care.",
       kind: "write",
-      inputSchema: z.object({ indicatorIds: z.array(z.string()).min(1) }),
+      inputSchema: z.strictObject({ indicatorIds: z.array(z.string()).min(1) }),
       approval: {
         propose: async (input) => {
           const ids = [...new Set(input.indicatorIds)];
@@ -1372,18 +1375,16 @@ export function buildHfaIndicatorTools() {
         },
         presentation: "modal",
       },
-      inProgressLabel: () =>
-        t3({
-          en: "Proposing deletion...",
-          fr: "Proposition de suppression...",
-          pt: "A propor a eliminação...",
-        }),
-      completionMessage: (input) =>
-        t3({
-          en: `Delete ${countIndicators(new Set(input.indicatorIds).size)}`,
-          fr: `Supprimer ${countIndicators(new Set(input.indicatorIds).size)}`,
-          pt: `Eliminar ${countIndicators(new Set(input.indicatorIds).size)}`,
-        }),
+      inProgressLabel: t3({
+        en: "Proposing to delete HFA indicators...",
+        fr: "Proposition de supprimer des indicateurs HFA...",
+        pt: "A propor eliminar indicadores HFA...",
+      }),
+      successMessage: t3({
+        en: "Not proposed: no indicator to delete",
+        fr: "Non proposé : aucun indicateur à supprimer",
+        pt: "Não proposto: nenhum indicador a eliminar",
+      }),
     }),
   ];
 }

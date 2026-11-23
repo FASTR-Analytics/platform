@@ -92,7 +92,6 @@ export type RunFacilityRow = {
 
 export type DatasetHmisRunCapture = {
   info: RunDatasetHmisInfo;
-  lastUpdated: string;
   // The v2 `indicators.json` mirror: the analysed set, resolved
   // (resolveHmisIndicatorCatalog).
   indicators: HmisIndicatorCatalogRow[];
@@ -251,7 +250,6 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       success: true,
       data: {
         info,
-        lastUpdated: new Date().toISOString(),
         indicators,
         facilities,
         periodRange: { min: minPeriod, max: maxPeriod },

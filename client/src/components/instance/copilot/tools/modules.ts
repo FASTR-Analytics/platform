@@ -1,9 +1,13 @@
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import {
+  AI_TEXT_LINE_MAX_CHARS,
+  AI_TEXT_WINDOW_MAX_CHARS,
   COPILOT_TOOL_VIEWS,
+  formatTextWindowForAI,
   type InstalledModuleSummary,
   type MetricWithStatus,
+  t3,
 } from "lib";
 import type { ModuleInternalsEnv } from "../mod.ts";
 import { formatModulesListForAI } from "./format_modules_list_for_ai.ts";
@@ -28,45 +32,97 @@ export function getClientToolsForModules(
     createAITool({
       name: "get_available_modules",
       description: "Get a list of the analysis modules in the results package",
-      inputSchema: z.object({}),
+      inputSchema: z.strictObject({}),
       availableIn: COPILOT_TOOL_VIEWS.get_available_modules,
       handler: async () => {
         return formatModulesListForAI(modules, metrics);
       },
-      inProgressLabel: "Getting available modules...",
+      inProgressLabel: t3({
+        en: "Getting the available modules...",
+        fr: "Récupération des modules disponibles...",
+        pt: "A obter os módulos disponíveis...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the available modules",
+        fr: "Modules disponibles récupérés",
+        pt: "Módulos disponíveis obtidos",
+      }),
       kind: "read",
     }),
   ];
 }
 
+const ModuleFileQuerySchema = z.strictObject({
+  id: z.string().describe("Module ID"),
+  fromLine: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe(
+      "Optional: the first line to write. Each result names the fromLine of its next window.",
+    ),
+  search: z
+    .array(z.string())
+    .min(1)
+    .optional()
+    .describe(
+      "Optional: terms to find lines by. A line matches when it holds every word of one term, case and accents ignored. The matching lines are written with their numbers, from fromLine when given.",
+    ),
+});
+
+const WINDOW =
+  `One window a call: whole lines, at most ${AI_TEXT_WINDOW_MAX_CHARS} characters, a line over ${AI_TEXT_LINE_MAX_CHARS} cut with its length stated. Each result opens with the file's line and character counts and the lines it writes.`;
+
 export function getClientToolsForModuleInternals(env: ModuleInternalsEnv) {
   return [
     createAITool({
       name: "get_module_r_script",
-      description: "Get the R script for a specific module",
-      inputSchema: z.object({ id: z.string().describe("Module ID") }),
+      description:
+        `Get the R script for a specific module. ${WINDOW} With neither fromLine nor search, the window starts at the first line, and the result names the fromLine that reads on. search finds the lines that hold a term.`,
+      inputSchema: ModuleFileQuerySchema,
       availableIn: COPILOT_TOOL_VIEWS.get_module_r_script,
       handler: async (input) => {
         const res = await env.getModuleScript(input.id);
         if (!res.success) throw new AIToolFailure(res.err);
-        return res.data.script;
+        return formatTextWindowForAI(res.data.script, "start", input);
       },
-      inProgressLabel: "Getting module script...",
+      inProgressLabel: t3({
+        en: "Getting a module's R script...",
+        fr: "Récupération du script R d'un module...",
+        pt: "A obter o script R de um módulo...",
+      }),
+      successMessage: (input) =>
+        t3({
+          en: `Retrieved the R script of module ${input.id}`,
+          fr: `Script R du module ${input.id} récupéré`,
+          pt: `Script R do módulo ${input.id} obtido`,
+        }),
       kind: "read",
     }),
 
     createAITool({
       name: "get_module_log",
       description:
-        "Get the log file for a module that has recently run. This is useful for debugging errors or explaining why a module hasn't run.",
-      inputSchema: z.object({ id: z.string().describe("Module ID") }),
+        `Get the log file for a module that has recently run. This is useful for debugging errors or explaining why a module hasn't run. ${WINDOW} With neither fromLine nor search, the window ends at the last line, where an error is written; fromLine reads from an earlier line on. search finds the lines that hold a term, such as "error" or "warning".`,
+      inputSchema: ModuleFileQuerySchema,
       availableIn: COPILOT_TOOL_VIEWS.get_module_log,
       handler: async (input) => {
         const res = await env.getModuleLogs(input.id);
         if (!res.success) throw new AIToolFailure(res.err);
-        return res.data.logs;
+        return formatTextWindowForAI(res.data.logs, "end", input);
       },
-      inProgressLabel: "Getting module log...",
+      inProgressLabel: t3({
+        en: "Getting a module's log...",
+        fr: "Récupération du journal d'un module...",
+        pt: "A obter o registo de um módulo...",
+      }),
+      successMessage: (input) =>
+        t3({
+          en: `Retrieved the log of module ${input.id}`,
+          fr: `Journal du module ${input.id} récupéré`,
+          pt: `Registo do módulo ${input.id} obtido`,
+        }),
       kind: "read",
     }),
 
@@ -74,14 +130,24 @@ export function getClientToolsForModuleInternals(env: ModuleInternalsEnv) {
       name: "get_module_settings",
       description:
         "Get the configuration settings and parameters for a specific module. This shows what options are selected for the module.",
-      inputSchema: z.object({ id: z.string().describe("Module ID") }),
+      inputSchema: z.strictObject({ id: z.string().describe("Module ID") }),
       availableIn: COPILOT_TOOL_VIEWS.get_module_settings,
       handler: async (input) => {
         const res = await env.getModuleSettings(input.id);
         if (!res.success) throw new AIToolFailure(res.err);
         return formatModuleSettingsForAI(res.data);
       },
-      inProgressLabel: "Getting module settings...",
+      inProgressLabel: t3({
+        en: "Getting a module's settings...",
+        fr: "Récupération des paramètres d'un module...",
+        pt: "A obter as definições de um módulo...",
+      }),
+      successMessage: (input) =>
+        t3({
+          en: `Retrieved the settings of module ${input.id}`,
+          fr: `Paramètres du module ${input.id} récupérés`,
+          pt: `Definições do módulo ${input.id} obtidas`,
+        }),
       kind: "read",
     }),
   ];

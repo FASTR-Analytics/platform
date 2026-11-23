@@ -4,122 +4,51 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  CascadeArrowInfo,
-  CascadeArrowStyle,
   ChartBarPrimitive,
   ChartCascadeArrowPrimitive,
   DataLabel,
-  MergedCascadeArrowStyle,
+  MeasuredText,
   PathSegment,
-  RenderContext,
 } from "../deps.ts";
 import { Coordinates, RectCoordsDims, Z_INDEX } from "../deps.ts";
-import { buildLabelHalo } from "../label_halo.ts";
-import { buildDataLabelTextStyle } from "./content_generation_types.ts";
-import { catCenterOfRect } from "./orientation_helpers.ts";
+import type {
+  ContentGenerationContext,
+  ResolvedCascadeArrow,
+  SubChartContent,
+} from "./content_generation_types.ts";
 
 export function generateCascadeArrowPrimitives(
-  barPrimitives: ChartBarPrimitive[],
-  arrowStyle: MergedCascadeArrowStyle,
-  rc: RenderContext,
-  orientation: "vertical" | "horizontal",
+  bars: ChartBarPrimitive[],
+  content: SubChartContent,
+  ctx: ContentGenerationContext,
 ): ChartCascadeArrowPrimitive[] {
-  if (orientation !== "vertical") {
-    return [];
-  }
+  const barByValue = new Map(bars.map((bar) => [bar.meta.value, bar]));
+  return content.resolvedCascadeArrows.flatMap((arrow) => {
+    const fromBar = barByValue.get(arrow.from);
+    const toBar = barByValue.get(arrow.to);
+    return fromBar === undefined || toBar === undefined
+      ? []
+      : [computeCascadeArrow(fromBar, toBar, arrow, ctx)];
+  });
+}
 
-  const result: ChartCascadeArrowPrimitive[] = [];
-
-  const groups = new Map<string, ChartBarPrimitive[]>();
-  for (const bar of barPrimitives) {
-    const v = bar.meta.value;
-    const key = `${v.i_pane}-${v.i_tier}-${v.i_lane}-${v.i_series}`;
-    const arr = groups.get(key);
-    if (arr) {
-      arr.push(bar);
-    } else {
-      groups.set(key, [bar]);
-    }
-  }
-
-  for (const bars of groups.values()) {
-    bars.sort((a, b) =>
-      catCenterOfRect(a.bounds, orientation) -
-      catCenterOfRect(b.bounds, orientation)
-    );
-
-    const nArrows = bars.length - 1;
-
-    let biggestDropoffIdx = -1;
-    let biggestDropoff = 0;
-    for (let i = 0; i < nArrows; i++) {
-      const fv = bars[i].meta.value.value;
-      const tv = bars[i + 1].meta.value.value;
-      if (fv === undefined || fv === 0 || tv === undefined) continue;
-      const drop = fv - tv;
-      if (drop > biggestDropoff) {
-        biggestDropoff = drop;
-        biggestDropoffIdx = i;
-      }
-    }
-
-    for (let i = 0; i < nArrows; i++) {
-      const fromBar = bars[i];
-      const toBar = bars[i + 1];
-      const fromValue = fromBar.meta.value.value;
-      const toValue = toBar.meta.value.value;
-
-      if (fromValue === undefined || fromValue === 0 || toValue === undefined) {
-        continue;
-      }
-
-      const absDropoff = fromValue - toValue;
-      const relDropoff = absDropoff / fromValue;
-      const relRetention = toValue / fromValue;
-
-      const cascadeArrowInfo: CascadeArrowInfo = {
-        ...fromBar.meta.value,
-        i_arrow: i,
-        nArrows,
-        isFirstArrow: i === 0,
-        isLastArrow: i === nArrows - 1,
-        fromValue,
-        toValue,
-        absDropoff,
-        relDropoff,
-        relRetention,
-        isBiggestDropoff: i === biggestDropoffIdx,
-      };
-
-      const s = arrowStyle.getStyle(cascadeArrowInfo);
-      if (!s.show) {
-        continue;
-      }
-
-      const arrow = computeCascadeArrow(
-        fromBar,
-        toBar,
-        cascadeArrowInfo,
-        s,
-        arrowStyle,
-        rc,
-      );
-      result.push(arrow);
-    }
-  }
-
-  return result;
+export function cascadeArrowLabelStandoff(
+  mText: MeasuredText,
+  style: ResolvedCascadeArrow["style"],
+): number {
+  const dl = style.dataLabel;
+  return mText.dims.h() + dl.padding.pb() +
+    (dl.borderWidth > 0 ? dl.borderWidth / 2 : 0) + style.arrowLabelGap +
+    dl.offset;
 }
 
 function computeCascadeArrow(
   fromBar: ChartBarPrimitive,
   toBar: ChartBarPrimitive,
-  cascadeArrowInfo: CascadeArrowInfo,
-  s: CascadeArrowStyle,
-  arrowStyle: MergedCascadeArrowStyle,
-  rc: RenderContext,
+  arrow: ResolvedCascadeArrow,
+  ctx: ContentGenerationContext,
 ): ChartCascadeArrowPrimitive {
-  const { relRetention } = cascadeArrowInfo;
+  const s = arrow.style;
   const sw = s.strokeWidth;
 
   const fromX = fromBar.bounds.rightX() - sw / 2;
@@ -267,38 +196,24 @@ function computeCascadeArrow(
   const angle = Math.atan2(arrowEndY - cpY, arrowEndX - cpX);
 
   const dl = s.dataLabel;
-  const labelText = dl.show
-    ? arrowStyle.textFormatter !== "none"
-      ? arrowStyle.textFormatter(cascadeArrowInfo)
-      : String(cascadeArrowInfo.relRetention)
-    : undefined;
-  const labelTextInfo = buildDataLabelTextStyle(arrowStyle.text.labels, dl);
-  const mText = labelText
-    ? rc.mText(labelText, labelTextInfo, Infinity)
-    : undefined;
+  const label = arrow.label;
   const highestY = Math.min(fromY, toY);
   const dlPadTop = dl.padding.pt();
-  const dlPadBottom = dl.padding.pb();
   const dlBorderHalf = dl.borderWidth > 0 ? dl.borderWidth / 2 : 0;
-  const labelY = mText
-    ? highestY -
-      (sw / 2 + mText.dims.h() + dlPadBottom + dlBorderHalf +
-        s.arrowLabelGap + dl.offset)
+  const labelY = label
+    ? highestY - (sw / 2 + cascadeArrowLabelStandoff(label.mText, s))
     : highestY;
 
-  let dataLabel: DataLabel | undefined;
-  if (mText) {
-    dataLabel = {
-      mText,
-      position: new Coordinates({ x: midX, y: labelY }),
-      alignH: "center",
-      alignV: "top",
-      halo: buildLabelHalo(dl),
-    };
-  }
+  const dataLabel: DataLabel | undefined = label === undefined ? undefined : {
+    mText: label.mText,
+    position: new Coordinates({ x: midX, y: labelY }),
+    alignH: "center",
+    alignV: "top",
+    halo: label.halo,
+  };
 
   const minX = Math.min(fromX + arrowGap, arrowEndX) - sw;
-  const labelTopY = mText ? labelY - dlPadTop - dlBorderHalf : labelY;
+  const labelTopY = label ? labelY - dlPadTop - dlBorderHalf : labelY;
   const minY = Math.min(fromY, arrowEndY, labelTopY) - sw;
   const maxX = Math.max(fromX + arrowGap, arrowEndX) + sw;
   const maxY = Math.max(fromY, arrowEndY) + sw;
@@ -312,7 +227,7 @@ function computeCascadeArrow(
   return {
     type: "chart-cascade-arrow",
     key:
-      `chart-cascade-arrow-${fromBar.meta.value.i_pane}-${fromBar.meta.value.i_tier}-${fromBar.meta.value.i_lane}-${fromBar.meta.value.i_series}-${fromBar.meta.value.i_value}`,
+      `chart-cascade-arrow-${ctx.subChart.i_pane}-${ctx.subChart.i_tier}-${ctx.subChart.i_lane}-${arrow.from.i_series}-${arrow.from.i_value}`,
     item: fromBar.item,
     part: "link",
     bounds,
@@ -321,7 +236,7 @@ function computeCascadeArrow(
     meta: {
       from: fromBar.meta.value,
       to: toBar.meta.value,
-      relRetention,
+      relRetention: arrow.info.relRetention,
     },
     pathSegments,
     pathStyle: {

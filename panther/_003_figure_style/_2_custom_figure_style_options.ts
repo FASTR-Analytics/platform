@@ -41,6 +41,7 @@ import type {
   GenericTableCellStyleOptions,
   GenericTableHeaderStyleOptions,
 } from "./style_func_types.ts";
+import type { MapProjection } from "./_3_merged_style_return_types.ts";
 import type { FigureTextStyleOptions } from "./text_style_keys.ts";
 import type { LegendPosition } from "./types.ts";
 
@@ -184,7 +185,9 @@ export type CustomFigureStyleOptions = {
         | "stacked"
         | "imposed"
         | "diff";
-      maxBarWidth?: number;
+      barGroupThicknessFractionOfSlot?: number;
+      barThicknessFractionOfSeriesOuterThickness?: number;
+      maxBarThickness?: number;
     };
     lines?: {
       func?:
@@ -386,7 +389,7 @@ export type CustomFigureStyleOptions = {
     layoutMode?: "flow" | "tiered";
   };
   map?: {
-    projection?: "equirectangular" | "mercator" | "naturalEarth1";
+    projection?: MapProjection;
     fit?: "all-map-areas" | "only-map-areas-in-data";
     dataLabelMode?: "none" | "centroid" | "callout" | "auto";
     calloutMargin?: number;

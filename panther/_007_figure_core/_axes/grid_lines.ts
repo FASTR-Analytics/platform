@@ -3,99 +3,92 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { RectCoordsDims } from "../deps.ts";
-import type {
-  OverhangClearance,
-  YAxisWidthInfo,
-  YValueAxisWidthInfo,
-} from "../types.ts";
-import type { XAxisConfig, YAxisConfig } from "./axis_configs.ts";
+import type { SubChart } from "../sub_charts.ts";
+import type { MeasuredXAxis } from "./measure_x_axis.ts";
+import type { MeasuredYAxis } from "./measure_y_axis.ts";
 import { calculateVerticalGridLinesForLaneXPeriod } from "./x_period/grid_lines.ts";
-import type { XPeriodAxisMeasuredInfo } from "./x_period/types.ts";
 import { calculateVerticalGridLinesForLaneXValue } from "./x_value/grid_lines.ts";
-import type { XValueAxisMeasuredInfo } from "./x_value/types.ts";
-import { calculateVerticalGridLinesForLaneXText } from "./x_text/grid_lines.ts";
-import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
 import { calculateHorizontalGridLinesForTier as calculateHorizontalGridLinesForTierYValue } from "./y_value/grid_lines.ts";
-import { calculateHorizontalGridLinesForTierYText } from "./y_text/grid_lines.ts";
-import type { YTextAxisWidthInfo } from "./y_text/types.ts";
-import type { XAxisMeasuredInfo } from "./measure_x_axis.ts";
 
 export function calculateXAxisGridLines(
-  i_lane: number,
-  subChartRcd: RectCoordsDims,
-  xAxisConfig: XAxisConfig,
-  xAxisMeasuredInfo: XAxisMeasuredInfo,
+  subChart: Extract<SubChart, { kind: "category-and-value" }>,
+  xAxis: MeasuredXAxis,
   gridLineStrokeWidth: number,
-  clearance: OverhangClearance,
-  // Unbalanced indicator membership: this pane's visible slot count (text
-  // axis only). Grid lines are positional, so they follow the pane's layout.
-  nVisibleIndicators?: number,
 ): { x: number; tickValue?: number }[] {
-  switch (xAxisConfig.type) {
+  switch (xAxis.type) {
     case "text":
-      return calculateVerticalGridLinesForLaneXText(
-        subChartRcd,
-        xAxisMeasuredInfo as XTextAxisMeasuredInfo,
-        nVisibleIndicators ?? xAxisConfig.indicatorMembers.length,
+      return categoryGridLines(
+        subChart.rcd.x(),
+        subChart.rcd.w(),
+        subChart.nSlots,
+        subChart.slotExtent,
+        subChart.isCentered,
         gridLineStrokeWidth,
-        xAxisConfig.axisStyle.tickPosition === "center",
-      );
+      ).map((x) => ({ x }));
     case "period":
       return calculateVerticalGridLinesForLaneXPeriod(
-        subChartRcd,
-        xAxisMeasuredInfo as XPeriodAxisMeasuredInfo,
-        xAxisConfig.periodType,
-        xAxisConfig.timeMin,
-        xAxisConfig.nTimePoints,
+        subChart.rcd,
+        xAxis.info,
+        xAxis.config.periodType,
+        xAxis.config.timeMin,
+        xAxis.config.nTimePoints,
         gridLineStrokeWidth,
-        xAxisConfig.axisStyle.showEveryNthTick,
-        xAxisConfig.axisStyle.calendar,
+        xAxis.config.axisStyle.showEveryNthTick,
+        xAxis.config.axisStyle.calendar,
       );
-    case "value": {
-      const mx = xAxisMeasuredInfo as XValueAxisMeasuredInfo;
+    case "value":
       return calculateVerticalGridLinesForLaneXValue(
-        i_lane,
-        mx.xValueAxisHeightInfo,
-        subChartRcd.x(),
-        subChartRcd.w(),
-        clearance,
+        subChart.i_lane,
+        xAxis.info.xValueAxisHeightInfo,
+        subChart.rcd.x(),
+        subChart.rcd.w(),
+        subChart.valueClearance,
       );
-    }
-    case "none":
-      return [];
   }
 }
 
 export function calculateYAxisGridLines(
-  i_tier: number,
-  subChartRcd: RectCoordsDims,
+  subChart: Extract<SubChart, { kind: "category-and-value" }>,
+  yAxis: MeasuredYAxis,
   gridLineStrokeWidth: number,
-  yAxisConfig: YAxisConfig,
-  yAxisWidthInfo: YAxisWidthInfo,
-  clearance: OverhangClearance,
-  // Unbalanced indicator membership: this pane's visible slot count (text
-  // axis only). Grid lines are positional, so they follow the pane's layout.
-  nVisibleIndicators?: number,
 ): { y: number; tickValue?: number }[] {
-  switch (yAxisConfig.type) {
+  switch (yAxis.type) {
     case "value":
       return calculateHorizontalGridLinesForTierYValue(
-        i_tier,
-        yAxisWidthInfo as YValueAxisWidthInfo,
-        subChartRcd.y(),
-        subChartRcd.h(),
-        clearance,
+        subChart.i_tier,
+        yAxis.info,
+        subChart.rcd.y(),
+        subChart.rcd.h(),
+        subChart.valueClearance,
       );
     case "text":
-      return calculateHorizontalGridLinesForTierYText(
-        subChartRcd,
-        nVisibleIndicators ??
-          (yAxisWidthInfo as YTextAxisWidthInfo).nIndicators,
+      return categoryGridLines(
+        subChart.rcd.y(),
+        subChart.rcd.h(),
+        subChart.nSlots,
+        subChart.slotExtent,
+        subChart.isCentered,
         gridLineStrokeWidth,
-        yAxisConfig.axisStyle.tickPosition === "center",
-      );
-    case "none":
-      return [];
+      ).map((y) => ({ y }));
   }
+}
+
+function categoryGridLines(
+  origin: number,
+  extent: number,
+  nSlots: number,
+  slotExtent: number,
+  centered: boolean,
+  gsw: number,
+): number[] {
+  const lines: number[] = [];
+  let current = centered ? origin : origin + gsw / 2;
+  for (let ordinal = 0; ordinal < nSlots; ordinal++) {
+    lines.push(centered ? current + slotExtent / 2 : current);
+    current += centered ? slotExtent : slotExtent + gsw;
+  }
+  if (!centered) {
+    lines.push(origin + extent - gsw / 2);
+  }
+  return lines;
 }

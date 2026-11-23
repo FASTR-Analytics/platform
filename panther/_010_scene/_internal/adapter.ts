@@ -14,17 +14,17 @@ import type {
   Side,
 } from "../types.ts";
 import type {
-  ResolvedConnector,
-  ResolvedNode,
-  ResolvedText,
+  ResolvedDiagramConnector,
+  ResolvedDiagramNode,
+  ResolvedDiagramText,
 } from "./resolve.ts";
 
 export type AdapterInputs = {
   data: DiagramData;
   geometry: DiagramGeometry;
-  nodes: Map<string, ResolvedNode>;
-  connectors: Map<string, ResolvedConnector>;
-  texts: Map<string, ResolvedText>;
+  nodes: Map<string, ResolvedDiagramNode>;
+  connectors: Map<string, ResolvedDiagramConnector>;
+  texts: Map<string, ResolvedDiagramText>;
   style: MergedSceneStyle;
   customNode: DiagramCustomNode | undefined;
   // Where a placed band's label sits and which side a bracket stands on by

@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { DataDimension } from "../deps.ts";
-import type { LegendEntry } from "./types.ts";
 import type { LegendInput } from "./scale_legend_types.ts";
 
 // An unsplit series has no legend.
@@ -15,10 +14,10 @@ export function resolveDefaultLegend(
   return legend ?? series?.members.map((h) => h.label) ?? [];
 }
 
-export function getLegendEntriesInGroups(
-  legendEntries: LegendEntry[],
+export function getLegendEntriesInGroups<T>(
+  legendEntries: T[],
   maxLegendEntriesInOneColumn: number | number[],
-): LegendEntry[][] {
+): T[][] {
   if (maxLegendEntriesInOneColumn instanceof Array) {
     let startIndex = 0;
     return maxLegendEntriesInOneColumn.map((n) => {
@@ -31,7 +30,7 @@ export function getLegendEntriesInGroups(
       legendEntries.length,
       maxLegendEntriesInOneColumn,
     );
-    return legendEntries.reduce<LegendEntry[][]>(
+    return legendEntries.reduce<T[][]>(
       (resultArray, entry, index) => {
         const chunkIndex = Math.floor(index / nEntriesPerGroup);
         if (!resultArray[chunkIndex]) {
@@ -45,10 +44,19 @@ export function getLegendEntriesInGroups(
   }
 }
 
+export function getNColumnsNeeded(
+  nLegendEntries: number,
+  entriesPerColumn: number,
+): number {
+  return Math.ceil(nLegendEntries / entriesPerColumn);
+}
+
 function getNEntriesPerGroup(
   nLegendEntries: number,
   maxLegendEntriesInOneColumn: number,
 ): number {
-  const columnsNeeded = Math.ceil(nLegendEntries / maxLegendEntriesInOneColumn);
-  return Math.ceil(nLegendEntries / columnsNeeded);
+  return Math.ceil(
+    nLegendEntries /
+      getNColumnsNeeded(nLegendEntries, maxLegendEntriesInOneColumn),
+  );
 }

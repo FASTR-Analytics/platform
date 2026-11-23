@@ -52,6 +52,7 @@ export {
   computeFloorScale,
   computeNRows,
   estimateMinSurroundsWidth,
+  estimateTierHeaderAndLabelGapWidth,
   fillValuesWithDuplicateCheck,
   generateResolvedFigureLabelPrimitives,
   getMemberIndex,

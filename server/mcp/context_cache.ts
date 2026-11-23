@@ -318,6 +318,7 @@ export async function resolvePackageContext(
     env,
     authoring.metrics,
     authoring.modules,
+    authoring.hmisIndicators,
     authoring.icehIndicators,
     hfaTaxonomy,
   ).map((tool) => withSourceHeader(tool, () => header));

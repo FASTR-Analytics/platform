@@ -6,9 +6,10 @@ import {
   getFigureAsCanvas,
   IMAGE_LIMITS,
   loadFontsWithTimeout,
+  plural,
 } from "panther";
 import { z } from "zod";
-import { COPILOT_TOOL_VIEWS } from "lib";
+import { COPILOT_TOOL_VIEWS, t3 } from "lib";
 import { awaitFigureBoundaries } from "~/generate_visualization/mod";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import {
@@ -17,7 +18,7 @@ import {
   MAX_LOOK_SUBJECTS,
   type ToolImage,
 } from "../../_shared/mod.ts";
-import { figuresLabel } from "./tool_labels.ts";
+import { asImagesLabel, visualizationsLabel } from "./tool_labels.ts";
 import { describeFigureUnavailableForAI } from "./figure_unavailable_for_ai.ts";
 import { liveBundleOrRefuse } from "./report_editor.ts";
 
@@ -27,7 +28,7 @@ export function createGetReportFigureImagesTool() {
     name: "get_report_figure_images",
     description:
       `Look at one to ${MAX_LOOK_SUBJECTS} figures of the open report as images, each drawn as the report shows it: in the report's chart palette, in the ink of the ground it sits on, with any change not yet saved. Use it to judge what a figure's configuration cannot tell you: whether its labels, legend and table cells can be read, whether its series can be told apart. The images come back in the order asked, and the result gives each one's size in pixels: a figure too tall for one image is drawn narrower. You see an image for the rest of this turn and not after, so say in your reply what it showed. Looking again is one call and shows the figure as it is then. A turn takes at most ${IMAGE_LIMITS.MAX_PER_TURN} images.`,
-    inputSchema: z.object({
+    inputSchema: z.strictObject({
       figureIds: z
         .array(z.string())
         .min(1)
@@ -80,9 +81,29 @@ export function createGetReportFigureImagesTool() {
         images: images.map((i) => i.image),
       });
     },
-    inProgressLabel: (input) =>
-      `Looking at ${figuresLabel(new Set(input.figureIds).size)}...`,
-    completionMessage: (input) =>
-      `Looked at ${figuresLabel(new Set(input.figureIds).size)}`,
+    inProgressLabel: (input) => {
+      const n = new Set(input.figureIds).size;
+      const visualizations = visualizationsLabel(n);
+      const asImages = asImagesLabel(n);
+      return t3({
+        en: `Getting ${visualizations} ${asImages}...`,
+        fr: `Récupération de ${visualizations} ${asImages}...`,
+        pt: `A obter ${visualizations} ${asImages}...`,
+      });
+    },
+    successMessage: (input) => {
+      const n = new Set(input.figureIds).size;
+      const visualizations = visualizationsLabel(n);
+      const asImages = asImagesLabel(n);
+      return t3({
+        en: `Retrieved ${visualizations} ${asImages}`,
+        fr: `${visualizations} ${
+          plural(n, { one: "récupérée", other: "récupérées" })
+        } ${asImages}`,
+        pt: `${visualizations} ${
+          plural(n, { one: "obtida", other: "obtidas" })
+        } ${asImages}`,
+      });
+    },
   });
 }

@@ -61,6 +61,11 @@ Deno.test("the slide look draws the page the editor canvas and the PDF draw", ()
     functionBody(source(pagePath), "buildSlidePage"),
     "convertSlideToPageInputs",
   );
+  assertCalls(
+    `buildSlidePage in ${pagePath}`,
+    functionBody(source(pagePath), "buildSlidePage"),
+    "getFontsForPage",
+  );
   const canvasPath =
     "client/src/components/products/slide_deck/slide_editor/slide_editor.tsx";
   assertCalls(canvasPath, source(canvasPath), "convertSlideToPageInputs");

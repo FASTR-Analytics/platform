@@ -3,6 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import type { MapProjection } from "../deps.ts";
+
 export type ProjectionFn = (lon: number, lat: number) => [number, number];
 
 export function equirectangular(lon: number, lat: number): [number, number] {
@@ -26,9 +28,7 @@ export function naturalEarth1(lon: number, lat: number): [number, number] {
   return [x, y];
 }
 
-export function getProjectionFn(
-  name: "equirectangular" | "mercator" | "naturalEarth1",
-): ProjectionFn {
+export function getProjectionFn(name: MapProjection): ProjectionFn {
   switch (name) {
     case "equirectangular":
       return equirectangular;

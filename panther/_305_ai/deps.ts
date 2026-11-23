@@ -23,7 +23,6 @@ export {
   decideViewGate,
   demoteStaleCarriers,
   EMPTY_REPLY_PLACEHOLDER,
-  fillEmptyReplies,
   getMaxOutputTokens,
   getSupportedEffortLevels,
   getUserFacingAIErrorMessage,
@@ -66,7 +65,6 @@ export type {
   SystemNoticeType,
   SystemParam,
   ToolResultContent,
-  Usage,
   UserMessageParam,
 } from "../_110_ai_types/mod.ts";
 export {
@@ -75,7 +73,6 @@ export {
   buildAITool,
   buildToolResultContent,
   createAITool,
-  getHeadlessCapability,
   resolveAIToolReturn,
   resolveViewLabel,
   runAIToolWithView,
@@ -99,11 +96,6 @@ export type {
   SetViewArgs,
   ToolUIMetadata,
 } from "../_112_ai_tool_core/mod.ts";
-export type {
-  CallAIOptions,
-  CallAIResult,
-  CallAIStructuredConfig,
-} from "../_116_ai_one_shot/mod.ts";
 export {
   Button,
   createTableConfig,

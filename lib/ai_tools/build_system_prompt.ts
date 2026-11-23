@@ -5,6 +5,7 @@ import {
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
 } from "../consts.ts";
+import type { DisaggregationOption } from "../types/disaggregation_options.ts";
 import type { RunDataset } from "../types/run_datasets.ts";
 import type { InstanceGrounding } from "../types/instance_sse.ts";
 import type { InstanceCalendar } from "../types/instance.ts";
@@ -13,8 +14,15 @@ import type { RunHmisIndicator } from "../types/run_manifest.ts";
 import type { GeoJsonMapSummary } from "../types/geojson_maps.ts";
 import type { FacilityFamily } from "../types/structure.ts";
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
-import { describeIndicatorFacts } from "./format_metric_data_for_ai.ts";
-import type { ScopeDefinition } from "../types/scope.ts";
+import {
+  describeHmisIndicatorLine,
+  HMIS_INDICATOR_LINE_SHAPE,
+} from "./format_dimension_values_for_ai.ts";
+import { AI_INLINE_LIST_MAX } from "./read_bounds.ts";
+import {
+  SCOPE_INDICATOR_COLUMN,
+  type ScopeDefinition,
+} from "../types/scope.ts";
 import { MODULE_FAMILY_ORDER } from "../group_metrics.ts";
 import { describeReportBackboneForBrief } from "../report_backbone.ts";
 import type { ReportBackbone } from "../types/report_backbone.ts";
@@ -276,7 +284,7 @@ export function buildPackageGroundingSections(
     sections.push("");
     sections.push("**Loaded datasets:**");
     if (hmisDataset && hmisDataset.datasetType === "hmis") {
-      sections.push(`- HMIS data (version ${hmisDataset.info.version.id})`);
+      sections.push(`- HMIS data (version ${hmisDataset.versionId})`);
     }
     if (hfaDataset) {
       sections.push(`- HFA data`);
@@ -293,21 +301,30 @@ export function buildPackageGroundingSections(
   if (grounding.hmisIndicators.length > 0) {
     sections.push("");
     sections.push(
-      `**HMIS indicators (${grounding.hmisIndicators.length}):** id: label [format; direction; thresholds in display units; target] = formula over counts and population types (computed indicators only). Read every value against its declared direction.`,
+      ...indicatorListLines({
+        heading: "HMIS indicators",
+        lines: grounding.hmisIndicators.map(describeHmisIndicatorLine),
+        lineShape: HMIS_INDICATOR_LINE_SHAPE,
+        disOpt: "indicator_common_id",
+        lookupFacts: "format, direction, thresholds, target and formula",
+        rest:
+          " Read every value against its declared direction, where its indicator declares one.",
+      }),
     );
-    for (const ind of grounding.hmisIndicators) {
-      sections.push(describeHmisIndicatorForPrompt(ind));
-    }
   }
 
   if (grounding.icehIndicators.length > 0) {
     sections.push("");
     sections.push(
-      `**ICEH indicators (${grounding.icehIndicators.length}):**`,
+      ...indicatorListLines({
+        heading: "ICEH indicators",
+        lines: grounding.icehIndicators.map((ind) => `${ind.id}: ${ind.label}`),
+        lineShape: undefined,
+        disOpt: "iceh_indicator",
+        lookupFacts: "category",
+        rest: "",
+      }),
     );
-    for (const ind of grounding.icehIndicators) {
-      sections.push(`- ${ind.id}: ${ind.label}`);
-    }
   }
 
   if (grounding.periodCoverage !== undefined) {
@@ -323,16 +340,25 @@ export function buildPackageGroundingSections(
   return sections;
 }
 
-// One prompt line per HMIS indicator: the facts the package declares for
-// it, nothing for a fact it lacks, so a legacy package prints `id: label`.
-function describeHmisIndicatorForPrompt(ind: RunHmisIndicator): string {
-  const facts = [
-    ...(ind.format_as ? [ind.format_as] : []),
-    ...describeIndicatorFacts(ind),
+function indicatorListLines(list: {
+  heading: string;
+  lines: string[];
+  lineShape: string | undefined;
+  disOpt: DisaggregationOption;
+  lookupFacts: string;
+  rest: string;
+}): string[] {
+  const n = list.lines.length;
+  if (n > AI_INLINE_LIST_MAX) {
+    return [
+      `**${list.heading} (${n}):** more than ${AI_INLINE_LIST_MAX}, too many to list here. get_dimension_values with a metric's id and disOpt "${list.disOpt}" lists the ones the metric holds, each with its ${list.lookupFacts}, and its search finds them by name.${list.rest}`,
+    ];
+  }
+  const shape = list.lineShape === undefined ? "" : ` ${list.lineShape}.`;
+  return [
+    `**${list.heading} (${n}):**${shape}${list.rest}`,
+    ...list.lines.map((line) => `- ${line}`),
   ];
-  const factText = facts.length > 0 ? ` [${facts.join("; ")}]` : "";
-  const formula = ind.expression ? ` = ${ind.expression}` : "";
-  return `- ${ind.id}: ${ind.label}${factText}${formula}`;
 }
 
 // ── The package block: the package in view, its scope and its grounding ──
@@ -346,6 +372,16 @@ function describeHmisIndicatorForPrompt(ind: RunHmisIndicator): string {
 // definition, and the authoring context's grounding.
 
 const FAMILY_NAMES = { hmis: "HMIS", hfa: "HFA", iceh: "ICEH" } as const;
+
+function limitList(
+  noun: string,
+  disOpt: DisaggregationOption,
+  values: string[],
+): string {
+  return values.length > AI_INLINE_LIST_MAX
+    ? `${values.length} ${noun} (more than ${AI_INLINE_LIST_MAX}, too many to list here: get_dimension_values with a metric's id and disOpt "${disOpt}" lists the ones the metric holds under this scope)`
+    : `${noun} ${values.join(", ")}`;
+}
 
 // One family's section of the scope: excluded, unlimited, or its limits.
 function familyLine(
@@ -363,14 +399,23 @@ function familyLine(
     "years" in section && section.years !== null &&
     `years ${section.years.start} to ${section.years.end}`,
     "timePoints" in section && section.timePoints !== null &&
-    `time points ${section.timePoints.join(", ")}`,
+    limitList("time points", "time_point", section.timePoints),
+    // Written whole: a package holds a handful of modules, whatever its data.
     section.modules !== null && `modules ${section.modules.join(", ")}`,
     section.indicators !== null &&
-    `indicators ${section.indicators.join(", ")}`,
+    limitList(
+      "indicators",
+      SCOPE_INDICATOR_COLUMN[family],
+      section.indicators,
+    ),
     "categories" in section && section.categories !== null &&
-    `categories ${section.categories.join(", ")}`,
+    limitList("categories", "hfa_category", section.categories),
     "serviceCategories" in section && section.serviceCategories !== null &&
-    `service categories ${section.serviceCategories.join(", ")}`,
+    limitList(
+      "service categories",
+      "hfa_service_category",
+      section.serviceCategories,
+    ),
   ].filter((limit) => typeof limit === "string");
   return limits.length === 0
     ? `- ${name}: included, no limits.`
@@ -527,9 +572,9 @@ ${principles}
 
 Before writing any interpretation, settle which way is good for the indicator.
 
-**Use the declared direction first.** Every HMIS indicator declares "higher is better" or "lower is better" in the HMIS indicators list above and in get_metric_data's Dimension Summary, with its thresholds and target where it has them. That declaration is the instance's own reading of the indicator and overrides any guess from the name.
+**Use the declared direction first.** An HMIS indicator declares "higher is better" or "lower is better", with its thresholds and target where it has them, or declares no direction. A declaration is written in three places: the results package's list of HMIS indicators, when the package has few enough to list there; get_metric_data's Dimension Summary; and get_dimension_values, beside each indicator_common_id value. An indicator whose line states no direction declares none. A declaration is the instance's own reading of the indicator and overrides any guess from the name.
 
-**Only where nothing is declared** (HFA and ICEH indicators, module metrics such as outlier, completeness or dropout rates), infer the direction from what the indicator measures:
+**Only where nothing is declared** (an HMIS indicator that declares no direction, HFA and ICEH indicators, module metrics such as outlier, completeness or dropout rates), infer the direction from what the indicator measures:
 - Service delivery and coverage (visits, deliveries, immunizations, family planning, skilled birth attendance): higher is better. Expected values: "surplus" = positive, "disruption" = concern.
 - Mortality and adverse outcomes (maternal deaths, neonatal deaths, stillbirths) and quality failures (dropout, outlier, stockout rates): lower is better.
 
@@ -554,7 +599,7 @@ scope; you do not choose the package, and no tool takes one.
 
 1. **Cover Slide:** title, subtitle, presenter, date
 2. **Section Slide:** sectionTitle, sectionSubtitle
-3. **Content Slide:** heading + blocks array (max ${MAX_CONTENT_BLOCKS} blocks)
+3. **Content Slide:** header + blocks array (max ${MAX_CONTENT_BLOCKS} blocks)
 
 Each slide also has its own settings: a cover's and a section's text sizes, bold and italic, a cover's logos, and a content slide's sub-header, date, footer, header and footer logos and side panel (split). get_slides shows them as stored, and update_slide sets them.
 

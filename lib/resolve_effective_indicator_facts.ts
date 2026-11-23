@@ -124,8 +124,9 @@ export function resolveEffectiveIndicatorFacts(args: {
 
 // Render-side twin over a stored FigureBundle: pins (replicant, filterBy) come
 // from the frozen config, disaggregated dimensions are enumerated from the
-// returned rows, and facts come from bundle.indicatorMetadata: the FULL
-// module catalog, so a filter-pinned indicator is still visible.
+// returned rows, and facts come from bundle.indicatorMetadata: the catalog
+// entries the bundle's rows, filter values and selected replicant value name
+// (indicatorMetadataForRead), so a filter-pinned indicator is still visible.
 export function resolveEffectiveIndicatorFactsFromItems(args: {
   metricFormatAs: MetricFormatAs;
   config: PresentationObjectConfig;
@@ -293,9 +294,7 @@ function getDisplayedIndicatorDimensionValues(
       // A replicated figure shows exactly one value of the replicant dimension.
       // A PO config stores no-selection as undefined (the field is optional and
       // the starting config leaves it unset), but "" also reaches here: the
-      // deck config's default is "", and ReplicateByOptions feeds
-      // `selectedReplicantValue || ""` into tempConfig. Both mean "nothing
-      // selected".
+      // deck config's default is "". Both mean "nothing selected".
       //
       // Returning undefined here (rather than falling through to enumeration)
       // is a latent behaviour change from the pre-per-value code, reachable

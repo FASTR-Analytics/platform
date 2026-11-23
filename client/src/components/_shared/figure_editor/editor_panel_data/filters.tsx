@@ -40,10 +40,6 @@ import {
   getDisplayDisaggregationValueLabel,
 } from "~/state/instance/_util_disaggregation_label";
 
-// Above this option count, filter boxes render as a searchable combo-box
-// instead of the flat chip cloud.
-const FILTER_SEARCH_THRESHOLD = 0;
-
 // Extract the calendar year from any period value (year YYYY / quarter_id YYYYQ /
 // period_id YYYYMM), keyed by digit length now that the three formats are disjoint.
 function periodToYear(v: number): number {
@@ -135,14 +131,6 @@ type DataValuesFilterProps = {
 };
 
 function DataValuesFilter(p: DataValuesFilterProps) {
-  function toggleVal(val: string) {
-    p.setTempConfig("d", "valuesFilter", (prev) => {
-      if (prev?.includes(val)) {
-        return prev.filter((v) => v !== val);
-      }
-      return [...(prev ?? []), val];
-    });
-  }
   return (
     <div class="ui-spy-sm">
       <Checkbox
@@ -162,48 +150,16 @@ function DataValuesFilter(p: DataValuesFilterProps) {
       />
       <Show when={!!p.tempConfig.d.valuesFilter}>
         <div class="pb-4">
-          <Switch>
-            <Match
-              when={p.metric.valueProps.length >
-                FILTER_SEARCH_THRESHOLD}
-            >
-              <MultiSelectSearch
-                values={p.tempConfig.d.valuesFilter ?? []}
-                options={p.metric.valueProps.map((v) => ({
-                  value: v,
-                  label: v,
-                }))}
-                onChange={(v) => p.setTempConfig("d", "valuesFilter", v)}
-                mono
-                fullWidth
-              />
-            </Match>
-            <Match
-              when={p.metric.valueProps.length <=
-                FILTER_SEARCH_THRESHOLD}
-            >
-              <div class="ui-gap-sm ui-pad flex max-h-[300px] flex-wrap overflow-auto rounded border font-mono text-xs">
-                <For each={p.metric.valueProps}>
-                  {(opt) => {
-                    const isSelected = () =>
-                      (p.tempConfig.d.valuesFilter ?? []).includes(opt);
-                    return (
-                      <div
-                        class="cursor-pointer rounded px-2 py-1"
-                        classList={{
-                          "bg-success text-base-100": isSelected(),
-                          "ui-hoverable-base-200": !isSelected(),
-                        }}
-                        onClick={() => toggleVal(opt)}
-                      >
-                        <span class="relative">{opt}</span>
-                      </div>
-                    );
-                  }}
-                </For>
-              </div>
-            </Match>
-          </Switch>
+          <MultiSelectSearch
+            values={p.tempConfig.d.valuesFilter ?? []}
+            options={p.metric.valueProps.map((v) => ({
+              value: v,
+              label: v,
+            }))}
+            onChange={(v) => p.setTempConfig("d", "valuesFilter", v)}
+            mono
+            fullWidth
+          />
         </div>
       </Show>
     </div>
@@ -569,136 +525,60 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
         )}
         keyed
       >
-        {(keyedFilter) => {
-          function toggleVal(id: string) {
-            const normalized = String(id).toLowerCase();
-            p.setTempConfig(
-              "d",
-              "filterBy",
-              (fil) => fil.disOpt === p.disOpt.value,
-              "values",
-              (prev) => {
-                if (prev?.some((v) => String(v).toLowerCase() === normalized)) {
-                  return prev.filter((v) =>
-                    String(v).toLowerCase() !== normalized
-                  );
-                }
-                return [...(prev ?? []), id];
-              },
-            );
-          }
-          return (
-            <div class="pb-4">
-              <Switch>
-                <Match when={p.keyedStatus.status === "too_many_values"}>
-                  <div class="ui-pad text-sm text-warning">
-                    {t3({
-                      en:
-                        "Too many values (over 500) to display as filter options.",
-                      fr:
-                        "Trop de valeurs (plus de 500) pour les afficher comme options de filtre.",
-                      pt:
-                        "Demasiados valores (mais de 500) para apresentar como opções de filtro.",
-                    })}
-                  </div>
-                </Match>
-                <Match when={p.keyedStatus.status === "no_values_available"}>
-                  <div class="ui-pad text-sm text-base-content-muted">
-                    {t3({
-                      en: "No data available for this dimension.",
-                      fr: "Aucune donnée disponible pour cette dimension.",
-                      pt: "Nenhum dado disponível para esta dimensão.",
-                    })}
-                  </div>
-                </Match>
-                <Match when={p.keyedStatus.status === "error"}>
-                  <div class="ui-pad text-sm text-danger">
-                    {t3({
-                      en: "Error loading values: ",
-                      fr: "Erreur lors du chargement des valeurs : ",
-                      pt: "Erro ao carregar os valores: ",
-                    })}
-                    {(p.keyedStatus as Extract<
-                      DisaggregationPossibleValuesStatus,
-                      { status: "error" }
-                    >).message}
-                  </div>
-                </Match>
-                <Match
-                  when={p.keyedStatus.status === "ok" &&
-                    okValues().length > FILTER_SEARCH_THRESHOLD}
-                >
-                  {(() => {
-                    const canonicalValues = createMemo(() => {
-                      const byLower = new Map(
-                        okValues().map((v) => [v.id.toLowerCase(), v.id]),
-                      );
-                      return keyedFilter.values.map((v) =>
-                        byLower.get(String(v).toLowerCase()) ?? String(v)
-                      );
-                    });
-                    return (
-                      <MultiSelectSearch
-                        values={canonicalValues()}
-                        options={okValues().map((v) => ({
-                          value: v.id,
-                          label: getDisplayDisaggregationValueLabel(
-                            v.id,
-                            v.label,
-                          ),
-                        }))}
-                        onChange={setValues}
-                        fullWidth
-                      />
+        {(keyedFilter) => (
+          <div class="pb-4">
+            <Switch>
+              <Match when={p.keyedStatus.status === "no_values_available"}>
+                <div class="ui-pad text-sm text-base-content-muted">
+                  {t3({
+                    en: "No data available for this dimension.",
+                    fr: "Aucune donnée disponible pour cette dimension.",
+                    pt: "Nenhum dado disponível para esta dimensão.",
+                  })}
+                </div>
+              </Match>
+              <Match when={p.keyedStatus.status === "error"}>
+                <div class="ui-pad text-sm text-danger">
+                  {t3({
+                    en: "Error loading values: ",
+                    fr: "Erreur lors du chargement des valeurs : ",
+                    pt: "Erro ao carregar os valores: ",
+                  })}
+                  {(p.keyedStatus as Extract<
+                    DisaggregationPossibleValuesStatus,
+                    { status: "error" }
+                  >).message}
+                </div>
+              </Match>
+              <Match when={p.keyedStatus.status === "ok"}>
+                {(() => {
+                  const canonicalValues = createMemo(() => {
+                    const byLower = new Map(
+                      okValues().map((v) => [v.id.toLowerCase(), v.id]),
                     );
-                  })()}
-                </Match>
-                <Match
-                  when={p.keyedStatus.status === "ok" &&
-                    okValues().length <= FILTER_SEARCH_THRESHOLD}
-                >
-                  <div class="ui-gap-sm ui-pad flex max-h-[300px] flex-wrap overflow-auto rounded border text-xs">
-                    <For
-                      each={(p.keyedStatus as Extract<
-                        DisaggregationPossibleValuesStatus,
-                        { status: "ok" }
-                      >).values}
-                    >
-                      {(opt) => {
-                        return (
-                          <div
-                            class="cursor-pointer rounded px-2 py-1"
-                            classList={{
-                              "bg-success text-base-100": keyedFilter.values
-                                .some(
-                                  (v) =>
-                                    String(v).toLowerCase() ===
-                                      String(opt.id).toLowerCase(),
-                                ),
-                              "ui-hoverable-base-200": !keyedFilter.values.some(
-                                (v) =>
-                                  String(v).toLowerCase() ===
-                                    String(opt.id).toLowerCase(),
-                              ),
-                            }}
-                            onClick={() => toggleVal(opt.id)}
-                          >
-                            <span class="relative">
-                              {getDisplayDisaggregationValueLabel(
-                                opt.id,
-                                opt.label,
-                              )}
-                            </span>
-                          </div>
-                        );
-                      }}
-                    </For>
-                  </div>
-                </Match>
-              </Switch>
-            </div>
-          );
-        }}
+                    return keyedFilter.values.map((v) =>
+                      byLower.get(String(v).toLowerCase()) ?? String(v)
+                    );
+                  });
+                  return (
+                    <MultiSelectSearch
+                      values={canonicalValues()}
+                      options={okValues().map((v) => ({
+                        value: v.id,
+                        label: getDisplayDisaggregationValueLabel(
+                          v.id,
+                          v.label,
+                        ),
+                      }))}
+                      onChange={setValues}
+                      fullWidth
+                    />
+                  );
+                })()}
+              </Match>
+            </Switch>
+          </div>
+        )}
       </Show>
     </div>
   );

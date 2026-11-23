@@ -1,3 +1,41 @@
+[TBD] [user] [fixed] - AI assistant now correctly handles flexible slide column layouts
+[TBD] [admin] [changed] - Slide layout grid columns now use a global setting instead of being hardcoded to 12
+[TBD] [admin] [fixed] - AI copilot now rejects invalid column spans for single-cell layout rows
+[TBD] [user] [changed] - Overflow warnings now appear for all slide types, not just content slides
+[TBD] [user] [fixed] - Slides that fail to render now show a clear error instead of silently failing
+[TBD] [admin] [changed] - Overflow detection now applies to all slide types, not just content slides
+[TBD] [admin] [fixed] - Slides that cannot be measured no longer block reading other slides
+[TBD] [admin] [fixed] - Slides that cannot be drawn are now clearly refused with an explanation
+[2.15.0] [user] [fixed] - AI assistant now correctly rejects unexpected fields in requests
+[2.15.0] [admin] [fixed] - AI assistant now rejects unexpected fields in tool inputs
+[2.15.0] [user] [fixed] - Improved grammar in status messages when processing single items
+[2.15.0] [admin] [fixed] - Copilot status messages now use correct singular/plural forms
+[2.15.0] [admin] [internal] - Improved AI instructions for generating slide content
+[2.14.1] [user] [changed] - Chart editor header appears immediately while loading
+[2.14.1] [user] [fixed] - Back button now works during chart editor loading errors
+[2.14.1] [admin] [changed] - Chart editor header now appears immediately while loading
+[2.14.0] [user] [changed] - Replicant picker moved from side panel to a strip above the preview with previous/next buttons
+[2.14.0] [user] [changed] - Filter option selectors now always use a searchable dropdown instead of sometimes showing clickable chips
+[2.14.0] [user] [changed] - Pinned dimension selectors in the Explore toolbar now use a searchable dropdown
+[2.14.0] [user] [added] - Indicator direction can now be set to "Not set" instead of requiring a choice
+[2.14.0] [user] [fixed] - Conditional formatting rules now require a direction to be set before saving
+[2.14.0] [user] [changed] - Conditional formatting rules are only available for calculated indicator types
+[2.14.0] [user] [removed] - "Too many values" warnings removed from filters, replicant pickers, and custom ordering
+[2.14.0] [user] [changed] - AI assistant status messages now appear in your selected language (English, French, or Portuguese)
+[2.14.0] [user] [changed] - Products page header layout updated with more comfortable spacing
+[2.14.0] [admin] [changed] - Replicant picker moved from side panel to top strip with previous/next buttons
+[2.14.0] [admin] [changed] - Filter value selectors now always use searchable dropdown instead of chip cloud
+[2.14.0] [admin] [changed] - Removed "too many values" limit on dimension filters and replicant options
+[2.14.0] [admin] [changed] - Indicator direction can now be set to "Not set" instead of defaulting to "higher is better"
+[2.14.0] [admin] [changed] - Conditional formatting rules now require a direction to be explicitly set
+[2.14.0] [admin] [changed] - Pinned dimension selectors in Explore toolbar now use searchable dropdowns
+[2.14.0] [admin] [changed] - AI assistant tool status messages now appear in the user's language
+[2.14.0] [admin] [added] - AI assistant can now browse large indicator and variable lists page by page
+[2.14.0] [admin] [added] - AI assistant can list dimension values for any metric
+[2.14.0] [admin] [added] - AI assistant can search and page through module scripts and logs
+[2.14.0] [admin] [added] - AI assistant can search and filter the products list
+[2.14.0] [admin] [changed] - AI assistant data reads now refuse to write more rows than the ceiling instead of sending partial data
+[2.14.0] [admin] [internal] - Client caches updated to reflect new data shapes for indicators, metric info, and replicant options
 [2.13.3] [user] [added] - Saved visualizations now appear on the Products page
 [2.13.3] [user] [fixed] - Opening a chart no longer marks its slide or report as changed
 [2.13.3] [user] [fixed] - Time ranges shown by the assistant now reflect actual data, not the requested window

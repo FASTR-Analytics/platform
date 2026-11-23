@@ -19,6 +19,7 @@ import {
   type HmisIndicatorDefinition,
   type HmisIndicatorDefinitionInput,
   type HmisIndicatorType,
+  INDICATOR_RULE_NEEDS_DIRECTION,
   IndicatorExpressionError,
   type IndicatorFormat,
   type IndicatorNamingElement,
@@ -62,7 +63,7 @@ export type DBIndicatorCommon = {
   include_in_analysis: boolean;
   format_as: IndicatorFormat;
   thresholds: string | null;
-  direction: ThresholdDirection;
+  direction: ThresholdDirection | null;
   target: number | null;
   expected_low_counts: boolean;
   sort_order: number;
@@ -95,14 +96,24 @@ export function dbRowToHmisIndicator(row: DBIndicatorCommon): HmisIndicator {
 
 // The rule's `direction` key is the indicator's direction (HmisIndicator,
 // lib/types/indicators.ts): written from the column, whatever the client
-// posted.
+// posted. Only an indicator that declares a direction has a rule
+// (typeRuleError; the table's indicators_rule_direction_check).
 function thresholdsToDb(
-  thresholds: ThresholdsRule | null,
-  direction: ThresholdDirection,
+  rule: { thresholds: ThresholdsRule; direction: ThresholdDirection } | null,
 ): string | null {
-  return thresholds === null
+  return rule === null
     ? null
-    : JSON.stringify({ ...thresholds, direction });
+    : JSON.stringify({ ...rule.thresholds, direction: rule.direction });
+}
+
+function ruleOf(
+  indicator: Pick<NewIndicator, "thresholds" | "direction">,
+): { thresholds: ThresholdsRule; direction: ThresholdDirection } | null {
+  if (indicator.thresholds === null) return null;
+  if (indicator.direction === null) {
+    throw new Error(t3(INDICATOR_RULE_NEEDS_DIRECTION));
+  }
+  return { thresholds: indicator.thresholds, direction: indicator.direction };
 }
 
 function dbRowToDefinition(row: DBIndicatorCommon): HmisIndicatorDefinition {
@@ -157,16 +168,25 @@ function inputDataId(definition: HmisIndicatorDefinitionInput): string | null {
 // conditional-formatting rule and no target (the table's three count
 // CHECKs); a calculated one chooses all three. `expected_low_counts` is a
 // count's fact only: a calculated indicator is never adjusted (the calculated
-// CHECK).
+// CHECK). A rule needs a declared direction, since its bands have a good
+// side (the rule-direction CHECK).
 function typeRuleError(
   indicator: Pick<
     NewIndicator,
-    "definition" | "format_as" | "thresholds" | "target" | "expected_low_counts"
+    | "definition"
+    | "format_as"
+    | "thresholds"
+    | "direction"
+    | "target"
+    | "expected_low_counts"
   >,
 ): string | undefined {
   if (!isCount(indicator.definition.type)) {
-    return indicator.expected_low_counts
-      ? "A Calculated indicator is never adjusted, so it cannot expect low counts"
+    if (indicator.expected_low_counts) {
+      return "A Calculated indicator is never adjusted, so it cannot expect low counts";
+    }
+    return indicator.thresholds !== null && indicator.direction === null
+      ? t3(INDICATOR_RULE_NEEDS_DIRECTION)
       : undefined;
   }
   if (indicator.format_as !== "number") {
@@ -481,7 +501,7 @@ export type NewIndicator = {
   include_in_analysis: boolean;
   format_as: IndicatorFormat;
   thresholds: ThresholdsRule | null;
-  direction: ThresholdDirection;
+  direction: ThresholdDirection | null;
   target: number | null;
   expected_low_counts: boolean;
 };
@@ -617,7 +637,7 @@ export async function insertIndicators(
       },
           ${indicator.include_in_analysis},
           ${indicator.format_as},
-          ${thresholdsToDb(indicator.thresholds, indicator.direction)},
+          ${thresholdsToDb(ruleOf(indicator))},
           ${indicator.direction}, ${indicator.target},
           ${indicator.expected_low_counts},
           ${sortOrder++}, CURRENT_TIMESTAMP
@@ -793,7 +813,7 @@ async function planIndicatorNaming(
       include_in_analysis: true,
       format_as: "number",
       thresholds: null,
-      direction: "higher-is-better",
+      direction: null,
       target: null,
       expected_low_counts: false,
     });
@@ -827,7 +847,7 @@ async function planIndicatorNaming(
       include_in_analysis: true,
       format_as: calculated.format_as,
       thresholds: null,
-      direction: "higher-is-better",
+      direction: null,
       target: null,
       expected_low_counts: false,
     });
@@ -1158,7 +1178,7 @@ export async function updateIndicator(
           dhis2_label = ${dhis2Label},
           include_in_analysis = ${update.include_in_analysis},
           format_as = ${update.format_as},
-          thresholds = ${thresholdsToDb(update.thresholds, update.direction)},
+          thresholds = ${thresholdsToDb(ruleOf(update))},
           direction = ${update.direction},
           target = ${update.target},
           expected_low_counts = ${update.expected_low_counts},

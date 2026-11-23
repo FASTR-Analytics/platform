@@ -61,7 +61,6 @@ export type MarkdownAutofitOptions = {
 export type MarkdownRendererInput = {
   markdown: string;
   style?: CustomMarkdownStyleOptions;
-  images?: ImageMap;
   autofit?: boolean | MarkdownAutofitOptions;
 };
 

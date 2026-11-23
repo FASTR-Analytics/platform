@@ -14,6 +14,7 @@ import {
   describeSlideOverflow,
   extractBlocksFromLayout,
   measureSlideOverflow,
+  overflowOrRefuse,
 } from "../../slide_ai/mod.ts";
 
 export function figureBlockIds(slide: Slide): string[] {
@@ -51,18 +52,22 @@ export async function prepareSlideWriteResult(
   deckConfig: SlideDeckConfig,
   builtFigureIds: readonly string[],
 ): Promise<(slideId: string, done: string) => string> {
-  if (slide.type !== "content") return (_slideId, done) => done;
   const [overflow, figures] = await Promise.all([
-    measureSlideOverflow(slide, deckConfig),
-    Promise.all(
-      extractBlocksFromLayout(slide.layout).flatMap(({ id, block }) =>
-        builtFigureIds.includes(id) && block.type === "figure" && block.bundle
-          ? [describeBuiltFigure(env, metrics, id, block.bundle)]
-          : []
-      ),
-    ),
+    measureSlideOverflow(slide, deckConfig).then(overflowOrRefuse),
+    slide.type === "content"
+      ? Promise.all(
+        extractBlocksFromLayout(slide.layout).flatMap(({ id, block }) =>
+          builtFigureIds.includes(id) && block.type === "figure" &&
+            block.bundle
+            ? [describeBuiltFigure(env, metrics, id, block.bundle)]
+            : []
+        ),
+      )
+      : [],
   ]);
-  const blocks = describeSlideBlocks(slide.layout);
+  const blocks = slide.type === "content"
+    ? describeSlideBlocks(slide.layout)
+    : [];
   return (slideId, done) =>
     [
       done,

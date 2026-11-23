@@ -317,22 +317,35 @@
   --ui-icon-only-correction-sm: -0.125rem; /* -mx-0.5 */
 
   /* ============================================= */
-  /* Heading bar surface                           */
+  /* Heading bar surface and size                  */
   /* ============================================= */
   /* THE tonal header surface — one answer for the whole app, so no call site
      ever picks between base-200 and base-300. `<HeadingBar tonal>` wears it;
-     a HeadingBar without it is flush and draws a border instead. Retune both
+     a HeadingBar without it is flush and draws a line instead. Retune both
      together: the content colour is not derived from the bg. The bar's
      heading wears the content colour too. */
 
   --ui-heading-bar-tonal-bg: var(--color-base-200);
   --ui-heading-bar-tonal-content: var(--color-base-content);
 
-  /* The second header form, beside the titled bar: a HeadingBar with no
-     heading or with tabs, and a panel TabsNavigation strip, are all exactly
-     this tall, a tab label line with ui-pad-y above and below. Content is
-     centred in it rather than padded around. */
-  --ui-heading-bar-compact-height: calc(2 * var(--ui-pad-y) + 1.25rem);
+  /* One header height per app, so a HeadingBar of any content, and a panel
+     TabsNavigation strip, line up wherever they sit side by side: a form
+     control with pad-y above and below. Content is centred in it, so tabs
+     can reach the bottom edge. Override pad-y, never the height: the height
+     is derived, and a value below a form control's height would clip one.
+     There is no header pad-x: a bar's inset is ui-pad-x, the content's, so
+     its heading lines up with the content below. */
+  --ui-heading-bar-pad-y: var(--ui-pad-sm-y);
+  --ui-heading-bar-height: calc(
+    2 * var(--ui-heading-bar-pad-y) + var(--ui-form-height)
+  );
+
+  /* A `comfortable` HeadingBar's height: a form control with the content's
+     own ui-pad-y above and below, for a bar of controls that is not a main
+     header. Derived; retune --ui-pad-y, not this. */
+  --ui-heading-bar-comfortable-height: calc(
+    2 * var(--ui-pad-y) + var(--ui-form-height)
+  );
 
   /* ============================================= */
   /* Modal sizing                                  */

@@ -1,7 +1,7 @@
 // `describeSlideBlocks` is what a slide write tells the model about the
 // blocks it left: every block by id and type, then the layout as rows of
-// spans. The client module imports nothing but lib types, so it loads under
-// Deno as it is.
+// spans. The client module imports nothing but lib, so it loads under Deno as
+// it is.
 //
 //   deno test -A --no-check server/tests/slide_layout_structure_test.ts
 

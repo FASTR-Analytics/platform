@@ -429,9 +429,10 @@ export type ItemsHolderPresentationObject =
     | {
       status: "ok";
       items: JsonArrayItem[];
-      // Display fields only: an indicator's evaluation (type, expression,
-      // slot map) is a generation fact the server computes values with, and
-      // never reaches a client or a stored figure snapshot.
+      // The catalog entries the read names (indicatorMetadataForRead). Display
+      // fields only: an indicator's evaluation (type, expression, slot map) is
+      // a generation fact the server computes values with, and never reaches a
+      // client or a stored figure snapshot.
       indicatorMetadata: IndicatorMetadataDisplay[];
     }
     | {

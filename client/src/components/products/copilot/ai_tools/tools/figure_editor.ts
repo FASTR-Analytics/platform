@@ -7,6 +7,7 @@ import {
   type PeriodBounds,
   periodFilterHasBounds,
   type ResultsValueInfoForPresentationObject,
+  t3,
   validateMetricInputs,
 } from "lib";
 import {
@@ -77,8 +78,8 @@ export function getClientToolsForFigureEditor(
       viewRegistry: copilotViews,
       name: "get_figure_editor",
       description:
-        "Read the figure open in the figure editor as its draft stands: the metric, the chart type, each disaggregation and its display slot, the filters, the active replicant and its options, the period range and the captions. Call this before update_figure_editor.",
-      inputSchema: z.object({}),
+        "Read the figure open in the figure editor as its draft stands: the metric, the chart type, each disaggregation and its display slot, the filters, the active replicant and the count of its values (get_dimension_values lists them), the period range and the captions. Call this before update_figure_editor.",
+      inputSchema: z.strictObject({}),
       availableIn: COPILOT_TOOL_VIEWS.get_figure_editor,
       kind: "read",
       handler: async (_input, view) => {
@@ -91,8 +92,16 @@ export function getClientToolsForFigureEditor(
           preview.status === "ready" ? preview.dateRange : undefined,
         );
       },
-      inProgressLabel: "Reading the figure editor...",
-      completionMessage: "Read the figure editor",
+      inProgressLabel: t3({
+        en: "Getting the visualization editor...",
+        fr: "Récupération de l'éditeur de visualisation...",
+        pt: "A obter o editor de visualização...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the visualization editor",
+        fr: "Éditeur de visualisation récupéré",
+        pt: "Editor de visualização obtido",
+      }),
     }),
     createGetFigureEditorImageTool(assertFigureEditorStillOpen),
     createAITool({
@@ -100,7 +109,7 @@ export function getClientToolsForFigureEditor(
       name: "update_figure_editor",
       description:
         "Change the figure open in the figure editor. Provide only the fields to change (the chart type, timeseriesGrouping, the replicant, filters, disaggregations, period, captions); everything else is kept and the preview re-queries at once. The change lands in the editor's draft like the user's own edit. Call get_figure_editor first.",
-      inputSchema: z.object({ patch: AiVizConfigUpdateSchema }),
+      inputSchema: z.strictObject({ patch: AiVizConfigUpdateSchema }),
       availableIn: COPILOT_TOOL_VIEWS.update_figure_editor,
       kind: "write",
       handler: async (input, view) => {
@@ -224,8 +233,16 @@ export function getClientToolsForFigureEditor(
           figureEditorKeepLineFor(view.id, view.context)
         }\nThe draft's config:\n${draft}`;
       },
-      inProgressLabel: "Updating the figure...",
-      completionMessage: "Updated the figure",
+      inProgressLabel: t3({
+        en: "Updating the visualization...",
+        fr: "Mise à jour de la visualisation...",
+        pt: "A atualizar a visualização...",
+      }),
+      successMessage: t3({
+        en: "Updated the visualization",
+        fr: "Visualisation mise à jour",
+        pt: "Visualização atualizada",
+      }),
     }),
   ];
 }

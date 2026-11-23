@@ -8,6 +8,7 @@ import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import { convertPeriodValue } from "../convert_period_value.ts";
 import { AIToolFailure } from "@timroberton/panther";
 import type { AIToolEnv } from "./env.ts";
+import { formatValueListForAI } from "./format_value_list_for_ai.ts";
 
 // The metric-query validators both surfaces run (get_metric_data). The
 // slide/report content validators are SPA-only and live in the client
@@ -189,9 +190,10 @@ export function validateMetricInputsAgainstValueInfo(
             invalid.join(", ")
           }. ` +
             `Valid: ${
-              dimValues.values.map((v) =>
-                v.label && v.label !== v.id ? `${v.id} (${v.label})` : v.id
-              ).join(", ")
+              formatValueListForAI(dimValues.values, invalid.map(String), {
+                metricId,
+                disOpt: filter.disOpt,
+              })
             }`,
         );
       }

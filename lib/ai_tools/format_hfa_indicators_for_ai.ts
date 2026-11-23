@@ -20,6 +20,7 @@ import type {
   HfaIndicatorVariantItem,
   HfaVariableRow,
 } from "../types/mod.ts";
+import { AI_RECORD_PAGE_MAX, pageForAI } from "./read_bounds.ts";
 
 // The English text the chat's HFA reads return and the HFA verification
 // sends: the indicator listing, the detail block for a set of indicators, the
@@ -116,6 +117,7 @@ function indexInput(input: HfaIndicatorsForAIInput) {
   }
   return {
     timePoints: input.dictionary.timePoints.map((tp) => tp.timePoint),
+    variableCount: roundsOfVariable.size,
     indicators: new Map(input.indicators.map((i) => [i.indicatorId, i])),
     code: new Map(
       input.code.map((c) => [roundKey(c.indicatorId, c.timePoint), c]),
@@ -275,23 +277,31 @@ function sharedCode(
 
 // The taxonomy, then one line per listed indicator; `withIssues` adds each
 // round's issues under its line, for a listing filtered by status, and
-// `withCode` ends each line with its code.
+// `withCode` ends each line with its code. `offset` pages the listing for
+// the chat, which reads the taxonomy on its first page alone; without it
+// every listed indicator is written, as the HFA verification sends them.
 export function formatHfaIndicatorListForAI(
   input: HfaIndicatorsForAIInput,
   listed: HfaIndicator[],
-  options: { withIssues: boolean; withCode: boolean },
+  options: { withIssues: boolean; withCode: boolean; offset?: number },
 ): string {
   const index = indexInput(input);
+  const page = options.offset === undefined
+    ? undefined
+    : pageForAI(listed, options.offset, AI_RECORD_PAGE_MAX, "indicators");
   const lines = [
-    ...taxonomyLines(input.taxonomy, input.indicators, index),
-    "",
-    `${listed.length} of ${input.indicators.length} indicators. Each line: id | long label | type, aggregation | category, sub-category, service categories | variant group | rounds with code | round status | consistency across rounds${
+    ...(options.offset === undefined || options.offset === 0
+      ? [...taxonomyLines(input.taxonomy, input.indicators, index), ""]
+      : []),
+    `${listed.length} of ${input.indicators.length} indicators.${
+      page === undefined ? "" : ` ${page.summary}`
+    } Each line: id | long label | type, aggregation | category, sub-category, service categories | variant group | rounds with code | round status | consistency across rounds${
       options.withCode
         ? " | the code, once when every round holds the same"
         : ""
     }.`,
   ];
-  for (const ind of listed) {
+  for (const ind of page?.entries ?? listed) {
     const status = input.status.get(ind.indicatorId);
     const withCode = index.timePoints.filter((tp) =>
       mainCode(index, ind.indicatorId, tp)?.code.trim()
@@ -551,17 +561,25 @@ function countOf(n: number): string {
 }
 
 // One line per variable: its label and type in the first round it is in, and
-// per round it is in, how many indicators name it.
+// per round it is in, how many indicators name it. `offset` pages the listing
+// for the chat; without it every listed variable is written, as the HFA
+// verification sends them.
 export function formatHfaVariableListForAI(
   input: HfaIndicatorsForAIInput,
   variableIds: string[],
+  offset?: number,
 ): string {
   const index = indexInput(input);
   const usage = hfaVariableUsage(input.code, input.variantCode);
+  const page = offset === undefined
+    ? undefined
+    : pageForAI(variableIds, offset, AI_RECORD_PAGE_MAX, "variables");
   const lines = [
-    `${variableIds.length} variables. Each line: id | label | type | per round it is in, the number of indicators whose code of that round names it.`,
+    `${variableIds.length} of ${index.variableCount} variables.${
+      page === undefined ? "" : ` ${page.summary}`
+    } Each line: id | label | type | per round it is in, the number of indicators whose code of that round names it.`,
   ];
-  for (const id of variableIds) {
+  for (const id of page?.entries ?? variableIds) {
     const rounds = index.roundsOf(id);
     const first = rounds.length > 0 ? index.variable(id, rounds[0]) : undefined;
     lines.push(

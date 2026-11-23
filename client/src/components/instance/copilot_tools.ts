@@ -49,6 +49,7 @@ const buildPackageTools: PackageToolsBuilder = (
     env,
     ctx.metrics,
     ctx.modules,
+    ctx.hmisIndicators,
     ctx.icehIndicators,
     hfaTaxonomy,
   ),

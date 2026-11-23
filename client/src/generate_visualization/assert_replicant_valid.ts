@@ -1,9 +1,10 @@
 import type { PackageScope, PresentationObjectConfig, ResultsValue } from "lib";
 import { AIToolFailure } from "panther";
 import {
-  formatReplicantLabelForDisplay,
+  formatValueListForAI,
   getFetchConfigFromPresentationObjectConfig,
   getReplicateByProp,
+  replicantValuesForAI,
 } from "lib";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/products/t2_replicant_options";
 
@@ -46,23 +47,17 @@ export async function assertReplicantValid(
   if (optRes.success && optRes.data.status === "ok") {
     const valid = optRes.data.possibleValues;
     const selected = config.d.selectedReplicantValue;
-    // The check is on the id, so the list spells each value as `id (label)`:
-    // a caller that copies the label alone from this message fails again.
-    const validList = valid.map((v) =>
-      `${v.id} (${
-        formatReplicantLabelForDisplay(v.label, replicateBy, undefined)
-      })`
-    ).join(", ");
-    if (!selected) {
-      throw new AIToolFailure(
-        `This figure replicates by "${replicateBy}" and needs a selected replicant value (pass the id). ` +
+    if (selected && valid.some((v) => v.id === selected)) return;
+    const validList = formatValueListForAI(
+      replicantValuesForAI(valid, replicateBy),
+      selected ? [selected] : [],
+      { metricId: metric.id, disOpt: replicateBy },
+    );
+    throw new AIToolFailure(
+      selected
+        ? `Invalid replicant value "${selected}" (pass the id, not the label). Valid values: ${validList}`
+        : `This figure replicates by "${replicateBy}" and needs a selected replicant value (pass the id). ` +
           `Valid values: ${validList}`,
-      );
-    }
-    if (!valid.some((v) => v.id === selected)) {
-      throw new AIToolFailure(
-        `Invalid replicant value "${selected}" (pass the id, not the label). Valid values: ${validList}`,
-      );
-    }
+    );
   }
 }

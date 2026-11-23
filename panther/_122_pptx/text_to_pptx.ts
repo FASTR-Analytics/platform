@@ -113,12 +113,16 @@ export function addMeasuredMarkdownToSlide(
       const lastItem = accumulatedItems[accumulatedItems.length - 1];
       const textBoxHeight = lastItem.bounds.y() + lastItem.bounds.h() -
         firstItem.bounds.y();
+      const firstFormattedText = firstItem.type === "list-item"
+        ? firstItem.content.mFormattedText
+        : firstItem.mFormattedText;
 
       slide.addText(textRuns, {
         x: pixelsToInches(firstItem.bounds.x()),
         y: pixelsToInches(firstItem.bounds.y()),
         w: pixelsToInches(bounds.w()),
         h: pixelsToInches(textBoxHeight),
+        align: firstFormattedText.alignH,
         valign: "top",
         margin: 0,
       });
@@ -179,10 +183,25 @@ function getListItemRuns(
   return runs;
 }
 
+function addBackgroundToSlide(
+  slide: PptxSlide,
+  background: { rcd: RectCoordsDims; color: string },
+): void {
+  slide.addShape("rect", {
+    ...rcdToSlidePosition(background.rcd),
+    fill: pptxColor(background.color),
+    line: { ...pptxColor(background.color), width: 0 },
+  });
+}
+
 function addBlockquoteToSlide(
   slide: PptxSlide,
   item: MeasuredMarkdownItem & { type: "blockquote" },
 ): void {
+  if (item.background) {
+    addBackgroundToSlide(slide, item.background);
+  }
+
   // Add border line
   slide.addShape("line", {
     x: pixelsToInches(item.border.line.start.x()),
@@ -215,8 +234,9 @@ function addBlockquoteToSlide(
   slide.addText(allRuns, {
     x: pixelsToInches(firstPara.position.x()),
     y: pixelsToInches(firstPara.position.y()),
-    w: pixelsToInches(firstPara.mFormattedText.dims.w()),
+    w: pixelsToInches(firstPara.mFormattedText.maxWidth),
     h: pixelsToInches(textBoxHeight),
+    align: firstPara.mFormattedText.alignH,
     valign: "top",
     margin: 0,
   });
@@ -226,15 +246,10 @@ function addCodeBlockToSlide(
   slide: PptxSlide,
   item: MeasuredMarkdownItem & { type: "code-block" },
 ): void {
-  // Add background
-  slide.addShape("rect", {
-    ...rcdToSlidePosition(item.background.rcd),
-    fill: pptxColor(item.background.color),
-    line: { ...pptxColor(item.background.color), width: 0 },
-  });
+  addBackgroundToSlide(slide, item.background);
 
   const codeText = item.lines
-    .map((line) => line.mText.lines.map((l) => l.text).join(""))
+    .flatMap((line) => line.mText.lines.map((l) => l.text))
     .join("\n");
 
   if (codeText) {

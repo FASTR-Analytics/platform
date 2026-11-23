@@ -7,7 +7,11 @@ export { _GLOBAL_LAYOUT_COLUMNS } from "../_000_consts/mod.ts";
 export { clamp, PANTHER_DEBUG, sum } from "../_000_utils/mod.ts";
 export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
-export { Padding, RectCoordsDims } from "../_001_geometry/mod.ts";
+export {
+  overlayPadding,
+  Padding,
+  RectCoordsDims,
+} from "../_001_geometry/mod.ts";
 export type { AlignV, PaddingOptions } from "../_001_geometry/mod.ts";
 export type {
   HeightConstraints,

@@ -57,7 +57,7 @@ import {
 // package and scope: there is no figure library to point at, so every
 // figure block starts from a metric and one of that metric's presets.
 const CONTENT_BLOCKS_NOTE =
-  "\n\nA content block is one of:\n- from_metric: a figure built from a metric + one of its presets. IMPORTANT: always call get_metric_data FIRST to see available disaggregations, filters and time ranges. The figure resolves under the deck's results package and scope.\n- text: markdown content with autofit. IMPORTANT: Markdown tables are NOT allowed. To display tabular data, use a from_metric block with a table-type preset.\n- image: one of the instance's image assets, named by its file as get_image_assets lists it.";
+  "\n\nA content block is one of:\n- from_metric: a figure built from a metric + one of its presets. IMPORTANT: always call get_metric_data FIRST to see the data and its time range; get_dimension_values lists the values a filter or selectedReplicant takes. The figure resolves under the deck's results package and scope.\n- text: markdown content with autofit. IMPORTANT: Markdown tables are NOT allowed. To display tabular data, use a from_metric block with a table-type preset.\n- image: one of the instance's image assets, named by its file as get_image_assets lists it.";
 
 // The content checks a whole new slide must pass before it is converted.
 function validateAiSlideInput(slide: AiSlideInput): void {
@@ -96,8 +96,8 @@ export function getClientToolsForSlides(
       viewRegistry: copilotViews,
       name: "get_deck",
       description:
-        "Get the current state of the slide deck: a summary outline of all slides, giving the deck's structure, existing content, slide order and, for each content slide, whether it overflows the page, then the deck's settings: its cover, header and footer logos, the logos that can be selected, the footer text and the watermark.",
-      inputSchema: z.object({}),
+        "Get the current state of the slide deck: a summary outline of all slides, giving the deck's structure, existing content, slide order and, for each slide, whether it overflows the page, then the deck's settings: its cover, header and footer logos, the logos that can be selected, the footer text and the watermark.",
+      inputSchema: z.strictObject({}),
       availableIn: COPILOT_TOOL_VIEWS.get_deck,
       kind: "read",
       handler: async (_input, view) => {
@@ -110,13 +110,26 @@ export function getClientToolsForSlides(
         );
         return `${outline}\n${formatDeckSettings(deckConfig)}`;
       },
-      inProgressLabel: "Getting deck state...",
-      completionMessage: () => {
+      inProgressLabel: t3({
+        en: "Getting the slide deck...",
+        fr: "Récupération de la présentation...",
+        pt: "A obter a apresentação...",
+      }),
+      successMessage: () => {
         const view = copilotViewController.current();
-        if (view.id !== "editing_slide_deck") return "Retrieved deck";
-        return `Retrieved deck with ${
-          slidesLabel(view.context.getSlideIds().length)
-        }`;
+        if (view.id !== "editing_slide_deck") {
+          return t3({
+            en: "Retrieved the slide deck",
+            fr: "Présentation récupérée",
+            pt: "Apresentação obtida",
+          });
+        }
+        const slides = slidesLabel(view.context.getSlideIds().length);
+        return t3({
+          en: `Retrieved the slide deck (${slides})`,
+          fr: `Présentation récupérée (${slides})`,
+          pt: `Apresentação obtida (${slides})`,
+        });
       },
     }),
 
@@ -130,25 +143,25 @@ export function getClientToolsForSlides(
       description:
         "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text, figures and images)." +
         CONTENT_BLOCKS_NOTE,
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         position: z
           .union([
-            z.object({
+            z.strictObject({
               after: z.string().describe(
                 "Slide ID to place after (3-char, e.g. 'p4q')",
               ),
             }),
-            z.object({
+            z.strictObject({
               before: z.string().describe(
                 "Slide ID to place before (3-char, e.g. 'p4q')",
               ),
             }),
-            z.object({
+            z.strictObject({
               toStart: z.literal(true).describe(
                 "Set to true to insert at the beginning",
               ),
             }),
-            z.object({
+            z.strictObject({
               toEnd: z.literal(true).describe(
                 "Set to true to insert at the end",
               ),
@@ -162,7 +175,7 @@ export function getClientToolsForSlides(
             AiContentSlideSchema,
           ])
           .describe(
-            "The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with optional header and blocks array of text, figures and images).",
+            "The complete slide content. Must be one of three types: 'cover' (title slide with title and optional subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with optional header and blocks array of text, figures and images).",
           ),
       }),
       availableIn: COPILOT_TOOL_VIEWS.create_slide,
@@ -201,11 +214,19 @@ export function getClientToolsForSlides(
           }".`,
         );
       },
-      inProgressLabel: (input) => `Creating ${input.slide.type} slide...`,
-      completionMessage: (input) =>
-        `Created ${input.slide.type} slide: "${
-          getSlideTitle(input.slide as Slide)
-        }"`,
+      inProgressLabel: t3({
+        en: "Creating a slide...",
+        fr: "Création d'une diapositive...",
+        pt: "A criar um diapositivo...",
+      }),
+      successMessage: (input) => {
+        const title = getSlideTitle(input.slide as Slide);
+        return t3({
+          en: `Created a slide: "${title}"`,
+          fr: `Diapositive créée : « ${title} »`,
+          pt: `Diapositivo criado: "${title}"`,
+        });
+      },
     }),
 
     createUpdateSlideTool(env, metrics),
@@ -218,7 +239,7 @@ export function getClientToolsForSlides(
       description:
         "Rebuild an existing slide from new content: its content and its layout, which is optimized again, so a layout the user arranged is lost. A slide that keeps its type keeps the settings the input does not name: a cover's or section's text sizes, bold and italic, a cover's logos, and a content slide's sub-header, date, footer, header and footer logos and side panel (split). Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n\nFor any other change to text, settings, blocks or layout, use update_slide, which keeps what it is not told to change. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately." +
         CONTENT_BLOCKS_NOTE,
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         slideId: z.string().describe(
           "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
         ),
@@ -262,9 +283,19 @@ export function getClientToolsForSlides(
           }". ${slideTargetOutcome(target)}`,
         );
       },
-      inProgressLabel: `Replacing ${slidesLabel(1)}...`,
-      completionMessage: (input) =>
-        `Replaced slide: "${getSlideTitle(input.slide as Slide)}"`,
+      inProgressLabel: t3({
+        en: "Replacing a slide...",
+        fr: "Remplacement d'une diapositive...",
+        pt: "A substituir um diapositivo...",
+      }),
+      successMessage: (input) => {
+        const title = getSlideTitle(input.slide as Slide);
+        return t3({
+          en: `Replaced a slide: "${title}"`,
+          fr: `Diapositive remplacée : « ${title} »`,
+          pt: `Diapositivo substituído: "${title}"`,
+        });
+      },
     }),
 
     createAITool({
@@ -272,7 +303,7 @@ export function getClientToolsForSlides(
       name: "delete_slides",
       description:
         "Permanently remove one or more slides from the deck. The user confirms the deletion in a dialog that lists the slides by title; once confirmed the slides cannot be recovered. Remaining slides will maintain their relative order.",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         slideIds: z
           .array(z.string())
           .describe(
@@ -343,10 +374,19 @@ export function getClientToolsForSlides(
           };
         },
       },
-      inProgressLabel: (input) =>
-        `Deleting ${slidesLabel(input.slideIds.length)}...`,
-      completionMessage: (input) =>
-        `Deleted ${slidesLabel(input.slideIds.length)}`,
+      inProgressLabel: (input) => {
+        const slides = slidesLabel(input.slideIds.length);
+        return t3({
+          en: `Proposing to delete ${slides}...`,
+          fr: `Proposition de supprimer ${slides}...`,
+          pt: `A propor eliminar ${slides}...`,
+        });
+      },
+      successMessage: t3({
+        en: "Not proposed: no slide to delete",
+        fr: "Non proposé : aucune diapositive à supprimer",
+        pt: "Não proposto: nenhum diapositivo a eliminar",
+      }),
     }),
 
     createAITool({
@@ -354,7 +394,7 @@ export function getClientToolsForSlides(
       name: "duplicate_slides",
       description:
         "Create copies of one or more slides. All duplicates are inserted after the last original slide (preserving their relative order). The duplicated slides have identical content but receive new unique IDs. This is also the only way to reuse a figure: there is no figure library, so copying the slide that holds it is how a figure is reused.",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         slideIds: z
           .array(z.string())
           .describe(
@@ -387,10 +427,27 @@ export function getClientToolsForSlides(
           res.data.newSlideIds.join(", ")
         }.`;
       },
-      inProgressLabel: (input) =>
-        `Duplicating ${slidesLabel(input.slideIds.length)}...`,
-      completionMessage: (input) =>
-        `Duplicated ${slidesLabel(input.slideIds.length)}`,
+      inProgressLabel: (input) => {
+        const slides = slidesLabel(input.slideIds.length);
+        return t3({
+          en: `Duplicating ${slides}...`,
+          fr: `Duplication de ${slides}...`,
+          pt: `A duplicar ${slides}...`,
+        });
+      },
+      successMessage: (input) => {
+        const n = input.slideIds.length;
+        const slides = slidesLabel(n);
+        return t3({
+          en: `Duplicated ${slides}`,
+          fr: `${slides} ${
+            plural(n, { one: "dupliquée", other: "dupliquées" })
+          }`,
+          pt: `${slides} ${
+            plural(n, { one: "duplicado", other: "duplicados" })
+          }`,
+        });
+      },
     }),
 
     createAITool({
@@ -398,7 +455,7 @@ export function getClientToolsForSlides(
       name: "move_slides",
       description:
         "Reposition one or more slides to a new location in the deck. This is the recommended way to reorder slides, as it's safer and more precise than trying to recreate the entire deck. The moved slides will maintain their relative order to each other.",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         slideIds: z
           .array(z.string())
           .describe(
@@ -406,22 +463,22 @@ export function getClientToolsForSlides(
           ),
         position: z
           .union([
-            z.object({
+            z.strictObject({
               after: z.string().describe(
                 "Slide ID to place after (3-char, e.g. 'p4q')",
               ),
             }),
-            z.object({
+            z.strictObject({
               before: z.string().describe(
                 "Slide ID to place before (3-char, e.g. 'p4q')",
               ),
             }),
-            z.object({
+            z.strictObject({
               toStart: z.literal(true).describe(
                 "Set to true to move slides to the beginning",
               ),
             }),
-            z.object({
+            z.strictObject({
               toEnd: z.literal(true).describe(
                 "Set to true to move slides to the end",
               ),
@@ -464,10 +521,23 @@ export function getClientToolsForSlides(
 
         return `Moved ${input.slideIds.length} slide(s).`;
       },
-      inProgressLabel: (input) =>
-        `Moving ${slidesLabel(input.slideIds.length)}...`,
-      completionMessage: (input) =>
-        `Moved ${slidesLabel(input.slideIds.length)}`,
+      inProgressLabel: (input) => {
+        const slides = slidesLabel(input.slideIds.length);
+        return t3({
+          en: `Moving ${slides}...`,
+          fr: `Déplacement de ${slides}...`,
+          pt: `A mover ${slides}...`,
+        });
+      },
+      successMessage: (input) => {
+        const n = input.slideIds.length;
+        const slides = slidesLabel(n);
+        return t3({
+          en: `Moved ${slides}`,
+          fr: `${slides} ${plural(n, { one: "déplacée", other: "déplacées" })}`,
+          pt: `${slides} ${plural(n, { one: "movido", other: "movidos" })}`,
+        });
+      },
     }),
 
     createUpdateDeckSettingsTool(),

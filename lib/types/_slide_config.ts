@@ -2,6 +2,7 @@
 // Slide Config: STORED SHAPE (slides.config column)
 // =============================================================================
 
+import { _GLOBAL_LAYOUT_COLUMNS } from "@timroberton/panther";
 import { z } from "zod";
 import { TEXT_SIZE_KEYS } from "../consts.ts";
 import { figureBlockSchema } from "./_figure_bundle.ts";
@@ -82,7 +83,7 @@ const layoutNodeBaseFields = {
   id: z.string(),
   minH: z.number().optional(),
   maxH: z.number().optional(),
-  span: z.number().int().min(1).max(12).optional(),
+  span: z.number().int().min(1).max(_GLOBAL_LAYOUT_COLUMNS).optional(),
 };
 
 const itemLayoutNodeSchema = z.object({

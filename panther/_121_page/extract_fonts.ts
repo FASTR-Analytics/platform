@@ -29,11 +29,7 @@ export function getFontsForPage(pageInputs: PageInputs): FontInfo[] {
 }
 
 function extractFontsFromPageInputs(pageInputs: PageInputs): FontInfo[] {
-  const fonts: FontInfo[] = [];
-
-  if (pageInputs.style) {
-    fonts.push(...new CustomPageStyle(pageInputs.style).getFontsToRegister());
-  }
+  const fonts = new CustomPageStyle(pageInputs.style).getFontsToRegister();
 
   if (pageInputs.type === "freeform" && pageInputs.content) {
     walkLayoutForFonts(pageInputs.content, fonts);
@@ -47,12 +43,12 @@ function walkLayoutForFonts(
   fonts: FontInfo[],
 ): void {
   if (node.type === "item" && node.data) {
-    if (MarkdownRenderer.isType(node.data) && node.data.style) {
+    if (MarkdownRenderer.isType(node.data)) {
       fonts.push(
         ...new CustomMarkdownStyle(node.data.style).getFontsToRegister(),
       );
     }
-    if (FigureRenderer.isType(node.data) && node.data.style) {
+    if (FigureRenderer.isType(node.data)) {
       fonts.push(
         ...new CustomFigureStyle(node.data.style).getFontsToRegister(),
       );

@@ -702,6 +702,7 @@ export function Products() {
         <div>
           <HeadingBar
             data-tour="products-header"
+            comfortable
             searchText={searchText()}
             setSearchText={updateSearchText}
             centerLeftChildren={

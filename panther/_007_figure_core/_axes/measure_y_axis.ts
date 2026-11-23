@@ -8,90 +8,107 @@ import type {
   RectCoordsDims,
   RenderContext,
 } from "../deps.ts";
-import type { YAxisConfig } from "./axis_configs.ts";
-import type { ValueRange, YAxisWidthInfo } from "../types.ts";
-import type { XValueAxisHeightInfo } from "./x_value/types.ts";
-import {
-  measureYValueAxis,
-  measureYValueAxisWidthInfo,
-} from "./y_value/measure.ts";
+import type {
+  YAxisConfig,
+  YCategoryAxisConfig,
+  YValueAxisConfig,
+} from "./axis_configs.ts";
+import type { ValueRange, YValueAxisWidthInfo } from "../types.ts";
+import { measureYValueAxisWidthInfo } from "./y_value/measure.ts";
 import { measureYTextAxisWidthInfo } from "./y_text/measure.ts";
+import type { YTextAxisWidthInfo } from "./y_text/types.ts";
 
-export function measureYAxisWidthInfo(
+export type MeasuredYAxis =
+  | {
+    type: "value";
+    config: Extract<YAxisConfig, { type: "value" }>;
+    info: YValueAxisWidthInfo;
+  }
+  | {
+    type: "text";
+    config: Extract<YAxisConfig, { type: "text" }>;
+    info: YTextAxisWidthInfo;
+  };
+
+export function measureYValueAxis(
   rc: RenderContext,
-  yAxisConfig: YAxisConfig,
+  config: YValueAxisConfig,
   gridStyle: MergedGridStyle,
   innerRcd: RectCoordsDims,
   iPane: number,
   tierHeaderAndLabelGapWidth: number,
   nTiers: number,
-): YAxisWidthInfo {
-  switch (yAxisConfig.type) {
-    case "value":
-      return measureYValueAxisWidthInfo(
-        rc,
-        yAxisConfig.axisData,
-        yAxisConfig.axisLabel,
-        yAxisConfig.axisStyle,
-        gridStyle,
-        innerRcd,
-        iPane,
-        tierHeaderAndLabelGapWidth,
-        nTiers,
-      );
-    case "text":
-      return measureYTextAxisWidthInfo(
-        rc,
-        yAxisConfig.indicatorMembers,
-        yAxisConfig.axisStyle,
-        gridStyle,
-        innerRcd,
-        tierHeaderAndLabelGapWidth,
-      );
-    case "none":
-      return { widthIncludingYAxisStrokeWidth: 0, halfYAxisTickLabelH: 0 };
-  }
+): Extract<MeasuredYAxis, { type: "value" }> {
+  return {
+    type: "value",
+    config,
+    info: measureYValueAxisWidthInfo(
+      rc,
+      config.axisData,
+      config.axisLabel,
+      config.axisStyle,
+      gridStyle,
+      innerRcd,
+      iPane,
+      tierHeaderAndLabelGapWidth,
+      nTiers,
+    ),
+  };
+}
+
+export function measureYCategoryAxis(
+  rc: RenderContext,
+  config: YCategoryAxisConfig,
+  gridStyle: MergedGridStyle,
+  innerRcd: RectCoordsDims,
+  tierHeaderAndLabelGapWidth: number,
+): Extract<MeasuredYAxis, { type: "text" }> {
+  return {
+    type: "text",
+    config,
+    info: measureYTextAxisWidthInfo(
+      rc,
+      config.indicatorMembers,
+      config.axisStyle,
+      gridStyle,
+      innerRcd,
+      tierHeaderAndLabelGapWidth,
+    ),
+  };
 }
 
 export function measureYAxisLayout(
   topHeightForLaneHeaders: number,
   xAxisHeight: number,
-  yAxisWidthInfo: YAxisWidthInfo,
+  yAxisWidth: number,
   tiers: { paddingTop: number; paddingBottom: number; gapY: number },
   innerRcd: RectCoordsDims,
   nTiers: number,
   tierHeaderAndLabelGapHeight: number,
 ): { yAxisRcd: RectCoordsDims; uniformSubChartHeight: number } {
-  return measureYValueAxis(
-    topHeightForLaneHeaders,
-    xAxisHeight,
-    yAxisWidthInfo,
-    tiers,
-    innerRcd,
-    nTiers,
-    tierHeaderAndLabelGapHeight,
-  );
+  const yAxisRcd = innerRcd.getAdjusted((prev) => ({
+    y: prev.y() + topHeightForLaneHeaders,
+    w: yAxisWidth,
+    h: prev.h() - (topHeightForLaneHeaders + xAxisHeight),
+  }));
+
+  const uniformSubChartHeight = (yAxisRcd.h() -
+    (tiers.paddingTop +
+      (nTiers - 1) * tiers.gapY +
+      tiers.paddingBottom +
+      nTiers * tierHeaderAndLabelGapHeight)) /
+    nTiers;
+
+  return { yAxisRcd, uniformSubChartHeight };
 }
 
 export function getValueAxisValueRange(
-  yAxisWidthInfo: YAxisWidthInfo,
+  yAxis: Extract<MeasuredYAxis, { type: "value" }>,
   iTier: number,
 ): ValueRange {
-  if ("yAxisTickValues" in yAxisWidthInfo) {
-    return {
-      valueMin: yAxisWidthInfo.yAxisTickValues[iTier]?.at(0) ?? 0,
-      valueMax: yAxisWidthInfo.yAxisTickValues[iTier]?.at(-1) ?? 1,
-    };
-  }
-  throw new Error("Value range extraction not implemented for Y-text axis");
-}
-
-export function getXValueAxisValueRange(
-  xValueAxisHeightInfo: XValueAxisHeightInfo,
-  iLane: number,
-): ValueRange {
+  const tickValues = yAxis.info.yAxisTickValues[iTier];
   return {
-    valueMin: xValueAxisHeightInfo.xAxisTickValues[iLane]?.at(0) ?? 0,
-    valueMax: xValueAxisHeightInfo.xAxisTickValues[iLane]?.at(-1) ?? 1,
+    valueMin: tickValues?.at(0) ?? 0,
+    valueMax: tickValues?.at(-1) ?? 1,
   };
 }

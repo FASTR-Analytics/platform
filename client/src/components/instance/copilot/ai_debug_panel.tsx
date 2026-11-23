@@ -44,7 +44,7 @@ export function AIDebugPanel(p: Props) {
       <StateHolderWrapper state={query.state()} loadingAndErrorPad="md">
         {(ctx) => (
           <pre class="whitespace-pre-wrap break-words text-xs">
-            {formatMetricsListForAI(ctx.metrics, ctx.modules, ctx.icehIndicators, {
+            {formatMetricsListForAI(ctx.metrics, ctx.modules, {
               ...ctx.hfaTaxonomy,
               timePoints: hfaTimePointsForAI(instanceState.hfaTimePoints),
             })}

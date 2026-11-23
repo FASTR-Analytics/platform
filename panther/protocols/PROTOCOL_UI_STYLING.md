@@ -367,8 +367,11 @@ Retune these in `@theme`; never override a derived one directly.
 | `--ui-form-content-h`                    | **Authoring knob.** A control's content height, as a ratio of its own text size.                 |
 | `--ui-form-content-h-em`                 | Derived. The same ratio with the unit attached: what components consume.                         |
 | `--ui-form-line-height` / `-sm`          | Derived from the ratio.                                                                          |
-| `--ui-form-height` / `-sm`               | Derived. A control's full outer height; what `HeadingBar` floors its row to.                     |
+| `--ui-form-height` / `-sm`               | Derived. A control's full outer height.                                                          |
 | `--ui-heading-bar-tonal-bg` / `-content` | **Authoring knob (a pair).** The one tonal header surface and its text, the `heading` included.  |
+| `--ui-heading-bar-pad-y`                 | **Authoring knob.** Space above and below a heading bar's controls; default `--ui-pad-sm-y`.     |
+| `--ui-heading-bar-height`                | Derived. Every heading bar's and panel tab strip's height: `--ui-form-height` plus twice pad-y.  |
+| `--ui-heading-bar-comfortable-height`    | Derived. A `comfortable` heading bar's height: `--ui-form-height` plus twice `--ui-pad-y`.       |
 
 The ratio is deliberately shared across sizes: `em` rescales it, so there is no `--ui-form-content-h-sm`. Overriding `--ui-form-height` or `--ui-form-line-height` directly desyncs a heading bar from the controls sitting in it; change the ratio instead. Retune the heading-bar pair together: the foreground is not derived from the background.
 

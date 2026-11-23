@@ -13,7 +13,6 @@ import {
   buildWhereClause,
   shouldFoldBlank,
 } from "./query_helpers.ts";
-import { REPLICANT_OPTIONS_QUERY_LIMIT } from "./consts.ts";
 import {
   type DynamicPeriodColumn,
   getPeriodColumnExpression,
@@ -24,10 +23,9 @@ import type { QueryContext, SqlRowsExecutor } from "./types.ts";
 
 const DYNAMIC_PERIOD_COLUMNS = ["year", "month", "quarter_id"] as const;
 
-// Deterministic option ordering, pinned in TS: DuckDB orders text by binary
-// code point, so the SQL ORDER BY (kept for a stable LIMIT cutoff) is
-// re-sorted here with ONE defined comparator that does not depend on the
-// engine or its collation.
+// Deterministic option ordering, pinned in TS: the query has no ORDER BY,
+// and ONE defined comparator orders the options, independent of the
+// engine and its collation.
 //
 // Hand-rolled, NOT Intl.Collator: ICU tailoring shifts across runtime
 // upgrades (a Deno bump reordered a leading-space value relative to "dhis2"),
@@ -196,7 +194,6 @@ export async function getPossibleValuesCore(
       // item group key are always the same string.
       columnRef = blankFoldedRef(columnRef);
     }
-    const orderByRef = isMultiMembership ? "disaggregation_value" : columnRef;
 
     // Build the query
     let sqlQuery: string;
@@ -262,9 +259,7 @@ facility_subset AS (
         `${ctePrefix}SELECT DISTINCT ${columnRef} AS disaggregation_value
 FROM ${sourceTable}
 LEFT JOIN facility_subset f ON ${sourceTable}.facility_id = f.facility_id
-${whereClause}
-ORDER BY ${orderByRef}
-LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
+${whereClause}`;
     } else {
       // Check if the column exists before querying (skip for dynamic period columns)
       if (!isDynamicPeriodColumn) {
@@ -297,15 +292,11 @@ LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
         sqlQuery =
           `${ctePrefix}SELECT DISTINCT ${columnRef} AS disaggregation_value
 FROM ${sourceTable}
-${whereClause}
-ORDER BY ${orderByRef}
-LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
+${whereClause}`;
       } else {
         sqlQuery = `SELECT DISTINCT ${columnRef} AS disaggregation_value
 FROM ${tableName}
-${whereClause}
-ORDER BY ${orderByRef}
-LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
+${whereClause}`;
       }
     }
 
@@ -330,12 +321,8 @@ LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
 
     possibleValues.sort((a, b) => compareOptionIds(a.id, b.id));
 
-    // Sentinel last, regardless of collation. SQL cannot do this under SELECT
-    // DISTINCT (ORDER BY may only use expressions that appear in the select
-    // list, and the sort key is a comparison against the alias), and the set is
-    // capped at MAX_REPLICANT_OPTIONS so ordering it here is free. Leaving it
-    // where the collation put it, first, ahead of every lowercase value, made
-    // the blank cohort the auto-selected default replicant.
+    // Sentinel last: compareOptionIds puts "__BLANK" ahead of every id that
+    // starts with a letter, and the first value is the default replicant.
     const blankIndex = possibleValues.findIndex((v) => v.id === BLANK_SENTINEL);
     if (blankIndex >= 0) {
       possibleValues.push(possibleValues.splice(blankIndex, 1)[0]);

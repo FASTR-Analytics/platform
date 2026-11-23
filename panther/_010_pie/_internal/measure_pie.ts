@@ -76,7 +76,6 @@ export function measurePie(
   const transformedData = getPieDataTransformed(inputs.data);
 
   const config: SimplifiedChartConfig<
-    PieInputs,
     PieDataTransformed,
     MergedPieStyle
   > = {
@@ -91,11 +90,10 @@ export function measurePie(
       // seriesColorFunc the slices use.
       series: transformedData.series,
     },
-    // No axes: content-primitive generation is skipped for none x none, so
-    // the shared path never touches pie's values — the figure draws its own.
-    xAxisConfig: { type: "none" },
-    yAxisConfig: { type: "none" },
-    orientation: "vertical",
+    // No axes: the chart core generates no content for a chart with no
+    // axes, so the shared path never touches pie's values — the figure draws
+    // its own.
+    axes: { kind: "none" },
     paneGrid,
   };
 
@@ -313,7 +311,7 @@ function solveOnePie(
   // ideal pass asks for in height AND the most the measure pass will draw, so
   // a big fixed frame yields a natural-size disc centred in whitespace rather
   // than a massive disc beside small type ("scales down, never up", the
-  // maxBarWidth precedent). sMax, not s0, is the largest drawable scale:
+  // maxBarThickness precedent). sMax, not s0, is the largest drawable scale:
   // placement is decided once, at sMax, and never re-decided, and
   // the label solve runs under it so outside labels are placed for the disc
   // that actually draws. The policy value is unscaled (merged with `m`), so

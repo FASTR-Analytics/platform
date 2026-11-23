@@ -25,7 +25,10 @@ const MAX_OPTIMIZER_ITEMS = 4;
 export type LayoutStyleConfig = {
   gapX: number;
   gapY: number;
-  containerDefaults?: ResolvedContainerStyle;
+  containerDefaults?: Omit<
+    ResolvedContainerStyle,
+    "decoration" | "backgroundExtent"
+  >;
   alreadyScaledValue?: number;
 };
 

@@ -6,13 +6,16 @@
 import { _GLOBAL_LAYOUT_COLUMNS } from "./deps.ts";
 import { createColsNode, createRowsNode } from "./id.ts";
 import { findById, findNodeInDraft, findParentInDraft } from "./lookup.ts";
-import { normalizeLayout, rescaleSpans } from "./_internal/normalize.ts";
+import {
+  getMinimumSpan,
+  normalizeLayout,
+  rescaleSpans,
+} from "./_internal/normalize.ts";
 import type {
   ContainerStyleOptions,
   IdGenerator,
   LayoutNode,
   LayoutNodeId,
-  MeasuredLayoutNode,
 } from "./types.ts";
 import { updateLayout } from "./update.ts";
 
@@ -161,22 +164,6 @@ function rescaleDescendantSpans<U>(
       }
     }
   }
-}
-
-export function getMinimumSpan<U>(
-  node: LayoutNode<U> | MeasuredLayoutNode<U>,
-): number {
-  if ("minimumSpanIfAllChildrenWere1" in node) {
-    return (node as MeasuredLayoutNode<U>).minimumSpanIfAllChildrenWere1;
-  }
-
-  if (node.type === "item") return 1;
-
-  if (node.type === "rows") {
-    return Math.max(...node.children.map(getMinimumSpan), 1);
-  }
-
-  return node.children.reduce((sum, child) => sum + getMinimumSpan(child), 0);
 }
 
 export function canSplitIntoColumns<U>(

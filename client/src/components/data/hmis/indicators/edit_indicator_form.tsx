@@ -40,6 +40,7 @@ import {
   type HmisIndicator,
   type HmisIndicatorDefinitionInput,
   type HmisIndicatorType,
+  INDICATOR_RULE_NEEDS_DIRECTION,
   type IndicatorFormat,
   isDhis2ShapedId,
   isPopulationTypeId,
@@ -118,8 +119,14 @@ function formatOptions() {
   }));
 }
 
-function directionOptions() {
+type DirectionChoice = ThresholdDirection | "not_set";
+
+function directionOptions(): { value: DirectionChoice; label: string }[] {
   return [
+    {
+      value: "not_set",
+      label: t3({ en: "Not set", fr: "Non définie", pt: "Não definida" }),
+    },
     {
       value: "higher-is-better",
       label: t3({
@@ -217,8 +224,8 @@ export function EditIndicatorForm(
   const [thresholds, setThresholds] = createSignal<ThresholdsRule | null>(
     existing?.thresholds ?? null,
   );
-  const [direction, setDirection] = createSignal<ThresholdDirection>(
-    existing?.direction ?? "higher-is-better",
+  const [direction, setDirection] = createSignal<ThresholdDirection | null>(
+    existing?.direction ?? null,
   );
   const [targetText, setTargetText] = createSignal(
     existing === undefined
@@ -663,7 +670,7 @@ export function EditIndicatorForm(
         return { success: false, err: defErr };
       }
 
-      const rule = thresholds();
+      const rule = type() === "calculated" ? thresholds() : null;
       if (rule && !thresholdsRuleSchema.safeParse(rule).success) {
         return {
           success: false,
@@ -673,6 +680,9 @@ export function EditIndicatorForm(
             pt: "Os limiares devem ser números crescentes",
           }),
         };
+      }
+      if (rule && direction() === null) {
+        return { success: false, err: t3(INDICATOR_RULE_NEEDS_DIRECTION) };
       }
 
       const target = type() === "calculated"
@@ -695,7 +705,7 @@ export function EditIndicatorForm(
         definition: currentDefinition(),
         include_in_analysis: isSpecial() || includeInAnalysis(),
         format_as: effectiveFormatAs(),
-        thresholds: type() === "calculated" ? rule : null,
+        thresholds: rule,
         direction: direction(),
         target,
         expected_low_counts: type() !== "calculated" && expectedLowCounts(),
@@ -1135,19 +1145,19 @@ export function EditIndicatorForm(
           </Show>
           <Select
             label={t3({ en: "Direction", fr: "Direction", pt: "Direção" })}
-            value={direction()}
-            onChange={(v) => setDirection(v as ThresholdDirection)}
+            value={direction() ?? "not_set"}
+            onChange={(v) => setDirection(v === "not_set" ? null : v)}
             options={directionOptions()}
             fullWidth
           />
           <div class="ui-text-caption">
             {t3({
               en:
-                "Whether a higher value is better or worse. The conditional-formatting rule follows it.",
+                "Whether a higher value is better or worse. Not set means nobody has chosen, and the AI assistant decides from what the indicator measures. The conditional-formatting rule follows the direction, so a rule needs one set.",
               fr:
-                "Indique si une valeur plus élevée est meilleure ou pire. La règle de mise en forme conditionnelle la suit.",
+                "Indique si une valeur plus élevée est meilleure ou pire. Non définie signifie que personne ne l'a choisie, et l'assistant IA en décide d'après ce que mesure l'indicateur. La règle de mise en forme conditionnelle suit la direction, donc une règle exige qu'elle soit définie.",
               pt:
-                "Se um valor mais alto é melhor ou pior. A regra de formatação condicional segue-a.",
+                "Se um valor mais alto é melhor ou pior. Não definida significa que ninguém a escolheu, e o assistente de IA decide pelo que o indicador mede. A regra de formatação condicional segue a direção, pelo que uma regra exige que esteja definida.",
             })}
           </div>
           <Show when={type() === "calculated"}>

@@ -1,6 +1,6 @@
-import { createAITool } from "panther";
+import { createAITool, plural } from "panther";
 import { z } from "zod";
-import { COPILOT_TOOL_VIEWS, type MetricWithStatus } from "lib";
+import { COPILOT_TOOL_VIEWS, type MetricWithStatus, t3 } from "lib";
 import { simplifySlideForAI } from "../../slide_ai/mod.ts";
 import { slidesLabel } from "./tool_labels.ts";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
@@ -15,8 +15,8 @@ export function createGetSlidesTool(
     viewRegistry: copilotViews,
     name: "get_slides",
     description:
-      "Retrieve the content and structure of one or more slides in the open deck, in the order asked: the open slide as it stands on the canvas (including edits not yet saved), any other slide as saved. Ask for every slide you need in one call. Each entry carries the slide's ID. For content slides, this returns each content block with its unique ID and a summary (a figure with its full config: metric, type, disaggregations and display slots, replicant and its available values, filters, captions), the current layout structure (rows/columns with spans) and, first, `page`: whether the slide overflows the page. Use the block IDs with update_slide and update_figure.",
-    inputSchema: z.object({
+      "Retrieve the content and structure of one or more slides in the open deck, in the order asked: the open slide as it stands on the canvas (including edits not yet saved), any other slide as saved. Ask for every slide you need in one call. Each entry carries the slide's ID and, first, `page`: whether the slide overflows the page. For content slides, this returns each content block with its unique ID and a summary (a figure with its full config: metric, type, disaggregations and display slots, replicant and the count of its values (get_dimension_values lists them), filters, captions) and the current layout structure (rows/columns with spans). Use the block IDs with update_slide and update_figure.",
+    inputSchema: z.strictObject({
       slideIds: z
         .array(z.string())
         .min(1)
@@ -45,9 +45,22 @@ export function createGetSlidesTool(
         }),
       );
     },
-    inProgressLabel: (input) =>
-      `Getting ${slidesLabel(new Set(input.slideIds).size)}...`,
-    completionMessage: (input) =>
-      `Retrieved ${slidesLabel(new Set(input.slideIds).size)}`,
+    inProgressLabel: (input) => {
+      const slides = slidesLabel(new Set(input.slideIds).size);
+      return t3({
+        en: `Getting ${slides}...`,
+        fr: `Récupération de ${slides}...`,
+        pt: `A obter ${slides}...`,
+      });
+    },
+    successMessage: (input) => {
+      const n = new Set(input.slideIds).size;
+      const slides = slidesLabel(n);
+      return t3({
+        en: `Retrieved ${slides}`,
+        fr: `${slides} ${plural(n, { one: "récupérée", other: "récupérées" })}`,
+        pt: `${slides} ${plural(n, { one: "obtido", other: "obtidos" })}`,
+      });
+    },
   });
 }

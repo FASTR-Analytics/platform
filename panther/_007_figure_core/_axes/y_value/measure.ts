@@ -12,11 +12,7 @@ import {
   toAbbrevAuto,
 } from "../../deps.ts";
 import { SIZING_SAMPLE } from "../../dimension_helpers.ts";
-import type {
-  ChartValueAxisLimits,
-  YAxisWidthInfoBase,
-  YValueAxisWidthInfo,
-} from "../../types.ts";
+import type { ChartValueAxisLimits, YValueAxisWidthInfo } from "../../types.ts";
 import { getGoodAxisTickValues } from "../get_good_axis_tick_values.ts";
 import { resolveValueAxisLimits } from "../resolve_value_axis_limits.ts";
 
@@ -157,34 +153,4 @@ export function measureYValueAxisWidthInfo(
     halfYAxisTickLabelH,
     tickLabelFormatter,
   };
-}
-
-export function measureYValueAxis(
-  topHeightForLaneHeaders: number,
-  xAxisHeightIncludingStroke: number,
-  yAxisWidthInfo: YAxisWidthInfoBase,
-  tiers: { paddingTop: number; paddingBottom: number; gapY: number },
-  innerRcd: RectCoordsDims,
-  nTiers: number,
-  tierHeaderAndLabelGapHeight: number,
-): {
-  yAxisRcd: RectCoordsDims;
-  uniformSubChartHeight: number;
-} {
-  const my = yAxisWidthInfo;
-
-  const yAxisRcd = innerRcd.getAdjusted((prev) => ({
-    y: prev.y() + topHeightForLaneHeaders,
-    w: my.widthIncludingYAxisStrokeWidth,
-    h: prev.h() - (topHeightForLaneHeaders + xAxisHeightIncludingStroke),
-  }));
-
-  const uniformSubChartHeight = (yAxisRcd.h() -
-    (tiers.paddingTop +
-      (nTiers - 1) * tiers.gapY +
-      tiers.paddingBottom +
-      nTiers * tierHeaderAndLabelGapHeight)) /
-    nTiers;
-
-  return { yAxisRcd, uniformSubChartHeight };
 }

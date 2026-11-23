@@ -24,6 +24,21 @@ How to build an AI chat surface on panther's `_305_ai` engine: views, tools, gat
 16. **Keep the headless subset's module graph browser-free at source**: the typecheck will NOT catch browser APIs (app graphs carry the `dom` lib) and only `window`/`document`/`indexedDB` crash at import; `localStorage` and `navigator` run silently under Deno with wrong semantics. Guard those at source (`typeof` checks or injection) and probe the built host by constructing every factory under plain Deno
 17. **Return an image only when the model must look**: a handler or a `commit` returns `new AIToolOutput({ text, images })` when the model has to see a render (a slide, a page, a figure) to judge something text cannot tell it, such as whether a dense table can be read. An image is held for the turn that took it: every request of that turn carries it, and at the turn's end it becomes a line of text saying an image was shown there. So return as few as the judgement needs, no larger than is legible (about 1,000 px wide), and say in the tool's description when to call it. `data` is the file's bytes as base64 with no `data:` URL prefix. Panther throws for an image the API would refuse: a type other than JPEG, PNG, GIF or WebP, a file that is not of its stated type, more than 10 MB of base64, or a side over 3,000 px. A turn holds at most 20 images: a call past that keeps its text and loses its images, with a line telling the model it can look again after the user's next message. The tool's text is what the next turn has, so it records what each image showed
 
+## Input schemas: two decisions
+
+Closed schema (every object in a tool input is `z.strictObject`): required. `createAITool` refuses an open object.
+
+- Applies to: every `createAITool` input, every view's `params`, and the `input` of every op with `exposure.ai` or `exposure.headless: true`, which the ops kernel refuses at boot.
+- Why: an open schema drops a misspelled key and runs the tool. A closed one refuses it by name, for the model, MCP and HTTP.
+- Evidence: 2026-10-29, 100 calls without strict tool use on Sonnet 5 and Opus 5, no key the schema does not declare (panther `tools/ai_tool_probe/`, mode `strays`, `out/strays_2026-10-29.txt`).
+- Reopen only if: the probe reproduces a stray key. The fix is then to drop `_`-prefixed keys in `parseToolInput`. Schemas stay closed.
+
+Strict tool use (the API's `strict: true` on a tool definition): never send it.
+
+- Why: the API refuses every app's tool set.
+- Evidence: 2026-04-21, a 400 on `maxItems`. 2026-10-29, a 400 "The compiled grammar is too large" for every app (panther `tools/ai_tool_probe/`, mode `sets`, `out/sets_2026-10-29.txt`).
+- Reopen only if: the API's limits change and the probe's tool sets compile.
+
 ## Ops-projected surfaces
 
 A chat surface whose tools are a projection of an ops registry (`opsToAITools(ops, { run })` over panther `_114_ops`) satisfies this protocol differently, by construction:
@@ -138,7 +153,7 @@ export const appViews = defineAIViews({
   viewing_home: view({ label: "Home" }),
   editing_report: view<ReportParams, ReportEditorContext>({
     label: (p) => `Editing report ${p.reportId}`,
-    params: z.object({ reportId: z.string() }),
+    params: z.strictObject({ reportId: z.string() }),
     instructions: REPORT_EDITING_INSTRUCTIONS, // ephemeral delivery (default)
   }),
 });
@@ -172,7 +187,7 @@ createAppAITool({
   name: "delete_indicators",
   kind: "write",
   availableIn: ["editing_indicators"],
-  inputSchema: z.object({ ids: z.array(z.string()) }),
+  inputSchema: z.strictObject({ ids: z.array(z.string()) }),
   approval: {
     presentation: "modal",
     propose: (input, view) => {

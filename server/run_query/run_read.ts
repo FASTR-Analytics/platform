@@ -8,6 +8,7 @@ import {
   composeHfaIndicatorLabel,
   convertPeriodValue,
   type DatasetType,
+  datasetTypeSchema,
   type DisaggregationOption,
   disaggregationOption,
   type GenericLongFormFetchConfig,
@@ -18,6 +19,7 @@ import {
   type HfaIndicatorAggregation,
   type HfaIndicatorType,
   type IndicatorMetadata,
+  indicatorMetadataForRead,
   type InstalledModuleSummary,
   type InstalledModuleWithConfigSelections,
   type ItemsHolderPresentationObject,
@@ -417,14 +419,23 @@ async function readInputRows<T>(
 // own inputs (the mirror tables are no longer written, so they are never
 // read).
 
+const hmisDatasetVersionIdSchema = z.object({
+  version: z.object({ id: z.number() }),
+});
+
 export function getRunDatasetsFromManifest(
   manifest: RunManifest,
 ): RunDataset[] {
-  return manifest.datasets.map((d) => ({
-    datasetType: d.datasetType,
-    info: d.info,
-    dateExported: d.lastUpdated,
-  } as RunDataset));
+  return manifest.datasets.map((d): RunDataset => {
+    const datasetType = datasetTypeSchema.parse(d.datasetType);
+    if (datasetType === "hmis") {
+      return {
+        datasetType,
+        versionId: hmisDatasetVersionIdSchema.parse(d.info).version.id,
+      };
+    }
+    return { datasetType };
+  });
 }
 
 export async function getIcehIndicatorsFromManifestInputs(
@@ -535,18 +546,18 @@ function parseServiceCategoryIds(raw: unknown): string[] {
   return [];
 }
 
-// A manifest lookup, not a derivation: the catalog is stamped at finalize by
-// buildRunIndicatorCatalog (server/runs/indicator_catalog.ts) and recomputed
-// forward by manifest transform block 1. Nothing here re-reads the input
-// mirrors: the manifest's "precomputed, never probed" doctrine.
-//
-// An empty array for an unknown module is the same answer the derivation gave
-// (it returned early on a module missing from the catalog).
+// A manifest lookup, not a derivation: the package holds one catalog per
+// family, stamped at finalize by buildRunIndicatorCatalog
+// (server/runs/indicator_catalog.ts) and recomputed forward by manifest
+// transform block 1, and a module reads its family's. Nothing here re-reads
+// the input mirrors: the manifest's "precomputed, never probed" doctrine.
+// Empty for a module the manifest does not hold.
 export function getIndicatorMetadataFromRun(
   ctx: { manifest: RunManifest },
   moduleId: string,
 ): IndicatorMetadata[] {
-  return ctx.manifest.indicators.find((e) => e.moduleId === moduleId)
+  const family = datasetFamilyFromManifest(ctx.manifest, moduleId);
+  return ctx.manifest.indicators.find((e) => e.family === family)
     ?.indicators ?? [];
 }
 
@@ -745,7 +756,9 @@ export function getModuleWithConfigSelectionsFromManifest(
 // (script included) is parsed only where a summary is built.
 const moduleFamilyOnly = moduleDefinitionInstalledStrict.pick({ family: true });
 
-function moduleFamilyFromDefinition(moduleDefinition: string): DatasetType {
+export function moduleFamilyFromDefinition(
+  moduleDefinition: string,
+): DatasetType {
   return moduleFamilyOnly.parse(JSON.parse(moduleDefinition)).family;
 }
 
@@ -1047,13 +1060,20 @@ export async function getPresentationObjectItemsFromRun(
     ctx.manifest,
     resultsObjectId,
   );
-  if (
-    res.success && catalogEvaluation !== undefined && res.data.status === "ok"
-  ) {
-    res.data.items = applyCatalogExpressionsToItems(
+  if (res.success && res.data.status === "ok") {
+    if (catalogEvaluation !== undefined) {
+      res.data.items = applyCatalogExpressionsToItems(
+        res.data.items,
+        catalog,
+        catalogEvaluation.ingredientProps,
+      );
+    }
+    // The evaluation above reads the whole catalog, which stays on the
+    // server; the holder carries the entries its rows and filters name.
+    res.data.indicatorMetadata = indicatorMetadataForRead(
+      res.data.indicatorMetadata,
       res.data.items,
-      catalog,
-      catalogEvaluation.ingredientProps,
+      fetchConfig.filters.flatMap((f) => f.values),
     );
   }
   return res;

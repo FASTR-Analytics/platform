@@ -11,6 +11,7 @@ import type {
   RenderContext,
 } from "../../deps.ts";
 import type { YAxisWidthInfoBase } from "../../types.ts";
+import { computeSlotExtent } from "../slot_layout.ts";
 import {
   calculateYearSkipInterval,
   getLabelGap,
@@ -38,11 +39,12 @@ export function measureXPeriodAxis(
 
   const xAxisW = innerRcd.w() - yAxisWidthIncludingStroke;
 
-  const slotExtent = periodType === "year" && !sx.forceSideTicksWhenYear
-    ? uniformSubChartWidth / nTimePoints
-    : (uniformSubChartWidth -
-      gridStyle.gridLineStrokeWidth * (nTimePoints + 1)) /
-      nTimePoints;
+  const slotExtent = computeSlotExtent(
+    uniformSubChartWidth,
+    nTimePoints,
+    periodType === "year" && !sx.forceSideTicksWhenYear,
+    gridStyle.gridLineStrokeWidth,
+  );
 
   const { periodAxisType, maxTickH, periodAxisSmallTickH } = getPeriodAxisInfo(
     rc,
@@ -95,7 +97,6 @@ export function measureXPeriodAxis(
     );
 
   return {
-    uniformSubChartWidth,
     slotExtent,
     xAxisRcd,
     periodAxisType,

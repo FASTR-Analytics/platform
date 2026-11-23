@@ -36,6 +36,8 @@ import {
   resolveFigureMetric,
   type ResultsValueInfoForPresentationObject,
   rewriteReportEmbedToken,
+  t3,
+  type TranslatableString,
 } from "lib";
 import {
   FASTR_MD_SYNTAX_DOC,
@@ -137,13 +139,27 @@ function refusedTextEdit(
   throw new AIToolFailure(edit.error);
 }
 
+// The chat shows an approval tool's success label only for a {skip}: a
+// report edit that would leave the body as it is, or a draft held unproposed.
+const REPORT_UNCHANGED_LABEL: TranslatableString = {
+  en: "Not proposed: the report would not change",
+  fr: "Non proposé : le rapport ne changerait pas",
+  pt: "Não proposto: o relatório não mudaria",
+};
+
+const DRAFT_HELD_LABEL: TranslatableString = {
+  en: "Not proposed yet: the draft is held",
+  fr: "Pas encore proposé : le brouillon est retenu",
+  pt: "Ainda não proposto: o rascunho fica retido",
+};
+
 // Figures a draft adds: each a metric plus a preset, named by a short key the
 // body embeds as `![caption](figure:<key>)`. rewrite_report swaps each key for
 // a fresh id, so a whole report and its figures are one diff, and the draft
 // get_report_pages lays out has the figures it will print with.
 const NEW_FIGURE_KEY_RE = /^[a-z][a-z0-9-]{0,39}$/;
 
-const newFiguresSchema = z.array(z.object({
+const newFiguresSchema = z.array(z.strictObject({
   key: z.string().regex(NEW_FIGURE_KEY_RE).describe(
     "A short lowercase name for this figure, e.g. trend or by-region. The body embeds it as ![caption](figure:<key>).",
   ),
@@ -288,7 +304,7 @@ const heldReportDrafts = new Map<string, HeldReportDraft>();
 const HELD_DRAFT_HINT =
   "The draft is held: fix it with edit_report_draft (each edit an exact oldText from the draft as you wrote it, and its newText). Do not resend the whole body with rewrite_report.";
 
-const draftEditsSchema = z.array(z.object({
+const draftEditsSchema = z.array(z.strictObject({
   oldText: z.string(),
   newText: z.string(),
   occurrenceIndex: z.number().int().positive().optional(),
@@ -458,8 +474,8 @@ export function getClientToolsForReportEditor(
       viewRegistry: copilotViews,
       name: "get_report_editor",
       description:
-        "Get the report's current body (FASTR Markdown), a headings index (each heading's line and the exact section range rewrite_section would replace), a one-line index of each embedded figure (id, metric, type, caption, active replicant), and the embedded image ids (live editor state, including unsaved changes). ALWAYS call this first before proposing edits. For a figure's full config (available replicant values, slots, filters) call get_report_figure.",
-      inputSchema: z.object({}),
+        "Get the report's current body (FASTR Markdown), a headings index (each heading's line and the exact section range rewrite_section would replace), a one-line index of each embedded figure (id, metric, type, caption, active replicant), and the embedded image ids (live editor state, including unsaved changes). ALWAYS call this first before proposing edits. For a figure's full config (the active replicant and the count of its values, slots, filters) call get_report_figure.",
+      inputSchema: z.strictObject({}),
       availableIn: COPILOT_TOOL_VIEWS.get_report_editor,
       kind: "read",
       handler: async (_input, view) => {
@@ -483,8 +499,16 @@ export function getClientToolsForReportEditor(
           selection: ctx.getSelection(),
         }).text;
       },
-      inProgressLabel: "Reading report editor...",
-      completionMessage: "Read report editor",
+      inProgressLabel: t3({
+        en: "Getting the report editor...",
+        fr: "Récupération de l'éditeur de rapport...",
+        pt: "A obter o editor de relatório...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the report editor",
+        fr: "Éditeur de rapport récupéré",
+        pt: "Editor de relatório obtido",
+      }),
     }),
 
     createAITool({
@@ -492,12 +516,12 @@ export function getClientToolsForReportEditor(
       name: "get_report_figure",
       description:
         "Get the FULL configuration of one report figure: its metric, type, " +
-        "disaggregations, filters, the active replicant and the AVAILABLE " +
-        "replicant values, display slots, captions, and the metric's available " +
+        "disaggregations, filters, the active replicant and the count of its " +
+        "values, display slots, captions, and the metric's available " +
         "dimensions. Call this before update_report_figure to see what a figure " +
-        "shows and which replicant/filter values are valid. figureId is the id " +
-        "after 'figure:' in get_report_editor.",
-      inputSchema: z.object({
+        "shows; get_dimension_values lists the values a replicant or filter " +
+        "takes. figureId is the id after 'figure:' in get_report_editor.",
+      inputSchema: z.strictObject({
         figureId: z
           .string()
           .describe(
@@ -521,8 +545,16 @@ export function getClientToolsForReportEditor(
         );
         return [...lines, text].join("\n");
       },
-      inProgressLabel: "Reading figure...",
-      completionMessage: "Read figure",
+      inProgressLabel: t3({
+        en: "Getting a visualization of the report...",
+        fr: "Récupération d'une visualisation du rapport...",
+        pt: "A obter uma visualização do relatório...",
+      }),
+      successMessage: t3({
+        en: "Retrieved a visualization of the report",
+        fr: "Visualisation du rapport récupérée",
+        pt: "Visualização do relatório obtida",
+      }),
     }),
 
     createGetReportFigureImagesTool(),
@@ -542,7 +574,7 @@ export function getClientToolsForReportEditor(
         "or a different chart, use replace_figure instead. The change is applied " +
         "to the live preview and saved immediately; the figure's body token is " +
         "unchanged (no accept/reject diff).",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         figureId: z
           .string()
           .describe(
@@ -555,9 +587,8 @@ export function getClientToolsForReportEditor(
       handler: async (input, view) => {
         const ctx = view.context;
         const bundle = liveBundleOrRefuse(ctx, input.figureId, "edited");
-        // metricId/type are not in the patch schema (silently stripped), so an
-        // all-unsupported patch arrives empty: reject it instead of re-resolving
-        // the figure unchanged and falsely reporting success.
+        // An empty patch would re-resolve the figure unchanged and falsely
+        // report success.
         if (Object.keys(input.patch).length === 0) {
           throw new AIToolFailure(
             "No editable fields were provided. update_report_figure changes a " +
@@ -688,8 +719,16 @@ export function getClientToolsForReportEditor(
           report.map((l) => `- ${l}`).join("\n")
         }\nThe preview is updated and saved.\nFigure ${input.figureId}:\n${resulting}`;
       },
-      inProgressLabel: "Updating figure...",
-      completionMessage: "Updated figure",
+      inProgressLabel: t3({
+        en: "Updating a visualization of the report...",
+        fr: "Mise à jour d'une visualisation du rapport...",
+        pt: "A atualizar uma visualização do relatório...",
+      }),
+      successMessage: t3({
+        en: "Updated a visualization of the report",
+        fr: "Visualisation du rapport mise à jour",
+        pt: "Visualização do relatório atualizada",
+      }),
     }),
 
     createAITool({
@@ -697,7 +736,7 @@ export function getClientToolsForReportEditor(
       name: "get_report_pages",
       description:
         `Lay this FASTR Markdown report out as its printed pages (A4 unless the report says otherwise; the pages the PDF and the editor show) and return the page map: every page's fill, the blocks that landed on it with each one's share of the page, and the problems: a page left short (because its next block moved whole to the following page, or because a page break or a page template ends it early), a page holding only the spill of the section before it, a page template whose content stops part way down its page or holds more than it shows, two figures back to back, and a last page that is a stub. Call it with no arguments for the report as it stands (live editor state). Before a rewrite_section that changes what a page holds, pass \`sectionHeading\` and \`newBody\` exactly as rewrite_section will take them, and the report is laid out with that section swapped in: never paste the whole body to check one section. A whole-report draft needs no check here: rewrite_report lays it out itself and holds it while it has problems. (\`markdown\`, with \`newFigures\`, lays out an arbitrary whole body; the reply then ends with the data each new figure shows.) Fix what it flags with the page budget in the format guide, then check again; a report whose pages are set is the deliverable.`,
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         markdown: z.string().optional().describe(
           "A draft body in FASTR Markdown to lay out instead of the current one. It may embed the report's existing figures and the keys of newFigures.",
         ),
@@ -722,8 +761,16 @@ export function getClientToolsForReportEditor(
       }),
       availableIn: COPILOT_TOOL_VIEWS.get_report_pages,
       kind: "read",
-      inProgressLabel: "Laying the report out as pages...",
-      completionMessage: "Read the page map",
+      inProgressLabel: t3({
+        en: "Getting the report's pages...",
+        fr: "Récupération des pages du rapport...",
+        pt: "A obter as páginas do relatório...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the report's pages",
+        fr: "Pages du rapport récupérées",
+        pt: "Páginas do relatório obtidas",
+      }),
       handler: async (input, view) => {
         // The stored detail carries the config (the theme drives the page
         // metrics); the live editor state carries what the user can see.
@@ -804,7 +851,7 @@ export function getClientToolsForReportEditor(
       description: FASTR_PAGE_TEMPLATE_TOOL_DESCRIPTION,
       // Every layout in one call: a call per layout spends a round per layout,
       // and a turn's rounds are capped.
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         layouts: z.array(z.string()).optional().describe(
           'Every layout the report will use, e.g. ["exec", "summary", "findings"].',
         ),
@@ -814,8 +861,16 @@ export function getClientToolsForReportEditor(
       }),
       availableIn: COPILOT_TOOL_VIEWS.get_page_template,
       kind: "read",
-      inProgressLabel: "Reading the page templates...",
-      completionMessage: "Read the page templates",
+      inProgressLabel: t3({
+        en: "Getting the page templates...",
+        fr: "Récupération des modèles de page...",
+        pt: "A obter os modelos de página...",
+      }),
+      successMessage: t3({
+        en: "Retrieved the page templates",
+        fr: "Modèles de page récupérés",
+        pt: "Modelos de página obtidos",
+      }),
       handler: (input) =>
         Promise.resolve(
           fastrPageTemplatesLookup([
@@ -840,7 +895,7 @@ export function getClientToolsForReportEditor(
 The body MUST be built from the format's \`:::\` blocks — a plain run of headings and paragraphs is rejected unless you pass plain: true, which you do only when the user asked for a plain document. A draft that adds figures carries them in \`newFigures\` (a metric plus a preset each, as insert_figure takes) and embeds each as \`![caption](figure:<key>)\` where it belongs, so the report and its figures are one change. Write the body ONCE: this tool lays the draft out itself, and a draft whose pages have problems, or that adds figures, is held rather than proposed, with the page map's problems and what each new figure shows. Fix a held draft with edit_report_draft (small exact replacements, then it proposes); never resend the whole body, and never pre-check a whole draft with get_report_pages. The format:
 
 ${FASTR_MD_SYNTAX_DOC}`,
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         body: z.string(),
         allowLiteralColors: z.boolean().optional().describe(
           "Set true ONLY when the user explicitly asked for specific literal colours, gradients or image backgrounds (bg=...). Without it, newly-added literal bg= values are rejected — use tones, which follow the theme.",
@@ -876,9 +931,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
           });
         },
       },
-      inProgressLabel: "Writing the draft...",
-      completionMessage: "Proposed rewrite (awaiting accept/reject)",
-      successMessage: "Checked the draft (not proposed yet)",
+      inProgressLabel: t3({
+        en: "Proposing a rewrite of the report...",
+        fr: "Proposition d'une réécriture du rapport...",
+        pt: "A propor uma reescrita do relatório...",
+      }),
+      successMessage: t3(DRAFT_HELD_LABEL),
     }),
 
     createAITool({
@@ -886,7 +944,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
       name: "edit_report_draft",
       description:
         "Fix the draft rewrite_report is holding, then propose it. rewrite_report holds a draft it laid out and could not propose yet: its pages had problems, it broke a rule, or it adds figures whose data the prose must match. Each edit replaces one exact run of the draft's text (oldText, verbatim as you wrote it, whitespace and markup included, unique unless occurrenceIndex is given) with newText; edits apply in order, all or none, and new figures stay embedded by their keys (removing a figure's embed drops it). Move a paragraph by deleting it in one edit and inserting it in another. The edited draft is checked and laid out again: proposed to the user when its pages are set, or refused with what remains and still held. With no edits it proposes the held draft as it stands. This is far cheaper than resending the body: never call rewrite_report again to fix a held draft.",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         edits: draftEditsSchema,
         acceptPageProblems: z.boolean().optional().describe(
           "Set true ONLY after a refusal, for a page problem you cannot fix, and tell the user which remain. It never waives a problem marked MUST FIX (a page more than half empty).",
@@ -919,9 +977,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
           });
         },
       },
-      inProgressLabel: "Fixing the draft...",
-      completionMessage: "Proposed rewrite (awaiting accept/reject)",
-      successMessage: "Checked the draft (not proposed yet)",
+      inProgressLabel: t3({
+        en: "Proposing the edited draft...",
+        fr: "Proposition du brouillon modifié...",
+        pt: "A propor o rascunho editado...",
+      }),
+      successMessage: t3(DRAFT_HELD_LABEL),
     }),
 
     createAITool({
@@ -929,7 +990,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
       name: "rewrite_section",
       description:
         "Propose rewriting one heading-bounded section. Address by exact heading text; if the heading is not unique, pass occurrenceIndex (1-based). The section is exactly the range get_report_editor's headings index reports for that heading: from the heading line to the next heading of the same or higher level. newBody replaces that WHOLE range, is written in FASTR Markdown and must include the heading. A section reaches for the format's blocks too — a stat row for its numbers, a callout for its caveat, a band for its turning point (the format is in rewrite_report's description). The user reviews a diff.",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         sectionHeading: z.string(),
         newBody: z.string(),
         occurrenceIndex: z.number().int().positive().optional(),
@@ -970,8 +1031,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
           };
         },
       },
-      inProgressLabel: "Proposing section rewrite...",
-      completionMessage: "Proposed section rewrite (awaiting accept/reject)",
+      inProgressLabel: t3({
+        en: "Proposing a rewrite of a section...",
+        fr: "Proposition d'une réécriture de section...",
+        pt: "A propor uma reescrita de secção...",
+      }),
+      successMessage: t3(REPORT_UNCHANGED_LABEL),
     }),
 
     createAITool({
@@ -979,7 +1044,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
       name: "replace_text",
       description:
         "Propose a targeted edit: replace an exact run of text (oldText) with newText. oldText must match the current body VERBATIM (whitespace and markup included) and occur exactly once — if it appears multiple times, pass occurrenceIndex (1-based) or include more surrounding text to make it unique. Use this for small/sentence-level edits, or to act on the user's current selection. Keep any figure/image tokens you intend to retain. The user reviews a diff and accepts or rejects — nothing is applied silently.",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         oldText: z.string(),
         newText: z.string(),
         occurrenceIndex: z.number().int().positive().optional(),
@@ -1020,8 +1085,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
           };
         },
       },
-      inProgressLabel: "Proposing edit...",
-      completionMessage: "Proposed edit (awaiting accept/reject)",
+      inProgressLabel: t3({
+        en: "Proposing a text edit...",
+        fr: "Proposition d'une modification du texte...",
+        pt: "A propor uma alteração do texto...",
+      }),
+      successMessage: t3(REPORT_UNCHANGED_LABEL),
     }),
 
     createAITool({
@@ -1029,7 +1098,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
       name: "insert_figure",
       description:
         "Propose inserting a live data figure. The `figure` is a `from_metric` block: a metric plus one of its presets (get metricIds and presets from get_available_metrics), exactly like slide figures, resolved under the report's own results package and scope. Optionally place it after a heading (afterHeading must match an existing heading's text, or the call errors; omit to append at the end) and give a caption. The user reviews a diff; on accept the figure is added to the report and its token inserted.",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         figure: AiFigureFromMetricSchema,
         caption: z.string().optional(),
         afterHeading: z.string().optional(),
@@ -1086,8 +1155,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
           };
         },
       },
-      inProgressLabel: "Preparing figure...",
-      completionMessage: "Proposed figure insert (awaiting accept/reject)",
+      inProgressLabel: t3({
+        en: "Proposing a new visualization...",
+        fr: "Proposition d'une nouvelle visualisation...",
+        pt: "A propor uma nova visualização...",
+      }),
+      successMessage: t3(REPORT_UNCHANGED_LABEL),
     }),
 
     createAITool({
@@ -1095,7 +1168,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
       name: "replace_figure",
       description:
         "Propose replacing the chart behind an existing report figure. figureId is one of the figure:<id> tokens (from get_report_editor). The replacement `figure` is the same `from_metric` block as insert_figure (a metric plus one of its presets), except that its `chartTitle` may be omitted. The chart title and the embed caption are each kept unless given: omit `figure.chartTitle` to keep the replaced chart's title, and omit `caption` to keep the embed's caption. Note that if this figure is embedded more than once, a new `caption` is applied to EVERY embed of it, so omit `caption` when you only mean to change the chart. The token is swapped in place, so the user reviews a diff and accepts or rejects. To merely TWEAK an existing figure (its replicant, filters, disaggregation, period, or captions) WITHOUT changing the underlying chart, use update_report_figure instead — replacing here rebuilds the figure and resets settings like the replicant.",
-      inputSchema: z.object({
+      inputSchema: z.strictObject({
         figureId: z.string(),
         figure: AiFigureFromMetricSchema.extend({
           chartTitle: AiFigureFromMetricSchema.shape.chartTitle.optional()
@@ -1215,8 +1288,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
           };
         },
       },
-      inProgressLabel: "Preparing figure...",
-      completionMessage: "Proposed figure replacement (awaiting accept/reject)",
+      inProgressLabel: t3({
+        en: "Proposing a replacement visualization...",
+        fr: "Proposition d'une visualisation de remplacement...",
+        pt: "A propor uma visualização de substituição...",
+      }),
+      successMessage: t3(REPORT_UNCHANGED_LABEL),
     }),
   ];
 }

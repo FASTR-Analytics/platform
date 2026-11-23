@@ -110,8 +110,10 @@ export const EMPTY_HFA_TAXONOMY: HfaTaxonomyForAI = {
   indicators: [],
 };
 
-// Full HFA indicator taxonomy surfaced to the AI (get_available_metrics).
-// Sourced from the package's captured inputs, so it reflects the package's
+// The package's HFA indicator taxonomy as the AI reads it:
+// get_available_metrics writes it, its indicators up to AI_INLINE_LIST_MAX,
+// and get_dimension_values joins an HFA indicator's facts from it. Sourced
+// from the package's captured inputs, so it reflects the package's
 // service-category scoping. Categories/sub-categories/service-categories carry
 // their IDs so the model can query the hfa_category / hfa_sub_category /
 // hfa_service_category disaggregations; indicators reference those IDs.

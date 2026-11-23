@@ -9,9 +9,10 @@ export type { FontWeight, TextInfoUnkeyed } from "../_001_font/mod.ts";
 export {
   Coordinates,
   Dimensions,
+  Padding,
   RectCoordsDims,
 } from "../_001_geometry/mod.ts";
-export type { AlignH } from "../_001_geometry/mod.ts";
+export type { AlignH, PaddingOptions } from "../_001_geometry/mod.ts";
 export {
   MARKDOWN_TABLE_COLUMN_DIMENSION,
   MARKDOWN_TABLE_ROW_DIMENSION,

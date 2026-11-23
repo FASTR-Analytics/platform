@@ -20,6 +20,7 @@ export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedChartOVStyle } from "../_003_figure_style/mod.ts";
 export {
   calculateMinSubChartHeight,
+  computeTotalGridLineStrokeWidth,
   estimateMinSurroundsWidth,
   estimateMinYValueAxisWidth,
   estimateTierHeaderAndLabelGapWidth,

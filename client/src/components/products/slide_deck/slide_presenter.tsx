@@ -315,6 +315,7 @@ export function SlidePresenter(p: Props) {
               pageWidthDu={PAGE_WIDTH_DU}
               pageHeightDu={PAGE_HEIGHT_DU}
               simpleError
+              hideOverflowNotice
             />
           </Show>
         </div>

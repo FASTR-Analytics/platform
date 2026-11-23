@@ -8,6 +8,7 @@ import {
   type MetricWithStatus,
   type PackageScope,
   type Slide,
+  t3,
 } from "lib";
 import { AIToolFailure, createAITool, type LayoutNode } from "panther";
 import { z } from "zod";
@@ -23,7 +24,6 @@ import {
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
 } from "../../_shared/mod.ts";
-import { slidesLabel } from "./tool_labels.ts";
 import {
   buildLayoutFromSpec,
   extractBlocksFromLayout,
@@ -56,7 +56,7 @@ export function createUpdateSlideTool(
     name: "update_slide",
     description:
       "Change a slide in place, keeping everything not named: a cover's title, subtitle, presenter or date, each one's size, bold and italic, and its logos; a section's title or subtitle, and each one's size, bold and italic; a content slide's header, sub-header, date, footer, header and footer logos, side panel (split), its blocks (blockUpdates) or its layout (layoutChange). get_slides shows a slide's settings as stored. Give the slideId and an `update` whose `type` matches the slide's type, with only the fields to change. A block ID comes from get_slides or from the result of the write that made the block. A from_metric block needs get_metric_data first. To tweak an existing figure use update_figure; to rebuild a slide or change its type use replace_slide. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately.",
-    inputSchema: z.object({
+    inputSchema: z.strictObject({
       slideId: z.string().describe(
         "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
       ),
@@ -103,8 +103,16 @@ export function createUpdateSlideTool(
         } in slide ${input.slideId}.${removed} ${slideTargetOutcome(target)}`,
       );
     },
-    inProgressLabel: `Updating ${slidesLabel(1)}...`,
-    completionMessage: `Updated ${slidesLabel(1)}`,
+    inProgressLabel: t3({
+      en: "Updating a slide...",
+      fr: "Mise à jour d'une diapositive...",
+      pt: "A atualizar um diapositivo...",
+    }),
+    successMessage: t3({
+      en: "Updated a slide",
+      fr: "Diapositive mise à jour",
+      pt: "Diapositivo atualizado",
+    }),
   });
 }
 
@@ -193,7 +201,7 @@ async function applySlideUpdate(
 }
 
 // The layout a spec names: existing blocks by id, new blocks resolved from
-// their inline content, spans normalised to the 12-column grid. Every block
+// their inline content, spans normalised to the column grid. Every block
 // the spec leaves out is removed, and reported.
 async function resolveLayoutSpec(
   scope: PackageScope,

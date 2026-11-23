@@ -50,7 +50,10 @@ import {
   SERIES_COLOR_SENTINEL,
   VALUES_COLOR_SENTINEL,
 } from "./style_func_types.ts";
-import type { LabelCollisionConfig } from "./_3_merged_style_return_types.ts";
+import type {
+  LabelCollisionConfig,
+  MapProjection,
+} from "./_3_merged_style_return_types.ts";
 import type { LegendPosition } from "./types.ts";
 
 // Shared default for every figure's labelCollision block (map, pie). The
@@ -251,7 +254,7 @@ const _DS = {
   //   siblings' decays (pie counts are single digits). Does double duty: a
   //   CAP on the ideal pass's width-driven term, and the draw-time MAXIMUM —
   //   a pie is never drawn larger than this, whatever frame it is given
-  //   (owner-ruled 2026-08-05; the maxBarWidth precedent), so a big fixed
+  //   (owner-ruled 2026-08-05; the maxBarThickness precedent), so a big fixed
   //   frame yields a natural-size disc centred in whitespace rather than a
   //   massive disc beside small type.
   // All are tunable starting points; the anchor is the single tuning knob.
@@ -316,7 +319,9 @@ const _DS = {
       }),
       textFormatter: typed<ChartValueInfoFunc<string> | "none">("none"),
       stacking: typed<"none" | "stacked" | "imposed" | "diff">("none"),
-      maxBarWidth: 200,
+      barGroupThicknessFractionOfSlot: 0.8,
+      barThicknessFractionOfSeriesOuterThickness: 0.9,
+      maxBarThickness: 200,
     },
     lines: {
       func: typed<GenericLineStyle>({
@@ -354,7 +359,7 @@ const _DS = {
         show: true,
         strokeColor: { key: "baseContent" },
         strokeWidth: 3,
-        capWidthProportion: 0.4,
+        capWidthFractionOfMark: 0.4,
       }),
     },
     errorBands: {
@@ -610,9 +615,7 @@ const _DS = {
     layoutMode: typed<"flow" | "tiered">("flow"),
   },
   map: {
-    projection: typed<"equirectangular" | "mercator" | "naturalEarth1">(
-      "equirectangular",
-    ),
+    projection: typed<MapProjection>("equirectangular"),
     fit: typed<"all-map-areas" | "only-map-areas-in-data">("all-map-areas"),
     // Where a map area's label goes. "centroid" pins every label to its map area's
     // centroid whatever happens; "callout" sends every label outside; "auto"
