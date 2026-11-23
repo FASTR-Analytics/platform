@@ -12,7 +12,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import type { CustomMarkdownStyleOptions } from "../deps.ts";
+import { Button, type CustomMarkdownStyleOptions, t3 } from "../deps.ts";
 import type { ToolRegistry } from "../_core/tool_engine.ts";
 import type {
   AIChatDisplayRegistry,
@@ -48,6 +48,7 @@ type Props = {
   // so clearing the queue clears the bubbles by construction and nothing
   // unsent can persist.
   queuedTexts?: string[];
+  onTakeBack: () => void;
   customRenderers?: AIChatDisplayRegistry;
   fallbackContent?: Component;
   toolRegistry: ToolRegistry;
@@ -226,9 +227,27 @@ export function MessageList(p: Props) {
 
         <For each={toolInProgressItems()}>{(item) => renderItem(item)}</For>
 
-        <For each={p.queuedTexts ?? []}>
-          {(text) => renderItem({ type: "user_text", text } as DisplayItem)}
-        </For>
+        <Show when={(p.queuedTexts?.length ?? 0) > 0}>
+          <For each={p.queuedTexts}>
+            {(text) => renderItem({ type: "user_text", text } as DisplayItem)}
+          </For>
+          <div
+            class="ui-gap-sm flex items-center justify-end"
+            data-ai-queued-marker
+          >
+            <span class="text-base-content-muted text-xs">
+              {t3({
+                en: "Queued",
+                fr: "En attente",
+                pt: "Em fila",
+                th: "อยู่ในคิว",
+              })}
+            </span>
+            <Button size="sm" outline onClick={() => p.onTakeBack()}>
+              {t3({ en: "Edit", fr: "Modifier", pt: "Editar", th: "แก้ไข" })}
+            </Button>
+          </div>
+        </Show>
       </Show>
     </div>
   );

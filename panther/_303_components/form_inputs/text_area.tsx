@@ -46,6 +46,7 @@ type TextAreaProps = {
   rows?: number;
   placeholder?: string;
   onKeyDown?: (e: KeyboardEvent) => void;
+  ref?: (el: HTMLTextAreaElement) => void;
   mono?: boolean;
   resizable?: boolean;
   disabled?: boolean;
@@ -66,7 +67,10 @@ export function TextArea(p: TextAreaProps) {
       data-height={p.fullHeight}
     >
       <textarea
-        ref={(el) => useAutoFocus(el, p.autoFocus)}
+        ref={(el) => {
+          useAutoFocus(el, p.autoFocus);
+          p.ref?.(el);
+        }}
         class={getTextAreaClasses(p.size, p.mono, p.resizable)}
         data-intent={p.intent}
         data-invalid={!!p.invalidMsg}

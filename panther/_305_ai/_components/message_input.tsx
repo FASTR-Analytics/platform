@@ -5,11 +5,20 @@
 
 import { Show } from "solid-js";
 import { Button, t3, TextArea } from "../deps.ts";
+import type { RecallCaret, RecallKey } from "./_input_recall.ts";
 
 type Props = {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  // True when the key belongs to take back or recall, so the textarea does
+  // not also move the caret.
+  onRecallKey: (
+    key: RecallKey,
+    composing: boolean,
+    caret: RecallCaret,
+  ) => boolean;
+  ref: (el: HTMLTextAreaElement) => void;
   onStop?: () => void;
   isGenerating?: boolean;
   placeholder?: string;
@@ -18,14 +27,11 @@ type Props = {
 };
 
 // Enter sends, Shift+Enter breaks the line, and an Enter that confirms an
-// IME composition does neither. Safari ends the composition before that
-// Enter's keydown, which then reports keyCode 229 instead.
+// IME composition does neither.
 export function submitsOnKey(
   e: Pick<KeyboardEvent, "key" | "shiftKey" | "isComposing" | "keyCode">,
 ): boolean {
-  return (
-    e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229
-  );
+  return e.key === "Enter" && !e.shiftKey && !isComposing(e);
 }
 
 export function MessageInput(p: Props) {
@@ -33,6 +39,13 @@ export function MessageInput(p: Props) {
     if (submitsOnKey(e)) {
       e.preventDefault();
       p.onSubmit();
+      return;
+    }
+    if (
+      e.target instanceof HTMLTextAreaElement &&
+      p.onRecallKey(e, isComposing(e), e.target)
+    ) {
+      e.preventDefault();
     }
   };
 
@@ -40,6 +53,7 @@ export function MessageInput(p: Props) {
     <div class="ui-pad ui-gap bg-primary-subtle flex w-full flex-none">
       <div class="w-0 flex-1" data-ai-input-wrapper>
         <TextArea
+          ref={p.ref}
           value={p.value}
           onChange={p.onChange}
           onKeyDown={handleKeyDown}
@@ -64,11 +78,19 @@ export function MessageInput(p: Props) {
             t3({ en: "Submit", fr: "Envoyer", pt: "Enviar", th: "ส่ง" })}
         </Button>
         <Show when={p.isGenerating && p.onStop}>
-          <Button onClick={() => p.onStop!()} outline>
+          <Button onClick={() => p.onStop!()} outline onBackground="base-300">
             {t3({ en: "Stop", fr: "Arrêter", pt: "Parar", th: "หยุด" })}
           </Button>
         </Show>
       </div>
     </div>
   );
+}
+
+// Safari ends an IME composition before the keydown of the Enter that
+// confirms it, so that keydown reports keyCode 229 instead.
+function isComposing(
+  e: Pick<KeyboardEvent, "isComposing" | "keyCode">,
+): boolean {
+  return e.isComposing || e.keyCode === 229;
 }
