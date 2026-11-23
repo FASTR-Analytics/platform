@@ -131,6 +131,11 @@ export type ParsedMarkdown = {
   items: ParsedMarkdownItem[];
 };
 
+export type TextMarkdownItem = Exclude<
+  ParsedMarkdownItem,
+  { type: "table" | "image" }
+>;
+
 // =============================================================================
 // FormattedText System
 // =============================================================================

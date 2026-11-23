@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-22T22:51:07.967Z",
-  "pantherGitCommit": "fb893a4f",
-  "pantherGitDirty": false,
+  "timestamp": "2026-11-23T10:55:16.017Z",
+  "pantherGitCommit": "6a3f6350",
+  "pantherGitDirty": true,
   "mode": "both",
   "configName": "wb-fastr",
   "protocols": [

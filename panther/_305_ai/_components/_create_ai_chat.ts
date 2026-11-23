@@ -1748,8 +1748,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // Check the turn's own conversation queue for user messages to inject
       // alongside tool results. Their display bubbles materialize here (they
       // rendered from the queue signal until now) and their senders'
-      // promises resolve when this turn finishes.
-      const queueEntries = ts.queuedMessages[0]();
+      // promises resolve when this turn finishes. A stopped turn takes none:
+      // the model never answers a stopped turn's results, so what is queued
+      // drains into the next turn at the release instead.
+      const queueEntries = turn.abort.signal.aborted
+        ? []
+        : ts.queuedMessages[0]();
       const queuedTexts = queueEntries.map((q) => q.text);
       const toolResultMsg = buildToolResultUserMessage(
         limitToolResultImages(updatedMessages, allResults),

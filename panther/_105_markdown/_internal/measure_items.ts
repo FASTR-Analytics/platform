@@ -25,8 +25,7 @@ import type {
   MeasuredMarkdownItem,
   MeasuredMarkdownListItem,
   MeasuredMarkdownParagraph,
-  ParsedMarkdown,
-  ParsedMarkdownItem,
+  TextMarkdownItem,
 } from "../types.ts";
 import { measureFormattedText } from "./formatted_text.ts";
 
@@ -56,7 +55,7 @@ export function getInlineCodeStyle(
 export function measureMarkdownItems(
   rc: RenderContext,
   bounds: RectCoordsDims,
-  parsed: ParsedMarkdown,
+  textItems: TextMarkdownItem[],
   style: MergedMarkdownStyle,
   alignH: AlignH,
   _debug = false,
@@ -68,12 +67,12 @@ export function measureMarkdownItems(
 
   if (_debug) {
     console.log(
-      `    MD: bounds.w=${bounds.w().toFixed(1)}, items=${parsed.items.length}`,
+      `    MD: bounds.w=${bounds.w().toFixed(1)}, items=${textItems.length}`,
     );
   }
 
-  for (let i = 0; i < parsed.items.length; i++) {
-    const parsedItem = parsed.items[i];
+  for (let i = 0; i < textItems.length; i++) {
+    const parsedItem = textItems[i];
     const margins = getItemMargins(parsedItem, style);
     const isFirst = i === 0;
 
@@ -129,7 +128,7 @@ export function measureMarkdownItems(
 type ItemMargins = { marginTop: number; marginBottom: number };
 
 function getItemMargins(
-  item: ParsedMarkdownItem,
+  item: TextMarkdownItem,
   style: MergedMarkdownStyle,
 ): ItemMargins {
   switch (item.type) {
@@ -162,18 +161,12 @@ function getItemMargins(
       const m = style.margins.code;
       return { marginTop: m.top, marginBottom: m.bottom };
     }
-    case "image":
-    case "table":
-      // These are handled separately and should not reach this function
-      throw new Error(
-        `${item.type} items should not be measured directly`,
-      );
   }
 }
 
 function measureItem(
   rc: RenderContext,
-  item: ParsedMarkdownItem,
+  item: TextMarkdownItem,
   x: number,
   y: number,
   maxWidth: number,
@@ -193,11 +186,6 @@ function measureItem(
       return measureHorizontalRule(x, y, maxWidth, style);
     case "code-block":
       return measureCodeBlock(rc, item, x, y, maxWidth, style);
-    case "image":
-    case "table":
-      throw new Error(
-        `${item.type} items should not be measured directly - use groupDocElementsByContentType first`,
-      );
   }
 }
 

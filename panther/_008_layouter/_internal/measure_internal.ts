@@ -40,7 +40,6 @@ export type MeasureContext<T, U> = {
   boundsX: number;
   boundsW: number;
   itemMeasurer: ItemHeightMeasurer<T, U>;
-  overflowTracker: { overflow: boolean };
   parentStartColumn: number;
   parentAvailableSpan: number;
 };
@@ -53,23 +52,21 @@ function resolveContainerStyle(
   const defaults = layoutStyle.containerDefaults;
 
   const defaultPadding = defaults?.padding ?? new Padding(0);
-  const padding = nodeStyle?.padding
-    ? overlayPadding(defaultPadding, nodeStyle.padding, sf)
-    : defaultPadding;
+  const padding = overlayPadding(defaultPadding, nodeStyle?.padding, sf);
 
-  const borderWidth = nodeStyle?.borderWidth
+  const borderWidth = nodeStyle?.borderWidth !== undefined
     ? nodeStyle.borderWidth * sf
     : (defaults?.borderWidth ?? 0);
 
-  const backgroundColor = nodeStyle?.backgroundColor
+  const backgroundColor = nodeStyle?.backgroundColor !== undefined
     ? getColor(nodeStyle.backgroundColor)
     : (defaults?.backgroundColor ?? "none");
 
-  const borderColor = nodeStyle?.borderColor
+  const borderColor = nodeStyle?.borderColor !== undefined
     ? getColor(nodeStyle.borderColor)
     : (defaults?.borderColor ?? "none");
 
-  const rectRadius = nodeStyle?.rectRadius
+  const rectRadius = nodeStyle?.rectRadius !== undefined
     ? nodeStyle.rectRadius * sf
     : (defaults?.rectRadius ?? 0);
 
@@ -194,16 +191,16 @@ export function getHeightConstraints<T, U>(
     }
   }
 
-  return withNodeOverrides(node, { minH, idealH, maxH });
+  return resolveNodeConstraints(node, { minH, idealH, maxH });
 }
 
-function withNodeOverrides(
+function resolveNodeConstraints(
   node: LayoutNodeBase,
-  heights: { minH: number; idealH: number; maxH: number },
+  content: { minH: number; idealH: number; maxH: number },
 ): { minH: number; idealH: number; maxH: number } {
-  const minH = node.minH ?? heights.minH;
-  const maxH = Math.max(minH, node.maxH ?? heights.maxH);
-  return { minH, idealH: clamp(heights.idealH, minH, maxH), maxH };
+  const minH = Math.max(content.minH, node.minH ?? 0);
+  const maxH = Math.max(minH, node.maxH ?? content.maxH);
+  return { minH, idealH: clamp(content.idealH, minH, maxH), maxH };
 }
 
 // An item's content constraints, read at the width its padding and border
@@ -232,7 +229,7 @@ function measureItemConstraints<T, U>(
   return {
     resolved,
     content,
-    ...withNodeOverrides(node, {
+    ...resolveNodeConstraints(node, {
       minH: content.minH + paddingAndBorder,
       idealH: content.idealH + paddingAndBorder,
       maxH: node.alignV || resolved.backgroundExtent === "fill"
@@ -284,11 +281,6 @@ function measureRowNode<T, U>(
   const totalGapHeight = (node.children.length - 1) * mctx.gapY;
   const totalMinH = sum(childConstraints.map((c) => c.minH));
   const availableHeight = bounds.h();
-
-  // Check for overflow
-  if (totalMinH + totalGapHeight > availableHeight) {
-    mctx.overflowTracker.overflow = true;
-  }
 
   // Calculate how much space we can use
   const usableHeight = availableHeight - totalGapHeight;
@@ -418,11 +410,6 @@ function measureColNode<T, U>(
   let rowHeight = Math.min(bounds.h(), maxOfMaxH);
   rowHeight = Math.max(rowHeight, maxOfMinH);
 
-  // Check for overflow (can't fit minimum heights)
-  if (maxOfMinH > bounds.h()) {
-    mctx.overflowTracker.overflow = true;
-  }
-
   // Measure children - each gets row height, capped by their maxH
   const measuredChildren: MeasuredLayoutNode<U>[] = [];
   let currentCol = mctx.parentStartColumn;
@@ -502,41 +489,26 @@ function measureItemNode<T, U>(
   const span = node.span ?? mctx.parentAvailableSpan;
   const { style: _style, ...nodeWithoutStyle } = node;
 
-  let contentRpd: RectCoordsDims;
-  let styleRpd: RectCoordsDims;
-
-  if (node.alignV) {
-    const contentH = content.idealH;
-    const availableH = innerBounds.h();
-    const yOffset = node.alignV === "middle"
-      ? Math.max(0, (availableH - contentH) / 2)
-      : node.alignV === "bottom"
-      ? Math.max(0, availableH - contentH)
-      : 0;
-
-    contentRpd = new RectCoordsDims({
-      x: innerBounds.x(),
-      y: innerBounds.y() + yOffset,
-      w: innerBounds.w(),
-      h: contentH,
-    });
-
-    if (resolved.backgroundExtent === "fill") {
-      const inset = borderWidth / 2;
-      styleRpd = bounds.getPadded(new Padding(inset));
-    } else {
-      styleRpd = new RectCoordsDims({
-        x: bounds.x(),
-        y: innerBounds.y() + yOffset - pad.pt() - borderWidth / 2,
-        w: bounds.w(),
-        h: contentH + pad.totalPy() + borderWidth,
-      });
-    }
-  } else {
-    contentRpd = innerBounds;
-    const inset = borderWidth / 2;
-    styleRpd = bounds.getPadded(new Padding(inset));
-  }
+  const contentH = node.alignV
+    ? Math.min(content.idealH, innerBounds.h())
+    : innerBounds.h();
+  const spareH = innerBounds.h() - contentH;
+  const yOffset = node.alignV === "middle"
+    ? spareH / 2
+    : node.alignV === "bottom"
+    ? spareH
+    : 0;
+  const contentRpd = innerBounds.getAdjusted({
+    y: innerBounds.y() + yOffset,
+    h: contentH,
+  });
+  const filledStyleRpd = bounds.getPadded(new Padding(borderWidth / 2));
+  const styleRpd = node.alignV && resolved.backgroundExtent === "content"
+    ? filledStyleRpd.getAdjusted({
+      y: contentRpd.y() - pad.pt() - borderWidth / 2,
+      h: contentH + pad.totalPy() + borderWidth,
+    })
+    : filledStyleRpd;
 
   return {
     ...nodeWithoutStyle,

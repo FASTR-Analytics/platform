@@ -159,12 +159,7 @@ function renderFixedLogosCover(
   const padding = s.padding;
   const placement = s.logosPlacement;
 
-  const paddedBounds = new RectCoordsDims([
-    bounds.x() + padding.pl(),
-    bounds.y() + padding.pt(),
-    bounds.w() - padding.totalPx(),
-    bounds.h() - padding.totalPy(),
-  ]);
+  const paddedBounds = bounds.getPadded(padding);
 
   const { alignH: logoAlignH, alignV: logoAlignV } = getFixedPlacementAlignment(
     placement,
@@ -225,7 +220,8 @@ function renderFlowCover(
 ): void {
   const padding = s.padding;
   const placement = s.logosPlacement;
-  const textMaxWidth = bounds.w() - padding.totalPx();
+  const paddedBounds = bounds.getPadded(padding);
+  const textMaxWidth = paddedBounds.w();
 
   let mLogos: MeasuredLogos<HTMLImageElement> | undefined;
   if (logos && logos.length > 0) {
@@ -269,7 +265,7 @@ function renderFlowCover(
     }
   }
 
-  let currentY = getStartY(bounds, padding, s.alignV, totalH);
+  let currentY = getStartY(paddedBounds, s.alignV, totalH);
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
@@ -277,7 +273,7 @@ function renderFlowCover(
     if (item.type === "logo" && mLogos && logos) {
       const positioned = measureLogos(
         new RectCoordsDims([
-          bounds.x() + padding.pl(),
+          paddedBounds.x(),
           currentY,
           textMaxWidth,
           item.h,
@@ -365,7 +361,7 @@ function renderContentStack(
     }
   }
 
-  let currentY = getStartY(bounds, padding, alignV, totalH);
+  let currentY = getStartY(bounds.getPadded(padding), alignV, totalH);
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
@@ -465,17 +461,16 @@ function getFixedPlacementAlignment(placement: LogosPlacement): {
 }
 
 function getStartY(
-  bounds: RectCoordsDims,
-  padding: Padding,
+  paddedBounds: RectCoordsDims,
   alignV: AlignV,
   totalH: number,
 ): number {
   switch (alignV) {
     case "top":
-      return bounds.y() + padding.pt();
+      return paddedBounds.y();
     case "bottom":
-      return bounds.y() + bounds.h() - padding.pb() - totalH;
+      return paddedBounds.bottomY() - totalH;
     case "middle":
-      return bounds.y() + (bounds.h() - totalH) / 2;
+      return paddedBounds.centerY() - totalH / 2;
   }
 }

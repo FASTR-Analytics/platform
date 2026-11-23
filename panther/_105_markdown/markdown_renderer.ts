@@ -13,7 +13,10 @@ import {
   getInlineCodeStyle,
   measureCodeLine,
 } from "./_internal/measure_items.ts";
-import { measureMarkdown } from "./_internal/measure_markdown.ts";
+import {
+  measureMarkdown,
+  parseTextMarkdown,
+} from "./_internal/measure_markdown.ts";
 import { renderMarkdown } from "./_internal/render_markdown.ts";
 import {
   CustomMarkdownStyle,
@@ -23,12 +26,11 @@ import {
   type Renderer,
   type TextInfoUnkeyed,
 } from "./deps.ts";
-import { parseMarkdown } from "./parser.ts";
 import type {
   MarkdownInline,
   MarkdownRendererInput,
   MeasuredMarkdown,
-  ParsedMarkdownItem,
+  TextMarkdownItem,
 } from "./types.ts";
 
 function getBaseFontSize(input: MarkdownRendererInput): number {
@@ -43,7 +45,7 @@ function getMinComfortableWidth(
 ): number {
   const styleInstance = new CustomMarkdownStyle(input.style);
   const style = styleInstance.getMergedMarkdownStyle();
-  const parsed = parseMarkdown(input.markdown);
+  const items = parseTextMarkdown(input.markdown);
 
   let maxWordWidth = 0;
 
@@ -70,7 +72,7 @@ function getMinComfortableWidth(
     }
   }
 
-  function processItem(item: ParsedMarkdownItem) {
+  function processItem(item: TextMarkdownItem) {
     if (item.type === "horizontal-rule") return;
     if (item.type === "code-block") {
       // For code blocks, measure each line
@@ -78,30 +80,6 @@ function getMinComfortableWidth(
       for (const line of lines) {
         const mText = measureCodeLine(rc, line, style.text.code, Infinity);
         maxWordWidth = Math.max(maxWordWidth, mText.dims.w());
-      }
-      return;
-    }
-    if (item.type === "image") return;
-    if (item.type === "table") {
-      // For tables, measure header/cell content
-      const processCell = (inlines: MarkdownInline[]) => {
-        for (const inline of inlines) {
-          measureWordsInInline(inline, style.text.paragraph);
-        }
-      };
-      if (item.header) {
-        for (const row of item.header) {
-          for (const cell of row) {
-            processCell(cell);
-          }
-        }
-      }
-      if (item.rows) {
-        for (const row of item.rows) {
-          for (const cell of row) {
-            processCell(cell);
-          }
-        }
       }
       return;
     }
@@ -120,7 +98,7 @@ function getMinComfortableWidth(
     }
   }
 
-  for (const item of parsed.items) {
+  for (const item of items) {
     processItem(item);
   }
 

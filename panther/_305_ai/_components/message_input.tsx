@@ -23,8 +23,9 @@ type Props = {
 export function submitsOnKey(
   e: Pick<KeyboardEvent, "key" | "shiftKey" | "isComposing" | "keyCode">,
 ): boolean {
-  return e.key === "Enter" && !e.shiftKey && !e.isComposing &&
-    e.keyCode !== 229;
+  return (
+    e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229
+  );
 }
 
 export function MessageInput(p: Props) {
@@ -63,7 +64,7 @@ export function MessageInput(p: Props) {
             t3({ en: "Submit", fr: "Envoyer", pt: "Enviar", th: "ส่ง" })}
         </Button>
         <Show when={p.isGenerating && p.onStop}>
-          <Button onClick={() => p.onStop!()} intent="neutral">
+          <Button onClick={() => p.onStop!()} outline>
             {t3({ en: "Stop", fr: "Arrêter", pt: "Parar", th: "หยุด" })}
           </Button>
         </Show>

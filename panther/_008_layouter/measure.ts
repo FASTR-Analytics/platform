@@ -12,6 +12,7 @@ import {
 import { normalizeLayout, validateLayout } from "./_internal/normalize.ts";
 import { _GLOBAL_LAYOUT_COLUMNS, type RectCoordsDims } from "./deps.ts";
 import type { LayoutStyleConfig } from "./optimizer.ts";
+import { isOverflow } from "./overflow.ts";
 import type {
   HeightConstraints,
   ItemHeightMeasurer,
@@ -56,8 +57,6 @@ export function measureLayout<T, U>(
   validateLayout(layout, nCols);
   const normalizedLayout = normalizeLayout(layout, nCols);
 
-  const overflowTracker = { overflow: false };
-
   const singleColWidth = (bounds.w() - (nCols - 1) * gapX) / nCols;
 
   const dividerPositions: number[] = [];
@@ -80,14 +79,13 @@ export function measureLayout<T, U>(
     boundsX: bounds.x(),
     boundsW: bounds.w(),
     itemMeasurer,
-    overflowTracker,
     parentStartColumn: 0,
     parentAvailableSpan: nCols,
   };
 
-  // Rows and cols hold their children's minimum heights against their own
-  // height. The root has no parent, so its minimum is held against the bounds
-  // here: without this a layout that is one item never overflows.
+  // Every container gives each child at least the child's minimum, and a
+  // node's own minH only raises its minimum, so a layout is short of height
+  // only at its root: this one comparison decides overflow.
   const rootConstraints = getHeightConstraints(
     measureCtx,
     normalizedLayout,
@@ -95,9 +93,7 @@ export function measureLayout<T, U>(
     nCols,
     0,
   );
-  if (rootConstraints.minH > bounds.h()) {
-    overflowTracker.overflow = true;
-  }
+  const overflow = isOverflow(rootConstraints.minH, bounds.h());
 
   const measured = measureNode(measureCtx, normalizedLayout, bounds);
   const gaps = extractGaps(
@@ -109,5 +105,5 @@ export function measureLayout<T, U>(
     measureCtx.globalSnapPositions,
   );
 
-  return { measured, overflow: overflowTracker.overflow, gaps };
+  return { measured, overflow, gaps };
 }

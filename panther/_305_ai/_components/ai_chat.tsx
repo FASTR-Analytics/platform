@@ -55,20 +55,12 @@ export function AIChat(p: Props) {
     stopGeneration,
     toolRegistry,
     enqueueMessage,
-    clearQueue,
     queuedMessages,
     pendingUserAction,
     decideApproval,
     clearInProgressItems,
   } = p.chat ?? createAIChat();
   const [inputValue, setInputValue] = createSignal("");
-
-  const handleStop = () => {
-    batch(() => {
-      clearQueue();
-      stopGeneration();
-    });
-  };
 
   const { ref, scrollToBottom } = createScrollManager(() => [
     displayItems(),
@@ -161,7 +153,7 @@ export function AIChat(p: Props) {
         value={inputValue()}
         onChange={setInputValue}
         onSubmit={handleSubmit}
-        onStop={handleStop}
+        onStop={stopGeneration}
         isGenerating={isLoading()}
         placeholder={p.placeholder}
         submitLabel={p.submitLabel}

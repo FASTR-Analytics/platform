@@ -14,7 +14,12 @@ import type {
   RectCoordsDims,
   RenderContext,
 } from "../../deps.ts";
-import { measureLogos, Padding, RectCoordsDims as RCD } from "../../deps.ts";
+import {
+  isOverflow,
+  measureLogos,
+  Padding,
+  RectCoordsDims as RCD,
+} from "../../deps.ts";
 import type {
   CoverPageInputs,
   MeasuredCoverPage,
@@ -30,7 +35,8 @@ export function measureCover(
   measuredSplitImage: MeasuredImage | undefined,
   mWatermark: MeasuredText | undefined,
 ): MeasuredCoverPage {
-  const textMaxWidth = bounds.w() - style.padding.totalPx();
+  const paddedBounds = bounds.getPadded(style.padding);
+  const textMaxWidth = paddedBounds.w();
 
   const mTitle = inputs.title?.trim()
     ? rc.mText(inputs.title.trim(), style.text.coverTitle, textMaxWidth)
@@ -50,6 +56,7 @@ export function measureCover(
 
   const { primitives, totalH } = buildCoverPrimitives(
     bounds,
+    paddedBounds,
     inputs,
     style,
     mTitle,
@@ -63,7 +70,7 @@ export function measureCover(
     inputs,
     bounds,
     style,
-    overflow: totalH > bounds.h(),
+    overflow: isOverflow(totalH, paddedBounds.h()),
     fullPageBounds,
     measuredSplitImage,
     mWatermark,
@@ -79,6 +86,7 @@ type CoverResult = { primitives: PagePrimitive[]; totalH: number };
 
 function buildCoverPrimitives(
   bounds: RectCoordsDims,
+  paddedBounds: RectCoordsDims,
   inputs: CoverPageInputs,
   s: MergedCoverStyle,
   mTitle?: MeasuredText,
@@ -112,6 +120,7 @@ function buildCoverPrimitives(
   if (hasLogos && isFixed) {
     const result = buildFixedLogosCover(
       bounds,
+      paddedBounds,
       inputs.titleLogos!,
       s,
       mTitle,
@@ -125,6 +134,7 @@ function buildCoverPrimitives(
 
   const result = buildFlowCover(
     bounds,
+    paddedBounds,
     hasLogos ? inputs.titleLogos : undefined,
     s,
     mTitle,
@@ -142,6 +152,7 @@ function isFixedPlacement(p: LogosPlacement): boolean {
 
 function buildFixedLogosCover(
   bounds: RectCoordsDims,
+  paddedBounds: RectCoordsDims,
   logos: HTMLImageElement[],
   s: MergedCoverStyle,
   mTitle?: MeasuredText,
@@ -152,13 +163,6 @@ function buildFixedLogosCover(
   const primitives: PagePrimitive[] = [];
   const padding = s.padding;
   const placement = s.logosPlacement;
-
-  const paddedBounds = new RCD([
-    bounds.x() + padding.pl(),
-    bounds.y() + padding.pt(),
-    bounds.w() - padding.totalPx(),
-    bounds.h() - padding.totalPy(),
-  ]);
 
   const { alignH: logoAlignH, alignV: logoAlignV } = getFixedPlacementAlignment(
     placement,
@@ -216,11 +220,15 @@ function buildFixedLogosCover(
   );
   primitives.push(...contentResult.primitives);
 
-  return { primitives, totalH: logoSpace + contentResult.totalH };
+  const totalH = contentResult.totalH > 0
+    ? logoSpace + contentResult.totalH
+    : mLogos.totalHeight;
+  return { primitives, totalH };
 }
 
 function buildFlowCover(
   bounds: RectCoordsDims,
+  paddedBounds: RectCoordsDims,
   logos: HTMLImageElement[] | undefined,
   s: MergedCoverStyle,
   mTitle?: MeasuredText,
@@ -231,7 +239,7 @@ function buildFlowCover(
   const primitives: PagePrimitive[] = [];
   const padding = s.padding;
   const placement = s.logosPlacement;
-  const textMaxWidth = bounds.w() - padding.totalPx();
+  const textMaxWidth = paddedBounds.w();
 
   let mLogos: MeasuredLogos<HTMLImageElement> | undefined;
   if (logos && logos.length > 0) {
@@ -272,14 +280,14 @@ function buildFlowCover(
   }
 
   const textX = getTextX(bounds, padding, s.alignH);
-  let currentY = getStartY(bounds, padding, s.alignV, totalH);
+  let currentY = getStartY(paddedBounds, s.alignV, totalH);
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
 
     if (item.type === "logo" && mLogos && logos) {
       const positioned = measureLogos(
-        new RCD([bounds.x() + padding.pl(), currentY, textMaxWidth, item.h]),
+        new RCD([paddedBounds.x(), currentY, textMaxWidth, item.h]),
         {
           images: logos,
           style: s.logosSizing,
@@ -365,7 +373,8 @@ function buildContentStack(
   authorGap: number = 0,
 ): { primitives: PagePrimitive[]; totalH: number } {
   const primitives: PagePrimitive[] = [];
-  const textMaxWidth = bounds.w() - padding.totalPx();
+  const paddedBounds = bounds.getPadded(padding);
+  const textMaxWidth = paddedBounds.w();
 
   type StackItem = { type: string; mText: MeasuredText; gap: number };
   const items: StackItem[] = [];
@@ -386,7 +395,7 @@ function buildContentStack(
   }
 
   const textX = getTextX(bounds, padding, alignH);
-  let currentY = getStartY(bounds, padding, alignV, totalH);
+  let currentY = getStartY(paddedBounds, alignV, totalH);
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
@@ -447,17 +456,16 @@ function getTextX(
 }
 
 function getStartY(
-  bounds: RectCoordsDims,
-  padding: Padding,
+  paddedBounds: RectCoordsDims,
   alignV: AlignV,
   totalH: number,
 ): number {
   switch (alignV) {
     case "top":
-      return bounds.y() + padding.pt();
+      return paddedBounds.y();
     case "bottom":
-      return bounds.y() + bounds.h() - padding.pb() - totalH;
+      return paddedBounds.bottomY() - totalH;
     case "middle":
-      return bounds.y() + (bounds.h() - totalH) / 2;
+      return paddedBounds.centerY() - totalH / 2;
   }
 }

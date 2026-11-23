@@ -5,29 +5,34 @@
 
 import type { LayoutNode } from "../types.ts";
 
+// Each span is at least its minimum, so the minimums must sum to no more than
+// targetTotal.
 export function rescaleSpans(
   oldSpans: number[],
   targetTotal: number,
+  minSpans: number[],
 ): number[] {
   const currentTotal = oldSpans.reduce((a, b) => a + b, 0);
-  if (currentTotal === targetTotal) return oldSpans;
+  if (
+    currentTotal === targetTotal &&
+    oldSpans.every((span, i) => span >= minSpans[i])
+  ) {
+    return oldSpans;
+  }
 
   const scale = targetTotal / currentTotal;
   const result: number[] = [];
   let remaining = targetTotal;
+  let reservedForLater = minSpans.reduce((a, b) => a + b, 0);
 
   for (let i = 0; i < oldSpans.length; i++) {
-    if (i === oldSpans.length - 1) {
-      result.push(Math.max(1, remaining));
-    } else {
-      let scaled = Math.max(1, Math.round(oldSpans[i] * scale));
-      const remainingChildren = oldSpans.length - 1 - i;
-      if (remaining - scaled < remainingChildren) {
-        scaled = Math.max(1, remaining - remainingChildren);
-      }
-      result.push(scaled);
-      remaining -= scaled;
-    }
+    reservedForLater -= minSpans[i];
+    const span = i === oldSpans.length - 1 ? remaining : Math.min(
+      Math.max(minSpans[i], Math.round(oldSpans[i] * scale)),
+      remaining - reservedForLater,
+    );
+    result.push(span);
+    remaining -= span;
   }
 
   return result;
@@ -42,8 +47,12 @@ export function getMinimumSpan<U>(node: LayoutNode<U>): number {
     // Rows: max of children's minimum spans
     return Math.max(...node.children.map((c) => getMinimumSpan(c)), 1);
   }
-  // Cols: sum of children's minimum spans
-  return node.children.reduce((sum, c) => sum + getMinimumSpan(c), 0);
+  // An empty cols takes a column, as an empty rows does: a node given no
+  // column is placed with a NaN or non-positive width.
+  return Math.max(
+    node.children.reduce((sum, c) => sum + getMinimumSpan(c), 0),
+    1,
+  );
 }
 
 /**
@@ -141,7 +150,7 @@ function validateLayoutInternal<U>(
         );
       }
 
-      const childAvailableSpan = child.span ?? Math.max(1, neededSpan);
+      const childAvailableSpan = child.span ?? neededSpan;
       validateLayoutInternal(
         child,
         childAvailableSpan,
@@ -176,53 +185,52 @@ function normalizeLayoutInternal<U>(
     };
   }
 
-  // Cols: keep explicit spans as absolute values, distribute remainder to implicit children
-  const implicitIndices: number[] = [];
-  const explicitTotal = layout.children.reduce((sum, child, i) => {
-    if (child.span === undefined) {
-      implicitIndices.push(i);
-      return sum;
-    }
-    return sum + child.span;
-  }, 0);
+  const childSpans = colsChildSpans(layout.children, availableSpan);
+  return {
+    ...layout,
+    children: layout.children.map((child, i) =>
+      normalizeLayoutInternal(child, childSpans[i])
+    ),
+    span: availableSpan,
+  };
+}
 
-  if (implicitIndices.length > 0) {
-    const remaining = Math.max(
-      implicitIndices.length,
+// Explicit spans are kept while the implicit children's minimums fit beside
+// them, and the implicit children share the rest. Otherwise the implicit
+// children take their minimums and the explicit spans, as in a cols whose
+// every span is explicit, are rescaled into the rest: a stored layout that
+// over-claims is drawn, never refused.
+function colsChildSpans<U>(
+  children: LayoutNode<U>[],
+  availableSpan: number,
+): number[] {
+  const explicit = children.filter((c) => c.span !== undefined);
+  const implicit = children.filter((c) => c.span === undefined);
+  const explicitSpans = explicit.map((c) => c.span!);
+  const explicitTotal = explicitSpans.reduce((a, b) => a + b, 0);
+  const implicitMins = implicit.map(getMinimumSpan);
+  const implicitMinTotal = implicitMins.reduce((a, b) => a + b, 0);
+
+  const keepExplicit = implicit.length > 0 &&
+    explicitTotal + implicitMinTotal <= availableSpan;
+  const explicitResult = keepExplicit ? explicitSpans : rescaleSpans(
+    explicitSpans,
+    availableSpan - implicitMinTotal,
+    explicit.map(getMinimumSpan),
+  );
+  const implicitResult = keepExplicit
+    ? rescaleSpans(
+      implicit.map(() => 1),
       availableSpan - explicitTotal,
-    );
-    const implicitSpans = rescaleSpans(
-      new Array(implicitIndices.length).fill(1),
-      remaining,
-    );
+      implicitMins,
+    )
+    : implicitMins;
 
-    let implicitIdx = 0;
-    const normalizedChildren = layout.children.map((child) => {
-      if (child.span !== undefined) {
-        return normalizeLayoutInternal(child, child.span);
-      }
-      const childSpan = implicitSpans[implicitIdx];
-      implicitIdx++;
-      return normalizeLayoutInternal(child, childSpan);
-    });
-
-    return {
-      ...layout,
-      children: normalizedChildren,
-      span: availableSpan,
-    };
-  } else {
-    const childSpans = layout.children.map((c) => c.span!);
-    const finalSpans = rescaleSpans(childSpans, availableSpan);
-
-    const normalizedChildren = layout.children.map((child, i) =>
-      normalizeLayoutInternal(child, finalSpans[i])
-    );
-
-    return {
-      ...layout,
-      children: normalizedChildren,
-      span: availableSpan,
-    };
-  }
+  let explicitIdx = 0;
+  let implicitIdx = 0;
+  return children.map((c) =>
+    c.span === undefined
+      ? implicitResult[implicitIdx++]
+      : explicitResult[explicitIdx++]
+  );
 }

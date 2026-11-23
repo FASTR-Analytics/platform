@@ -50,7 +50,11 @@ export function deleteNode<U>(
     if (parent.type === "cols" && parent.children.length > 0) {
       const parentSpan = parent.span ?? _GLOBAL_LAYOUT_COLUMNS;
       const oldSpans = parent.children.map((c) => c.span ?? 1);
-      const newSpans = rescaleSpans(oldSpans, parentSpan);
+      const newSpans = rescaleSpans(
+        oldSpans,
+        parentSpan,
+        parent.children.map(getMinimumSpan),
+      );
       for (let i = 0; i < parent.children.length; i++) {
         const child = parent.children[i];
         const oldChildSpan = oldSpans[i];
@@ -154,7 +158,11 @@ function rescaleDescendantSpans<U>(
     }
   } else {
     const oldSpans = node.children.map((c) => c.span ?? 1);
-    const newSpans = rescaleSpans(oldSpans, newParentSpan);
+    const newSpans = rescaleSpans(
+      oldSpans,
+      newParentSpan,
+      node.children.map(getMinimumSpan),
+    );
     for (let i = 0; i < node.children.length; i++) {
       const child = node.children[i];
       const oldChildSpan = oldSpans[i];

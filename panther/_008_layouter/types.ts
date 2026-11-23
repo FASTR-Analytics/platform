@@ -56,8 +56,11 @@ export type ResolvedContainerStyle = {
 
 export type LayoutNodeBase = {
   id: LayoutNodeId;
-  minH?: number; // Override minimum height
-  maxH?: number; // Override maximum height
+  // Total heights, padding and border included. minH raises the minimum the
+  // content needs and never lowers it, since content given less than that
+  // does not fit. maxH replaces the content's maximum, never below the minimum.
+  minH?: number;
+  maxH?: number;
   span?: number;
 };
 

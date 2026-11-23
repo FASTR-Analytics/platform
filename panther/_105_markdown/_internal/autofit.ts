@@ -82,20 +82,8 @@ export function getHeightAtScale(
   scale: number,
 ): number {
   const bounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 99999 });
-
-  try {
-    // scale is threaded as the fitScale (shrink-to-fit factor), not style.scale.
-    const measured = measureMarkdown(rc, bounds, input, scale);
-    return measured.bounds.h();
-  } catch (_err) {
-    // Markdown contains tables/images which aren't supported in MarkdownRenderer
-    // Return a conservative height estimate based on line count
-    const lineCount = input.markdown.split("\n").length;
-    const baseFontSize = input.style?.text?.base?.fontSize ?? 14;
-    const scaledFontSize = baseFontSize * scale;
-    const lineHeight = scaledFontSize * 1.5;
-    return lineCount * lineHeight;
-  }
+  // scale is threaded as the fitScale (shrink-to-fit factor), not style.scale.
+  return measureMarkdown(rc, bounds, input, scale).bounds.h();
 }
 
 export function findOptimalScale(

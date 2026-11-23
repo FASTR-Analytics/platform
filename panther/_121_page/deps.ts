@@ -36,6 +36,7 @@ export {
   createItemNode,
   createRowsNode,
   generateCandidates,
+  isOverflow,
   measureLayout,
   pickBestLayout,
   renderContainerStyle,
