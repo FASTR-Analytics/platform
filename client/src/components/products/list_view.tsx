@@ -7,7 +7,7 @@ import {
   type SortMode,
   t3,
 } from "lib";
-import { Button, Icon, type IconName } from "panther";
+import { Button, Checkbox, Icon, type IconName } from "panther";
 import {
   batch,
   createMemo,
@@ -94,8 +94,18 @@ type ExpandableRow = {
   onDragStart: ((evt: DragEvent) => void) | undefined;
 };
 
+// Present while the page is in select mode: every row gets a leading
+// checkbox slot (filled on product rows, empty on folders and General so the
+// names stay aligned), and a product row's click, Enter and Space toggle its
+// checkbox instead of opening its editor.
+export type ListSelection = {
+  isSelected: (productId: string) => boolean;
+  onToggle: (product: ProductSummary) => void;
+};
+
 type Props = {
   rows: ProductTreeRow[];
+  selection?: ListSelection;
   sort: ListSort;
   onSort: (mode: SortMode) => void;
   onOpenProduct: (product: ProductSummary) => void;
@@ -345,6 +355,40 @@ export function ListView(p: Props) {
     );
   }
 
+  // The select-mode slot at the start of the name cell. The wrapper stops the
+  // click so ticking the box never reaches the row, which would toggle it
+  // back or open the editor.
+  function selectSlot(product: ProductSummary | undefined): JSX.Element {
+    return (
+      <Show when={p.selection}>
+        {(selection) => (
+          <span
+            class="flex h-[1lh] w-7 flex-none items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Show when={product}>
+              {(pr) => (
+                <Checkbox
+                  checked={selection().isSelected(pr().id)}
+                  onChange={() => selection().onToggle(pr())}
+                  label={
+                    <span class="sr-only">
+                      {t3({
+                        en: `Select "${pr().label}"`,
+                        fr: `Sélectionner « ${pr().label} »`,
+                        pt: `Selecionar "${pr().label}"`,
+                      })}
+                    </span>
+                  }
+                />
+              )}
+            </Show>
+          </span>
+        )}
+      </Show>
+    );
+  }
+
   const dateLabel = (iso: string) => new Date(iso).toLocaleDateString();
 
   const asFolderRow = (row: ProductTreeRow): FolderRow | undefined =>
@@ -389,6 +433,7 @@ export function ListView(p: Props) {
         }}
       >
         <div class="ui-pad-sm ui-gap-sm flex items-start">
+          {selectSlot(undefined)}
           {
             /* The chevron marks a folder, faded when there is nothing inside
               to open. */
@@ -454,6 +499,10 @@ export function ListView(p: Props) {
 
   function productRow(i: number, r: () => ProductRow): JSX.Element {
     const product = () => r().product;
+    const activate = () => {
+      if (p.selection === undefined) p.onOpenProduct(product());
+      else p.selection.onToggle(product());
+    };
     return (
       <div
         class={`${_ROW_GRID} ui-hoverable-base-100 ui-focusable group border-b`}
@@ -470,7 +519,8 @@ export function ListView(p: Props) {
             PRODUCT_TYPE_REGISTRY[product().type].icon,
             product().label,
           )}
-        onClick={() => p.onOpenProduct(product())}
+        aria-pressed={p.selection?.isSelected(product().id)}
+        onClick={activate}
         onContextMenu={(e) => {
           e.preventDefault();
           p.onProductMenu(e, product());
@@ -481,11 +531,12 @@ export function ListView(p: Props) {
             (e.key === "Enter" || e.key === " ")
           ) {
             e.preventDefault();
-            p.onOpenProduct(product());
+            activate();
           }
         }}
       >
         <div class="ui-pad-sm ui-gap-sm flex items-start">
+          {selectSlot(product())}
           {rowIcon(
             r().depth,
             PRODUCT_TYPE_REGISTRY[product().type].icon,

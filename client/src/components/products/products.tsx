@@ -390,6 +390,124 @@ export function Products() {
     await openCreatedProduct({ productId: copyId });
   }
 
+  // Select mode: a checkbox on every product row and a bar that acts on the
+  // checked ones. The selection holds ids and is read back through T1, so a
+  // product deleted elsewhere drops out of the counts the moment its row goes.
+  // Each action takes only the products the connection may act on, because
+  // the product guard refuses the whole batch for one id below the declared
+  // level: Delete takes those it owns, Move those it can edit.
+  const [selecting, setSelecting] = createSignal(false);
+  const [selectedIds, setSelectedIds] = createSignal<ReadonlySet<string>>(
+    new Set(),
+  );
+
+  const selectedProducts = createMemo(() => {
+    const ids = selectedIds();
+    return instanceState.products.filter((pr) => ids.has(pr.id));
+  });
+  const deletableProducts = createMemo(() =>
+    selectedProducts().filter((pr) => productSummaryLevel(pr) === "own")
+  );
+  const movableProducts = createMemo(() =>
+    selectedProducts().filter((pr) =>
+      productLevelAtLeast(productSummaryLevel(pr), "edit")
+    )
+  );
+
+  function toggleSelected(product: ProductSummary) {
+    const next = new Set(selectedIds());
+    if (!next.delete(product.id)) next.add(product.id);
+    setSelectedIds(next);
+  }
+
+  function endSelecting() {
+    batch(() => {
+      setSelecting(false);
+      setSelectedIds(new Set<string>());
+    });
+  }
+
+  async function handleDeleteSelected() {
+    const products = deletableProducts();
+    const n = products.length;
+    if (n === 0) return;
+    const skipped = selectedProducts().length - n;
+    const question = n === 1
+      ? t3({
+        en: "Delete this product? This cannot be undone.",
+        fr: "Supprimer ce produit ? Cette action est irréversible.",
+        pt: "Eliminar este produto? Esta ação é irreversível.",
+      })
+      : t3({
+        en: `Delete these ${n} products? This cannot be undone.`,
+        fr: `Supprimer ces ${n} produits ? Cette action est irréversible.`,
+        pt: `Eliminar estes ${n} produtos? Esta ação é irreversível.`,
+      });
+    const skippedNote = skipped === 0 ? "" : " " + (skipped === 1
+      ? t3({
+        en:
+          "1 selected product is not yours to delete and will be left as it is.",
+        fr:
+          "1 produit sélectionné ne vous appartient pas : il ne sera pas supprimé.",
+        pt: "1 produto selecionado não lhe pertence e não será eliminado.",
+      })
+      : t3({
+        en:
+          `${skipped} selected products are not yours to delete and will be left as they are.`,
+        fr:
+          `${skipped} produits sélectionnés ne vous appartiennent pas : ils ne seront pas supprimés.`,
+        pt:
+          `${skipped} produtos selecionados não lhe pertencem e não serão eliminados.`,
+      }));
+    const deleteAction = createDeleteAction(
+      {
+        text: question + skippedNote,
+        itemList: products.map((pr) => pr.label),
+      },
+      () =>
+        serverActions.deleteProducts({
+          productIds: products.map((pr) => pr.id),
+        }),
+      endSelecting,
+    );
+    await deleteAction.click();
+  }
+
+  async function handleMoveSelected() {
+    const products = movableProducts();
+    if (products.length === 0) return;
+    const folderIds = new Set(products.map((pr) => pr.folderId));
+    const moved = await openComponent({
+      element: MoveToFolderModal,
+      props: {
+        target: {
+          kind: "products" as const,
+          productIds: products.map((pr) => pr.id),
+          // The picker starts on the products' folder only when they share one.
+          currentFolderId: folderIds.size === 1 ? products[0].folderId : null,
+        },
+        folders: instanceState.folders,
+      },
+    });
+    if (moved !== undefined) endSelecting();
+  }
+
+  // What the bar says when an action will leave some of the selection out.
+  const selectionLimitNote = (): string | undefined => {
+    const n = selectedProducts().length;
+    const d = deletableProducts().length;
+    const m = movableProducts().length;
+    if (d === n && m === n) return undefined;
+    return t3({
+      en:
+        `You can move ${m} and delete ${d} of these. Moving needs edit access; deleting needs ownership.`,
+      fr:
+        `Vous pouvez en déplacer ${m} et en supprimer ${d}. Le déplacement exige l'accès en modification ; la suppression exige d'en être propriétaire.`,
+      pt:
+        `Pode mover ${m} e eliminar ${d} destes. Mover exige acesso de edição; eliminar exige ser o proprietário.`,
+    });
+  };
+
   async function handleDelete(product: ProductSummary) {
     // Hard delete, no trash.
     const deleteAction = createDeleteAction(
@@ -587,30 +705,42 @@ export function Products() {
             searchText={searchText()}
             setSearchText={updateSearchText}
             centerLeftChildren={
-              <Button
-                outline
-                iconName={anyFolderOpen() ? "fold" : "unfold"}
-                disabled={openableFolderIds().length === 0}
-                // intent="neutral"
-                ariaLabel={anyFolderOpen()
-                  ? t3({
-                    en: "Collapse all",
-                    fr: "Tout replier",
-                    pt: "Recolher tudo",
-                  })
-                  : t3({
-                    en: "Expand all",
-                    fr: "Tout déplier",
-                    pt: "Expandir tudo",
-                  })}
-                onClick={() =>
-                  setOpenFolderIds(
-                    anyFolderOpen() ? new Set() : new Set([
-                      ...instanceState.folders.map((f) => f.id),
-                      GENERAL_ID,
-                    ]),
-                  )}
-              />
+              <div class="ui-gap-sm flex items-center">
+                <Button
+                  outline
+                  iconName={anyFolderOpen() ? "fold" : "unfold"}
+                  disabled={openableFolderIds().length === 0}
+                  // intent="neutral"
+                  ariaLabel={anyFolderOpen()
+                    ? t3({
+                      en: "Collapse all",
+                      fr: "Tout replier",
+                      pt: "Recolher tudo",
+                    })
+                    : t3({
+                      en: "Expand all",
+                      fr: "Tout déplier",
+                      pt: "Expandir tudo",
+                    })}
+                  onClick={() =>
+                    setOpenFolderIds(
+                      anyFolderOpen() ? new Set() : new Set([
+                        ...instanceState.folders.map((f) => f.id),
+                        GENERAL_ID,
+                      ]),
+                    )}
+                />
+                <Button
+                  outline={!selecting()}
+                  iconName="check"
+                  disabled={instanceState.products.length === 0 && !selecting()}
+                  onClick={() => (selecting()
+                    ? endSelecting()
+                    : setSelecting(true))}
+                >
+                  {t3({ en: "Select", fr: "Sélectionner", pt: "Selecionar" })}
+                </Button>
+              </div>
             }
             centerChildren={
               <div class="ui-gap flex items-center">
@@ -650,11 +780,71 @@ export function Products() {
               </div>
             </Show>
           </HeadingBar>
+          <Show when={selecting()}>
+            <div class="ui-pad-x ui-pad-sm-y ui-gap-sm flex flex-wrap items-center border-b">
+              <span class="text-sm text-nowrap">
+                {t3({
+                  en: `${selectedProducts().length} selected`,
+                  fr: `${selectedProducts().length} sélectionné(s)`,
+                  pt: `${selectedProducts().length} selecionado(s)`,
+                })}
+              </span>
+              <Button
+                size="sm"
+                outline
+                iconName="folder"
+                disabled={movableProducts().length === 0}
+                onClick={() => void handleMoveSelected()}
+              >
+                {t3({
+                  en: `Move ${movableProducts().length}`,
+                  fr: `Déplacer ${movableProducts().length}`,
+                  pt: `Mover ${movableProducts().length}`,
+                })}
+              </Button>
+              <Button
+                size="sm"
+                intent="danger"
+                iconName="trash"
+                disabled={deletableProducts().length === 0}
+                onClick={() => void handleDeleteSelected()}
+              >
+                {t3({
+                  en: `Delete ${deletableProducts().length}`,
+                  fr: `Supprimer ${deletableProducts().length}`,
+                  pt: `Eliminar ${deletableProducts().length}`,
+                })}
+              </Button>
+              <Button
+                size="sm"
+                ghost
+                disabled={selectedIds().size === 0}
+                onClick={() => setSelectedIds(new Set<string>())}
+              >
+                {t3({
+                  en: "Clear selection",
+                  fr: "Effacer la sélection",
+                  pt: "Limpar seleção",
+                })}
+              </Button>
+              <Show when={selectionLimitNote()}>
+                {(note) => (
+                  <span class="text-base-content-muted text-xs">{note()}</span>
+                )}
+              </Show>
+            </div>
+          </Show>
         </div>
       }
     >
       <ListView
         rows={treeRows()}
+        selection={selecting()
+          ? {
+            isSelected: (id) => selectedIds().has(id),
+            onToggle: toggleSelected,
+          }
+          : undefined}
         sort={productsSort()}
         onSort={(mode) => setProductsSort(nextSort(productsSort(), mode))}
         onOpenProduct={(product) => void openProduct(product)}
