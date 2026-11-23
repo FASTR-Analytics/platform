@@ -26,12 +26,22 @@ export function splitIntoBreakableChunks(line: string): string[] {
   return chunks;
 }
 
+// As splitIntoBreakableChunks, but each word keeps the whitespace after it as
+// written, and a line's leading whitespace is a chunk of its own.
+function splitKeepingWhitespace(line: string): string[] {
+  return (line.match(/^\s+|\S+\s*/g) ?? []).flatMap((word) =>
+    word.split(/(?<=[_-])/)
+  );
+}
+
 export function measureText(
   ctx: CanvasRenderingContext2D,
   text: string | null | undefined,
   ti: TextInfoUnkeyed,
   maxWidth: number,
+  opts?: { preserveWhitespace?: boolean },
 ): MeasuredText {
+  const preserveWhitespace = opts?.preserveWhitespace ?? false;
   if (!text) {
     return {
       lines: [],
@@ -74,14 +84,16 @@ export function measureText(
 
   const rawLines = text
     .split("\n")
-    .map((t) => t.trim())
+    .map((t) => preserveWhitespace ? t.trimEnd() : t.trim())
     .filter(Boolean);
 
   let currentY = 0;
   let overallMaxWidth = 0;
 
   for (const rawLine of rawLines) {
-    const chunks = splitIntoBreakableChunks(rawLine);
+    const chunks = preserveWhitespace
+      ? splitKeepingWhitespace(rawLine)
+      : splitIntoBreakableChunks(rawLine);
 
     let currentLine = "";
     let testLine = "";

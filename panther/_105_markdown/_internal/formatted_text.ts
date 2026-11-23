@@ -308,7 +308,8 @@ function measureChunks(
 
   return chunks.map((chunk) => {
     if (chunk.code && codeStyle && codeSpaceMText) {
-      const ti = codeStyle.textInfo;
+      const codeTi = resolveRunStyle(codeStyle.textInfo, chunk.style);
+      const ti = chunk.link ? { ...codeTi, color: linkColor } : codeTi;
       const mText = chunk.isSpace
         ? codeSpaceMText
         : rc.mText(chunk.text, ti, 99999);

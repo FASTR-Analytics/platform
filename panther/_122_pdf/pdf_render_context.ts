@@ -119,6 +119,7 @@ export class PdfRenderContext implements RenderContext {
     maxWidth: number,
     opts?: {
       rotation?: "horizontal" | "anticlockwise" | "clockwise";
+      preserveWhitespace?: boolean;
     },
   ): MeasuredText {
     return this._crc.mText(text, ti, maxWidth, opts);

@@ -17,10 +17,10 @@
 import type { OpEventsConnection } from "./notify_client.ts";
 import type { OpProvenanceRecord } from "./types.ts";
 
-// What a digest producer needs from the app's provenance store. Records
-// return OLDEST-FIRST, strictly after the given record id; an id the store
-// no longer holds (capped retention) returns everything it still has — the
-// digest's own line cap bounds the flood.
+// What a digest producer needs from the app's provenance store, as one
+// reader may see it. Records return OLDEST-FIRST, strictly after the given
+// record id; an id the store no longer holds (capped retention) returns
+// everything it still has — the digest's own line cap bounds the flood.
 export type OpAwarenessSource = {
   latestRecordId: () => Promise<string | null>;
   recordsSince: (recordId: string) => Promise<OpProvenanceRecord[]>;

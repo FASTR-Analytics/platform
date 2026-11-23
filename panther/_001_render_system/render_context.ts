@@ -109,6 +109,9 @@ export type RenderContext = {
     maxWidth: number,
     opts?: {
       rotation?: "horizontal" | "anticlockwise" | "clockwise";
+      // Keep runs of spaces and a line's leading whitespace as written, where
+      // by default each run is drawn as one space and a line is trimmed.
+      preserveWhitespace?: boolean;
     },
   ) => MeasuredText;
 

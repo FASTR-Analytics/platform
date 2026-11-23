@@ -133,7 +133,6 @@ function buildCoverPrimitives(
   }
 
   const result = buildFlowCover(
-    bounds,
     paddedBounds,
     hasLogos ? inputs.titleLogos : undefined,
     s,
@@ -227,7 +226,6 @@ function buildFixedLogosCover(
 }
 
 function buildFlowCover(
-  bounds: RectCoordsDims,
   paddedBounds: RectCoordsDims,
   logos: HTMLImageElement[] | undefined,
   s: MergedCoverStyle,
@@ -237,7 +235,6 @@ function buildFlowCover(
   mDate?: MeasuredText,
 ): CoverResult {
   const primitives: PagePrimitive[] = [];
-  const padding = s.padding;
   const placement = s.logosPlacement;
   const textMaxWidth = paddedBounds.w();
 
@@ -268,6 +265,8 @@ function buildFlowCover(
   addItem("date", mDate?.dims.h() ?? 0, 0);
 
   if (placement.position === "below-content" && mLogos) {
+    const last = items.at(-1);
+    if (last) last.gap = placement.gap;
     addItem("logo", mLogos.totalHeight, 0);
   }
 
@@ -279,7 +278,7 @@ function buildFlowCover(
     }
   }
 
-  const textX = getTextX(bounds, padding, s.alignH);
+  const textX = getTextX(paddedBounds, s.alignH);
   let currentY = getStartY(paddedBounds, s.alignV, totalH);
 
   for (let i = 0; i < items.length; i++) {
@@ -394,7 +393,7 @@ function buildContentStack(
     }
   }
 
-  const textX = getTextX(bounds, padding, alignH);
+  const textX = getTextX(paddedBounds, alignH);
   let currentY = getStartY(paddedBounds, alignV, totalH);
 
   for (let i = 0; i < items.length; i++) {
@@ -440,18 +439,14 @@ function getFixedPlacementAlignment(placement: LogosPlacement): {
   }
 }
 
-function getTextX(
-  bounds: RectCoordsDims,
-  padding: Padding,
-  alignH: AlignH,
-): number {
+function getTextX(paddedBounds: RectCoordsDims, alignH: AlignH): number {
   switch (alignH) {
     case "left":
-      return bounds.x() + padding.pl();
+      return paddedBounds.x();
     case "right":
-      return bounds.x() + bounds.w() - padding.pr();
+      return paddedBounds.rightX();
     case "center":
-      return bounds.centerX();
+      return paddedBounds.centerX();
   }
 }
 

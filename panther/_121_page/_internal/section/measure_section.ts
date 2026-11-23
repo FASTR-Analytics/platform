@@ -12,7 +12,7 @@ import type {
   RectCoordsDims,
   RenderContext,
 } from "../../deps.ts";
-import { isOverflow, type Padding } from "../../deps.ts";
+import { isOverflow } from "../../deps.ts";
 import type {
   MeasuredSectionPage,
   PagePrimitive,
@@ -70,18 +70,14 @@ export function measureSection(
   };
 }
 
-function getTextX(
-  bounds: RectCoordsDims,
-  padding: Padding,
-  alignH: AlignH,
-): number {
+function getTextX(paddedBounds: RectCoordsDims, alignH: AlignH): number {
   switch (alignH) {
     case "left":
-      return bounds.x() + padding.pl();
+      return paddedBounds.x();
     case "right":
-      return bounds.x() + bounds.w() - padding.pr();
+      return paddedBounds.rightX();
     case "center":
-      return bounds.centerX();
+      return paddedBounds.centerX();
   }
 }
 
@@ -141,7 +137,7 @@ function buildSectionPrimitives(
     : 0;
   const totalH = sectionTitleH + titleGap + sectionSubtitleH;
 
-  const textX = getTextX(bounds, s.padding, alignH);
+  const textX = getTextX(paddedBounds, alignH);
   let currentY = getStartY(paddedBounds, alignV, totalH);
 
   const textMaxWidth = paddedBounds.w();

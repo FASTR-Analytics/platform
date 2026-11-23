@@ -5,8 +5,11 @@
 
 import type { LayoutNode } from "../types.ts";
 
-// Each span is at least its minimum, so the minimums must sum to no more than
-// targetTotal.
+// Each span is its share of targetTotal, rounded down and raised to its
+// minimum. Columns still free go one at a time to the largest remainders, the
+// earlier child first on a tie, and columns the minimums over-claim come off
+// the smallest remainders above their minimum, the later child first. The
+// minimums must sum to no more than targetTotal.
 export function rescaleSpans(
   oldSpans: number[],
   targetTotal: number,
@@ -20,22 +23,36 @@ export function rescaleSpans(
     return oldSpans;
   }
 
-  const scale = targetTotal / currentTotal;
-  const result: number[] = [];
-  let remaining = targetTotal;
-  let reservedForLater = minSpans.reduce((a, b) => a + b, 0);
+  const shares = oldSpans.map((span) => (span * targetTotal) / currentTotal);
+  const spans = shares.map((share, i) =>
+    Math.max(minSpans[i], Math.floor(share))
+  );
+  const remainder = (i: number) => shares[i] - spans[i];
+  let free = targetTotal - spans.reduce((a, b) => a + b, 0);
 
-  for (let i = 0; i < oldSpans.length; i++) {
-    reservedForLater -= minSpans[i];
-    const span = i === oldSpans.length - 1 ? remaining : Math.min(
-      Math.max(minSpans[i], Math.round(oldSpans[i] * scale)),
-      remaining - reservedForLater,
-    );
-    result.push(span);
-    remaining -= span;
+  const byLargestRemainder = spans
+    .map((_, i) => i)
+    .sort((a, b) => remainder(b) - remainder(a) || a - b);
+  for (let k = 0; free > 0; k++) {
+    spans[byLargestRemainder[k]]++;
+    free--;
   }
 
-  return result;
+  while (free < 0) {
+    let take = -1;
+    for (let i = spans.length - 1; i >= 0; i--) {
+      if (
+        spans[i] > minSpans[i] &&
+        (take === -1 || remainder(i) < remainder(take))
+      ) {
+        take = i;
+      }
+    }
+    spans[take]--;
+    free++;
+  }
+
+  return spans;
 }
 
 /**

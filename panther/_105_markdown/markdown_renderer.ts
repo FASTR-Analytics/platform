@@ -54,7 +54,9 @@ function getMinComfortableWidth(
     textStyle: TextInfoUnkeyed,
   ) {
     if (inline.type === "break") return;
-    if (inline.type === "code-inline") {
+    if (
+      inline.type === "code-inline" || (inline.type === "link" && inline.code)
+    ) {
       const advance = measureInlineCodeAdvance(
         rc,
         inline.text,

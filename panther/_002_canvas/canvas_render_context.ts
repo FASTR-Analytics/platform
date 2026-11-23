@@ -59,6 +59,7 @@ export class CanvasRenderContext implements RenderContext {
     maxWidth: number,
     opts?: {
       rotation?: "horizontal" | "anticlockwise" | "clockwise";
+      preserveWhitespace?: boolean;
     },
   ) {
     if (opts?.rotation === "anticlockwise" || opts?.rotation === "clockwise") {
@@ -70,7 +71,9 @@ export class CanvasRenderContext implements RenderContext {
         opts.rotation,
       );
     }
-    return measureText(this._ctx, text, ti, maxWidth);
+    return measureText(this._ctx, text, ti, maxWidth, {
+      preserveWhitespace: opts?.preserveWhitespace,
+    });
   }
 
   rText(

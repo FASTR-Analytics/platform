@@ -254,6 +254,8 @@ function renderFlowCover(
   addItem("date", measured.mDate?.dims.h() ?? 0, 0);
 
   if (placement.position === "below-content" && mLogos) {
+    const last = items.at(-1);
+    if (last) last.gap = placement.gap;
     addItem("logo", mLogos.totalHeight, 0);
   }
 

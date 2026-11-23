@@ -69,7 +69,9 @@ export type OpMCPHandlerConfig<TIdentity> = {
   // this conversation's last call — derived from the provenance log, keyed
   // by MCP session (principal as fallback), own actions excluded. A fresh
   // conversation baselines silently: aware of the future, not the past.
-  awareness?: OpAwarenessSource;
+  // Built per caller from its identity key, so an app whose records are
+  // private to their maker keeps them out of another caller's digest.
+  awareness?: (identityKey: string) => OpAwarenessSource;
   // _220's operational knobs (allowedOrigins, session caps, TTLs, …),
   // passed through so a consumer needing them never bypasses the wrapper —
   // there must never be two ways to build the door. The identity-seam slots
@@ -111,7 +113,7 @@ function toEnvelope(outcome: OpOutcome): APIResponseWithData<unknown> {
 const MAX_AWARENESS_CURSORS = 1000;
 
 function buildAwarenessDecorator<TIdentity>(
-  source: OpAwarenessSource,
+  awareness: (identityKey: string) => OpAwarenessSource,
   identityKey: (identity: TIdentity) => string,
 ): (ctx: {
   principal: TIdentity;
@@ -120,6 +122,7 @@ function buildAwarenessDecorator<TIdentity>(
   const cursors = new Map<string, string>();
   return async (ctx) => {
     const principalKey = identityKey(ctx.principal);
+    const source = awareness(principalKey);
     const key = ctx.sessionId ?? principalKey;
     const cursor = cursors.get(key);
     if (cursor === undefined) {
