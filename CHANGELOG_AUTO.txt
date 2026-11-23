@@ -1,3 +1,5 @@
+[TBD] [admin] [added] - New FASTR_MODULES_BRANCH setting controls which branch modules load from
+[TBD] [admin] [fixed] - Branch names with special characters now work correctly for module loading
 [TBD] [user] [added] - Switch a figure between chart types while keeping your layout choices
 [TBD] [admin] [added] - New structured figure configuration system for visualizations
 [TBD] [admin] [added] - Figures can now be changed between chart types while preserving dimension layout
