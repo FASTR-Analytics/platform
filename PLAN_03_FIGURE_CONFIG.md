@@ -720,7 +720,7 @@ Tim ruled that step 1 designs the config and writes the steps after it. What ste
 **Deliverable.**
 
 - The config's schema in full: closed at every level, JSON-only, every field with the reason it is there.
-- The shape designed with the last step's move in view, so that a yes there does not migrate every stored figure a second time. Step 1 reads panther's `PLAN_20_LONG_TABLE_FIGURE.md` and `TERMINOLOGY.md` (`/Users/timroberton/projects/panther/timroberton-panther/`) and says, for each part of the config, whether it could live in panther as designed or needs this app's metrics.
+- The shape designed with the last step's move in view, so that a yes there does not migrate every stored figure a second time. Step 1 reads panther's long-table figure plan as it then stood (withdrawn on 2026-11-23) and `TERMINOLOGY.md` (`/Users/timroberton/projects/panther/timroberton-panther/`) and says, for each part of the config, whether it could live in panther as designed or needs this app's metrics.
 - For each thing that writes or reads a config (§1.2, §1.4, §1.6), what it does under the new shape: the editor, the wizard, a change of type, the presets and the modules repo's schema, the Explore page, the collab map, `buildFigureInputs`, the copilot's one input (ruling 4), what the copilot reads back, and `get_metric_data` (ruling 6).
 - Rulings 4 to 7 tested. For ruling 4: whether a model restates a whole config without changing a setting it did not mean to.
 - What becomes of every stored config: the bundles in slides, reports and saved visualizations, figures on retired metrics included, and the 50 presets.
@@ -807,7 +807,7 @@ In this repo, the sync commit:
 - Panther's own docs and TERMINOLOGY.md say what the step added.
 - `./sync wb-fastr` has run.
 
-**Not in this step.** A JSON form of panther's style (panther's `PLAN_21_FIGURE_JSON_INPUT.md`). The long-table figure model (panther's `PLAN_20_LONG_TABLE_FIGURE.md`). Any change to this app beyond the sync.
+**Not in this step.** A JSON form of panther's style (panther's `PLAN_24_FIGURE_JSON_INPUT.md`). A long-table figure model in panther, whose plan was withdrawn on 2026-11-23. Any change to this app beyond the sync.
 
 **Gates.** Panther's floor. A committed panther test pins what each new schema accepts and refuses. This app's floor after the sync.
 
@@ -1205,9 +1205,9 @@ Repo: this one.
 
 ## §5 Out of scope
 
-- **Panther's figure schema.** The objective names it as the one other schema. Its own JSON form is panther's `PLAN_21_FIGURE_JSON_INPUT.md`. _(proposed)_
+- **Panther's figure schema.** The objective names it as the one other schema. Its own JSON form is panther's `PLAN_24_FIGURE_JSON_INPUT.md`. _(proposed)_
 - **New figure types and significance testing.** _(proposed)_
-- **Moving the config into panther.** Ruled (ruling 14): it stays here at this stage. Panther's `PLAN_20_LONG_TABLE_FIGURE.md` takes the generic model from §2 and from `lib/figure_config/` as steps 5 and 6 built it. It started on 2026-11-23, after step 6 and before this plan closes, on Tim's word.
+- **Moving the config into panther.** Ruled (ruling 14): it stays here at this stage. Panther's long-table figure plan, which was to take the generic model from §2 and from `lib/figure_config/` as steps 5 and 6 built it, was withdrawn on 2026-11-23, when gff-central took a figure spec of its own over a SQL read. A panther figure config is to be generalised later from this app's and gff-central's, once both are built.
 - **A repair of the stored figures that do not draw** (§1.7). Step 5 writes them to SYSTEM_10's Open items.
 - **How two people's edits to one figure combine, how undo behaves, and how the shared document is laid out.** Ruled out (ruling 16), with its cost stated there, but for the editor's `ignoreRemoteMapChanges` (ruling 21).
 - **A function that repairs a config on a person's behalf.** Ruled out (ruling 12).
