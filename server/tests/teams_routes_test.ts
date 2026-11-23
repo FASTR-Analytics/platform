@@ -1,7 +1,8 @@
 // Teams end to end on the dev database, through the route-test harness: who
 // may write a team, the self-add refusal, the level a team grant gives its
 // members (the highest source wins, the scope is still required), the live
-// effects of a membership or grant change on an open collab socket, and what
+// effects of a membership or grant change on an open collab socket (closed
+// only when the user's standing on a product it has open changes), and what
 // deleting a team, deleting a user and renaming a user do to memberships.
 //
 // Needs a ready pinned package on the dev instance. Run alone with:
@@ -484,6 +485,58 @@ Deno.test("teams: who writes them, what they give, and what a change does live",
     await ok(manager, "POST", `/teams/${teamId}/members`, {
       emails: [MEMBER],
     });
+
+    // A membership change closes a socket only when it moves the user's
+    // standing on a product the socket has open. Here the member also holds
+    // edit by their own grant, so leaving and rejoining the team changes
+    // nothing they have open.
+    await setAccess(owner, report, [{ email: MEMBER, level: "edit" }], [
+      { teamId, level: "view" },
+    ]);
+    const steady = await collabSocket(MEMBER);
+    sockets.push(steady);
+    steady.send(subscribe(report));
+    await steady.next("report_sync");
+    await ok(manager, "POST", `/teams/${teamId}/members/remove`, {
+      emails: [MEMBER],
+    });
+    assert(await steady.alive());
+    // The open socket took the new teams: with the member out of the team,
+    // an access change that leaves the report to the team alone cuts them
+    // off, where the teams the socket connected with would have kept them in.
+    await setAccess(owner, report, [], [{ teamId, level: "edit" }]);
+    assertEquals(await steady.closeCode(), COLLAB_CLOSE_ACCESS_CHANGED);
+    await ok(manager, "POST", `/teams/${teamId}/members`, {
+      emails: [MEMBER],
+    });
+
+    // An admin's teams give them nothing, so their own membership never
+    // closes their socket.
+    const adminSocket = await collabSocket(ADMIN);
+    sockets.push(adminSocket);
+    adminSocket.send(subscribe(report));
+    await adminSocket.next("report_sync");
+    await ok(admin, "POST", `/teams/${teamId}/members/remove`, {
+      emails: [ADMIN],
+    });
+    assert(await adminSocket.alive());
+    await ok(admin, "POST", `/teams/${teamId}/members`, { emails: [ADMIN] });
+    assert(await adminSocket.alive());
+
+    // A user who joins a team opens its products on the socket they already
+    // have: the level is read under the teams they are in now.
+    await ok(manager, "POST", `/teams/${teamId}/members/remove`, {
+      emails: [OTHER],
+    });
+    const idle = await collabSocket(OTHER);
+    sockets.push(idle);
+    await ok(manager, "POST", `/teams/${teamId}/members`, { emails: [OTHER] });
+    assert(await idle.alive());
+    idle.send(subscribe(report));
+    await idle.next("report_sync");
+    await setAccess(owner, report, [], [{ teamId, level: "view" }]);
+    // Their standing went from editor to viewer, judged under the new teams.
+    assertEquals(await idle.closeCode(), COLLAB_CLOSE_ACCESS_CHANGED);
 
     // The bulk action takes a team: it raises view to edit on every product
     // in the folder and never lowers.

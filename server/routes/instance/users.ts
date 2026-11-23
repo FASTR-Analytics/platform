@@ -15,6 +15,7 @@ import { renameDeckLedgerEmails } from "../../collab/deck_session_ledger.ts";
 import {
   closeConnectionsForEmail,
   closeConnectionsWithChangedAccess,
+  settleTeamChanges,
 } from "../../collab/presence_registry.ts";
 import { renameVersionEditorEmail } from "../../collab/version_capture.ts";
 import {
@@ -40,6 +41,7 @@ import {
   updateUserOrganisation,
   updateUserPermissions,
 } from "../../db/mod.ts";
+import { getProductSummaries } from "../../db/products/products.ts";
 import {
   _BYPASS_AUTH,
   _CLERK_SECRET_KEY,
@@ -84,21 +86,32 @@ function statusOf(res: { success: true } | { success: false; err: string }) {
   return !res.success && FORBIDDEN_ERRORS.has(res.err) ? 403 : 200;
 }
 
-// Every route that can change a user's scope access or admin flag (an admin
-// is unrestricted and owns every product), or delete a user, broadcasts the
-// roster and closes the collab sockets whose access is no longer the
-// roster's, or whose user left it, so each reconnects under the new access
-// or is refused. The instance stream ends itself on the same roster
-// (instance-sse.ts). On an open-access instance every connection is an admin
-// whatever its row says.
+// Every route that can change a user's scope access, admin flag (an admin
+// is unrestricted and owns every product) or teams, or delete a user,
+// broadcasts the roster and closes the collab sockets whose access is no
+// longer the roster's, or whose user left it, so each reconnects under the
+// new access or is refused. A change to a user's teams alone closes a socket
+// only when it moves the user's standing on a product the socket has open,
+// which takes one read of those products (settleTeamChanges); a failed read
+// closes each such socket, since nothing says its level still holds. The
+// instance stream ends itself on the same roster (instance-sse.ts). On an
+// open-access instance every connection is an admin whatever its row says.
 export async function broadcastRosterAndCloseStaleCollab(
   mainDb: Sql,
 ): Promise<void> {
   const users = await getInstanceUsers(mainDb);
   notifyInstanceUsersUpdated(users);
   if (_OPEN_ACCESS) return;
-  closeConnectionsWithChangedAccess(
+  const openProductIds = closeConnectionsWithChangedAccess(
     users,
+    COLLAB_CLOSE_ACCESS_CHANGED,
+    "Access changed",
+  );
+  if (openProductIds.length === 0) return;
+  const products = await getProductSummaries(mainDb, openProductIds);
+  settleTeamChanges(
+    users,
+    products.success ? new Map(products.data.map((p) => [p.id, p])) : null,
     COLLAB_CLOSE_ACCESS_CHANGED,
     "Access changed",
   );

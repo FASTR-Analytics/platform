@@ -501,6 +501,28 @@ Deno.test("the stream ends when the connection's user joins or leaves a team", (
   );
 });
 
+Deno.test("an admin's stream does not end when they join or leave a team", () => {
+  const filter = createInstanceSseFilter({
+    currentUserEmail: VIEWER,
+    currentUserApproved: true,
+    currentUserIsGlobalAdmin: true,
+    currentUserPermissions: NO_PERMISSIONS,
+    currentUserScopeAccess: ALL_SCOPES,
+    currentUserTeamIds: [],
+    products: [],
+    folders: [],
+  }, { allFolders: [] });
+  const row = (teamIds: string[]): OtherUser => ({
+    ...rosterRow(ALL_SCOPES, VIEWER, true),
+    teamIds,
+  });
+  assertEquals(
+    filter({ type: "users_updated", data: [row([TEAM])] }).close,
+    false,
+  );
+  assertEquals(filter({ type: "users_updated", data: [row([])] }).close, false);
+});
+
 Deno.test("the team list goes to approved connections only", () => {
   const teams: InstanceSseMessage = {
     type: "teams_updated",

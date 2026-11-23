@@ -78,11 +78,12 @@ export type InstanceSseFilterResult = {
 //     (canUserSeeAsset, off the live admin flag), as buildInstanceState
 //     applies to the starting payload.
 //   - Grants: a RESTRICTED connection's scopes are cut to the granted ones.
-//   - A change to the connection's own scope access, admin flag or teams
-//     ends the stream, and so does an approved connection's user leaving the
-//     roster (deleted): its reconnect is unapproved. A team change moves the
-//     level on every product that grants the team one, so the products the
-//     connection may see are rebuilt, as for a scope change.
+//   - A change to the connection's own scope access or admin flag ends the
+//     stream, and so does an approved connection's user leaving the roster
+//     (deleted): its reconnect is unapproved. So does a change to the teams
+//     of a connection that is not a global admin: it moves the level on every
+//     product that grants the team one, so the products the connection may
+//     see are rebuilt, as for a scope change.
 export type InstanceSseFilterStart = Pick<
   InstanceState,
   | "currentUserEmail"
@@ -148,7 +149,8 @@ export function createInstanceSseFilter(
       const changed = removed ||
         !scopeAccessEqual(next.scopeAccess, viewer.scopeAccess) ||
         next.isGlobalAdmin !== viewer.isGlobalAdmin ||
-        !teamIdsEqual(next.teamIds, viewer.teamIds);
+        // An admin's plane is whole whatever teams they are in.
+        (!next.isGlobalAdmin && !teamIdsEqual(next.teamIds, viewer.teamIds));
       viewer = next;
       return {
         messages: [

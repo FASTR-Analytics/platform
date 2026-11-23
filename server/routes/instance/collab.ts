@@ -107,8 +107,9 @@ type CollabAuth = {
 // the first subscribe or presence naming the product, then recorded in the
 // registry for the socket's life, so the routes that change the answer close
 // the sockets it no longer holds for: setProductScope, the three access
-// routes, and every route that changes a user's scope access, admin flag or
-// team membership.
+// routes, every route that changes a user's scope access or admin flag, and
+// a team membership change that moves the user's standing on a product they
+// have open (settleTeamChanges).
 async function readProductLevel(
   productId: string,
   auth: CollabAuth,
@@ -117,9 +118,18 @@ async function readProductLevel(
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const row = (await getProductLevelRows(mainDb, [productId], auth.email))
     .at(0);
-  return row !== undefined &&
-      holdsProductLevel(auth, row.scopeId, row.access, "view")
-    ? productLevelFor(row.access, auth)
+  if (row === undefined) {
+    return "none";
+  }
+  // The row carries the grants of the teams the user is in NOW, so the level
+  // is read under those, never under the teams the socket connected with: a
+  // user who joined a team since opens its products without reconnecting.
+  const user = {
+    ...auth,
+    teamIds: row.access.teamGrants.map((grant) => grant.teamId),
+  };
+  return holdsProductLevel(user, row.scopeId, row.access, "view")
+    ? productLevelFor(row.access, user)
     : "none";
 }
 

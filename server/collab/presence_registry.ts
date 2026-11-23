@@ -318,30 +318,100 @@ export function closeConnectionsWhoseLevelChanged(
   );
 }
 
-/** Closes every connection whose scope access, admin flag or teams differ
- *  from its user's row in `users`: a grant change, an admin flag change,
- *  which changes the scope access and every product level, or a team
- *  membership change, which changes the level on every product that grants
- *  the team one. A connection whose user has no row was deleted, and closes
- *  too: its reconnect is refused. */
+type RosterAccess = {
+  email: string;
+  scopeAccess: ScopeAccess;
+  isGlobalAdmin: boolean;
+  teamIds: string[];
+};
+
+/** Closes every connection whose scope access or admin flag differs from its
+ *  user's row in `users`: a grant change, or an admin flag change, which
+ *  changes the scope access and every product level. A connection whose user
+ *  has no row was deleted, and closes too: its reconnect is refused.
+ *
+ *  A change to the user's teams alone closes nothing here, since most leave
+ *  what the socket has open as it was. An admin's teams give them nothing,
+ *  and a connection with no product open has no recorded level to go stale,
+ *  so both take the new teams at once. The rest keep their old teams until
+ *  settleTeamChanges has read the products they have open: the ids returned
+ *  are those products. */
 export function closeConnectionsWithChangedAccess(
-  users: {
-    email: string;
-    scopeAccess: ScopeAccess;
-    isGlobalAdmin: boolean;
-    teamIds: string[];
-  }[],
+  users: RosterAccess[],
   closeCode: number,
   reason: string,
-): void {
+): string[] {
   const byEmail = new Map(users.map((u) => [u.email, u]));
   closeConnectionsWhere(
     (conn) => {
       const current = byEmail.get(conn.entry.email);
       return current === undefined ||
         !scopeAccessEqual(current.scopeAccess, conn.scopeAccess) ||
-        current.isGlobalAdmin !== conn.isGlobalAdmin ||
-        !teamIdsEqual(current.teamIds, conn.teamIds);
+        current.isGlobalAdmin !== conn.isGlobalAdmin;
+    },
+    closeCode,
+    reason,
+  );
+  const openProductIds = new Set<string>();
+  for (const conn of connections.values()) {
+    const current = byEmail.get(conn.entry.email);
+    if (
+      current === undefined || teamIdsEqual(current.teamIds, conn.teamIds)
+    ) {
+      continue;
+    }
+    if (conn.isGlobalAdmin || conn.productLevels.size === 0) {
+      conn.teamIds = current.teamIds;
+      continue;
+    }
+    for (const productId of conn.productLevels.keys()) {
+      openProductIds.add(productId);
+    }
+  }
+  return [...openProductIds];
+}
+
+/** The second half of a team change, once the products the affected
+ *  connections have open are read (`accessByProduct`, keyed by product id).
+ *  A connection whose standing on any of them differs under its user's new
+ *  teams is closed, so its reconnect opens the product at the new level;
+ *  every other one takes the new teams and stays open, and a later change to
+ *  a product's access is then judged against them
+ *  (closeConnectionsWhoseLevelChanged). With no read to judge by
+ *  (`accessByProduct` null), each such connection is closed. */
+export function settleTeamChanges(
+  users: RosterAccess[],
+  accessByProduct: Map<string, ProductAccess> | null,
+  closeCode: number,
+  reason: string,
+): void {
+  const byEmail = new Map(users.map((u) => [u.email, u]));
+  const standingChanged = (conn: Conn, teamIds: string[]) =>
+    [...conn.productLevels].some(([productId, opened]) => {
+      const access = accessByProduct?.get(productId);
+      // A product with no row was deleted: its own route closed its rooms.
+      return access !== undefined &&
+        socketStanding(opened) !== socketStanding(
+            productLevelFor(access, {
+              email: conn.entry.email,
+              isGlobalAdmin: conn.isGlobalAdmin,
+              teamIds,
+            }),
+          );
+    });
+  closeConnectionsWhere(
+    (conn) => {
+      const current = byEmail.get(conn.entry.email);
+      if (
+        current === undefined || teamIdsEqual(current.teamIds, conn.teamIds)
+      ) {
+        return false;
+      }
+      if (accessByProduct === null || standingChanged(conn, current.teamIds)) {
+        return true;
+      }
+      conn.teamIds = current.teamIds;
+      return false;
     },
     closeCode,
     reason,
