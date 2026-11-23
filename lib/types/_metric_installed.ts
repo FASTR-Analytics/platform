@@ -8,8 +8,8 @@
 //   - Legacy adapters for these schemas
 //
 // Import hierarchy:
-//   - This file imports from: conditional_formatting.ts, legacy_cf_presets.ts,
-//     presentation_objects.ts
+//   - This file imports from: conditional_formatting.ts,
+//     disaggregation_options.ts, period_options.ts, value_func.ts
 //   - _presentation_object_config.ts imports FROM this file
 //   - _module_definition_installed.ts imports FROM this file (if needed)
 // ============================================================================

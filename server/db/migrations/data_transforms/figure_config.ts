@@ -35,9 +35,10 @@ function holdsStoredConfig(bundle: unknown): boolean {
 // The last of the figure transforms: a stored figure block whose bundle holds
 // a `{ d, s, t }` config gets the figure config, converted with the metric
 // data `metricOf` gives for its bundle. A block with no bundle, or whose
-// config is already a figure config, is passed through. A map with no
-// admin-level area has no figure config, so its block is emptied and the
-// failure returned for the migration log. A bundle that does not parse is
+// config is already a figure config, is passed through. A block whose
+// config the conversion fails on (a map with no admin-level area, and every
+// other `ConversionFailure`) is emptied and the failure returned for the
+// migration log. A bundle that does not parse is
 // returned with its issue and left as it is.
 export function convertStoredFigureBlock(
   block: StoredFigureBlock,

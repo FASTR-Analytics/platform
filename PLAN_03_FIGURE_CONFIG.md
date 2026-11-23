@@ -870,7 +870,8 @@ Repo: this one. Nothing the app runs reads what this step adds until step 7. It 
 - `server/tests/_figure_config_sets.ts` (new): the presets and Explore configs the presets, change-of-type and render tests run over
 - `server/tests/figure_config_presets_test.ts` (its sets move to `_figure_config_sets.ts`)
 - `SYSTEM_02_persistence.md`, `SYSTEM_08_results_packages.md`, `SYSTEM_11_viz_authoring.md` (manifests and prose for the new and moved files)
-- `SYSTEM_09_viz_query_cache.md` (it names the file that holds `inferPeriodFormatFromValue`)
+- `SYSTEM_09_viz_query_cache.md` (it names the files that hold `inferPeriodFormatFromValue` and `FILTER_ONLY_DISAGGREGATION_OPTIONS`)
+- `SYSTEM_13_ai_assistant.md`, `PLAN_DEFECTS.md` (line numbers in `_metric_installed.ts` and `rollup.ts` that the moves shift)
 
 **Deliverable.**
 
