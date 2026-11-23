@@ -101,7 +101,6 @@ export type {
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type {
   AreaDiffPair,
-  ArrowheadFitFallback,
   CustomFigureStyleOptions,
   DataLabelStyle,
   FigureValuesColorFunc,

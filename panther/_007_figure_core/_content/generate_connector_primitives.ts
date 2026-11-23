@@ -5,7 +5,6 @@
 
 import {
   type Arrowhead,
-  type ArrowheadFitFallback,
   computeBoundsForPath,
   Coordinates,
   type LineStyle,
@@ -19,7 +18,10 @@ import type {
   SubChartContent,
 } from "./content_generation_types.ts";
 
-const MIN_VISIBLE_LINE = 2;
+type ArrowheadFit = Pick<
+  ContentGenerationContext["contentStyle"]["connectors"],
+  "arrowheadFitFallback" | "arrowheadFitMinLineLength"
+>;
 
 type Endpoint = {
   coord: Coordinates;
@@ -51,7 +53,7 @@ export function generateConnectorPrimitives(
       endpoints,
       style.arrowhead,
       style.arrowHeadLength,
-      ctx.contentStyle.connectors.arrowheadFitFallback,
+      ctx.contentStyle.connectors,
     );
     if (heads === "skip-connector") continue;
 
@@ -86,7 +88,7 @@ function computeArrowheads(
   endpoints: Endpoint[],
   mode: "none" | "start" | "end" | "both",
   arrowHeadLength: number,
-  fallback: ArrowheadFitFallback,
+  fit: ArrowheadFit,
 ): { start?: Arrowhead; end?: Arrowhead } | "skip-connector" | undefined {
   if (mode === "none") return undefined;
 
@@ -103,7 +105,7 @@ function computeArrowheads(
       b.pointRadius,
       a.pointRadius,
       arrowHeadLength,
-      fallback,
+      fit,
     );
     if (head === "skip-connector") return "skip-connector";
     if (head !== "drop") heads.start = head;
@@ -119,7 +121,7 @@ function computeArrowheads(
       a.pointRadius,
       b.pointRadius,
       arrowHeadLength,
-      fallback,
+      fit,
     );
     if (head === "skip-connector") return "skip-connector";
     if (head !== "drop") heads.end = head;
@@ -140,22 +142,22 @@ function makeArrowhead(
   fromPointRadius: number,
   tipPointRadius: number,
   arrowHeadLength: number,
-  fallback: ArrowheadFitFallback,
+  fit: ArrowheadFit,
 ): Arrowhead | "drop" | "skip-connector" {
   const dx = tipPoint.x() - from.x();
   const dy = tipPoint.y() - from.y();
   const segLen = Math.sqrt(dx * dx + dy * dy);
   if (segLen === 0) {
-    return fallback === "skip" ? "skip-connector" : "drop";
+    return fit.arrowheadFitFallback === "skip" ? "skip-connector" : "drop";
   }
   const angle = Math.atan2(dy, dx);
   const available = segLen - fromPointRadius - tipPointRadius;
-  const required = arrowHeadLength + MIN_VISIBLE_LINE;
+  const required = arrowHeadLength + fit.arrowheadFitMinLineLength;
   const fits = available >= required;
 
   if (!fits) {
-    if (fallback === "skip") return "skip-connector";
-    if (fallback === "line-only") return "drop";
+    if (fit.arrowheadFitFallback === "skip") return "skip-connector";
+    if (fit.arrowheadFitFallback === "line-only") return "drop";
     // "force" falls through
   }
 

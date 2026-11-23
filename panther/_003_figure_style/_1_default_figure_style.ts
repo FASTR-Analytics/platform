@@ -212,12 +212,14 @@ const _DS = {
     tickLabelGap: 5,
     tickLabelFormatter: typed<"auto-number" | "auto-percent">("auto-percent"),
     tickLabelAlignment: typed<"center" | "inset">("center"),
+    maxOverhangClearanceFractionOfExtent: 0.4,
     allowIndividualLaneLimits: false,
     exactAxisY: typed<"none" | number>("none"),
   },
   xPeriodAxis: {
     forceSideTicksWhenYear: false,
     showEveryNthTick: 1,
+    tickLength: 10,
     periodLabelSmallTopPadding: 5,
     periodLabelLargeTopPadding: 5,
     calendar: typed<CalendarType>("gregorian"),
@@ -241,6 +243,7 @@ const _DS = {
     tickLabelGap: 3,
     tickLabelFormatter: typed<"auto-number" | "auto-percent">("auto-percent"),
     tickLabelAlignment: typed<"center" | "inset">("center"),
+    maxOverhangClearanceFractionOfExtent: 0.4,
     exactAxisX: typed<"none" | number>("none"),
     allowIndividualTierLimits: false,
   },
@@ -376,6 +379,7 @@ const _DS = {
         strokeColor: { key: "baseContent" },
         strokeWidth: 1.5,
         arrowHeadLength: 6,
+        arrowTrunkLength: 3,
         showArrowhead: true,
         arrowLengthFractionOfSpace: 0.7,
         arrowLabelGap: 4,
@@ -403,6 +407,7 @@ const _DS = {
       }),
       joinAcrossGaps: true,
       arrowheadFitFallback: typed<ArrowheadFitFallback>("line-only"),
+      arrowheadFitMinLineLength: 2,
     },
     mapAreas: {
       func: typed<GenericMapAreaStyle>({

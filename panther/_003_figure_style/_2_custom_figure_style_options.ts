@@ -139,12 +139,14 @@ export type CustomFigureStyleOptions = {
     tickLabelGap?: number;
     tickLabelFormatter?: TickLabelFormatterOption;
     tickLabelAlignment?: "center" | "inset";
+    maxOverhangClearanceFractionOfExtent?: number;
     allowIndividualLaneLimits?: boolean;
     exactAxisY?: "none" | number;
   };
   xPeriodAxis?: {
     forceSideTicksWhenYear?: boolean;
     showEveryNthTick?: number;
+    tickLength?: number;
     periodLabelSmallTopPadding?: number;
     periodLabelLargeTopPadding?: number;
     calendar?: CalendarType;
@@ -165,6 +167,7 @@ export type CustomFigureStyleOptions = {
     tickLabelGap?: number;
     tickLabelFormatter?: TickLabelFormatterOption;
     tickLabelAlignment?: "center" | "inset";
+    maxOverhangClearanceFractionOfExtent?: number;
     exactAxisX?: "none" | number;
     allowIndividualTierLimits?: boolean;
   };
@@ -237,6 +240,7 @@ export type CustomFigureStyleOptions = {
         | "none";
       joinAcrossGaps?: boolean;
       arrowheadFitFallback?: ArrowheadFitFallback;
+      arrowheadFitMinLineLength?: number;
     };
     mapAreas?: {
       func?:

@@ -4,8 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  AlignH,
-  AlignV,
   MeasuredImage,
   MeasuredText,
   MergedSectionStyle,
@@ -18,6 +16,7 @@ import type {
   PagePrimitive,
   SectionPageInputs,
 } from "../../types.ts";
+import { getStartY, getTextX } from "../stack_placement.ts";
 
 export function measureSection(
   rc: RenderContext,
@@ -68,32 +67,6 @@ export function measureSection(
     mSectionTitle,
     mSectionSubtitle,
   };
-}
-
-function getTextX(paddedBounds: RectCoordsDims, alignH: AlignH): number {
-  switch (alignH) {
-    case "left":
-      return paddedBounds.x();
-    case "right":
-      return paddedBounds.rightX();
-    case "center":
-      return paddedBounds.centerX();
-  }
-}
-
-function getStartY(
-  paddedBounds: RectCoordsDims,
-  alignV: AlignV,
-  totalH: number,
-): number {
-  switch (alignV) {
-    case "top":
-      return paddedBounds.y();
-    case "bottom":
-      return paddedBounds.bottomY() - totalH;
-    case "middle":
-      return paddedBounds.centerY() - totalH / 2;
-  }
 }
 
 function buildSectionPrimitives(

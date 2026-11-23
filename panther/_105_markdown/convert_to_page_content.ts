@@ -17,6 +17,7 @@ import {
   MARKDOWN_TABLE_COLUMN_DIMENSION,
   MARKDOWN_TABLE_ROW_DIMENSION,
 } from "./deps.ts";
+import { parseMarkdown } from "./parser.ts";
 import type { FigureMap, MarkdownInline, ParsedMarkdownItem } from "./types.ts";
 
 export type ConvertedPageContent =
@@ -236,10 +237,130 @@ export function docElementToMarkdown(element: ParsedMarkdownItem): string {
 
 type InlineEmphasis = (MarkdownInline & { type: "code-inline" })["style"];
 
+type EmphasisMarker = "*" | "**";
+
+type EmphasisRun = { markers: EmphasisMarker[]; body: string };
+
+// Bold and italic are written as nested markers, so a change of emphasis
+// closes and opens only the marker that changes, with a run's edge whitespace
+// outside them, because CommonMark reads a marker before a space as no opener
+// and one after a space as no closer. Its flanking rules still misread some
+// changes inside a word, so the string is parsed back, and a wrap per run of
+// one emphasis is the fallback.
+function inlineContentToString(content: MarkdownInline[]): string {
+  return paragraphsOf(content).map(paragraphToString).join("\n\n");
+}
+
+function paragraphToString(content: MarkdownInline[]): string {
+  const nested = nestedEmphasisString(content);
+  return sameEmphasis(parseMarkdown(nested).items, content)
+    ? nested
+    : perRunEmphasisString(content);
+}
+
+// The parser joins a blockquote's paragraphs with two breaks, and emphasis
+// cannot cross a paragraph, so each one is written and parsed back alone.
+function paragraphsOf(content: MarkdownInline[]): MarkdownInline[][] {
+  const paragraphs: MarkdownInline[][] = [];
+  let current: MarkdownInline[] = [];
+  for (let i = 0; i < content.length; i++) {
+    if (content[i].type === "break" && content[i + 1]?.type === "break") {
+      paragraphs.push(current);
+      current = [];
+      i++;
+    } else {
+      current.push(content[i]);
+    }
+  }
+  return [...paragraphs, current];
+}
+
+function nestedEmphasisString(content: MarkdownInline[]): string {
+  const runs = content
+    .map((c): EmphasisRun => ({
+      markers: markersOf(emphasisOf(c)),
+      body: inlineBody(c),
+    }))
+    .filter((run) => run.body !== "");
+  const reach = markerReach(runs);
+  let out = "";
+  let open: EmphasisMarker[] = [];
+  let pendingSpace = "";
+  runs.forEach((run, i) => {
+    const core = run.body.trim();
+    if (core === "") {
+      pendingSpace += run.body;
+      return;
+    }
+    const firstToClose = open.findIndex((m) => !run.markers.includes(m));
+    const keep = firstToClose === -1 ? open.length : firstToClose;
+    out += open.slice(keep).reverse().join("");
+    open = open.slice(0, keep);
+    const toOpen = run.markers
+      .filter((m) => !open.includes(m))
+      .sort((a, b) => reach[i][b] - reach[i][a]);
+    out += pendingSpace + leadingWhitespace(run.body) + toOpen.join("") + core;
+    open = [...open, ...toOpen];
+    pendingSpace = trailingWhitespace(run.body);
+  });
+  return out + [...open].reverse().join("") + pendingSpace;
+}
+
+// How many runs from each one on keep each marker, blank runs skipped, so the
+// marker that stays open longer is opened first and closed last.
+function markerReach(
+  runs: EmphasisRun[],
+): Record<EmphasisMarker, number>[] {
+  const reach: Record<EmphasisMarker, number>[] = [];
+  let next: Record<EmphasisMarker, number> = { "*": 0, "**": 0 };
+  for (let i = runs.length - 1; i >= 0; i--) {
+    if (runs[i].body.trim() !== "") {
+      next = {
+        "*": runs[i].markers.includes("*") ? next["*"] + 1 : 0,
+        "**": runs[i].markers.includes("**") ? next["**"] + 1 : 0,
+      };
+    }
+    reach[i] = next;
+  }
+  return reach;
+}
+
+function markersOf(emphasis: InlineEmphasis): EmphasisMarker[] {
+  switch (emphasis) {
+    case "bold-italic":
+      return ["*", "**"];
+    case "bold":
+      return ["**"];
+    case "italic":
+      return ["*"];
+    case undefined:
+      return [];
+  }
+}
+
+function sameEmphasis(
+  items: ParsedMarkdownItem[],
+  content: MarkdownInline[],
+): boolean {
+  return items.length === 1 && "content" in items[0] &&
+    emphasisSignature(items[0].content) === emphasisSignature(content);
+}
+
+// Each non-whitespace character with its emphasis, and the whitespace as it
+// is, so a space written outside a marker still reads as the same content.
+function emphasisSignature(content: MarkdownInline[]): string {
+  return content.map((c) => {
+    if (c.type === "break") return "\n";
+    const emphasis = emphasisOf(c) ?? "";
+    return [...c.text].map((ch) => /\s/.test(ch) ? ch : `${ch}${emphasis}|`)
+      .join("");
+  }).join("");
+}
+
 // Consecutive inlines of one emphasis are wrapped once, because a closing
 // marker written against the next opening one merges with it into a run of
 // asterisks that no longer closes or opens anything.
-function inlineContentToString(content: MarkdownInline[]): string {
+function perRunEmphasisString(content: MarkdownInline[]): string {
   const groups: { emphasis: InlineEmphasis; body: string }[] = [];
   for (const c of content) {
     const emphasis = emphasisOf(c);
@@ -297,6 +418,8 @@ function codeSpan(text: string): string {
   return `${fence}${pad}${text}${pad}${fence}`;
 }
 
+// The run's edge whitespace goes outside its markers, because CommonMark reads
+// a marker before a space as no opener and one after a space as no closer.
 function emphasize(text: string, style: InlineEmphasis): string {
   const marker = style === "bold-italic"
     ? "***"
@@ -305,7 +428,19 @@ function emphasize(text: string, style: InlineEmphasis): string {
     : style === "italic"
     ? "*"
     : "";
-  return `${marker}${text}${marker}`;
+  const core = text.trim();
+  if (marker === "" || core === "") return text;
+  return `${leadingWhitespace(text)}${marker}${core}${marker}${
+    trailingWhitespace(text)
+  }`;
+}
+
+function leadingWhitespace(text: string): string {
+  return text.slice(0, text.length - text.trimStart().length);
+}
+
+function trailingWhitespace(text: string): string {
+  return text.slice(text.trimEnd().length);
 }
 
 // CommonMark lets a backslash escape any ASCII punctuation, so escaping all

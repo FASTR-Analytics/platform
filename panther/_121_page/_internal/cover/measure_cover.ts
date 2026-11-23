@@ -25,6 +25,7 @@ import type {
   MeasuredCoverPage,
   PagePrimitive,
 } from "../../types.ts";
+import { getStartY, getTextX } from "../stack_placement.ts";
 
 export function measureCover(
   rc: RenderContext,
@@ -436,31 +437,5 @@ function getFixedPlacementAlignment(placement: LogosPlacement): {
       return { alignH: "right", alignV: "bottom" };
     default:
       return { alignH: "center", alignV: "top" };
-  }
-}
-
-function getTextX(paddedBounds: RectCoordsDims, alignH: AlignH): number {
-  switch (alignH) {
-    case "left":
-      return paddedBounds.x();
-    case "right":
-      return paddedBounds.rightX();
-    case "center":
-      return paddedBounds.centerX();
-  }
-}
-
-function getStartY(
-  paddedBounds: RectCoordsDims,
-  alignV: AlignV,
-  totalH: number,
-): number {
-  switch (alignV) {
-    case "top":
-      return paddedBounds.y();
-    case "bottom":
-      return paddedBounds.bottomY() - totalH;
-    case "middle":
-      return paddedBounds.centerY() - totalH / 2;
   }
 }

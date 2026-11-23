@@ -160,6 +160,9 @@ export function buildSubCharts<TData>(
     : axes.y.config.axisStyle.tickLabelAlignment === "inset"
     ? 0
     : Math.max(0, axes.y.info.halfYAxisTickLabelH - gsw / 2);
+  const maxClearanceFractionOfExtent = axes.orientation === "horizontal"
+    ? axes.x.config.axisStyle.maxOverhangClearanceFractionOfExtent
+    : axes.y.config.axisStyle.maxOverhangClearanceFractionOfExtent;
   const startClearanceOf = (i_tier: number, i_lane: number) =>
     axes.orientation === "horizontal"
       ? i_lane === 0
@@ -235,6 +238,7 @@ export function buildSubCharts<TData>(
           subChart.valueClearance.end,
       },
       valueAxisExtentOfRect(subChart.rcd, axes.orientation),
+      maxClearanceFractionOfExtent,
     ),
   }));
 }
