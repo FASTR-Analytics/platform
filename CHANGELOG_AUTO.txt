@@ -1,3 +1,10 @@
+[TBD] [user] [added] - Switch a figure between chart types while keeping your layout choices
+[TBD] [admin] [added] - New structured figure configuration system for visualizations
+[TBD] [admin] [added] - Figures can now be changed between chart types while preserving dimension layout
+[TBD] [admin] [added] - Validation with clear multilingual error messages for figure configuration problems
+[TBD] [admin] [changed] - Stored figures are automatically migrated to the new configuration format
+[TBD] [admin] [changed] - Figures that cannot be migrated (e.g. maps without regions) are safely emptied and logged
+[TBD] [admin] [internal] - Reorganized internal code for period options, value functions, and special chart metrics
 [TBD] [user] [fixed] - AI assistant now correctly handles flexible slide column layouts
 [TBD] [admin] [changed] - Slide layout grid columns now use a global setting instead of being hardcoded to 12
 [TBD] [admin] [fixed] - AI copilot now rejects invalid column spans for single-cell layout rows
