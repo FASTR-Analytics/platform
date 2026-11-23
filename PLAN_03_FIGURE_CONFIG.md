@@ -1207,7 +1207,7 @@ Repo: this one.
 
 - **Panther's figure schema.** The objective names it as the one other schema. Its own JSON form is panther's `PLAN_21_FIGURE_JSON_INPUT.md`. _(proposed)_
 - **New figure types and significance testing.** _(proposed)_
-- **Moving the config into panther.** Ruled (ruling 14): it stays here at this stage. Panther's `PLAN_20_LONG_TABLE_FIGURE.md` runs after this plan closes and takes the generic model from it.
+- **Moving the config into panther.** Ruled (ruling 14): it stays here at this stage. Panther's `PLAN_20_LONG_TABLE_FIGURE.md` takes the generic model from §2 and from `lib/figure_config/` as steps 5 and 6 built it. It started on 2026-11-23, after step 6 and before this plan closes, on Tim's word.
 - **A repair of the stored figures that do not draw** (§1.7). Step 5 writes them to SYSTEM_10's Open items.
 - **How two people's edits to one figure combine, how undo behaves, and how the shared document is laid out.** Ruled out (ruling 16), with its cost stated there, but for the editor's `ignoreRemoteMapChanges` (ruling 21).
 - **A function that repairs a config on a person's behalf.** Ruled out (ruling 12).
