@@ -65,7 +65,8 @@ export const CATALOG_ORDERED_DISAGGREGATION_OPTIONS: ReadonlySet<string> =
 // dimension would double-count or expose raw composite groups.
 // Enforced: validateFetchConfig (server boundary), validateFigureConfigEdit
 // (the copilot's figure edits) and validateFigureConfig (`filterOnlyLaidOut`);
-// excluded from the client disaggregation pickers.
+// excluded by groupedDims, startingFigureConfig, changeFigureType and the
+// client disaggregation pickers.
 export const FILTER_ONLY_DISAGGREGATION_OPTIONS: ReadonlySet<string> = new Set(
   ["hfa_service_category"] satisfies DisaggregationOption[],
 );
