@@ -7,7 +7,10 @@ import {
   type RunGenerationModuleOption,
   type RunGenerationModuleOptions,
 } from "lib";
-import { _INSTANCE_LANGUAGE } from "../exposed_env_vars.ts";
+import {
+  _INSTANCE_LANGUAGE,
+  _MODULES_GITHUB_BRANCH,
+} from "../exposed_env_vars.ts";
 import { fetchCommits } from "../github/fetch_module.ts";
 import { getModuleDefinitionDetail } from "../module_loader/mod.ts";
 import { MODULE_SOURCE } from "../module_loader/module_source.ts";
@@ -19,16 +22,16 @@ import { MODULE_SOURCE } from "../module_loader/module_source.ts";
 // instance defaults store (`getRunGenerationDefaultsConfig`): the wizard is
 // instance-entered, so there is no anchor run to mine a prefill from.
 
-// "Latest commit" = the repo's HEAD, resolved once: a single commit that
-// contains every module path's latest content, unlike per-path last-touch
-// SHAs which can predate one another. Local source ignores pins (dev reads
-// the working tree), so a sentinel ref suffices there.
+// "Latest commit" = the head of the instance's modules branch, resolved once:
+// a single commit that contains every module path's latest content, unlike
+// per-path last-touch SHAs which can predate one another. Local source ignores
+// pins (dev reads the working tree), so a sentinel ref suffices there.
 async function resolveModulesRepoHeadRef(): Promise<string> {
   if (MODULE_SOURCE !== "github") {
     return "local";
   }
   const { owner, repo } = MODULE_REGISTRY[0].github;
-  const res = await fetchCommits(owner, repo, "", "main");
+  const res = await fetchCommits(owner, repo, "", _MODULES_GITHUB_BRANCH);
   if (res.success === false) {
     throw new Error(
       `Could not resolve the modules repository's latest commit: ${res.err}`,

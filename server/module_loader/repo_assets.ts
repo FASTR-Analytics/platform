@@ -1,6 +1,10 @@
 import { join } from "@std/path";
 import { MODULE_REGISTRY, type RepoAssetToImport } from "lib";
-import { _ASSETS_DIR_PATH, _MODULES_LOCAL_DIR } from "../exposed_env_vars.ts";
+import {
+  _ASSETS_DIR_PATH,
+  _MODULES_GITHUB_BRANCH,
+  _MODULES_LOCAL_DIR,
+} from "../exposed_env_vars.ts";
 import { githubFetch } from "../github/fetch_module.ts";
 import { MODULE_SOURCE } from "./module_source.ts";
 
@@ -64,7 +68,7 @@ async function fetchPinnedBytes(
   }
   const { owner, repo } = registryEntry.github;
   const url = `https://raw.githubusercontent.com/${owner}/${repo}/${
-    gitRef ?? "main"
+    gitRef ?? _MODULES_GITHUB_BRANCH
   }/${pin.repoPath}`;
   const res = await githubFetch(url);
   if (!res.ok) {
