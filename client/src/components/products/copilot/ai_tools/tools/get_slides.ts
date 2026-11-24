@@ -1,6 +1,5 @@
 import { createAITool, plural } from "panther";
-import { z } from "zod";
-import { COPILOT_TOOL_VIEWS, type MetricWithStatus, t3 } from "lib";
+import { copilotToolContract, type MetricWithStatus, t3 } from "lib";
 import { simplifySlideForAI } from "../../slide_ai/mod.ts";
 import { slidesLabel } from "./tool_labels.ts";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
@@ -13,19 +12,7 @@ export function createGetSlidesTool(
 ) {
   return createAITool({
     viewRegistry: copilotViews,
-    name: "get_slides",
-    description:
-      "Retrieve the content and structure of one or more slides in the open deck, in the order asked: the open slide as it stands on the canvas (including edits not yet saved), any other slide as saved. Ask for every slide you need in one call. Each entry carries the slide's ID and, first, `page`: whether the slide overflows the page. For content slides, this returns each content block with its unique ID and a summary (a figure with its full config: metric, type, disaggregations and display slots, replicant and the count of its values (get_dimension_values lists them), filters, captions) and the current layout structure (rows/columns with spans). Use the block IDs with update_slide and update_figure.",
-    inputSchema: z.strictObject({
-      slideIds: z
-        .array(z.string())
-        .min(1)
-        .describe(
-          "Array of slide IDs to read (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck.",
-        ),
-    }),
-    availableIn: COPILOT_TOOL_VIEWS.get_slides,
-    kind: "read",
+    ...copilotToolContract("get_slides"),
     handler: async (input, view) => {
       const slideIds = [...new Set(input.slideIds)];
       assertSlidesInDeck(view, slideIds);

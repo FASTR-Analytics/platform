@@ -1,9 +1,8 @@
 import {
   type AiSlideUpdate,
-  AiSlideUpdateSchema,
   type ContentBlock,
   type ContentSlide,
-  COPILOT_TOOL_VIEWS,
+  copilotToolContract,
   type LayoutSpec,
   type MetricWithStatus,
   type PackageScope,
@@ -12,7 +11,6 @@ import {
   validateTextOnlyMarkdown,
 } from "lib";
 import { AIToolFailure, createAITool, type LayoutNode } from "panther";
-import { z } from "zod";
 import {
   type ClientAIToolEnv,
   copilotViews,
@@ -53,19 +51,7 @@ export function createUpdateSlideTool(
 ) {
   return createAITool({
     viewRegistry: copilotViews,
-    name: "update_slide",
-    description:
-      "Change a slide in place, keeping everything not named: a cover's title, subtitle, presenter or date, each one's size, bold and italic, and its logos; a section's title or subtitle, and each one's size, bold and italic; a content slide's header, sub-header, date, footer, header and footer logos, side panel (split), its blocks (blockUpdates) or its layout (layoutChange). get_slides shows a slide's settings as stored. Give the slideId and an `update` whose `type` matches the slide's type, with only the fields to change. A block ID comes from get_slides or from the result of the write that made the block. A from_metric block needs get_metric_data first. To tweak an existing figure use update_figure; to rebuild a slide or change its type use replace_slide. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately.",
-    inputSchema: z.strictObject({
-      slideId: z.string().describe(
-        "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
-      ),
-      // Under a key: panther's createAITool (and Anthropic's input_schema
-      // contract) requires the top-level schema to be an object.
-      update: AiSlideUpdateSchema,
-    }),
-    availableIn: COPILOT_TOOL_VIEWS.update_slide,
-    kind: "write",
+    ...copilotToolContract("update_slide"),
     handler: async (input, view) => {
       const u = input.update;
       if (u.type === "content" && u.blockUpdates && u.layoutChange) {

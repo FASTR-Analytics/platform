@@ -1,8 +1,7 @@
 import {
-  AiFigureConfigPatchSchema,
   type ContentBlock,
   type ContentSlide,
-  COPILOT_TOOL_VIEWS,
+  copilotToolContract,
   type FigureBundle,
   type MetricWithStatus,
   type PeriodBounds,
@@ -12,7 +11,6 @@ import {
   validateMetricInputs,
 } from "lib";
 import { AIToolFailure, createAITool, type LayoutNode } from "panther";
-import { z } from "zod";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
 import {
   applyFigureConfigPatch,
@@ -59,20 +57,7 @@ export function createUpdateFigureTool(
 ) {
   return createAITool({
     viewRegistry: copilotViews,
-    name: "update_figure",
-    description:
-      "Edit an existing FIGURE block in place: THE tool for changing anything about a figure already on a slide (the replicant, filters, disaggregation, period, captions), however it was created. Give the slideId and the figure's blockId (from get_slides, or from the result of the write that made the block) and only the fields to change (e.g. selectedReplicantValue, filterBy, disaggregateBy, periodFilter, caption); everything else is preserved and the data is re-queried automatically. To CHANGE A REPLICANT, always use this: it validates the value against the available options and errors clearly. The figure's chart type cannot be changed here (replace the block with a new from_metric figure to change it). An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately. To edit a figure embedded in a REPORT, use update_report_figure instead.",
-    inputSchema: z.strictObject({
-      slideId: z.string().describe(
-        "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
-      ),
-      blockId: z.string().describe(
-        "Figure block ID (from get_slides, or from the result of the write that made the block).",
-      ),
-      patch: AiFigureConfigPatchSchema,
-    }),
-    availableIn: COPILOT_TOOL_VIEWS.update_figure,
-    kind: "write",
+    ...copilotToolContract("update_figure"),
     handler: async (input, view) => {
       // An empty patch would re-resolve the bundle unchanged and falsely
       // report success.

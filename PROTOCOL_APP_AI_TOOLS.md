@@ -2,6 +2,35 @@
 
 The recipe for writing Zod input schemas for AI tools (the chat's tools, the HFA tools among them, the `/mcp` surface, and any future one). The architecture (where validation is enforced, which derived schemas exist) is [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md).
 
+## A tool's contract is written in lib
+
+A tool the browser runs has two halves. Its **contract** (name, description, kind, input schema) is an entry in a `lib/ai_tools/contracts_*.ts` file, one file per family: package, deck, report, figure editor, products, HFA. Its `createAITool` call in the client takes the contract and adds what runs: the handler or the approval, the labels and the cards.
+
+```ts
+// lib/ai_tools/contracts_deck.ts
+export const DECK_TOOL_CONTRACTS = {
+  get_slides: {
+    description: "Retrieve the content and structure of one or more slides…",
+    kind: "read",
+    inputSchema: z.strictObject({ slideIds: z.array(z.string()).min(1) }),
+  },
+} as const;
+
+// client/src/components/products/copilot/ai_tools/tools/get_slides.ts
+createAITool({
+  viewRegistry: copilotViews,
+  ...copilotToolContract("get_slides"),
+  handler: async (input, view) => { … },
+  inProgressLabel: t3({ … }),
+});
+```
+
+- **Never write `name`, `description`, `kind`, `inputSchema` or `availableIn` in a client `createAITool` call.** `copilotToolContract` gives all five, the views from `COPILOT_TOOL_VIEWS`.
+- **Why.** Panther's `createAITool` refuses an invalid tool when it is built: an open input object, a root that is not an object, an empty gate. Client code is first built when the shell mounts in a user's browser, after the deploy, so a refusal there stops the app for every user (2.17.0, 2026-11-24). `lib/` loads under Deno, so `lint:copilot-tools`, chained into `deno task typecheck`, builds every contract and the refusal stops the deploy.
+- **A new tool, in this order:** its name in `COPILOT_TOOL_VIEWS` and `COPILOT_TOOL_REQUIREMENTS` ([copilot_catalogue.ts](lib/ai_tools/copilot_catalogue.ts)), its contract in the family's `contracts_*.ts`, then its call in the client. The catalogue's record satisfies `Record<CopilotClientToolName, …>`, so a gated tool with no contract does not compile, and the lint fails on a contract no client call takes.
+- **A schema or a constant the handler also needs** (an input type, a cap the handler refuses over) is exported from the contract file and imported by the client from `lib`.
+- **A tool both surfaces expose** (`lib/ai_tools/tools_*.ts`) is written whole in lib, handler included, and the lint builds it through its factory.
+
 ## Core principle: derive from storage schemas
 
 AI input schemas derive from storage schemas wherever possible: same field names, same types, same constraints. No transformation layer = no transformation bugs, and AI inputs are storage-compatible by construction.
@@ -149,3 +178,4 @@ The bounds and the one paging helper live in [lib/ai_tools/read_bounds.ts](lib/a
 7. If the tool's _output_ prints a schema example, it must match the real schema exactly.
 8. A read that can be asked for many takes an array, and a write's result states what the write left: "The round budget".
 9. A list whose length follows the instance's data is bounded where the copilot did not ask for it and paged where it did: "Bounded reads".
+10. The schema goes in the tool's contract in `lib/ai_tools/contracts_*.ts`, never in the client: "A tool's contract is written in lib".

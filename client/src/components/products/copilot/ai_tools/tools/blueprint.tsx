@@ -1,5 +1,6 @@
 import {
-  COPILOT_TOOL_VIEWS,
+  type BlueprintOutlineToolInput,
+  copilotToolContract,
   DECK_BLUEPRINT_MAX_BLOCKS,
   DECK_BLUEPRINT_PROVENANCE_KIND,
   type DeckBlueprint,
@@ -16,7 +17,6 @@ import {
   t3,
 } from "lib";
 import { AIToolFailure, type AnyAITool, createAITool } from "panther";
-import { z } from "zod";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
@@ -139,48 +139,10 @@ function describeRun(
   ].join("\n");
 }
 
-const outlineInputSchema = z.strictObject({
-  reportingPeriod: z.strictObject({
-    start: z.number().int().describe("First month, YYYYMM (e.g. 202507)."),
-    end: z.number().int().describe("Last month, YYYYMM (e.g. 202509)."),
-  }).describe(
-    "The reporting period every period role resolves from: the one the person chose, or the latest complete one you found in the data.",
-  ),
-  topics: z.array(
-    z.strictObject({
-      topicId: z.string().describe("The blueprint topic's id (t1, t2, …)."),
-      slideCount: z.number().int().min(0).max(30).describe(
-        "Slides planned for this topic in THIS deck; 0 drops it.",
-      ),
-      reason: z.string().describe(
-        "Why this many, from this deck's data, in one or two sentences the person reads (e.g. '3 regions are below 70%: Bo, Kenema, Port Loko').",
-      ),
-      slideNotes: z.array(z.string()).optional().describe(
-        "One short line per planned slide: what it is about.",
-      ),
-      standIns: z.array(z.strictObject({
-        original: z.string().describe(
-          "What the blueprint asked for (metric, preset, filter or map level).",
-        ),
-        replacement: z.string().describe(
-          "What you propose instead, or 'drop this figure'.",
-        ),
-        reason: z.string(),
-      })).optional().describe(
-        "Every figure that cannot be built as the blueprint says.",
-      ),
-      translatedVerbatim: z.boolean().optional().describe(
-        "True when a keep-word-for-word block of this topic will be translated.",
-      ),
-    }),
-  ).min(1).describe(
-    "Every topic of the blueprint, in its order, each exactly once.",
-  ),
-});
-
-type OutlineToolInput = z.infer<typeof outlineInputSchema>;
-
-function checkOutline(input: OutlineToolInput, bp: DeckBlueprint): void {
+function checkOutline(
+  input: BlueprintOutlineToolInput,
+  bp: DeckBlueprint,
+): void {
   const { start, end } = input.reportingPeriod;
   if (!isValidYearMonth(start) || !isValidYearMonth(end) || start > end) {
     throw new AIToolFailure(
@@ -365,12 +327,7 @@ export function getClientToolsForDeckBlueprints(): AnyAITool[] {
 
   const getRun = createAITool({
     viewRegistry: copilotViews,
-    name: "get_blueprint_run",
-    description:
-      "Read the deck blueprint the person asked to apply to this deck: the steps to follow, the chosen reporting period and the blueprint itself (topics, scaling rules, slide patterns, look). Call it first whenever the person asks to apply a blueprint.",
-    inputSchema: z.strictObject({}),
-    availableIn: COPILOT_TOOL_VIEWS.get_blueprint_run,
-    kind: "read",
+    ...copilotToolContract("get_blueprint_run"),
     handler: async (_input, view) => {
       const run = runOrThrow(view.params.deckId);
       const state = await readDeckState(view.params.deckId, view.context);
@@ -382,12 +339,7 @@ export function getClientToolsForDeckBlueprints(): AnyAITool[] {
 
   const propose = createAITool({
     viewRegistry: copilotViews,
-    name: "propose_blueprint_outline",
-    description:
-      "Show the person the outline you propose for applying the blueprint to this deck: the reporting period, and for every topic the number of slides (0 drops it), why, a line per slide, and any figure stand-ins. The person edits it on a card and presses Build (or Cancel). On Build the deck is prepared (a version saved first when slides are replaced, the blueprint's look if they keep it on, old slides removed when replacing) and the result gives the approved outline and the resolved periods; then create the slides. Call it once per run, alone in its response.",
-    inputSchema: outlineInputSchema,
-    availableIn: COPILOT_TOOL_VIEWS.propose_blueprint_outline,
-    kind: "write",
+    ...copilotToolContract("propose_blueprint_outline"),
     handler: async (input, view, ctx) => {
       const deckId = view.params.deckId;
       const run = runOrThrow(deckId);
@@ -431,7 +383,7 @@ export function getClientToolsForDeckBlueprints(): AnyAITool[] {
       return describeDecision(decision, run.blueprint, periods, done);
     },
     inProgressComponent: (
-      p: { input: OutlineToolInput; toolUseId: string },
+      p: { input: BlueprintOutlineToolInput; toolUseId: string },
     ) => (
       <BlueprintOutlineCard
         input={p.input as BlueprintOutlineInput}

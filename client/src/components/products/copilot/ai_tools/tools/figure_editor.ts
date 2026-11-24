@@ -1,8 +1,6 @@
 import { AIToolFailure, createAITool } from "panther";
-import { z } from "zod";
 import {
-  AiVizConfigUpdateSchema,
-  COPILOT_TOOL_VIEWS,
+  copilotToolContract,
   type MetricWithStatus,
   type PeriodBounds,
   periodFilterHasBounds,
@@ -76,12 +74,7 @@ export function getClientToolsForFigureEditor(
   return [
     createAITool({
       viewRegistry: copilotViews,
-      name: "get_figure_editor",
-      description:
-        "Read the figure open in the figure editor as its draft stands: the metric, the chart type, each disaggregation and its display slot, the filters, the active replicant and the count of its values (get_dimension_values lists them), the period range and the captions. Call this before update_figure_editor.",
-      inputSchema: z.strictObject({}),
-      availableIn: COPILOT_TOOL_VIEWS.get_figure_editor,
-      kind: "read",
+      ...copilotToolContract("get_figure_editor"),
       handler: async (_input, view) => {
         const preview = view.context.getPreview();
         return await formatFigureConfigForAI(
@@ -106,12 +99,7 @@ export function getClientToolsForFigureEditor(
     createGetFigureEditorImageTool(assertFigureEditorStillOpen),
     createAITool({
       viewRegistry: copilotViews,
-      name: "update_figure_editor",
-      description:
-        "Change the figure open in the figure editor. Provide only the fields to change (the chart type, timeseriesGrouping, the replicant, filters, disaggregations, period, captions); everything else is kept and the preview re-queries at once. The change lands in the editor's draft like the user's own edit. Call get_figure_editor first.",
-      inputSchema: z.strictObject({ patch: AiVizConfigUpdateSchema }),
-      availableIn: COPILOT_TOOL_VIEWS.update_figure_editor,
-      kind: "write",
+      ...copilotToolContract("update_figure_editor"),
       handler: async (input, view) => {
         if (Object.keys(input.patch).length === 0) {
           throw new AIToolFailure(

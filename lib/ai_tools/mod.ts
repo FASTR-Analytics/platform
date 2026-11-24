@@ -1,12 +1,20 @@
 // The AI tools BOTH surfaces expose (the SPA copilot and the /mcp endpoint)
 // over one package-bound env (env.ts), and the chat's catalogue as data
-// (copilot_catalogue.ts), here so the server tests pin it. The SPA-only
-// formatters the server tests pin live here too. Other SPA-only tools and
-// their formatters live in client/src/components/instance/copilot/tools/
+// (copilot_catalogue.ts), here so the server tests pin it and the typecheck
+// builds each tool's contract (contracts_*.ts). The SPA-only formatters the
+// server tests pin live here too. The handlers of the SPA-only tools and
+// their other formatters live in client/src/components/instance/copilot/tools/
 // (module internals) and client/src/components/products/copilot/ai_tools/
 // (the product tools).
 export * from "./env.ts";
 export * from "./copilot_catalogue.ts";
+export type { BlueprintOutlineToolInput } from "./contracts_deck.ts";
+export {
+  AI_HFA_DETAILS_MAX,
+  type HfaCodeRoundInput,
+  type HfaIndicatorUpdateInput,
+  type HfaVariantRowInput,
+} from "./contracts_hfa.ts";
 export * from "./build_system_prompt.ts";
 export * from "./reference_catalog.ts";
 export * from "./source_header.ts";

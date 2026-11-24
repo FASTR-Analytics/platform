@@ -1,12 +1,8 @@
 import { serverActions } from "~/server_actions";
 import { AIToolFailure, createAITool, plural } from "panther";
-import { z } from "zod";
 import {
-  AiContentSlideSchema,
-  AiCoverSlideSchema,
-  AiSectionSlideSchema,
   type AiSlideInput,
-  COPILOT_TOOL_VIEWS,
+  copilotToolContract,
   DECK_BLUEPRINT_MAX_BLOCKS,
   DECK_BLUEPRINT_SLIDE_WORDS_MAX,
   getSlideTitle,
@@ -53,12 +49,6 @@ import {
   prepareSlideWriteResult,
 } from "./slide_write_result.ts";
 
-// A figure is `{ metricId, config }` resolved under the deck's own results
-// package and scope: there is no figure library to point at, so every
-// figure block starts from a metric and one of that metric's presets.
-const CONTENT_BLOCKS_NOTE =
-  "\n\nA content block is one of:\n- from_metric: a figure built from a metric + one of its presets. IMPORTANT: always call get_metric_data FIRST to see the data and its time range; get_dimension_values lists the values a filter or selectedReplicant takes. The figure resolves under the deck's results package and scope.\n- text: markdown content with autofit. IMPORTANT: Markdown tables are NOT allowed. To display tabular data, use a from_metric block with a table-type preset.\n- image: one of the instance's image assets, named by its file as get_image_assets lists it.";
-
 // The content checks a whole new slide must pass before it is converted.
 function validateAiSlideInput(slide: AiSlideInput): void {
   if (slide.type !== "content") return;
@@ -94,12 +84,7 @@ export function getClientToolsForSlides(
   return [
     createAITool({
       viewRegistry: copilotViews,
-      name: "get_deck",
-      description:
-        "Get the current state of the slide deck: a summary outline of all slides, giving the deck's structure, existing content, slide order and, for each slide, whether it overflows the page, then the deck's settings: its cover, header and footer logos, the logos that can be selected, the footer text and the watermark.",
-      inputSchema: z.strictObject({}),
-      availableIn: COPILOT_TOOL_VIEWS.get_deck,
-      kind: "read",
+      ...copilotToolContract("get_deck"),
       handler: async (_input, view) => {
         const deckConfig = view.context.getDeckConfig();
         const outline = await getDeckSummaryForAI(
@@ -139,47 +124,7 @@ export function getClientToolsForSlides(
 
     createAITool({
       viewRegistry: copilotViews,
-      name: "create_slide",
-      description:
-        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text, figures and images)." +
-        CONTENT_BLOCKS_NOTE,
-      inputSchema: z.strictObject({
-        position: z
-          .union([
-            z.strictObject({
-              after: z.string().describe(
-                "Slide ID to place after (3-char, e.g. 'p4q')",
-              ),
-            }),
-            z.strictObject({
-              before: z.string().describe(
-                "Slide ID to place before (3-char, e.g. 'p4q')",
-              ),
-            }),
-            z.strictObject({
-              toStart: z.literal(true).describe(
-                "Set to true to insert at the beginning",
-              ),
-            }),
-            z.strictObject({
-              toEnd: z.literal(true).describe(
-                "Set to true to insert at the end",
-              ),
-            }),
-          ])
-          .describe("The position to insert the new slide."),
-        slide: z
-          .union([
-            AiCoverSlideSchema,
-            AiSectionSlideSchema,
-            AiContentSlideSchema,
-          ])
-          .describe(
-            "The complete slide content. Must be one of three types: 'cover' (title slide with title and optional subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with optional header and blocks array of text, figures and images).",
-          ),
-      }),
-      availableIn: COPILOT_TOOL_VIEWS.create_slide,
-      kind: "write",
+      ...copilotToolContract("create_slide"),
       handler: async (input, view) => {
         validateAiSlideInput(input.slide);
         const deckConfig = view.context.getDeckConfig();
@@ -235,26 +180,7 @@ export function getClientToolsForSlides(
 
     createAITool({
       viewRegistry: copilotViews,
-      name: "replace_slide",
-      description:
-        "Rebuild an existing slide from new content: its content and its layout, which is optimized again, so a layout the user arranged is lost. A slide that keeps its type keeps the settings the input does not name: a cover's or section's text sizes, bold and italic, a cover's logos, and a content slide's sub-header, date, footer, header and footer logos and side panel (split). Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n\nFor any other change to text, settings, blocks or layout, use update_slide, which keeps what it is not told to change. An edit to the open slide shows on its canvas at once and saves automatically; an edit to any other slide is saved immediately." +
-        CONTENT_BLOCKS_NOTE,
-      inputSchema: z.strictObject({
-        slideId: z.string().describe(
-          "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
-        ),
-        slide: z
-          .union([
-            AiCoverSlideSchema,
-            AiSectionSlideSchema,
-            AiContentSlideSchema,
-          ])
-          .describe(
-            "The slide's new content. A content slide's layout is auto-optimized. A setting left out is kept when the slide keeps its type.",
-          ),
-      }),
-      availableIn: COPILOT_TOOL_VIEWS.replace_slide,
-      kind: "write",
+      ...copilotToolContract("replace_slide"),
       handler: async (input, view) => {
         validateAiSlideInput(input.slide);
         // Read before the conversion: the settings the slide keeps (a side
@@ -300,18 +226,7 @@ export function getClientToolsForSlides(
 
     createAITool({
       viewRegistry: copilotViews,
-      name: "delete_slides",
-      description:
-        "Permanently remove one or more slides from the deck. The user confirms the deletion in a dialog that lists the slides by title; once confirmed the slides cannot be recovered. Remaining slides will maintain their relative order.",
-      inputSchema: z.strictObject({
-        slideIds: z
-          .array(z.string())
-          .describe(
-            "Array of slide IDs to delete (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck.",
-          ),
-      }),
-      availableIn: COPILOT_TOOL_VIEWS.delete_slides,
-      kind: "write",
+      ...copilotToolContract("delete_slides"),
       // The one deck write that asks first (the others are the catalogue's
       // approval exemptions): a deletion cannot be undone, so the user sees
       // the slides by title and confirms before anything is written.
@@ -391,18 +306,7 @@ export function getClientToolsForSlides(
 
     createAITool({
       viewRegistry: copilotViews,
-      name: "duplicate_slides",
-      description:
-        "Create copies of one or more slides. All duplicates are inserted after the last original slide (preserving their relative order). The duplicated slides have identical content but receive new unique IDs. This is also the only way to reuse a figure: there is no figure library, so copying the slide that holds it is how a figure is reused.",
-      inputSchema: z.strictObject({
-        slideIds: z
-          .array(z.string())
-          .describe(
-            "Array of slide IDs to duplicate (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck.",
-          ),
-      }),
-      availableIn: COPILOT_TOOL_VIEWS.duplicate_slides,
-      kind: "write",
+      ...copilotToolContract("duplicate_slides"),
       handler: async (input, view) => {
         if (input.slideIds.length === 0) {
           throw new AIToolFailure(
@@ -452,42 +356,7 @@ export function getClientToolsForSlides(
 
     createAITool({
       viewRegistry: copilotViews,
-      name: "move_slides",
-      description:
-        "Reposition one or more slides to a new location in the deck. This is the recommended way to reorder slides, as it's safer and more precise than trying to recreate the entire deck. The moved slides will maintain their relative order to each other.",
-      inputSchema: z.strictObject({
-        slideIds: z
-          .array(z.string())
-          .describe(
-            "Array of slide IDs to move (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck.",
-          ),
-        position: z
-          .union([
-            z.strictObject({
-              after: z.string().describe(
-                "Slide ID to place after (3-char, e.g. 'p4q')",
-              ),
-            }),
-            z.strictObject({
-              before: z.string().describe(
-                "Slide ID to place before (3-char, e.g. 'p4q')",
-              ),
-            }),
-            z.strictObject({
-              toStart: z.literal(true).describe(
-                "Set to true to move slides to the beginning",
-              ),
-            }),
-            z.strictObject({
-              toEnd: z.literal(true).describe(
-                "Set to true to move slides to the end",
-              ),
-            }),
-          ])
-          .describe("The destination position for the slides."),
-      }),
-      availableIn: COPILOT_TOOL_VIEWS.move_slides,
-      kind: "write",
+      ...copilotToolContract("move_slides"),
       handler: async (input, view) => {
         if (input.slideIds.length === 0) {
           throw new AIToolFailure(

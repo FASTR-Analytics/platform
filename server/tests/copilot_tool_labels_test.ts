@@ -7,7 +7,13 @@
 //   deno test -A --no-check server/tests/copilot_tool_labels_test.ts
 
 import { assert, assertEquals } from "@std/assert";
-import { COPILOT_CHAT_WIDE_TOOLS, COPILOT_TOOL_VIEWS } from "lib";
+import {
+  COPILOT_CHAT_WIDE_TOOLS,
+  COPILOT_TOOL_CONTRACT_NAMES,
+  COPILOT_TOOL_VIEWS,
+  type CopilotClientToolName,
+  copilotToolContract,
+} from "lib";
 
 const ROOT = new URL("../../", import.meta.url);
 
@@ -26,11 +32,22 @@ async function toolSources(): Promise<ToolSource[]> {
   return files.flatMap((file) => {
     const text = Deno.readTextFileSync(new URL(file, ROOT));
     return text.split("createAITool(").slice(1).map((block) => {
-      const name = block.match(/\bname:\s*"([^"]+)"/)?.[1];
+      const named = block.match(
+        /\.\.\.copilotToolContract\("([^"]+)"\)|\bname:\s*"([^"]+)"/,
+      );
+      const name = named?.[1] ?? named?.[2];
       assert(name, `${file}: a createAITool call with no literal name`);
       return { name, file, text, block };
     });
   });
+}
+
+// A tool the browser runs states its kind in its contract; a tool lib builds
+// whole states it in its call.
+function kindOf(tool: ToolSource): string | undefined {
+  return COPILOT_TOOL_CONTRACT_NAMES.includes(tool.name)
+    ? copilotToolContract(tool.name as CopilotClientToolName).kind
+    : tool.block.match(/\bkind:\s*"([a-z]+)"/)?.[1];
 }
 
 // The text of a property, from its key to the next property at its
@@ -136,7 +153,7 @@ Deno.test("every tool's English labels use the verbs of its kind", () => {
       `${tool.name}: "${success}" ends with "..."`,
     );
     const asksApproval = property(tool.block, "approval") !== undefined;
-    const isRead = /\bkind:\s*"read"/.test(tool.block) &&
+    const isRead = kindOf(tool) === "read" &&
       property(tool.block, "displayComponent") === undefined;
     const [progressVerb, successVerb]: [RegExp, RegExp] = asksApproval
       ? [/^Proposing /, /^Not proposed/]

@@ -206,7 +206,11 @@ Deno.test("get_report_figure and get_report_figure_images find a figure through 
   const editorPath = TOOLS + "report_editor.ts";
   assertCalls(
     `get_report_figure in ${editorPath}`,
-    segment(source(editorPath), 'name: "get_report_figure",', "createAITool("),
+    segment(
+      source(editorPath),
+      '...copilotToolContract("get_report_figure"),',
+      "createAITool(",
+    ),
     "liveBundleOrRefuse",
   );
   const lookPath = TOOLS + "get_report_figure_images.ts";

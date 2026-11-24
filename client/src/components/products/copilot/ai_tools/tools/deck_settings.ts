@@ -1,8 +1,7 @@
 import { AIToolFailure, createAITool } from "panther";
 import {
   type AiDeckSettingsPatch,
-  AiDeckSettingsPatchSchema,
-  COPILOT_TOOL_VIEWS,
+  copilotToolContract,
   formatDeckSettingsForAI,
   LOGO_SECTIONS,
   type LogosConfig,
@@ -79,12 +78,7 @@ function toDeckConfigPatch(
 export function createUpdateDeckSettingsTool() {
   return createAITool({
     viewRegistry: copilotViews,
-    name: "update_deck_settings",
-    description:
-      "Change the deck's settings: its logos, the footer text every content slide shows and the watermark. Name only the settings to change; logos is replaced whole, so send it as get_deck shows it with your changes. A custom logo must be one of the instance's image assets (get_image_assets lists them), and a selected logo must be a built-in logo or one of the deck's custom logos. The change shows on every slide at once and is saved. A slide's own logo setting (a cover's showLogos, a content slide's showHeaderLogos and showFooterLogos) is set with update_slide.",
-    inputSchema: AiDeckSettingsPatchSchema,
-    availableIn: COPILOT_TOOL_VIEWS.update_deck_settings,
-    kind: "write",
+    ...copilotToolContract("update_deck_settings"),
     handler: async (input, view) => {
       const patch = toDeckConfigPatch(input);
       const fields = Object.keys(patch);

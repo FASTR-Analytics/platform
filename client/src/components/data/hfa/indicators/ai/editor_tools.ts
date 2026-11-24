@@ -1,17 +1,13 @@
 import { AIToolFailure, createAITool } from "panther";
-import { z } from "zod";
 import {
-  COPILOT_TOOL_VIEWS,
+  copilotToolContract,
   describeHfaFieldIssue,
   formatHfaIndicatorDetailsForAI,
   type HfaIndicator,
-  hfaIndicatorCodeSchema,
   type HfaIndicatorEditorDraft,
   type HfaIndicatorEditorPatch,
-  hfaIndicatorEditSchema,
   type HfaIndicatorsForAIInput,
   hfaIndicatorsStatus,
-  hfaIndicatorVariantCodeSchema,
   type HfaVariableRow,
   t3,
 } from "lib";
@@ -28,41 +24,6 @@ import { loadDisplayRows, validateHfaIndicatorPatch } from "../_shared/mod.ts";
 // unsaved, for the user to save or discard. The write never awaits, so the
 // editor that set the view is the one it reaches; the read takes the draft
 // first and only then awaits the display rows.
-
-const field = hfaIndicatorEditSchema.shape;
-const codeRoundSchema = z.strictObject(
-  hfaIndicatorCodeSchema.omit({ indicatorId: true }).shape,
-);
-
-const patchSchema = z.strictObject({
-  shortLabel: field.shortLabel.optional(),
-  definition: field.definition.optional().describe("Long label."),
-  type: field.type.optional(),
-  aggregation: field.aggregation.optional(),
-  categoryId: field.categoryId.optional().describe(
-    "Category id, null to clear. Changing the category clears the sub-category unless one is given.",
-  ),
-  subCategoryId: field.subCategoryId.optional().describe(
-    "Sub-category id within the category, null to clear.",
-  ),
-  serviceCategoryIds: field.serviceCategoryIds.optional().describe(
-    "The full set of service-category ids.",
-  ),
-  variantGroupId: field.variantGroupId.optional().describe(
-    "Variant group id, null to clear. Changing the group drops the previous group's variant code.",
-  ),
-  code: z.array(codeRoundSchema.partial({ code: true, filterCode: true }))
-    .optional().describe(
-      "Rounds to patch; a round not listed is kept. An omitted code or filter code is kept and an empty string clears it.",
-    ),
-  variantCode: z.array(
-    z.strictObject(
-      hfaIndicatorVariantCodeSchema.omit({ indicatorId: true }).shape,
-    ),
-  ).optional().describe(
-    "Variant rows to set, for items of the group the patch leaves; an empty code removes the row.",
-  ),
-});
 
 // The draft in place of the indicator's saved state, over everything else the
 // manager handed the editor: what the detail block and the status print.
@@ -216,12 +177,7 @@ export function getClientToolsForHfaIndicatorEditor() {
   return [
     createAITool({
       viewRegistry: copilotViews,
-      name: "get_hfa_indicator_editor",
-      availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicator_editor,
-      description:
-        "Read the HFA indicator open in the code editor as its unsaved draft stands, in full: both labels, the measure, type and aggregation, categories, the variant group and its items, and per round the code, the filter, each item's variant code, the round status and its issues; then every survey variable and every other indicator the code names, once. Also names the round the user is looking at. Call this before update_hfa_indicator_editor.",
-      inputSchema: z.strictObject({}),
-      kind: "read",
+      ...copilotToolContract("get_hfa_indicator_editor"),
       handler: async (_input, view) => {
         const indicatorId = view.params.indicatorId;
         const draft = view.context.getDraft();
@@ -251,12 +207,7 @@ export function getClientToolsForHfaIndicatorEditor() {
     }),
     createAITool({
       viewRegistry: copilotViews,
-      name: "update_hfa_indicator_editor",
-      availableIn: COPILOT_TOOL_VIEWS.update_hfa_indicator_editor,
-      description:
-        "Change the HFA indicator open in the code editor. Provide only the fields to change (labels, type, aggregation, category, sub-category, service categories, variant group, per-round code and filter, per-item variant code); everything else is kept. The change lands in the editor's draft like the user's own edit, unsaved: the user keeps it with Save or discards it with Cancel. Ids, items and rounds are checked before anything changes. The result gives each round's status after the change. Call get_hfa_indicator_editor first.",
-      inputSchema: patchSchema,
-      kind: "write",
+      ...copilotToolContract("update_hfa_indicator_editor"),
       handler: (input, view) => {
         const before = view.context.getDraft();
         const checked = validateHfaIndicatorPatch(

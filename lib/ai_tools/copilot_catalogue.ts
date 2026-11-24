@@ -1,4 +1,5 @@
-import type { AIViewIdentity } from "@timroberton/panther";
+import type { AIToolKind, AIViewIdentity } from "@timroberton/panther";
+import type { z } from "zod";
 import {
   INSTANCE_PERMISSION_LABELS,
   type ProductLevel,
@@ -6,14 +7,21 @@ import {
   type UserPermission,
   type UserPermissions,
 } from "../permissions/mod.ts";
+import { DECK_TOOL_CONTRACTS } from "./contracts_deck.ts";
+import { FIGURE_EDITOR_TOOL_CONTRACTS } from "./contracts_figure_editor.ts";
+import { HFA_TOOL_CONTRACTS } from "./contracts_hfa.ts";
+import { PACKAGE_TOOL_CONTRACTS } from "./contracts_package.ts";
+import { PRODUCTS_TOOL_CONTRACTS } from "./contracts_products.ts";
+import { REPORT_TOOL_CONTRACTS } from "./contracts_report.ts";
 
 // The chat's catalogue as data: every view a place can set, which views
-// admit each gated tool, what a user needs for a tool to run, which writes
-// apply without approval, and what identifies what a view shows. The client
-// registry, its tools and its guard read these; the catalogue lives in lib so
-// the server tests pin it to the ruling it transcribes
-// (server/tests/copilot_catalogue_test.ts). Nothing here reads live state:
-// every function is pure over its arguments.
+// admit each gated tool, the contract of each tool the browser runs, what a
+// user needs for a tool to run, which writes apply without approval, and what
+// identifies what a view shows. The client registry, its tools and its guard
+// read these; the catalogue lives in lib so the server tests pin it to the
+// ruling it transcribes (server/tests/copilot_catalogue_test.ts) and so the
+// typecheck builds every contract (lint_copilot_tools.ts). Nothing here reads
+// live state: every function is pure over its arguments.
 
 export const COPILOT_VIEW_IDS = [
   "products",
@@ -168,6 +176,51 @@ export type CopilotGatedToolName = keyof typeof COPILOT_TOOL_VIEWS;
 export type CopilotToolName =
   | CopilotGatedToolName
   | (typeof COPILOT_CHAT_WIDE_TOOLS)[number];
+
+// The gated tools lib builds whole, handler included, for the chat and /mcp
+// alike (tools_metrics.ts). Every other gated tool runs in the browser.
+export const COPILOT_SHARED_GATED_TOOLS = [
+  "get_available_metrics",
+  "get_dimension_values",
+  "get_metric_data",
+] as const satisfies readonly CopilotGatedToolName[];
+
+export type CopilotClientToolName = Exclude<
+  CopilotGatedToolName,
+  (typeof COPILOT_SHARED_GATED_TOOLS)[number]
+>;
+
+type CopilotToolDefinition = {
+  description: string;
+  kind: AIToolKind;
+  inputSchema: z.ZodType;
+};
+
+// The contract of each tool the browser runs: what the model is told of it
+// and what it may send. The handlers and cards are client code no Deno
+// process can load, so a contract written beside them is first built, and
+// first refused by panther's createAITool, in a user's browser. Stated here,
+// each is built by the typecheck, and the client adds only what runs.
+const COPILOT_TOOL_DEFINITIONS = {
+  ...PACKAGE_TOOL_CONTRACTS,
+  ...DECK_TOOL_CONTRACTS,
+  ...REPORT_TOOL_CONTRACTS,
+  ...FIGURE_EDITOR_TOOL_CONTRACTS,
+  ...PRODUCTS_TOOL_CONTRACTS,
+  ...HFA_TOOL_CONTRACTS,
+} satisfies Record<CopilotClientToolName, CopilotToolDefinition>;
+
+export const COPILOT_TOOL_CONTRACT_NAMES = Object.keys(
+  COPILOT_TOOL_DEFINITIONS,
+);
+
+export function copilotToolContract<N extends CopilotClientToolName>(name: N) {
+  return {
+    name,
+    availableIn: COPILOT_TOOL_VIEWS[name],
+    ...COPILOT_TOOL_DEFINITIONS[name],
+  };
+}
 
 // What a user needs for a tool to run, beyond being in a view that admits
 // it: a permission bit, or edit level on the view's product.

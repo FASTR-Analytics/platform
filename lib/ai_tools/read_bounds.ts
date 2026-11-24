@@ -22,6 +22,10 @@ export const AI_TEXT_LINE_MAX_CHARS = 2000;
 // get_hfa_indicators, get_hfa_variables and list_products.
 export const AI_RECORD_PAGE_MAX = 100;
 
+// The subjects one look takes in a call. Panther caps the images of a turn,
+// which bounds the rest.
+export const MAX_LOOK_SUBJECTS = 10;
+
 // The sentence a text ends with when it holds a dimension's values only as a
 // count, or only those near what the copilot sent.
 export function dimensionLookupSentence(

@@ -1,9 +1,5 @@
 import { type AIToolImage, createCanvasBrowser } from "panther";
 
-// The subjects one look takes in a call. Panther caps the images of a turn,
-// which bounds the rest.
-export const MAX_LOOK_SUBJECTS = 10;
-
 // At 1024 px, Sonnet 5 and Haiku 5.5 read every cell of a 16-column table
 // with 9 px text, as they did from a PNG and at 1568 px, at under half the
 // tokens of 1568 px (measured 2026-11-13).
