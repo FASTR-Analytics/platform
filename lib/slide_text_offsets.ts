@@ -30,7 +30,12 @@
 // =============================================================================
 
 import { createMarkdownIt, parseMarkdown } from "@timroberton/panther";
-import type { MarkdownInline, ParsedMarkdownItem } from "@timroberton/panther";
+import type {
+  LayoutNode,
+  MarkdownInline,
+  ParsedMarkdownItem,
+} from "@timroberton/panther";
+import type { ContentBlock } from "./types/slides.ts";
 
 export const SRC_BLOCK = 0;
 export const SRC_VISIBLE = 1;
@@ -529,6 +534,41 @@ export function findSlideTableOrImage(
   src: string,
 ): SlideTableOrImage | undefined {
   return slideTablesAndImages(src)[0];
+}
+
+/** The first table or image of a slide text block that MarkdownRenderer is
+ *  given as an item of its own, with its 0-based source line: it cannot lay
+ *  one out, so the page cannot be measured or drawn. A quoted table and an
+ *  image inside text are drawn (run together, dropped), so the page measures
+ *  as the canvas shows it and only findSlideTableOrImage finds them. */
+export function findUndrawableSlideItem(
+  src: string,
+): SlideTableOrImage | undefined {
+  for (const item of parseMarkdown(slideRenderMarkdown(src)).items) {
+    if (item.type === "table" || item.type === "image") {
+      // markdown-it maps every block token to its source lines.
+      return { kind: item.type, line: item.line! };
+    }
+  }
+  return undefined;
+}
+
+/** The first text block of a content slide's layout holding what
+ *  findUndrawableSlideItem finds, by block id. */
+export function findUndrawableSlideTextBlock(
+  layout: LayoutNode<ContentBlock>,
+): (SlideTableOrImage & { blockId: string }) | undefined {
+  if (layout.type === "item") {
+    const found = layout.data.type === "text"
+      ? findUndrawableSlideItem(layout.data.markdown)
+      : undefined;
+    return found && { blockId: layout.id, ...found };
+  }
+  for (const child of layout.children) {
+    const found = findUndrawableSlideTextBlock(child);
+    if (found !== undefined) return found;
+  }
+  return undefined;
 }
 
 /** The analysis of a slide text block's source, against what panther draws

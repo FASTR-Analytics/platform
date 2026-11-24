@@ -22,5 +22,6 @@ export * from "./format_value_list_for_ai.ts";
 export * from "./hfa_time_points_for_ai.ts";
 export * from "./read_bounds.ts";
 export * from "./slide_overflow_for_ai.ts";
+export * from "./slide_text_for_ai.ts";
 export * from "./tools_metrics.ts";
 export * from "./tools_reference_docs.ts";

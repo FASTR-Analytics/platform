@@ -71,6 +71,39 @@ Deno.test("the slide look draws the page the editor canvas and the PDF draw", ()
   assertCalls(canvasPath, source(canvasPath), "convertSlideToPageInputs");
 });
 
+// Panther's own error for text it cannot draw names functions the model
+// cannot call, so every measure and look refuses that text first, in the
+// model's terms, naming the block, and the editor canvas in the user's.
+Deno.test("a slide whose text panther cannot draw is refused before its page is built", () => {
+  const pagePath = SLIDE_AI + "measure_slide_overflow.ts";
+  const canvasPath =
+    "client/src/components/products/slide_deck/slide_editor/slide_editor.tsx";
+  for (
+    const [where, body, check] of [
+      [
+        `buildSlidePage in ${pagePath}`,
+        functionBody(source(pagePath), "buildSlidePage"),
+        "describeUndrawableTextBlock",
+      ],
+      [
+        `attemptGetPageInputs in ${canvasPath}`,
+        segment(
+          source(canvasPath),
+          "async function attemptGetPageInputs(",
+          "\n  }\n",
+        ),
+        "findUndrawableSlideTextBlock",
+      ],
+    ]
+  ) {
+    assertCalls(where, body, check);
+    assert(
+      body.indexOf(`${check}(`) < body.indexOf("convertSlideToPageInputs("),
+      `${where} builds the page before refusing its text`,
+    );
+  }
+});
+
 // The model is told a slide overflows the page in one sentence whichever tool
 // reports the slide, so no tool may word it itself.
 Deno.test("every slide tool states page overflow through describeSlideOverflow", () => {

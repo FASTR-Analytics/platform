@@ -12,6 +12,7 @@ import type { Slide, SlideDeckConfig } from "lib";
 import { describeSlideOverflowForAI, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { slideTextField } from "~/components/products/slide_deck/slide_editor/mod.ts";
+import { describeUndrawableTextBlock } from "./layout_structure.ts";
 
 // Whether a slide's page overflows, and where.
 export type SlidePageOverflow = Pick<
@@ -29,11 +30,17 @@ export function slidePageOverflow(mPage: MeasuredPage): SlidePageOverflow {
 // The page the deck renders for a slide, with the fonts the deck's canvas
 // loads for that page, so a measurement here matches the canvas. Every
 // measurement of whether a slide overflows the page builds its page here, so
-// no two tools can disagree.
+// no two tools can disagree. A text block panther cannot draw is refused in
+// the model's terms before the page is built, since panther's own error names
+// functions the model cannot call.
 export async function buildSlidePage(
   slide: Slide,
   deckConfig: SlideDeckConfig,
 ): Promise<PageInputs> {
+  const undrawable = slide.type === "content"
+    ? describeUndrawableTextBlock(slide.layout)
+    : undefined;
+  if (undrawable !== undefined) throw new Error(undrawable);
   const res = await convertSlideToPageInputs(slide, undefined, deckConfig);
   if (!res.success) throw new Error(res.err);
   await loadFontsWithTimeout(getFontsForPage(res.data));

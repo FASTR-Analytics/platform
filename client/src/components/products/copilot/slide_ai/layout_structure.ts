@@ -2,6 +2,8 @@ import {
   _GLOBAL_LAYOUT_COLUMNS,
   type ContentBlock,
   type ContentSlide,
+  describeSlideTableOrImageForAI,
+  findUndrawableSlideTextBlock,
 } from "lib";
 
 // The read-only half of the layout helpers: what a stored layout holds, as
@@ -142,4 +144,15 @@ export function describeSlideBlocks(layout: Layout): string[] {
     `Blocks: ${blocks}`,
     `Layout: ${layoutNodeToStructure(layout).description}`,
   ];
+}
+
+// Why the page of a slide with this layout cannot be measured or drawn, when
+// a text block holds a table or an image panther cannot lay out, naming the
+// block, so the model can replace it.
+export function describeUndrawableTextBlock(
+  layout: Layout,
+): string | undefined {
+  const found = findUndrawableSlideTextBlock(layout);
+  return found &&
+    describeSlideTableOrImageForAI(`block ${found.blockId}`, found);
 }

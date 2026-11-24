@@ -1,6 +1,7 @@
 import { AIToolFailure } from "panther";
 import {
   type ContentSlideSplit,
+  describeSlideTableOrImageForAI,
   type DisaggregationOption,
   findSlideTableOrImage,
   MAX_CONTENT_BLOCKS,
@@ -22,11 +23,8 @@ import { instanceState } from "~/state/instance/t1_store";
 export function validateTextOnlyMarkdown(markdown: string): void {
   const found = findSlideTableOrImage(markdown);
   if (found === undefined) return;
-  const at = `line ${found.line + 1}`;
   throw new AIToolFailure(
-    found.kind === "table"
-      ? `A text block draws text only, and this one holds a markdown table at ${at}. To show tabular data, use a from_metric block with a table preset.`
-      : `A text block draws text only, and this one holds a markdown image at ${at}. To show an image, use an image block naming one of the instance's image assets (get_image_assets lists them).`,
+    `${describeSlideTableOrImageForAI("This text block", found)}.`,
   );
 }
 

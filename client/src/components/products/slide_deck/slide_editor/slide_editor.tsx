@@ -18,9 +18,11 @@ import {
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
   findSlideFigureConfigMap,
+  findUndrawableSlideTextBlock,
   materializeSlide,
   PAGE_HEIGHT_DU,
   PAGE_WIDTH_DU,
+  type SlideTableOrImage,
   t3,
 } from "lib";
 import type { FigureBundle } from "lib";
@@ -119,6 +121,29 @@ const INLINE_TITLE_FIELDS: Record<
   string,
   { field: string; slideType: SlideType }
 > = Object.fromEntries(SLIDE_TEXT_FIELDS.map((f) => [f.primitiveId, f]));
+
+// Shown in place of the canvas when a text block holds what panther cannot
+// draw, since panther's own error names its functions, not the block.
+function describeUndrawableText(found: SlideTableOrImage): string {
+  const line = found.line + 1;
+  return found.kind === "table"
+    ? t3({
+      en:
+        `A text block on this slide holds a markdown table at line ${line}, which slide text cannot draw. Show tabular data with a figure instead.`,
+      fr:
+        `Un bloc de texte de cette diapositive contient un tableau markdown à la ligne ${line}, que le texte d'une diapositive ne peut pas afficher. Affichez plutôt les données tabulaires avec une figure.`,
+      pt:
+        `Um bloco de texto deste diapositivo contém uma tabela markdown na linha ${line}, que o texto de um diapositivo não consegue mostrar. Mostre antes os dados em tabela com uma figura.`,
+    })
+    : t3({
+      en:
+        `A text block on this slide holds a markdown image at line ${line}, which slide text cannot draw. Show the image with an image block instead.`,
+      fr:
+        `Un bloc de texte de cette diapositive contient une image markdown à la ligne ${line}, que le texte d'une diapositive ne peut pas afficher. Affichez plutôt l'image avec un bloc image.`,
+      pt:
+        `Um bloco de texto deste diapositivo contém uma imagem markdown na linha ${line}, que o texto de um diapositivo não consegue mostrar. Mostre antes a imagem com um bloco de imagem.`,
+    });
+}
 
 type SlideEditorInnerProps = {
   productId: string;
@@ -523,6 +548,16 @@ export function SlideEditor(p: Props) {
   let renderRunId = 0;
   async function attemptGetPageInputs(slide: Slide) {
     const runId = ++renderRunId;
+    const undrawable = slide.type === "content"
+      ? findUndrawableSlideTextBlock(slide.layout)
+      : undefined;
+    if (undrawable !== undefined) {
+      setPageInputs({
+        status: "error",
+        err: describeUndrawableText(undrawable),
+      });
+      return;
+    }
     try {
       const res = await convertSlideToPageInputs(
         slide,
