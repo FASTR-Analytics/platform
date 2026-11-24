@@ -45,17 +45,19 @@ export function measureLogos<T extends ImageLike>(
     return { items: [], totalWidth: 0, totalHeight: 0 };
   }
 
-  const dimensions = input.images.map((img) =>
+  const natural = input.images.map((img) =>
     calculateLogoDimensions(img, input.style)
   );
-
-  let totalWidth = 0;
-  let maxHeight = 0;
-  for (let i = 0; i < dimensions.length; i++) {
-    totalWidth += dimensions[i].width;
-    if (i > 0) totalWidth += input.style.gapX;
-    maxHeight = Math.max(maxHeight, dimensions[i].height);
-  }
+  const naturalWidth = rowWidth(natural, input.style.gapX);
+  const room = Math.max(0, input.rowMaxWidth ?? bounds.w());
+  const scale = naturalWidth > room ? room / naturalWidth : 1;
+  const dimensions = natural.map((d) => ({
+    width: d.width * scale,
+    height: d.height * scale,
+  }));
+  const gapX = input.style.gapX * scale;
+  const totalWidth = rowWidth(dimensions, gapX);
+  const maxHeight = Math.max(...dimensions.map((d) => d.height));
 
   let startX: number;
   switch (input.alignH) {
@@ -98,7 +100,7 @@ export function measureLogos<T extends ImageLike>(
       height: dim.height,
     });
 
-    currentX += dim.width + input.style.gapX;
+    currentX += dim.width + gapX;
   }
 
   return {
@@ -115,4 +117,11 @@ export function renderLogos(
   for (const logo of measured.items) {
     rc.rImage(logo.image, logo.x, logo.y, logo.width, logo.height);
   }
+}
+
+function rowWidth(dimensions: ImageLike[], gapX: number): number {
+  return dimensions.reduce(
+    (total, d, i) => total + d.width + (i > 0 ? gapX : 0),
+    0,
+  );
 }

@@ -13,20 +13,23 @@ import {
   sum,
 } from "../deps.ts";
 import type { LayoutStyleConfig } from "../optimizer.ts";
+import { isOverflow } from "../overflow.ts";
 import type {
   ContainerDecorationOptions,
   ContainerStyleOptions,
-  HeightConstraints,
-  ItemHeightMeasurer,
   ItemLayoutNode,
+  ItemSizeMeasurer,
   LayoutNode,
   LayoutNodeBase,
+  LayoutNodeNeed,
+  LayoutOverflowCause,
   MeasuredColsLayoutNode,
   MeasuredItemLayoutNode,
   MeasuredLayoutNode,
   MeasuredRowsLayoutNode,
   ResolvedContainerDecoration,
   ResolvedContainerStyle,
+  SizeConstraints,
 } from "../types.ts";
 
 export type MeasureContext<T, U> = {
@@ -39,10 +42,18 @@ export type MeasureContext<T, U> = {
   globalSnapPositions: number[]; // Same as dividerPositions
   boundsX: number;
   boundsW: number;
-  itemMeasurer: ItemHeightMeasurer<T, U>;
+  itemMeasurer: ItemSizeMeasurer<T, U>;
   parentStartColumn: number;
   parentAvailableSpan: number;
 };
+
+type NodeMinimum = { minH: number; neededBy: LayoutNodeNeed[] };
+
+type NodeHeightConstraints = NodeMinimum & { idealH: number; maxH: number };
+
+// A node placed in its rect, with the items under it that are wider than
+// theirs.
+type PlacedNode<N> = { measured: N; widthCauses: LayoutOverflowCause[] };
 
 function resolveContainerStyle(
   nodeStyle: ContainerStyleOptions | undefined,
@@ -101,18 +112,22 @@ function resolveDecoration(
 }
 
 // =============================================================================
-// Recursive function to calculate height constraints (minH, maxH) for each node
+// Size constraints
 // =============================================================================
 
-export function getHeightConstraints<T, U>(
+export function getSizeConstraints<T, U>(
   mctx: MeasureContext<T, U>,
   node: LayoutNode<U>,
   width: number,
   availableColumns: number,
   startColumn: number,
-): HeightConstraints {
+): NodeHeightConstraints {
   if (node.type === "item") {
-    const { minH, idealH, maxH } = measureItemConstraints(mctx, node, width);
+    const { minH, idealH, maxH, neededBy } = measureItemConstraints(
+      mctx,
+      node,
+      width,
+    );
     if (PANTHER_DEBUG) {
       console.log(
         `  ITEM: minH=${minH.toFixed(1)}, idealH=${idealH.toFixed(1)}, maxH=${
@@ -122,24 +137,26 @@ export function getHeightConstraints<T, U>(
         }`,
       );
     }
-    return { minH, idealH, maxH };
+    return { minH, idealH, maxH, neededBy };
   }
 
   let minH: number;
+  let neededBy: LayoutNodeNeed[];
   let idealH: number;
   let maxH: number;
 
   if (node.type === "rows") {
     if (node.children.length === 0) {
       minH = 0;
+      neededBy = [];
       idealH = 0;
       maxH = 0;
     } else {
       const childResults = node.children.map((child) =>
-        getHeightConstraints(mctx, child, width, availableColumns, startColumn)
+        getSizeConstraints(mctx, child, width, availableColumns, startColumn)
       );
       const totalGaps = (node.children.length - 1) * mctx.gapY;
-      minH = sum(childResults.map((r) => r.minH)) + totalGaps;
+      ({ minH, neededBy } = stackedMinimum(childResults, mctx.gapY));
       idealH = sum(childResults.map((r) => r.idealH)) + totalGaps;
       maxH = sum(childResults.map((r) => r.maxH)) + totalGaps;
     }
@@ -166,7 +183,7 @@ export function getHeightConstraints<T, U>(
         mctx.boundsW,
         mctx.nAbsoluteGridColumns,
       );
-      const result = getHeightConstraints(
+      const result = getSizeConstraints(
         mctx,
         child,
         contentWidth,
@@ -177,7 +194,7 @@ export function getHeightConstraints<T, U>(
       return result;
     });
     // Cols: both use max - need space for tallest, can grow to tallest
-    minH = Math.max(...childResults.map((r) => r.minH), 0);
+    ({ minH, neededBy } = tallestMinimum(childResults));
     idealH = Math.max(...childResults.map((r) => r.idealH), 0);
     maxH = Math.max(...childResults.map((r) => r.maxH), 0);
     if (PANTHER_DEBUG) {
@@ -191,16 +208,41 @@ export function getHeightConstraints<T, U>(
     }
   }
 
-  return resolveNodeConstraints(node, { minH, idealH, maxH });
+  return resolveNodeConstraints(node, { minH, neededBy, idealH, maxH });
+}
+
+function stackedMinimum(
+  children: NodeHeightConstraints[],
+  gapY: number,
+): NodeMinimum {
+  return {
+    minH: sum(children.map((c) => c.minH)) +
+      Math.max(0, children.length - 1) * gapY,
+    neededBy: children.flatMap((c) => c.neededBy),
+  };
+}
+
+function tallestMinimum(children: NodeHeightConstraints[]): NodeMinimum {
+  const minH = Math.max(...children.map((c) => c.minH), 0);
+  return {
+    minH,
+    neededBy: children.flatMap((c) => c.minH === minH ? c.neededBy : []),
+  };
 }
 
 function resolveNodeConstraints(
   node: LayoutNodeBase,
-  content: { minH: number; idealH: number; maxH: number },
-): { minH: number; idealH: number; maxH: number } {
+  content: NodeHeightConstraints,
+): NodeHeightConstraints {
   const minH = Math.max(content.minH, node.minH ?? 0);
   const maxH = Math.max(minH, node.maxH ?? content.maxH);
-  return { minH, idealH: clamp(content.idealH, minH, maxH), maxH };
+  const raised = node.minH !== undefined && node.minH > content.minH;
+  return {
+    minH,
+    neededBy: raised ? [{ id: node.id, need: minH }] : content.neededBy,
+    idealH: clamp(content.idealH, minH, maxH),
+    maxH,
+  };
 }
 
 // An item's content constraints, read at the width its padding and border
@@ -211,12 +253,9 @@ function measureItemConstraints<T, U>(
   mctx: MeasureContext<T, U>,
   node: ItemLayoutNode<U>,
   width: number,
-): {
+): NodeHeightConstraints & {
   resolved: ResolvedContainerStyle;
-  content: HeightConstraints;
-  minH: number;
-  idealH: number;
-  maxH: number;
+  content: SizeConstraints;
 } {
   const resolved = resolveContainerStyle(node.style, mctx.layoutStyle);
   const borderTotal = resolved.borderWidth * 2;
@@ -226,11 +265,13 @@ function measureItemConstraints<T, U>(
     node,
     width - resolved.padding.totalPx() - borderTotal,
   );
+  const minH = content.minH + paddingAndBorder;
   return {
     resolved,
     content,
     ...resolveNodeConstraints(node, {
-      minH: content.minH + paddingAndBorder,
+      minH,
+      neededBy: [{ id: node.id, need: minH }],
       idealH: content.idealH + paddingAndBorder,
       maxH: node.alignV || resolved.backgroundExtent === "fill"
         ? Infinity
@@ -247,7 +288,7 @@ export function measureNode<T, U>(
   mctx: MeasureContext<T, U>,
   node: LayoutNode<U>,
   bounds: RectCoordsDims,
-): MeasuredLayoutNode<U> {
+): PlacedNode<MeasuredLayoutNode<U>> {
   if (node.type === "rows") {
     return measureRowNode(mctx, node, bounds);
   }
@@ -261,7 +302,7 @@ function measureRowNode<T, U>(
   mctx: MeasureContext<T, U>,
   node: LayoutNode<U> & { type: "rows" },
   bounds: RectCoordsDims,
-): MeasuredRowsLayoutNode<U> {
+): PlacedNode<MeasuredRowsLayoutNode<U>> {
   // Rows have no style (containers are structural only)
   // Calculate row span (used for child measurements)
   // Row children should all have the same span as their parent
@@ -269,7 +310,7 @@ function measureRowNode<T, U>(
 
   // Get constraints for all children
   const childConstraints = node.children.map((child) =>
-    getHeightConstraints(
+    getSizeConstraints(
       mctx,
       child,
       bounds.w(),
@@ -282,46 +323,19 @@ function measureRowNode<T, U>(
   const totalMinH = sum(childConstraints.map((c) => c.minH));
   const availableHeight = bounds.h();
 
-  // Calculate how much space we can use
-  const usableHeight = availableHeight - totalGapHeight;
-
-  // Start with minH for everyone
-  const childHeights = childConstraints.map((c) => c.minH);
-  let totalUsed = totalMinH;
-
-  // Distribute extra space among children that can grow
-  let extraSpace = usableHeight - totalUsed;
-  while (extraSpace > 0.001) {
-    // Find children that can still grow
-    const growableIndices: number[] = [];
-    for (let i = 0; i < node.children.length; i++) {
-      if (childHeights[i] < childConstraints[i].maxH) {
-        growableIndices.push(i);
-      }
-    }
-
-    if (growableIndices.length === 0) break;
-
-    // Distribute equally among growable children
-    const sharePerChild = extraSpace / growableIndices.length;
-    let distributed = 0;
-
-    for (const i of growableIndices) {
-      const canGrow = childConstraints[i].maxH - childHeights[i];
-      const growth = Math.min(sharePerChild, canGrow);
-      childHeights[i] += growth;
-      distributed += growth;
-    }
-
-    extraSpace -= distributed;
-    totalUsed += distributed;
-
-    // Safety: if nothing was distributed, break to avoid infinite loop
-    if (distributed < 0.001) break;
-  }
+  const toIdeal = shareEqually(
+    childConstraints.map((c) => c.minH),
+    childConstraints.map((c) => c.idealH),
+    availableHeight - totalGapHeight - totalMinH,
+  );
+  const childHeights = shareEqually(
+    toIdeal.heights,
+    childConstraints.map((c) => c.maxH),
+    toIdeal.extra,
+  ).heights;
 
   // Measure children with allocated heights
-  const measuredChildren: MeasuredLayoutNode<U>[] = [];
+  const placedChildren: PlacedNode<MeasuredLayoutNode<U>>[] = [];
   let currentY = bounds.y();
 
   // Row's absoluteStartColumn (for passing to children)
@@ -345,12 +359,11 @@ function measureRowNode<T, U>(
       parentAvailableSpan: rowSpan,
     };
 
-    const measuredChild = measureNode(childMctx, child, childBounds);
-
-    measuredChildren.push(measuredChild);
+    placedChildren.push(measureNode(childMctx, child, childBounds));
     currentY += childH + mctx.gapY;
   }
 
+  const measuredChildren = placedChildren.map((p) => p.measured);
   const actualTotalHeight = measuredChildren.length > 0
     ? currentY - bounds.y() - mctx.gapY
     : 0;
@@ -363,12 +376,15 @@ function measureRowNode<T, U>(
   const span = node.span ?? calculatedSpan;
 
   return {
-    ...node,
-    rpd,
-    children: measuredChildren,
-    absoluteStartColumn: mctx.parentStartColumn,
-    absoluteEndColumn: mctx.parentStartColumn + span,
-    span,
+    measured: {
+      ...node,
+      rpd,
+      children: measuredChildren,
+      absoluteStartColumn: mctx.parentStartColumn,
+      absoluteEndColumn: mctx.parentStartColumn + span,
+      span,
+    },
+    widthCauses: placedChildren.flatMap((p) => p.widthCauses),
   };
 }
 
@@ -376,7 +392,7 @@ function measureColNode<T, U>(
   mctx: MeasureContext<T, U>,
   node: LayoutNode<U> & { type: "cols" },
   bounds: RectCoordsDims,
-): MeasuredColsLayoutNode<U> {
+): PlacedNode<MeasuredColsLayoutNode<U>> {
   // Cols have no style (containers are structural only)
   // Get constraints for all children using divider-based widths
   let constraintCol = mctx.parentStartColumn;
@@ -391,7 +407,7 @@ function measureColNode<T, U>(
       mctx.boundsW,
       mctx.nAbsoluteGridColumns,
     );
-    const result = getHeightConstraints(
+    const result = getSizeConstraints(
       mctx,
       child,
       contentWidth,
@@ -411,7 +427,7 @@ function measureColNode<T, U>(
   rowHeight = Math.max(rowHeight, maxOfMinH);
 
   // Measure children - each gets row height, capped by their maxH
-  const measuredChildren: MeasuredLayoutNode<U>[] = [];
+  const placedChildren: PlacedNode<MeasuredLayoutNode<U>>[] = [];
   let currentCol = mctx.parentStartColumn;
 
   for (let i = 0; i < node.children.length; i++) {
@@ -448,12 +464,11 @@ function measureColNode<T, U>(
       parentAvailableSpan: childSpan,
     };
 
-    const measuredChild = measureNode(childMctx, child, childBounds);
-
-    measuredChildren.push(measuredChild);
+    placedChildren.push(measureNode(childMctx, child, childBounds));
     currentCol += childSpan;
   }
 
+  const measuredChildren = placedChildren.map((p) => p.measured);
   const rpd = bounds.getAdjusted({ h: Math.min(rowHeight, bounds.h()) });
 
   // Calculate span as sum of children (cols are horizontal)
@@ -461,12 +476,15 @@ function measureColNode<T, U>(
   const span = node.span ?? calculatedSpan;
 
   return {
-    ...node,
-    rpd,
-    children: measuredChildren,
-    absoluteStartColumn: mctx.parentStartColumn,
-    absoluteEndColumn: mctx.parentStartColumn + span,
-    span,
+    measured: {
+      ...node,
+      rpd,
+      children: measuredChildren,
+      absoluteStartColumn: mctx.parentStartColumn,
+      absoluteEndColumn: mctx.parentStartColumn + span,
+      span,
+    },
+    widthCauses: placedChildren.flatMap((p) => p.widthCauses),
   };
 }
 
@@ -474,7 +492,7 @@ function measureItemNode<T, U>(
   mctx: MeasureContext<T, U>,
   node: LayoutNode<U> & { type: "item" },
   bounds: RectCoordsDims,
-): MeasuredItemLayoutNode<U> {
+): PlacedNode<MeasuredItemLayoutNode<U>> {
   const { resolved, content, idealH, maxH } = measureItemConstraints(
     mctx,
     node,
@@ -485,6 +503,16 @@ function measureItemNode<T, U>(
 
   const boundsAfterBorder = bounds.getPadded(new Padding(borderWidth));
   const innerBounds = boundsAfterBorder.getPadded(pad);
+
+  const minW = content.minW + pad.totalPx() + borderWidth * 2;
+  const widthCauses: LayoutOverflowCause[] = isOverflow(minW, bounds.w())
+    ? [{
+      axis: "width",
+      need: minW,
+      available: bounds.w(),
+      neededBy: [{ id: node.id, need: minW }],
+    }]
+    : [];
 
   const span = node.span ?? mctx.parentAvailableSpan;
   const { style: _style, ...nodeWithoutStyle } = node;
@@ -511,18 +539,21 @@ function measureItemNode<T, U>(
     : filledStyleRpd;
 
   return {
-    ...nodeWithoutStyle,
-    type: "item",
-    resolvedStyle: resolved,
-    rpd: bounds,
-    contentRpd,
-    styleRpd,
-    idealH,
-    maxH,
-    neededScalingToFitWidth: content.neededScalingToFitWidth,
-    absoluteStartColumn: mctx.parentStartColumn,
-    absoluteEndColumn: mctx.parentStartColumn + span,
-    span,
+    measured: {
+      ...nodeWithoutStyle,
+      type: "item",
+      resolvedStyle: resolved,
+      rpd: bounds,
+      contentRpd,
+      styleRpd,
+      idealH,
+      maxH,
+      neededScalingToFitWidth: content.neededScalingToFitWidth,
+      absoluteStartColumn: mctx.parentStartColumn,
+      absoluteEndColumn: mctx.parentStartColumn + span,
+      span,
+    },
+    widthCauses,
   };
 }
 
@@ -546,4 +577,27 @@ function getContentBounds(
     ? boundsX + boundsW
     : dividerPositions[endCol - 1] - gapX / 2;
   return { leftEdge, rightEdge, contentWidth: rightEdge - leftEdge };
+}
+
+function shareEqually(
+  heights: number[],
+  caps: number[],
+  extra: number,
+): { heights: number[]; extra: number } {
+  const grown = [...heights];
+  let left = extra;
+  while (left > 0.001) {
+    const growable = grown.flatMap((h, i) => h < caps[i] ? [i] : []);
+    if (growable.length === 0) break;
+    const share = left / growable.length;
+    let distributed = 0;
+    for (const i of growable) {
+      const growth = Math.min(share, caps[i] - grown[i]);
+      grown[i] += growth;
+      distributed += growth;
+    }
+    left -= distributed;
+    if (distributed < 0.001) break;
+  }
+  return { heights: grown, extra: left };
 }

@@ -13,6 +13,7 @@
 // were accidents of per-site opt-in).
 
 import type {
+  AIToolOutput,
   GuardDecision,
   ProposalPreview,
   QueryState,
@@ -110,6 +111,23 @@ export type OpOutputOf<C extends OpContract> = C["output"] extends zType.ZodType
 export type ServerOpNameOf<TReg extends OpRegistry> = {
   [K in keyof TReg & string]: TReg[K]["kind"] extends "nav" ? never : K;
 }[keyof TReg & string];
+
+// What the model reads of a read or write op's result in place of its JSON,
+// on the op's AI tool and its MCP tool alike: defineOps' second argument,
+// each entry typed by its op's output. It is given beside the registry, not
+// in an op's literal, because the registry is inferred from the literal
+// before a function in it is typed, which would type its output unknown.
+export type OpDescribeForModel<TReg extends OpRegistry> = {
+  [K in ServerOpNameOf<TReg>]?: (
+    output: OpOutputOf<TReg[K]>,
+  ) => string | AIToolOutput;
+};
+
+// An op as defineOps returns it, which the projections read: its contract,
+// and what the model reads of its result when defineOps was told.
+export type DescribedOpContract = OpContract & {
+  describeForModel?: (output: unknown) => string | AIToolOutput;
+};
 
 export type NavOpNameOf<TReg extends OpRegistry> = {
   [K in keyof TReg & string]: TReg[K]["kind"] extends "nav" ? K : never;

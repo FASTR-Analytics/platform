@@ -4,20 +4,19 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  assertNoDataConfigIssues,
   buildDataDimension,
-  checkValuePropsAssignment,
   compareBlankLast,
   createArray,
   type DataDimension,
   type DataDimensions,
-  fillValuesWithDuplicateCheck,
+  fillValues,
   getDimensionMembers,
   getMemberIndex,
   isBlankMember,
   type MemberSortConfig,
-  validateDataInput,
-  validateDimensionProps,
 } from "./deps.ts";
+import { getPieDataConfigIssues } from "./pie_data_config_issues.ts";
 import {
   isPieDataTransformed,
   type PieData,
@@ -47,23 +46,8 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
     sortSeriesValues,
   } = jsonDataConfig;
 
-  validateDataInput(jsonArray, valueProps);
-  checkValuePropsAssignment(valueProps, {
-    seriesProp,
-    indicatorProp,
-    laneProp,
-    tierProp,
-    paneProp,
-  });
+  assertNoDataConfigIssues(getPieDataConfigIssues(d));
 
-  const dimensionProps = {
-    series: seriesProp,
-    indicator: indicatorProp,
-    pane: paneProp,
-    tier: tierProp,
-    lane: laneProp,
-  };
-  validateDimensionProps(jsonArray, dimensionProps);
   const buildDimension = (
     prop: string | undefined,
     sortConfig?: MemberSortConfig,
@@ -98,16 +82,15 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
 
   const dimensions: DataDimensions = { series, lane, tier, pane };
 
-  fillValuesWithDuplicateCheck(
+  fillValues(
     values,
     jsonArray,
+    valueProps,
     valueProps,
     dimensions,
     // The last index is the indicator (repeat) dimension: one pie per entry.
     (obj, valueProp) => getMemberIndex(indicator, valueProp, obj),
   );
-
-  assertNoNegativeValues(values, series);
 
   const sorted = series && sortsByValue
     ? reorderSeriesByGlobalSum(values, series, sortSeriesValues)
@@ -234,33 +217,6 @@ function createEmptyValuesArray(
           ),
       ),
   );
-}
-
-// A negative slice has no representation at all — no angle, no direction — so
-// it throws here. (An OVERFLOWING pie does have an obvious correct rendering,
-// and is handled at measure time by the resolvedTotal rule rather than
-// rejected; see resolvePieTotal.)
-function assertNoNegativeValues(
-  values: (number | undefined)[][][][][],
-  series: DataDimension | undefined,
-): void {
-  for (const pane of values) {
-    for (const tier of pane) {
-      for (const lane of tier) {
-        for (let i_series = 0; i_series < lane.length; i_series++) {
-          for (const v of lane[i_series]) {
-            if (v !== undefined && v < 0) {
-              throw new Error(
-                `Pie values must be non-negative: series "${
-                  series?.members[i_series].id ?? i_series
-                }" has value ${v}`,
-              );
-            }
-          }
-        }
-      }
-    }
-  }
 }
 
 function reorderSeriesByGlobalSum(

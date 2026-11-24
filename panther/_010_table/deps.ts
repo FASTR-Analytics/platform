@@ -4,9 +4,9 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export {
-  assert,
   assertNotUndefined,
   createArray,
+  isBlankValue,
   sum,
 } from "../_000_utils/mod.ts";
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
@@ -20,13 +20,13 @@ export {
 } from "../_001_render_system/mod.ts";
 export type {
   DimensionMember,
-  HeightConstraints,
   Measured,
   MeasuredText,
   MemberSortConfig,
   Primitive,
   RenderContext,
   Renderer,
+  SizeConstraints,
   TableCellInfo,
   TableCellInfoFunc,
   TableHeaderInfo,
@@ -43,20 +43,36 @@ export type {
   TableHeaderStyle,
 } from "../_003_figure_style/mod.ts";
 export {
+  assertNoDataConfigIssues,
   buildFitReport,
   computeFloorScale,
   estimateMinSurroundsWidth,
   findFitScaleWithFloor,
   generateSurroundsPrimitives,
+  getColumnDimensionFields,
+  getColumnNotInRowsIssues,
+  getDimensionFields,
   getDimensionId,
+  getDimensionNamedTwiceIssues,
+  getNoRowsIssues,
+  getNotANumberIssues,
+  getNoValuePropsIssues,
+  getReadFields,
+  getRowColumns,
+  getTwoRowsOneValueIssues,
+  getValuePropFields,
+  getValuePropNamedTwiceIssues,
+  getValuePropsNotSplitIssues,
+  indexRows,
   measureSurrounds,
   memoizeByScale,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveFigureAutofitOptions,
-  validateDimensionProps,
 } from "../_007_figure_core/mod.ts";
 export type {
+  DataConfigField,
+  DataConfigIssue,
   FigureInputsBase,
   JsonArray,
   JsonArrayItem,

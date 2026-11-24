@@ -10,16 +10,14 @@ import {
   getChartOVSizingData,
 } from "./_internal/get_size_info.ts";
 import {
-  getChartHeightConstraintsByMeasure,
-  type HeightConstraints,
+  type ChartProbeSizing,
+  getChartSizeConstraintsByMeasure,
   measureChartWithAutofit,
-  type PaneGrid,
-  type PaneLayout,
   RectCoordsDims,
   type RenderContext,
   type Renderer,
-  resolveValueAxisFloorSubChartHeight,
   resolveValueAxisSubChartHeight,
+  type SizeConstraints,
 } from "./deps.ts";
 import type {
   ChartOVDataTransformed,
@@ -29,22 +27,25 @@ import type {
 
 // Probes run layout-only: they consume the returned geometry, never the
 // primitives, so content-primitive generation is skipped.
-function buildOVProbe(
+function buildOVProbeSizing(
   rc: RenderContext,
   width: number,
   inputs: ChartOVInputs,
   data: ChartOVDataTransformed,
-): (probeH: number, paneGrid: PaneGrid, scale?: number) => PaneLayout[] {
-  return (probeH, paneGrid, scale) =>
-    measureChartOV(
-      rc,
-      new RectCoordsDims([0, 0, width, probeH]),
-      inputs,
-      paneGrid,
-      scale,
-      data,
-      true,
-    ).paneLayouts;
+): ChartProbeSizing {
+  return {
+    probeMeasure: (probeH, paneGrid, scale) =>
+      measureChartOV(
+        rc,
+        new RectCoordsDims([0, 0, width, probeH]),
+        inputs,
+        paneGrid,
+        scale,
+        data,
+        true,
+      ).paneLayouts,
+    resolveTarget: resolveValueAxisSubChartHeight,
+  };
 }
 
 function measureOV(
@@ -61,9 +62,7 @@ function measureOV(
     (scale) => getChartOVComponentSizes(rc, inputs, data, scale),
     (rc2, b, inp, paneGrid, fitScale) =>
       measureChartOV(rc2, b, inp, paneGrid, fitScale, data),
-    buildOVProbe(rc, w, inputs, data),
-    resolveValueAxisSubChartHeight,
-    resolveValueAxisFloorSubChartHeight,
+    buildOVProbeSizing(rc, w, inputs, data),
   );
 }
 
@@ -97,16 +96,14 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
     rc: RenderContext,
     width: number,
     inputs: ChartOVInputs,
-  ): HeightConstraints {
+  ): SizeConstraints {
     const data = getChartOVSizingData(inputs);
-    return getChartHeightConstraintsByMeasure(
+    return getChartSizeConstraintsByMeasure(
       rc,
       width,
       inputs,
       (scale) => getChartOVComponentSizes(rc, inputs, data, scale),
-      buildOVProbe(rc, width, inputs, data),
-      resolveValueAxisSubChartHeight,
-      resolveValueAxisFloorSubChartHeight,
+      buildOVProbeSizing(rc, width, inputs, data),
     );
   },
 };

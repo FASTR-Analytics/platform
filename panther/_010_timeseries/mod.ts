@@ -7,5 +7,6 @@ export {
   getTimeseriesDataJsonTransformed,
   getTimeseriesDataTransformed,
 } from "./get_timeseries_data.ts";
+export { getTimeseriesDataConfigIssues } from "./timeseries_data_config_issues.ts";
 export { TimeseriesRenderer } from "./timeseries_renderer.ts";
 export * from "./types.ts";

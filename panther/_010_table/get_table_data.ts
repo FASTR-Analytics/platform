@@ -11,18 +11,19 @@ import {
   type TableJsonDataConfig,
 } from "./types.ts";
 import {
-  assert,
+  assertNoDataConfigIssues,
   assertNotUndefined,
   createArray,
   createDimensionMember,
   type DimensionMember,
   getDimensionId,
+  isBlankValue,
   type JsonArray,
   type JsonArrayItem,
   type MemberSortConfig,
   sortDimensionMembers,
-  validateDimensionProps,
 } from "./deps.ts";
+import { getTableDataConfigIssues } from "./table_data_config_issues.ts";
 
 export function getTableDataTransformed(d: TableData): TableDataTransformed {
   if (isTableDataJson(d)) {
@@ -48,16 +49,9 @@ function getTableDataJsonTransformed(
     sort,
   } = jsonDataConfig;
 
-  if (valueProps.length === 0) {
-    throw new Error("Need at least one valueProp");
-  }
-  const dimensionProps = {
-    col: colProp,
-    row: rowProp,
-    colGroup: colGroupProp,
-    rowGroup: rowGroupProp,
-  };
-  validateDimensionProps(jsonArray, dimensionProps);
+  assertNoDataConfigIssues(
+    getTableDataConfigIssues({ jsonArray, jsonDataConfig }),
+  );
 
   const col = promoteGroupPropIfNoMemberProp(
     colGroupProp,
@@ -370,7 +364,7 @@ function fillDataArray(
 ): void {
   for (const vp of valueProps) {
     for (const obj of jsonArray) {
-      if (obj[vp] === null || obj[vp] === undefined) {
+      if (isBlankValue(obj[vp])) {
         continue;
       }
 
@@ -394,10 +388,6 @@ function fillDataArray(
         `Missing row combo in index: ${rowCombo}`,
       );
 
-      assert(
-        aoa[i_row][i_col] === UNDEFINED_PLACEHOLDER,
-        `Duplicate value at col=${colCombo} row=${rowCombo}`,
-      );
       aoa[i_row][i_col] = String(obj[vp]);
 
       const nProp = nProps?.[vp];

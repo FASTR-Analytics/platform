@@ -70,7 +70,7 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
             {p.loadingRenderer!((p.state as { msg?: string }).msg)}
           </Match>
           <Match when={p.spinner}>
-            <Spinner />
+            <Spinner intent="base-100" />
           </Match>
           <Match when={!p.spinner}>
             <LoadingIndicator

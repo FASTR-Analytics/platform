@@ -147,23 +147,6 @@ export function renderFormattedText(
   }
 }
 
-// Widest unbreakable unit of an inline code span (a word plus the padding it
-// carries) — what the autofit floor must respect.
-export function measureInlineCodeAdvance(
-  rc: RenderContext,
-  text: string,
-  codeStyle: InlineCodeStyle,
-): number {
-  const chunks = measureChunks(
-    rc,
-    splitRunsIntoChunks([{ text, style: "normal", isCode: true }]),
-    codeStyle.textInfo,
-    codeStyle.textInfo.color,
-    codeStyle,
-  );
-  return chunks.reduce((max, c) => c.isSpace ? max : Math.max(max, c.width), 0);
-}
-
 // =============================================================================
 // resolveRunStyle
 // =============================================================================

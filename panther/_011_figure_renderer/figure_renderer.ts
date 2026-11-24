@@ -11,7 +11,6 @@ import {
   type DiagramInputs,
   DiagramRenderer,
   generateAnnotationPrimitives,
-  type HeightConstraints,
   type MapInputs,
   MapRenderer,
   type MeasuredChartOH,
@@ -29,6 +28,7 @@ import {
   type Renderer,
   type SceneInputs,
   SceneRenderer,
+  type SizeConstraints,
   type TableInputs,
   TableRenderer,
   type TimeseriesInputs,
@@ -118,7 +118,7 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
     rc: RenderContext,
     width: number,
     inputs: FigureInputs,
-  ): HeightConstraints {
+  ): SizeConstraints {
     const renderer = getFigureRenderer(inputs);
     return renderer.getIdealHeight(rc, width, inputs);
   },

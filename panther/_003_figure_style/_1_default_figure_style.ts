@@ -624,7 +624,8 @@ const _DS = {
     projection: typed<MapProjection>("equirectangular"),
     fit: typed<"all-map-areas" | "only-map-areas-in-data">("all-map-areas"),
     // Where a map area's label goes. "centroid" pins every label to its map area's
-    // centroid whatever happens; "callout" sends every label outside; "auto"
+    // centroid whatever happens, moved only to clear its neighbours and to stay
+    // inside the sub-chart; "callout" sends every label outside; "auto"
     // keeps a label inside when it genuinely fits and exiles the rest.
     //
     // "auto" is the default because "centroid" piles up on any dense map:

@@ -158,10 +158,9 @@ export const zVisibleByPane = z.array(z.array(z.number()));
 // indexed [pane][global tier or lane index][visible global indicator indices].
 export const zVisibleByPaneTierOrLane = z.array(zVisibleByPane);
 
-// Proportional (ragged-table) layout configs. strict: a stray key must error,
-// not be silently stripped — see validateChartProportional for the rule
-// (panes implies the tier-or-lane key; { lanes: false, panes: true } is
-// rejected there).
+// Proportional (ragged-table) layout configs. strict: a stray key, the other
+// chart's among them, must error, not be silently stripped, since the
+// transform reads only the keys of its type.
 export const zChartOVProportional = z.strictObject({
   lanes: z.boolean().optional(),
   panes: z.boolean().optional(),

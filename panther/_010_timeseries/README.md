@@ -34,16 +34,19 @@ Object-based renderer implementing the standard Panther renderer pattern:
 ```typescript
 getTimeseriesDataTransformed(
   data: TimeseriesData,
-  options: TimeseriesOptions,
+  stacked: boolean,
 ): TimeseriesDataTransformed
 
 getTimeseriesDataJsonTransformed(
-  json: JsonArray,
-  mapping: DataMapping,
+  jsonArray: JsonArray,
+  config: TimeseriesJsonDataConfig,
+  stacked: boolean,
 ): TimeseriesDataTransformed
+
+getTimeseriesDataConfigIssues(data: TimeseriesDataJson): DataConfigIssue[]
 ```
 
-Transform raw time data into chart-ready format.
+Transform raw time data into chart-ready format. The JSON transform first checks the data config against its rows and throws a `DataConfigError` holding every issue; `getTimeseriesDataConfigIssues` returns them without the throw (DOC_FIGURE_ARCHITECTURE.md "Data config issues").
 
 ### Period System
 

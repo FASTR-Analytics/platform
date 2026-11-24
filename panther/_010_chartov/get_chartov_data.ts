@@ -3,14 +3,33 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type JsonArray, transformChartOVOrOHJson } from "./deps.ts";
+import {
+  type ChartOVOrOHTransformSpec,
+  type DataConfigIssue,
+  getChartOVOrOHDataConfigIssues,
+  type JsonArray,
+  transformChartOVOrOHJson,
+} from "./deps.ts";
 import {
   type ChartOVData,
+  type ChartOVDataJson,
   type ChartOVDataTransformed,
   type ChartOVJsonDataConfig,
   isChartOVDataJson,
   isChartOVDataTransformed,
 } from "./types.ts";
+
+const CHART_OV_SPEC: ChartOVOrOHTransformSpec = { tierOrLaneDimension: "lane" };
+
+export function getChartOVDataConfigIssues(
+  data: ChartOVDataJson,
+): DataConfigIssue[] {
+  return getChartOVOrOHDataConfigIssues(
+    data.jsonArray,
+    data.jsonDataConfig,
+    CHART_OV_SPEC,
+  );
+}
 
 export function getChartOVDataTransformed(
   d: ChartOVData,
@@ -44,10 +63,12 @@ export function getChartOVDataJsonTransformed(
     visibleIndicatorsByPaneTierOrLane,
     proportionalPanes,
     ...core
-  } = transformChartOVOrOHJson(jsonArray, jsonDataConfig, stacked, {
-    figureName: "ChartOV",
-    tierOrLaneDimension: "lane",
-  });
+  } = transformChartOVOrOHJson(
+    jsonArray,
+    jsonDataConfig,
+    stacked,
+    CHART_OV_SPEC,
+  );
   return {
     ...core,
     yValueAxisLabel: jsonDataConfig.yValueAxisLabel?.trim(),

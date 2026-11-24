@@ -1122,10 +1122,14 @@
     @apply text-base-300;
   }
 
-  /* Ghost skins — intent-colored text, no bg, and a transparent border so
-     a ghost Button keeps the box of its filled and outline siblings (the
-     shared base classes draw a 1px border). Pure appearance, like the
-     other skins; a ghost Button pairs one with ui-hoverable-ghost. */
+  /* Ghost skins — no bg, and a transparent border so a ghost Button keeps
+     the box of its filled and outline siblings (the shared base classes
+     draw a 1px border). ui-ghost sets no colour, so the control inherits
+     the body colour of the surface it sits on, a retuned tonal bar
+     included; ui-ghost-{intent} colours it with the intent. Pure
+     appearance, like the other skins; a ghost Button pairs one with
+     ui-hoverable-ghost. */
+  .ui-ghost,
   .ui-ghost-primary,
   .ui-ghost-neutral,
   .ui-ghost-success,

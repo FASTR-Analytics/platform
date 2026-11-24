@@ -32,11 +32,13 @@ function getButtonClasses(
     // the outline family mixes currentColor, which the outline skin sets.
     // Ghost buttons have no rest surface at all and tint the same way, so
     // they hold on a surface that changes under them (a hovered table row).
-    // A ghost is a quiet action in body colour, so it defaults to
-    // base-content, not primary, which would make every ghost a link.
+    // A ghost with no intent is a quiet action in the body colour of the
+    // surface it sits on, which it inherits, so it reads on any surface, a
+    // retuned tonal bar included; a primary default would make every ghost
+    // a link.
     "ui-focusable",
     ...(ghost
-      ? [`ui-ghost-${intent ?? "base-content"}`, "ui-hoverable-ghost"]
+      ? [intent ? `ui-ghost-${intent}` : "ui-ghost", "ui-hoverable-ghost"]
       : outline
       ? [
         `ui-outline-${intent ?? "primary"}`,
@@ -99,7 +101,7 @@ type ButtonPropsBase = {
 
 // A ghost has no surface, so it neither outlines nor rests on a backdrop;
 // the type refuses the combination.
-type ButtonPropsSurface =
+export type ButtonPropsSurface =
   | { ghost?: false; outline?: boolean; onBackground?: Intent }
   | { ghost: true; outline?: undefined; onBackground?: undefined };
 
@@ -156,7 +158,7 @@ export function Button(p: ButtonProps) {
         <span class="pointer-events-none absolute inset-0 flex items-center justify-center py-1.5">
           <Spinner
             intent={p.ghost
-              ? (p.intent ?? "base-content")
+              ? p.intent
               : p.outline
               ? (p.intent ?? "primary")
               : "base-100"}

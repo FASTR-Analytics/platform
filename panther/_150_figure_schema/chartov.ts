@@ -36,8 +36,9 @@ export const zChartOVJsonDataConfig = z.object({
   tierProp: z.string().optional(),
   paneProp: z.string().optional(),
   uncertainty: zUncertaintyConfig.optional(),
-  // strict: a stray value-direction key (tier on OV) must error, not be
-  // silently stripped — see validateChartMembership for the rule.
+  // strict: a tier key must error, not be silently stripped, because the tier
+  // carries the y value axis limits and stays balanced, and the transform
+  // reads only the keys of its type.
   membership: z
     .strictObject({
       indicator: zDimensionMembership.optional(),

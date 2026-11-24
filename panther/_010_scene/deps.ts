@@ -28,7 +28,6 @@ export {
 export type {
   Arrowhead,
   DiagramNodeInfo,
-  HeightConstraints,
   Measured,
   MeasuredText,
   PathSegment,
@@ -39,6 +38,7 @@ export type {
   ShapePathPrimitive,
   ShapeRectPrimitive,
   ShapeTextPrimitive,
+  SizeConstraints,
   SurroundsPrimitive,
 } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";

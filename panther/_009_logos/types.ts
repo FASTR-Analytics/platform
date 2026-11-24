@@ -7,9 +7,13 @@ import type { AlignH, AlignV, LogosSizing } from "./deps.ts";
 
 export type LogosInput<T extends { width: number; height: number }> = {
   images: T[];
+  // style.maxWidth caps each logo.
   style: LogosSizing;
   alignH: AlignH;
   alignV: AlignV;
+  // The widest the row may be, its bounds' width when absent. A wider row
+  // shrinks to it by one factor, logos and gaps alike, and never grows.
+  rowMaxWidth?: number;
 };
 
 export type MeasuredLogo<T extends { width: number; height: number }> = {

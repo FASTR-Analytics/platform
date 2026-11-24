@@ -5,6 +5,8 @@
 
 export { MIN_FONT_SIZE_DU } from "../_000_consts/mod.ts";
 export {
+  _GLOBAL_MAX_YEAR_FOR_PERIODS,
+  _GLOBAL_MIN_YEAR_FOR_PERIODS,
   assert,
   BLANK_SENTINEL,
   buildAutoFormatter,
@@ -14,6 +16,7 @@ export {
   getFiscalYear,
   getLanguage,
   getPeriodIdFromTime,
+  getPeriodTypeFromValue,
   getValidNumberOrUndefined,
   isBlankValue,
   isUnique,
@@ -75,7 +78,6 @@ export type {
   FigureScaleLegendGradientPrimitive,
   FigureScaleLegendSteppedPrimitive,
   FigureTextPrimitive,
-  HeightConstraints,
   ItemCoordinate,
   LabelHalo,
   LineStyle,
@@ -93,6 +95,7 @@ export type {
   SankeyNodePrimitive,
   ShapePathPrimitive,
   ShapePrimitive,
+  SizeConstraints,
   SurroundsPrimitive,
   TableBorderPrimitive,
   TableGridPrimitive,

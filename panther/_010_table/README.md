@@ -10,9 +10,11 @@ Table is a **Figure** (but not a Chart). Unlike Charts (Timeseries, ChartOV), Ta
 const TableRenderer: Renderer<TableInputs, MeasuredTable>;
 
 function getTableDataTransformed(d: TableData): TableDataTransformed;
+
+function getTableDataConfigIssues(data: TableDataJson): DataConfigIssue[];
 ```
 
-`TableRenderer` implements the standard renderer pattern (`measure()`, `render()`, `measureAndRender()`, `getIdealHeight()`), with shrink-to-fit autofit built into `measure()`.
+`TableRenderer` implements the standard renderer pattern (`measure()`, `render()`, `measureAndRender()`, `getIdealHeight()`), with shrink-to-fit autofit built into `measure()`. The JSON transform first checks the data config against its rows and throws a `DataConfigError` holding every issue; `getTableDataConfigIssues` returns them without the throw (DOC_FIGURE_ARCHITECTURE.md "Data config issues").
 
 ## Inputs
 

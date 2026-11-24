@@ -4,16 +4,20 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  BLANK_SENTINEL,
+  assertNoDataConfigIssues,
   buildDataDimension,
   getDimensionId,
   getDimensionMembers,
   getMemberIndex,
+  getValidNumberOrUndefined,
   type MemberSortConfig,
-  validateDimensionProps,
 } from "./deps.ts";
 import type { GeoJSONFeature } from "./_internal/geojson_types.ts";
 import { decodeTopojson } from "./_internal/topojson_decode.ts";
+import {
+  getMapDataConfigIssues,
+  hasBlankMapArea,
+} from "./map_data_config_issues.ts";
 import type { MapData, MapDataJson, MapDataTransformed } from "./types.ts";
 
 export function getMapDataTransformed(mapData: MapData): MapDataTransformed {
@@ -22,28 +26,22 @@ export function getMapDataTransformed(mapData: MapData): MapDataTransformed {
 }
 
 function transformMapData(data: MapDataJson): MapDataTransformed {
+  assertNoDataConfigIssues(getMapDataConfigIssues(data));
   const geoFeatures = resolveGeoFeatures(data);
   const config = data.jsonDataConfig;
 
-  const dimensionProps = {
-    mapArea: config.mapAreaProp,
-    pane: config.paneProp,
-    tier: config.tierProp,
-    lane: config.laneProp,
-  };
-  validateDimensionProps(data.jsonArray, dimensionProps);
-  for (const key of ["pane", "tier", "lane"] as const) {
-    if (dimensionProps[key] === "--v") {
-      throw new Error(`A map takes one value, so ${key}Prop cannot be "--v"`);
-    }
-  }
-
-  // A row whose map area is the blank member has nothing to colour.
   const jsonArray = data.jsonArray.filter((row) =>
-    getDimensionId(row, config.mapAreaProp) !== BLANK_SENTINEL
+    !hasBlankMapArea(row, config.mapAreaProp)
   );
+  // A "--v" prop splits by the map's one value prop, into one member.
   const buildDimension = (prop: string | undefined, sort?: MemberSortConfig) =>
-    buildDataDimension(jsonArray, prop, [], config.labelReplacements, sort);
+    buildDataDimension(
+      jsonArray,
+      prop,
+      [config.valueProp],
+      config.labelReplacements,
+      sort,
+    );
   const pane = buildDimension(config.paneProp, config.sort?.pane);
   const tier = buildDimension(config.tierProp, config.sort?.tier);
   const lane = buildDimension(config.laneProp, config.sort?.lane);
@@ -67,16 +65,12 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
 
   for (const row of jsonArray) {
     const mapAreaId = getDimensionId(row, config.mapAreaProp);
-    const rawValue = row[config.valueProp];
-    const value = typeof rawValue === "number" ? rawValue : undefined;
+    const value = getValidNumberOrUndefined(row[config.valueProp]);
 
     const ip = getMemberIndex(pane, config.valueProp, row);
     const it = getMemberIndex(tier, config.valueProp, row);
     const il = getMemberIndex(lane, config.valueProp, row);
 
-    if (Object.hasOwn(valueMaps[ip][it][il], mapAreaId)) {
-      throw new Error(`Duplicate value for map area "${mapAreaId}"`);
-    }
     valueMaps[ip][it][il][mapAreaId] = value;
     if (value !== undefined) {
       if (value < globalMin) globalMin = value;

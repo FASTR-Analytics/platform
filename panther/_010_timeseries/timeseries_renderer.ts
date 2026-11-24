@@ -10,15 +10,14 @@ import {
   getTimeseriesSizingData,
 } from "./_internal/get_size_info.ts";
 import {
-  getChartHeightConstraintsByMeasure,
-  type HeightConstraints,
+  type ChartProbeSizing,
+  getChartSizeConstraintsByMeasure,
   measureChartWithAutofit,
-  type PaneGrid,
-  type PaneLayout,
   RectCoordsDims,
   type RenderContext,
   type Renderer,
   resolveValueAxisSubChartHeight,
+  type SizeConstraints,
 } from "./deps.ts";
 import type {
   MeasuredTimeseries,
@@ -28,22 +27,25 @@ import type {
 
 // Probes run layout-only: they consume the returned geometry, never the
 // primitives, so content-primitive generation is skipped.
-function buildTimeseriesProbe(
+function buildTimeseriesProbeSizing(
   rc: RenderContext,
   width: number,
   inputs: TimeseriesInputs,
   data: TimeseriesDataTransformed,
-): (probeH: number, paneGrid: PaneGrid, scale?: number) => PaneLayout[] {
-  return (probeH, paneGrid, scale) =>
-    measureTimeseries(
-      rc,
-      new RectCoordsDims([0, 0, width, probeH]),
-      inputs,
-      paneGrid,
-      scale,
-      data,
-      true,
-    ).paneLayouts;
+): ChartProbeSizing {
+  return {
+    probeMeasure: (probeH, paneGrid, scale) =>
+      measureTimeseries(
+        rc,
+        new RectCoordsDims([0, 0, width, probeH]),
+        inputs,
+        paneGrid,
+        scale,
+        data,
+        true,
+      ).paneLayouts,
+    resolveTarget: resolveValueAxisSubChartHeight,
+  };
 }
 
 function measureTS(
@@ -60,8 +62,7 @@ function measureTS(
     (scale) => getTimeseriesComponentSizes(rc, inputs, data, scale),
     (rc2, b, inp, paneGrid, fitScale) =>
       measureTimeseries(rc2, b, inp, paneGrid, fitScale, data),
-    buildTimeseriesProbe(rc, w, inputs, data),
-    resolveValueAxisSubChartHeight,
+    buildTimeseriesProbeSizing(rc, w, inputs, data),
   );
 }
 
@@ -98,15 +99,14 @@ export const TimeseriesRenderer: Renderer<
     rc: RenderContext,
     width: number,
     inputs: TimeseriesInputs,
-  ): HeightConstraints {
+  ): SizeConstraints {
     const data = getTimeseriesSizingData(inputs);
-    return getChartHeightConstraintsByMeasure(
+    return getChartSizeConstraintsByMeasure(
       rc,
       width,
       inputs,
       (scale) => getTimeseriesComponentSizes(rc, inputs, data, scale),
-      buildTimeseriesProbe(rc, width, inputs, data),
-      resolveValueAxisSubChartHeight,
+      buildTimeseriesProbeSizing(rc, width, inputs, data),
     );
   },
 };

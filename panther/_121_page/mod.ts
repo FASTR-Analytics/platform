@@ -20,10 +20,15 @@ export type {
   PageAnnotationRect,
   PageContentItem,
   PageContentItemType,
+  PageHeaderFooterPartId,
+  PageHeaderFooterPartNeed,
   PageImageInputs,
   PageInputs,
   PageInputsBase,
+  PageOverflowCause,
   PageSpacerInputs,
+  PageStackPartId,
+  PageStackPartNeed,
   SectionPageInputs,
 } from "./types.ts";
 export { isRectAnnotation, isSpacerItem } from "./types.ts";

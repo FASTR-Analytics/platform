@@ -97,8 +97,10 @@ function droppedReason(metadata: ToolUIMetadata): string {
 // outputs are arbitrary JSON (arrays included), so every tool wraps
 // UNIFORMLY — structuredContent is { result: <output> } and the advertised
 // outputSchema wraps identically. One rule for every tool; clients never
-// switch per shape. The text block still carries the serialized output (the
-// spec's backwards-compat SHOULD).
+// switch per shape. The text block carries what the model reads: the
+// serialized structured output (the spec's backwards-compat SHOULD), or what
+// the tool's describeForModel makes of it, which the model reads on every
+// surface alike.
 function wrappedOutputSchema(schema: zType.ZodType): Record<string, unknown> {
   return z.toJSONSchema(z.object({ result: schema }), { io: "output" });
 }
@@ -595,9 +597,7 @@ export function buildMCPServerCore(
     commit: () => Promise<unknown> | unknown,
     stillValid: (() => boolean) | undefined,
     withAuditHeader: boolean,
-    // Whether the tool declares an outputSchema — commit's raw return then
-    // rides as structuredContent beside the text.
-    emitStructured: boolean,
+    metadata: ToolUIMetadata,
   ): Promise<MCPCallOutcome> => {
     // stillValid is load-bearing here, not a nicety: real wall-clock time
     // passes between propose and commit, which is never true in the chat. A
@@ -616,7 +616,7 @@ export function buildMCPServerCore(
     }
     try {
       return completeRun(
-        resolveAIToolReturn(await Promise.resolve(commit()), emitStructured),
+        resolveAIToolReturn(await Promise.resolve(commit()), metadata),
         withAuditHeader ? renderAuditHeader(preview) : "",
       );
     } catch (error) {
@@ -629,7 +629,7 @@ export function buildMCPServerCore(
     approval: ErasedApprovalConfig,
     input: unknown,
     clientCanElicit: boolean,
-    emitStructured: boolean,
+    metadata: ToolUIMetadata,
   ): Promise<MCPCallOutcome> => {
     let proposal: ProposalResult<unknown>;
     try {
@@ -696,7 +696,7 @@ export function buildMCPServerCore(
         proposal.commit,
         proposal.stillValid,
         true,
-        emitStructured,
+        metadata,
       );
     }
     return completeError(
@@ -762,7 +762,7 @@ export function buildMCPServerCore(
           approval,
           input,
           opts.clientCanElicit,
-          tool.metadata.outputSchema !== undefined,
+          tool.metadata,
         );
       }
       try {
@@ -849,7 +849,7 @@ export function buildMCPServerCore(
         entry.commit,
         entry.stillValid,
         false,
-        tool.metadata.outputSchema !== undefined,
+        tool.metadata,
       );
     },
 

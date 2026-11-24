@@ -33,11 +33,14 @@ export type Measured<TInputs> = {
   fitReport?: FigureFitReport;
 };
 
-// Height constraints for layout system
-export type HeightConstraints = {
+export type SizeConstraints = {
   minH: number;
   idealH: number;
   maxH: number;
+  // The narrowest width the content draws in uncramped at its floor scale (1
+  // when it does not shrink), read from the size function its own cramped
+  // reads. Given less, it draws past its rect.
+  minW: number;
   neededScalingToFitWidth?: "none" | number; // "none" = N/A, 1.0 = fits fine, <1.0 = had to shrink
   minComfortableWidth?: number; // raw min width (neededScalingToFitWidth is derived from this)
 };
@@ -64,7 +67,7 @@ export type Renderer<TInputs, TMeasured extends Measured<TInputs>> = {
     rc: RenderContext,
     width: number,
     inputs: TInputs,
-  ): HeightConstraints;
+  ): SizeConstraints;
 };
 
 // Asynchronous renderer interface
@@ -89,5 +92,5 @@ export type AsyncRenderer<TInputs, TMeasured extends Measured<TInputs>> = {
     rc: RenderContext,
     width: number,
     inputs: TInputs,
-  ): Promise<HeightConstraints>;
+  ): Promise<SizeConstraints>;
 };

@@ -80,7 +80,7 @@ export type PieDataTransformed = {
   lane?: DataDimension;
   // [pane][tier][lane][series][indicator] — literally ChartOV's shape. The
   // last index is the repeat dimension (one pie per indicator, length 1 with no
-  // indicatorProp), which keeps fillValuesWithDuplicateCheck reused verbatim
+  // indicatorProp), which keeps fillValues reused verbatim
   // and values[pane][tier][lane] literally the seriesValueArrays
   // ChartSeriesInfo wants.
   values: (number | undefined)[][][][][];

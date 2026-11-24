@@ -16,19 +16,6 @@ import type {
 import { parseMarkdown } from "../parser.ts";
 import { measureMarkdownItems } from "./measure_items.ts";
 
-export function parseTextMarkdown(markdown: string): TextMarkdownItem[] {
-  return parseMarkdown(markdown).items.map((item) => {
-    if (item.type === "table" || item.type === "image") {
-      const what = item.type === "table" ? "a table" : "an image";
-      const where = item.line === undefined ? "" : ` at line ${item.line + 1}`;
-      throw new Error(
-        `MarkdownRenderer draws text only, got ${what}${where}: give each table and image its own page item, as groupDocElementsByContentType splits markdown`,
-      );
-    }
-    return item;
-  });
-}
-
 export function measureMarkdown(
   rc: RenderContext,
   bounds: RectCoordsDims,
@@ -52,4 +39,17 @@ export function measureMarkdown(
     bounds: result.bounds,
     markdownItems: result.items,
   };
+}
+
+function parseTextMarkdown(markdown: string): TextMarkdownItem[] {
+  return parseMarkdown(markdown).items.map((item) => {
+    if (item.type === "table" || item.type === "image") {
+      const what = item.type === "table" ? "a table" : "an image";
+      const where = item.line === undefined ? "" : ` at line ${item.line + 1}`;
+      throw new Error(
+        `MarkdownRenderer draws text only, got ${what}${where}: give each table and image its own page item, as groupDocElementsByContentType splits markdown`,
+      );
+    }
+    return item;
+  });
 }

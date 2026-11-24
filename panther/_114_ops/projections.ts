@@ -10,10 +10,18 @@
 // list from `exposure.headless`.
 
 import { AIToolFailure, createAITool } from "./deps.ts";
-import type { AnyAITool, APIResponseWithData } from "./deps.ts";
 import type {
+  AIToolDisplayProps,
+  AnyAITool,
+  APIResponseWithData,
+  Component,
+} from "./deps.ts";
+import type {
+  DescribedOpContract,
   OpApprovalCallData,
+  OpArgsOf,
   OpContract,
+  OpOutputOf,
   OpRegistry,
   OpSurface,
 } from "./types.ts";
@@ -27,11 +35,36 @@ export type RunOpFn = (
   opts?: { proposalKey?: string; surface?: OpSurface },
 ) => Promise<APIResponseWithData<unknown>>;
 
+// Each card of an op given to the AI, by op name, typed by the op's input
+// and output: the client's projection holds it, since a component is UI code
+// and an op's declaration is loaded by the server too.
+export type OpDisplayComponents<TReg extends OpRegistry> = {
+  [
+    K in keyof TReg & string as TReg[K]["exposure"]["ai"] extends false ? never
+      : K
+  ]?: Component<AIToolDisplayProps<OpArgsOf<TReg[K]>, OpOutputOf<TReg[K]>>>;
+};
+
+type ErasedDisplayComponent = Component<AIToolDisplayProps<unknown, unknown>>;
+
 export function opsToAITools<TReg extends OpRegistry>(
   registry: TReg,
-  hooks: { run: RunOpFn },
+  hooks: { run: RunOpFn; displayComponents?: OpDisplayComponents<TReg> },
 ): AnyAITool[] {
-  const ops = registry as Record<string, OpContract>;
+  const ops = registry as Record<string, DescribedOpContract>;
+  // Each card is typed by its own op; the projection reads them erased, as
+  // it reads the registry.
+  const displayComponents = (hooks.displayComponents ?? {}) as Record<
+    string,
+    ErasedDisplayComponent | undefined
+  >;
+  for (const name of Object.keys(displayComponents)) {
+    if (!Object.hasOwn(ops, name) || !ops[name].exposure.ai) {
+      throw new Error(
+        `opsToAITools: displayComponents names "${name}", which is not an op exposed to the AI, so its card could never show.`,
+      );
+    }
+  }
   const tools: AnyAITool[] = [];
   for (const [name, op] of Object.entries(ops)) {
     if (!op.exposure.ai) {
@@ -45,6 +78,7 @@ export function opsToAITools<TReg extends OpRegistry>(
       "ai",
       op.kind !== "nav" && op.exposure.headless === true,
       hooks.run,
+      displayComponents[name],
     ));
   }
   return tools;
@@ -59,13 +93,13 @@ export function opsToMCPTools<TReg extends OpRegistry>(
   registry: TReg,
   hooks: { run: RunOpFn },
 ): AnyAITool[] {
-  const ops = registry as Record<string, OpContract>;
+  const ops = registry as Record<string, DescribedOpContract>;
   const tools: AnyAITool[] = [];
   for (const [name, op] of Object.entries(ops)) {
     if (op.exposure.headless !== true) {
       continue;
     }
-    tools.push(projectOpTool(name, op, "mcp", true, hooks.run));
+    tools.push(projectOpTool(name, op, "mcp", true, hooks.run, undefined));
   }
   return tools;
 }
@@ -78,17 +112,25 @@ export function opsToMCPTools<TReg extends OpRegistry>(
 // the args its proposer previewed).
 function projectOpTool(
   name: string,
-  op: OpContract,
+  op: DescribedOpContract,
   surface: OpSurface,
   headless: boolean,
   run: RunOpFn,
+  displayComponent: ErasedDisplayComponent | undefined,
 ): AnyAITool {
+  // The op's result is the tool's structured output: the model reads its
+  // JSON, or the op's describeForModel, and the card draws it.
+  const output = op.output === undefined ? { displayComponent } : {
+    outputSchema: op.output,
+    describeForModel: op.describeForModel,
+    displayComponent,
+  };
   if (op.approval === true) {
     return createAITool({
       name,
       description: op.description,
       inputSchema: op.input,
-      outputSchema: op.output,
+      ...output,
       kind: "write",
       headless,
       // The kernel validates the SAME schema inside run() and records the
@@ -116,8 +158,9 @@ function projectOpTool(
                 throw new AIToolFailure(committed.err);
               }
               const payload = committed.data as OpApprovalCallData<unknown>;
-              // Raw, not pre-stringified: _112 owns text serialization, and
-              // the raw value is what feeds the MCP structuredContent leg.
+              // Raw, not pre-stringified: _112 owns what the model reads, and
+              // the raw value is the structured output, MCP's
+              // structuredContent and the card's.
               return payload.status === "committed" ? payload.result : payload;
             },
           };
@@ -129,7 +172,7 @@ function projectOpTool(
     name,
     description: op.description,
     inputSchema: op.input,
-    outputSchema: op.output,
+    ...output,
     kind: op.kind,
     headless,
     validation: "internal",
@@ -138,8 +181,9 @@ function projectOpTool(
       if (!res.success) {
         throw new AIToolFailure(res.err);
       }
-      // Raw, not pre-stringified: _112 owns text serialization, and the raw
-      // value is what feeds the MCP structuredContent leg.
+      // Raw, not pre-stringified: _112 owns what the model reads, and the
+      // raw value is the structured output, MCP's structuredContent and the
+      // card's.
       return res.data;
     },
   });

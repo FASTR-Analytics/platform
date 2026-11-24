@@ -12,8 +12,8 @@ import {
   isMeasuredRowsLayoutNode,
 } from "./types.ts";
 import type {
-  ItemHeightMeasurer,
   ItemLayoutNode,
+  ItemSizeMeasurer,
   LayoutNode,
   MeasuredItemLayoutNode,
   MeasuredLayoutNode,
@@ -113,7 +113,7 @@ export function scoreLayouts<T, U>(
   candidates: LayoutNode<U>[],
   bounds: RectCoordsDims,
   style: LayoutStyleConfig,
-  itemMeasurer: ItemHeightMeasurer<T, U>,
+  itemMeasurer: ItemSizeMeasurer<T, U>,
 ): ScoredLayout<U>[] {
   return candidates.map((candidate) => {
     const result = measureLayout(ctx, candidate, bounds, style, itemMeasurer);
@@ -164,7 +164,7 @@ export function optimizeLayout<T, U>(
   items: ItemLayoutNode<U>[],
   bounds: RectCoordsDims,
   style: LayoutStyleConfig,
-  itemMeasurer: ItemHeightMeasurer<T, U>,
+  itemMeasurer: ItemSizeMeasurer<T, U>,
   config?: OptimizerConfig,
 ): ScoredLayout<U> {
   const candidates = generateCandidates(items, config);

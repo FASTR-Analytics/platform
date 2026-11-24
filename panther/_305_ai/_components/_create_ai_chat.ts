@@ -72,6 +72,7 @@ import {
 import { SERVER_TOOL_LABELS } from "../deps.ts";
 import {
   buildInProgressItem,
+  buildToolDisplay,
   checkViewGate,
   getInProgressItems,
   processToolUses,
@@ -1117,19 +1118,20 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
       const runCommit = async (): Promise<ApprovalLifecycleOutput> => {
         try {
-          const { output } = resolveAIToolReturn(
-            await commit(),
-            metadata.outputSchema !== undefined,
-          );
-          if (metadata.displayComponent) {
-            addDisplayItemsTo(ts, [{
-              type: "tool_display",
-              toolName,
-              input: block.input,
-              view: viewSnapshotOf(viewAtStart?.view),
-            }]);
+          const run = resolveAIToolReturn(await commit(), metadata);
+          if (!metadata.displayComponent) {
+            return {
+              result: normalResult(buildToolResultContent(run.output)),
+            };
           }
-          return { result: normalResult(buildToolResultContent(output)) };
+          const display = buildToolDisplay(
+            toolName,
+            block.input,
+            viewSnapshotOf(viewAtStart?.view),
+            run,
+          );
+          addDisplayItemsTo(ts, [display.item]);
+          return { result: normalResult(display.content) };
         } catch (err) {
           // Approved-then-failed: the timeline keeps the recorded approval
           // plus the standard tool_error — the honest record.
@@ -1699,6 +1701,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
               toolRegistry,
               vc ? () => vc.current() : undefined,
               turn.abort.signal,
+              viewSnapshotOf(live?.view),
             ).finally(() => {
               if (attributesNav) vc!.markAINavigation();
             }),
@@ -1712,22 +1715,13 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
             );
             break;
           }
-          const { results, errorItems, successItems } = outcome.value;
+          const { results, errorItems, successItems, displayItems } =
+            outcome.value;
           allResults.push(...results);
           allErrorItems.push(...errorItems);
           allSuccessItems.push(...successItems);
-
-          // Add display component for successful tools
-          if (errorItems.length === 0) {
-            const metadata = toolRegistry.getMetadata(block.name);
-            if (metadata?.displayComponent) {
-              addDisplayItemsTo(ts, [{
-                type: "tool_display",
-                toolName: block.name,
-                input: block.input,
-                view: viewSnapshotOf(live?.view),
-              }]);
-            }
+          if (displayItems.length > 0) {
+            addDisplayItemsTo(ts, displayItems);
           }
         }
       }

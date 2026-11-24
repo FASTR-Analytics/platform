@@ -8,12 +8,12 @@ export { getDimensionMembers } from "../_001_render_system/mod.ts";
 export type {
   DataDimension,
   DimensionMembership,
-  HeightConstraints,
   Measured,
   MemberSortConfig,
   Primitive,
   RenderContext,
   Renderer,
+  SizeConstraints,
 } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedChartOHStyle } from "../_003_figure_style/mod.ts";
@@ -24,7 +24,8 @@ export {
   estimateMinSurroundsWidth,
   estimateMinYTextAxisWidth,
   estimateTierHeaderAndLabelGapWidth,
-  getChartHeightConstraintsByMeasure,
+  getChartOVOrOHDataConfigIssues,
+  getChartSizeConstraintsByMeasure,
   maxNVisible,
   maxProportionalPaneCategoryAxisExtent,
   measureChart,
@@ -39,7 +40,10 @@ export {
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartComponentSizes,
+  ChartOVOrOHTransformSpec,
+  ChartProbeSizing,
   ChartValueAxisLimits,
+  DataConfigIssue,
   FigureInputsBase,
   JsonArray,
   LegendInput,

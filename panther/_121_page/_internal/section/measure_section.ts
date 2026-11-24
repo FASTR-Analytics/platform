@@ -10,12 +10,16 @@ import type {
   RectCoordsDims,
   RenderContext,
 } from "../../deps.ts";
-import { isOverflow } from "../../deps.ts";
 import type {
   MeasuredSectionPage,
   PagePrimitive,
   SectionPageInputs,
 } from "../../types.ts";
+import {
+  pageOverflow,
+  stackOverflow,
+  type StackPart,
+} from "../page_overflow.ts";
 import { getStartY, getTextX } from "../stack_placement.ts";
 
 export function measureSection(
@@ -45,7 +49,7 @@ export function measureSection(
     )
     : undefined;
 
-  const { primitives, totalH } = buildSectionPrimitives(
+  const { primitives, totalH, parts } = buildSectionPrimitives(
     bounds,
     paddedBounds,
     inputs,
@@ -59,7 +63,7 @@ export function measureSection(
     inputs,
     bounds,
     style,
-    overflow: isOverflow(totalH, paddedBounds.h()),
+    ...pageOverflow(stackOverflow(parts, totalH, paddedBounds)),
     fullPageBounds,
     measuredSplitImage,
     mWatermark,
@@ -76,8 +80,13 @@ function buildSectionPrimitives(
   s: MergedSectionStyle,
   mSectionTitle?: import("../../deps.ts").MeasuredText,
   mSectionSubtitle?: import("../../deps.ts").MeasuredText,
-): { primitives: PagePrimitive[]; totalH: number } {
+): {
+  primitives: PagePrimitive[];
+  totalH: number;
+  parts: StackPart[];
+} {
   const primitives: PagePrimitive[] = [];
+  const parts: StackPart[] = [];
   const alignH = s.alignH;
   const alignV = s.alignV;
 
@@ -127,6 +136,11 @@ function buildSectionPrimitives(
       alignV: "top",
       maxWidth: textMaxWidth,
     });
+    parts.push({
+      id: "sectionTitle",
+      height: sectionTitleH,
+      width: mSectionTitle.dims.w(),
+    });
     currentY += sectionTitleH + titleGap;
   }
 
@@ -142,7 +156,12 @@ function buildSectionPrimitives(
       alignV: "top",
       maxWidth: textMaxWidth,
     });
+    parts.push({
+      id: "sectionSubtitle",
+      height: sectionSubtitleH,
+      width: mSectionSubtitle.dims.w(),
+    });
   }
 
-  return { primitives, totalH };
+  return { primitives, totalH, parts };
 }

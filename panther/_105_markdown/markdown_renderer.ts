@@ -5,145 +5,49 @@
 
 import {
   findOptimalScale,
-  getAutofitHeightConstraints,
-  resolveAutofitOptions,
+  getAutofitScales,
+  getAutofitSizeConstraints,
+  getMinWidthAtScale,
+  widestOverrun,
 } from "./_internal/autofit.ts";
-import { measureInlineCodeAdvance } from "./_internal/formatted_text.ts";
-import {
-  getInlineCodeStyle,
-  measureCodeLine,
-} from "./_internal/measure_items.ts";
-import {
-  measureMarkdown,
-  parseTextMarkdown,
-} from "./_internal/measure_markdown.ts";
+import { measureMarkdown } from "./_internal/measure_markdown.ts";
 import { renderMarkdown } from "./_internal/render_markdown.ts";
 import {
-  CustomMarkdownStyle,
-  type HeightConstraints,
   RectCoordsDims,
   type RenderContext,
   type Renderer,
-  type TextInfoUnkeyed,
+  type SizeConstraints,
 } from "./deps.ts";
-import type {
-  MarkdownInline,
-  MarkdownRendererInput,
-  MeasuredMarkdown,
-  TextMarkdownItem,
-} from "./types.ts";
-
-function getBaseFontSize(input: MarkdownRendererInput): number {
-  const styleInstance = new CustomMarkdownStyle(input.style);
-  const merged = styleInstance.getMergedMarkdownStyle();
-  return merged.text.paragraph.fontSize;
-}
-
-function getMinComfortableWidth(
-  rc: RenderContext,
-  input: MarkdownRendererInput,
-): number {
-  const styleInstance = new CustomMarkdownStyle(input.style);
-  const style = styleInstance.getMergedMarkdownStyle();
-  const items = parseTextMarkdown(input.markdown);
-
-  let maxWordWidth = 0;
-
-  function measureWordsInInline(
-    inline: MarkdownInline,
-    textStyle: TextInfoUnkeyed,
-  ) {
-    if (inline.type === "break") return;
-    if (
-      inline.type === "code-inline" || (inline.type === "link" && inline.code)
-    ) {
-      const advance = measureInlineCodeAdvance(
-        rc,
-        inline.text,
-        getInlineCodeStyle(textStyle, style),
-      );
-      maxWordWidth = Math.max(maxWordWidth, advance);
-      return;
-    }
-    const text = inline.text;
-    const words = text.split(/\s+/);
-    for (const word of words) {
-      if (word.length === 0) continue;
-      const mText = rc.mText(word, textStyle, Infinity);
-      maxWordWidth = Math.max(maxWordWidth, mText.dims.w());
-    }
-  }
-
-  function processItem(item: TextMarkdownItem) {
-    if (item.type === "horizontal-rule") return;
-    if (item.type === "code-block") {
-      // For code blocks, measure each line
-      const lines = item.code.split("\n");
-      for (const line of lines) {
-        const mText = measureCodeLine(rc, line, style.text.code, Infinity);
-        maxWordWidth = Math.max(maxWordWidth, mText.dims.w());
-      }
-      return;
-    }
-
-    // For text content types
-    let textStyle = style.text.paragraph;
-    if (item.type === "heading") {
-      const headingKey = `h${item.level}` as keyof typeof style.text;
-      textStyle = style.text[headingKey] || style.text.paragraph;
-    } else if (item.type === "blockquote") {
-      textStyle = style.text.blockquote;
-    }
-
-    for (const inline of item.content) {
-      measureWordsInInline(inline, textStyle);
-    }
-  }
-
-  for (const item of items) {
-    processItem(item);
-  }
-
-  // Add some margin for list indentation, blockquote borders, etc.
-  const maxListIndent = Math.max(
-    style.bulletList.level0.textIndent,
-    style.bulletList.level1.textIndent,
-    style.bulletList.level2.textIndent,
-    style.numberedList.level0.textIndent,
-    style.numberedList.level1.textIndent,
-    style.numberedList.level2.textIndent,
-  );
-  const margin = maxListIndent + style.blockquote.leftBorderWidth +
-    style.blockquote.paddingLeft;
-
-  return maxWordWidth + margin;
-}
+import type { MarkdownRendererInput, MeasuredMarkdown } from "./types.ts";
 
 function measureWithAutofit(
   rc: RenderContext,
   bounds: RectCoordsDims,
   input: MarkdownRendererInput,
 ): MeasuredMarkdown {
-  const autofitOpts = resolveAutofitOptions(input.autofit);
-  if (!autofitOpts) {
+  const scales = getAutofitScales(input);
+  if (!scales) {
     return measureMarkdown(rc, bounds, input);
   }
 
-  const baseFontSize = getBaseFontSize(input);
   const optimalScale = findOptimalScale(
     rc,
     bounds.w(),
     bounds.h(),
     input,
-    baseFontSize,
-    autofitOpts,
+    scales,
   );
 
   // optimalScale is threaded as the fitScale (shrink-to-fit factor).
   const measured = measureMarkdown(rc, bounds, input, optimalScale);
   // cramped: shrank as far as allowed and the content still does not fit the
-  // available height (e.g. an embedded markdown block in a tight page slot).
-  const cramped = measured.bounds.h() > bounds.h();
+  // available height or width (e.g. an embedded markdown block in a tight
+  // page slot, or a word wider than its column). Measured off the origin, a
+  // block's height rounds a hair above the same block's height at the origin,
+  // where minH was measured, so the comparison allows half a design unit, as a
+  // figure's does.
+  const cramped = measured.bounds.h() > bounds.h() + 0.5 ||
+    widestOverrun(measured) > 0.5;
   return {
     ...measured,
     inputs: input,
@@ -191,24 +95,21 @@ export const MarkdownRenderer: Renderer<
     rc: RenderContext,
     width: number,
     input: MarkdownRendererInput,
-  ): HeightConstraints {
-    const autofitOpts = resolveAutofitOptions(input.autofit);
+  ): SizeConstraints {
+    const scales = getAutofitScales(input);
 
-    // Calculate width scaling
-    const minComfortableWidth = getMinComfortableWidth(rc, input);
+    const minComfortableWidth = getMinWidthAtScale(rc, input, 1.0);
     const neededScalingToFitWidth: "none" | number =
       width >= minComfortableWidth ? 1.0 : width / minComfortableWidth;
 
-    if (autofitOpts) {
-      const baseFontSize = getBaseFontSize(input);
-      const constraints = getAutofitHeightConstraints(
+    if (scales) {
+      const constraints = getAutofitSizeConstraints(
         rc,
         width,
         input,
-        baseFontSize,
-        autofitOpts,
+        scales,
       );
-      return { ...constraints, neededScalingToFitWidth };
+      return { ...constraints, neededScalingToFitWidth, minComfortableWidth };
     }
 
     const bounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 99999 });
@@ -218,6 +119,14 @@ export const MarkdownRenderer: Renderer<
     // Empty markdown should be growable (like placeholder)
     const maxH = input.markdown.trim() === "" ? Infinity : h;
 
-    return { minH: h, idealH: h, maxH, neededScalingToFitWidth };
+    return {
+      minH: h,
+      idealH: h,
+      maxH,
+      // Without autofit the floor scale is 1.
+      minW: minComfortableWidth,
+      neededScalingToFitWidth,
+      minComfortableWidth,
+    };
   },
 };

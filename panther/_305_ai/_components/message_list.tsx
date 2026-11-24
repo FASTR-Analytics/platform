@@ -14,6 +14,10 @@ import {
 } from "solid-js";
 import { Button, type CustomMarkdownStyleOptions, t3 } from "../deps.ts";
 import type { ToolRegistry } from "../_core/tool_engine.ts";
+import {
+  getToolDisplayProps,
+  parseStoredToolInput,
+} from "../_core/display_items.ts";
 import type {
   AIChatDisplayRegistry,
   DisplayItem,
@@ -95,14 +99,18 @@ export function MessageList(p: Props) {
         );
       }
       case "tool_in_progress": {
-        // Tool-specific inProgressComponent takes priority over global toolLoading renderer
-        const toolWithMetadata = p.toolRegistry.get(item.toolName);
-        if (toolWithMetadata?.metadata.inProgressComponent) {
-          const InProgressComponent =
-            toolWithMetadata.metadata.inProgressComponent;
+        // A tool's own inProgressComponent takes priority over the toolLoading
+        // renderer. An input its schema refuses gets the loading card: the
+        // call is about to fail on the same parse.
+        const metadata = p.toolRegistry.getMetadata(item.toolName);
+        const InProgressComponent = metadata?.inProgressComponent;
+        const parsed = InProgressComponent
+          ? parseStoredToolInput(metadata, item.toolInput)
+          : null;
+        if (InProgressComponent && parsed) {
           return (
             <InProgressComponent
-              input={item.toolInput}
+              input={parsed.input}
               toolUseId={item.toolUseId}
             />
           );
@@ -140,12 +148,14 @@ export function MessageList(p: Props) {
         return <Renderer item={item} />;
       }
       case "tool_display": {
-        const toolWithMetadata = p.toolRegistry.get(item.toolName);
-        if (toolWithMetadata?.metadata.displayComponent) {
-          const DisplayComponent = toolWithMetadata.metadata.displayComponent;
-          return <DisplayComponent input={item.input} view={item.view} />;
-        }
-        return null;
+        const metadata = p.toolRegistry.getMetadata(item.toolName);
+        const DisplayComponent = metadata?.displayComponent;
+        const props = DisplayComponent
+          ? getToolDisplayProps(item, metadata)
+          : null;
+        return DisplayComponent && props
+          ? <DisplayComponent {...props} />
+          : null;
       }
       default: {
         const Renderer = registry.default ?? AIChatDefaultItem;

@@ -25,18 +25,6 @@ import type {
   JsonArrayItem,
 } from "./types.ts";
 
-export function validateDataInput(
-  jsonArray: JsonArray,
-  valueProps: string[],
-): void {
-  if (jsonArray.length === 0) {
-    throw new Error("Need at least one row");
-  }
-  if (valueProps.length === 0) {
-    throw new Error("Need at least one valueProp");
-  }
-}
-
 // A dimension, named from its prop, or undefined when no prop is given.
 // Members come in first-seen row order (the value columns, for "--v") before
 // labelReplacements and the sort apply.
@@ -81,50 +69,8 @@ export function getDimensionId(row: JsonArrayItem, prop: string): string {
   return isBlankValue(value) ? BLANK_SENTINEL : String(value);
 }
 
-export function validateDimensionProps(
-  jsonArray: JsonArray,
-  dimensionProps: Record<string, string | undefined>,
-): void {
-  validateDistinctDimensions(dimensionProps);
-  Object.values(dimensionProps).forEach((prop) =>
-    validateDimensionPresent(jsonArray, prop)
-  );
-}
-
-// A prop that no row carries is a misspelling, never a column of blanks.
-function validateDimensionPresent(
-  jsonArray: JsonArray,
-  prop: string | undefined,
-): void {
-  if (prop === undefined || prop === "--v" || jsonArray.length === 0) {
-    return;
-  }
-  if (!jsonArray.some((row) => Object.hasOwn(row, prop))) {
-    throw new Error(`No row has dimension "${prop}"`);
-  }
-}
-
 function collectDimensionIds(jsonArray: JsonArray, prop: string): string[] {
   return [...new Set(jsonArray.map((row) => getDimensionId(row, prop)))];
-}
-
-function validateDistinctDimensions(
-  dimensionProps: Record<string, string | undefined>,
-): void {
-  const propByDimension = new Map<string, string>();
-  for (const [key, dimension] of Object.entries(dimensionProps)) {
-    if (dimension === undefined) {
-      continue;
-    }
-    const prop = `${key}Prop`;
-    const other = propByDimension.get(dimension);
-    if (other !== undefined) {
-      throw new Error(
-        `${other} and ${prop} are both given dimension "${dimension}"`,
-      );
-    }
-    propByDimension.set(dimension, prop);
-  }
 }
 
 export function getMemberIndex(
@@ -137,18 +83,6 @@ export function getMemberIndex(
     ? valueProp
     : getDimensionId(obj, dimension.name);
   return dimension.members.findIndex((h) => h.id === id);
-}
-
-export function checkValuePropsAssignment(
-  valueProps: string[],
-  props: {
-    [key: string]: string | undefined;
-  },
-): void {
-  const hasVAssignment = Object.values(props).some((prop) => prop === "--v");
-  if (!hasVAssignment && valueProps.length > 1) {
-    throw new Error("Missing --v assignment");
-  }
 }
 
 export function calculateChartValueAxisLimits(
@@ -267,79 +201,15 @@ function updateLimits(
   );
 }
 
-// Early-throw validation for a chart's `membership` config. Raggedness is
-// allowed only along the categorical (text-axis) direction; the scale
-// direction stays balanced (see DOC_FIGURE_ARCHITECTURE / the membership
-// model). The zod path strips unknown keys and the TS types don't declare
-// them, so this transform-level check is the single authoritative gate for
-// JSON-sourced configs.
-export function validateChartMembership(
-  membership: Record<string, unknown> | undefined,
-  allowedDimensions: string[],
-  valueDirectionDimension: string,
-  chartName: string,
-): void {
-  if (!membership) {
-    return;
-  }
-  for (const [key, value] of Object.entries(membership)) {
-    if (!allowedDimensions.includes(key)) {
-      if (key === valueDirectionDimension) {
-        throw new Error(
-          `membership.${key} is not allowed on ${chartName}: "${key}" carries the value axis limits, and raggedness applies only along the categorical (text-axis) direction`,
-        );
-      }
-      throw new Error(
-        `Unknown membership dimension "${key}" on ${chartName} (allowed: ${
-          allowedDimensions.join(", ")
-        })`,
-      );
-    }
-    if (value !== undefined && value !== "balanced" && value !== "unbalanced") {
-      throw new Error(
-        `Invalid membership value for "${key}" on ${chartName}: expected "balanced" or "unbalanced"`,
-      );
-    }
-  }
+export function getTierOrLaneKey(
+  tierOrLaneDimension: "tier" | "lane",
+): "tiers" | "lanes" {
+  return tierOrLaneDimension === "lane" ? "lanes" : "tiers";
 }
 
-// Early-throw validation for a chart's `proportional` config (ragged-table
-// layout). `lanes` (chart-ov) or `tiers` (chart-oh) sizes each tier or lane by
-// its visible slot count (per-tier-or-lane visibility implied); `panes`
-// additionally makes pane extents proportional so slot thickness is uniform
-// across the whole chart. `panes` presupposes the tier-or-lane key, so a bare
-// { panes: true } normalizes to both on (the caller reads the flags via
-// resolveChartProportional) and the explicit contradiction
-// { lanes: false, panes: true } throws here.
-export function validateChartProportional(
-  proportional: Record<string, unknown> | undefined,
-  tierOrLaneKey: "tiers" | "lanes",
-  chartName: string,
-): void {
-  if (!proportional) {
-    return;
-  }
-  for (const [key, value] of Object.entries(proportional)) {
-    if (key !== tierOrLaneKey && key !== "panes") {
-      throw new Error(
-        `Unknown proportional key "${key}" on ${chartName} (allowed: ${tierOrLaneKey}, panes)`,
-      );
-    }
-    if (value !== undefined && typeof value !== "boolean") {
-      throw new Error(
-        `Invalid proportional value for "${key}" on ${chartName}: expected a boolean`,
-      );
-    }
-  }
-  if (proportional[tierOrLaneKey] === false && proportional.panes === true) {
-    throw new Error(
-      `Invalid proportional config on ${chartName}: panes: true requires ${tierOrLaneKey} (cross-pane proportional sizing presupposes proportional ${tierOrLaneKey})`,
-    );
-  }
-}
-
-// Effective proportional flags after normalization (panes implies the
-// tier-or-lane key).
+// Effective proportional flags: panes presupposes the tier-or-lane key, so a
+// bare { panes: true } turns both on, and the explicit contradiction is the
+// proportional-conflict issue.
 export function resolveChartProportional(
   proportional: ChartOVOrOHProportional | undefined,
   tierOrLaneKey: "tiers" | "lanes",
@@ -352,7 +222,7 @@ export function resolveChartProportional(
 }
 
 // The union of chart-ov's and chart-oh's proportional shapes, as the shared
-// transform reads it; validateChartProportional rejects the other figure's key.
+// transform reads it; each figure's own type holds only its own key.
 export type ChartOVOrOHProportional = {
   lanes?: boolean;
   tiers?: boolean;
@@ -572,16 +442,20 @@ export type DataDimensions = {
   pane: DataDimension | undefined;
 };
 
-export function fillValuesWithDuplicateCheck(
+// columns[i] is read into the place of valueProps[i], so a bound column fills
+// its value column's member. Each place takes one row's cell: the data
+// config's check refuses two rows for one value before any fill.
+export function fillValues(
   values: (number | undefined)[][][][][],
   jsonArray: JsonArray,
   valueProps: string[],
+  columns: string[],
   dimensions: DataDimensions,
   getLastDimensionIndex: (obj: JsonArrayItem, valueProp: string) => number,
 ): void {
   for (const obj of jsonArray) {
-    for (const valueProp of valueProps) {
-      const value = getValidNumberOrUndefined(obj[valueProp]);
+    for (const [i, valueProp] of valueProps.entries()) {
+      const value = getValidNumberOrUndefined(obj[columns[i]]);
 
       const i_value = getLastDimensionIndex(obj, valueProp);
       const i_series = getMemberIndex(dimensions.series, valueProp, obj);
@@ -594,10 +468,6 @@ export function fillValuesWithDuplicateCheck(
       assert(i_tier >= 0);
       assert(i_pane >= 0);
       assert(i_value >= 0);
-
-      if (values[i_pane][i_tier][i_lane][i_series][i_value] !== undefined) {
-        throw new Error("Duplicate values");
-      }
 
       values[i_pane][i_tier][i_lane][i_series][i_value] = value;
     }

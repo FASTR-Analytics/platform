@@ -151,7 +151,8 @@ export type MCPCallOutcome =
     isError: boolean;
     // The images of the tool's output, sent after the text as image content.
     images?: readonly AIToolImage[];
-    // The structured twin of text, already wrapped { result: … } — adapters
+    // The tool's structured output, already wrapped { result: … }: text is
+    // its JSON or what the tool's describeForModel makes of it. Adapters
     // serialize it as the result's structuredContent verbatim.
     structuredContent?: Record<string, unknown>;
   }

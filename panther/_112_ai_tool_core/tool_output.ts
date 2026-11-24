@@ -8,7 +8,9 @@ import { type AIToolImage, validateAIToolImage } from "./tool_image.ts";
 
 // What a tool call answers with: text, and images for the model to look at.
 // A handler, or an approval's commit, returns one to send images; any other
-// return is its text (resolveAIToolReturn).
+// return is its text (resolveAIToolReturn). A tool that declares an
+// outputSchema returns its structured output instead, and makes one from it
+// in describeForModel.
 export class AIToolOutput {
   readonly text: string;
   readonly images: readonly AIToolImage[];
@@ -25,34 +27,57 @@ export class AIToolOutput {
   }
 }
 
-// What one run of a tool yields. `structured` is what the handler or the
-// commit returned, set exactly when the tool declares an outputSchema and
-// something was returned: the MCP surface sends it as structuredContent.
+// What one run of a tool yields. `structured` is the structured output: the
+// JSON form of what the handler or the commit returned, set exactly when the
+// tool declares an outputSchema and something was returned. The MCP surface
+// sends it as structuredContent.
 export type AIToolRun = { output: AIToolOutput; structured?: unknown };
+
+// What a tool declares about its return, as its metadata holds it.
+export type AIToolReturnDeclaration = {
+  outputSchema?: unknown;
+  describeForModel?: (structured: unknown) => string | AIToolOutput;
+};
 
 // The one reading of what a handler or a commit returns, on every surface.
 export function resolveAIToolReturn(
   returned: unknown,
-  declaresOutputSchema: boolean,
+  declaration: AIToolReturnDeclaration,
 ): AIToolRun {
+  const declaresOutputSchema = declaration.outputSchema !== undefined;
   if (returned instanceof AIToolOutput) {
     if (declaresOutputSchema) {
       throw new Error(
-        "A tool that declares an outputSchema returned an AIToolOutput, which has no structured form to send beside it. Return the value the schema describes, or drop the outputSchema.",
+        "A tool that declares an outputSchema returned an AIToolOutput. Return the value the schema describes; to show the model images, or less than that value, return an AIToolOutput from the tool's describeForModel.",
       );
     }
     return { output: returned };
   }
-  // JSON.stringify(undefined) is the VALUE undefined, not a string — a
-  // handler or a commit that mutates and returns nothing must still produce
-  // text.
-  const text = typeof returned === "string"
-    ? returned
-    : (JSON.stringify(returned) ?? "Done");
-  const output = new AIToolOutput({ text });
-  return declaresOutputSchema && returned !== undefined
-    ? { output, structured: returned }
-    : { output };
+  if (!declaresOutputSchema || returned === undefined) {
+    // JSON.stringify(undefined) is the VALUE undefined, not a string — a
+    // handler or a commit that mutates and returns nothing must still
+    // produce text.
+    return {
+      output: new AIToolOutput({
+        text: typeof returned === "string"
+          ? returned
+          : (JSON.stringify(returned) ?? "Done"),
+      }),
+    };
+  }
+  const json = JSON.stringify(returned);
+  if (json === undefined) {
+    throw new Error(
+      `A tool that declares an outputSchema returned a ${typeof returned}, which JSON cannot carry. Return the value the schema describes.`,
+    );
+  }
+  const described = declaration.describeForModel?.(returned);
+  const output = described instanceof AIToolOutput
+    ? described
+    : new AIToolOutput({
+      text: described ?? (typeof returned === "string" ? returned : json),
+    });
+  return { output, structured: JSON.parse(json) };
 }
 
 // The content of the call's tool_result, which is also what the SDK's tool

@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { IMAGE_LIMITS } from "./anthropic_consts.ts";
+import { IMAGE_LIMITS, TOOL_DISPLAY_LIMITS } from "./anthropic_consts.ts";
 import type {
   ContentBlock,
   EphemeralSection,
@@ -528,6 +528,36 @@ function withImagesLeftOut(content: ToolResultContent, count: number): string {
     count === 1 ? "image was" : "images were"
   } left out of this result: one turn holds at most ${IMAGE_LIMITS.MAX_PER_TURN} images. More can be looked at after the user's next message.]`;
   return text.trim() === "" ? notice : `${text}\n\n${notice}`;
+}
+
+// What one tool display keeps of a call's structured output, which is
+// already its JSON form: all of it, or, over
+// TOOL_DISPLAY_LIMITS.MAX_STRUCTURED_CHARS, nothing and the line the call's
+// result ends with. The card then keeps nothing live either, so the card
+// drawn from the record is the card drawn when the call returned.
+export function limitToolDisplayStructured(
+  structured: unknown,
+): { structured: unknown } | { notice: string } {
+  const chars = JSON.stringify(structured).length;
+  if (chars <= TOOL_DISPLAY_LIMITS.MAX_STRUCTURED_CHARS) {
+    return { structured };
+  }
+  return {
+    notice:
+      `[The user is not shown this result: its structured output is ${chars} characters of JSON, over the ${TOOL_DISPLAY_LIMITS.MAX_STRUCTURED_CHARS} the transcript keeps for one call.]`,
+  };
+}
+
+// A tool result's content with a line of panther's at its end: after the
+// text, or after the last block.
+export function appendToolResultNotice(
+  content: ToolResultContent,
+  notice: string,
+): ToolResultContent {
+  if (typeof content !== "string") {
+    return [...content, { type: "text", text: notice }];
+  }
+  return content.trim() === "" ? notice : `${content}\n\n${notice}`;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

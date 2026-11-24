@@ -8,10 +8,9 @@ export type {
   ContainerDecorationOptions,
   ContainerLayoutNode,
   ContainerStyleOptions,
-  HeightConstraints,
   IdGenerator,
-  ItemHeightMeasurer,
   ItemLayoutNode,
+  ItemSizeMeasurer,
   LayoutGap,
   LayoutGapColDivider,
   LayoutGapColGap,
@@ -19,6 +18,8 @@ export type {
   LayoutNode,
   LayoutNodeBase,
   LayoutNodeId,
+  LayoutNodeNeed,
+  LayoutOverflowCause,
   MeasuredColsLayoutNode,
   MeasuredItemLayoutNode,
   MeasuredLayoutNode,
@@ -27,6 +28,7 @@ export type {
   ResolvedContainerDecoration,
   ResolvedContainerStyle,
   RowsLayoutNode,
+  SizeConstraints,
 } from "./types.ts";
 
 export {

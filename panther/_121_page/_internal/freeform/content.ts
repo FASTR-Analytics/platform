@@ -6,6 +6,7 @@
 import {
   createCachedMeasurer,
   type LayoutGap,
+  type LayoutOverflowCause,
   type LayoutStyleConfig,
   type MeasuredLayoutNode,
   measureLayout,
@@ -21,7 +22,7 @@ import type { FreeformPageInputs, PageContentItem } from "../../types.ts";
 
 export type MeasuredContent = {
   mLayout: MeasuredLayoutNode<PageContentItem>;
-  overflow: boolean;
+  overflowCauses: LayoutOverflowCause[];
   gaps: LayoutGap[];
 };
 
@@ -48,7 +49,7 @@ export function measureContent(
 
   return {
     mLayout: result.measured,
-    overflow: result.overflow,
+    overflowCauses: result.overflowCauses,
     gaps: result.gaps,
   };
 }

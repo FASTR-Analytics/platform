@@ -10,17 +10,23 @@ export type {
 } from "../_111_api_contract/mod.ts";
 export {
   AIToolFailure,
+  AIToolOutput,
   CLOSED_INPUT_RULE,
   createAITool,
   findOpenObjectPath,
   wireInputSchema,
 } from "../_112_ai_tool_core/mod.ts";
-export type { AnyAITool, ProposalPreview } from "../_112_ai_tool_core/mod.ts";
+export type {
+  AIToolDisplayProps,
+  AnyAITool,
+  ProposalPreview,
+} from "../_112_ai_tool_core/mod.ts";
 export { authorize } from "../_113_identity/mod.ts";
 export type {
   Guard,
   GuardDecision,
   IdentityProvider,
 } from "../_113_identity/mod.ts";
+export type { Component } from "solid-js";
 export { z } from "zod";
 export type { z as zType } from "zod";

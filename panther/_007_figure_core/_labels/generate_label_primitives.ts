@@ -3,16 +3,24 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { FigureLabelPrimitive, LabelCollisionConfig } from "../deps.ts";
+import type {
+  DataLabelStyle,
+  FigureLabelPrimitive,
+  LabelCollisionConfig,
+  MeasuredText,
+  RectCoordsDims,
+} from "../deps.ts";
 import {
   computeBoundsForPath,
   Coordinates,
+  Dimensions,
   labelBoxRcd,
   unionRectCoordsDims,
   Z_INDEX,
 } from "../deps.ts";
 import {
   type CollisionLabel,
+  type InsideCollisionLabel,
   resolveInsideCollisions,
   resolveOutsideCollisions,
 } from "./collision.ts";
@@ -25,8 +33,6 @@ import type {
   LabelMode,
 } from "./label_types.ts";
 import { resolveLabelPlacement } from "./resolve_placement.ts";
-
-type PlacedCandidate = CollisionLabel & { candidate: LabelCandidate };
 
 // The one label driver for every figure. Resolves each candidate's placement,
 // runs the matching collision solver, and emits figure-label primitives. All
@@ -337,20 +343,27 @@ export function placeOutsideBoxes(
   return out;
 }
 
-function toCollisionLabel(
-  candidate: LabelCandidate,
-  x: number,
-  y: number,
-): PlacedCandidate {
-  return {
-    candidate,
-    naturalX: x,
-    naturalY: y,
-    x,
-    y,
-    width: candidate.mText.dims.w(),
-    height: candidate.mText.dims.h(),
-  };
+// The box an inside label draws: its text and its halo's padding.
+export function insideLabelBoxDims(
+  mText: MeasuredText,
+  dataLabel: DataLabelStyle,
+): Dimensions {
+  const pad = buildLabelHalo(dataLabel)?.padding;
+  return new Dimensions({
+    w: mText.dims.w() + (pad?.totalPx() ?? 0),
+    h: mText.dims.h() + (pad?.totalPy() ?? 0),
+  });
+}
+
+// Can this inside label be kept inside its host? Not when its box is larger
+// than the host along either axis, and the figure then reports cramped.
+export function insideLabelFitsHost(
+  mText: MeasuredText,
+  dataLabel: DataLabelStyle,
+  hostRcd: RectCoordsDims,
+): boolean {
+  const box = insideLabelBoxDims(mText, dataLabel);
+  return box.w() <= hostRcd.w() && box.h() <= hostRcd.h();
 }
 
 function placeInside(
@@ -359,24 +372,45 @@ function placeInside(
   collision: LabelCollisionConfig,
   meta: FigureLabelMeta,
 ): FigureLabelPrimitive[] {
-  const labels = candidates.map((c) =>
-    toCollisionLabel(c, c.anchor.x(), c.anchor.y())
-  );
+  const host = geometry.hostRcd;
+  const placed = candidates.map((candidate) => {
+    const halo = buildLabelHalo(candidate.dataLabel);
+    const pad = halo?.padding;
+    const halfW = candidate.mText.dims.w() / 2;
+    const halfH = candidate.mText.dims.h() / 2;
+    const x = candidate.anchor.x();
+    const y = candidate.anchor.y();
+    const label: InsideCollisionLabel = {
+      naturalX: x,
+      naturalY: y,
+      x,
+      y,
+      width: candidate.mText.dims.w(),
+      height: candidate.mText.dims.h(),
+      centerRange: {
+        minX: host.x() + (pad?.pl() ?? 0) + halfW,
+        maxX: host.rightX() - (pad?.pr() ?? 0) - halfW,
+        minY: host.y() + (pad?.pt() ?? 0) + halfH,
+        maxY: host.bottomY() - (pad?.pb() ?? 0) - halfH,
+      },
+    };
+    return { candidate, halo, label };
+  });
 
   resolveInsideCollisions(
-    labels,
+    placed.map((p) => p.label),
     collision.maxIterations,
     collision.maxCentroidDisplacement,
   );
 
-  return labels.map((l) =>
+  return placed.map(({ candidate, halo, label }) =>
     withFigureLabelBounds({
-      ...baseLabelPrimitive(l.candidate, geometry, meta, "inside"),
-      mText: l.candidate.mText,
-      position: new Coordinates([l.x, l.y]),
+      ...baseLabelPrimitive(candidate, geometry, meta, "inside"),
+      mText: candidate.mText,
+      position: new Coordinates([label.x, label.y]),
       alignH: "center" as const,
       alignV: "middle" as const,
-      halo: buildLabelHalo(l.candidate.dataLabel),
+      halo,
     })
   );
 }

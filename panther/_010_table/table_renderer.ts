@@ -21,12 +21,12 @@ import {
   CustomFigureStyle,
   estimateMinSurroundsWidth,
   findFitScaleWithFloor,
-  type HeightConstraints,
   memoizeByScale,
   RectCoordsDims,
   type RenderContext,
   type Renderer,
   resolveFigureAutofitOptions,
+  type SizeConstraints,
   sum,
 } from "./deps.ts";
 import { getTableDataTransformed } from "./get_table_data.ts";
@@ -279,7 +279,7 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
     rc: RenderContext,
     width: number,
     inputs: TableInputs,
-  ): HeightConstraints {
+  ): SizeConstraints {
     const autofitOpts = resolveFigureAutofitOptions(inputs.autofit);
 
     const cache = createPerScaleMeasureCache();
@@ -307,6 +307,8 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
         // layouter owns how far it may actually stretch
         // (content.figureMaxStretch).
         maxH: idealH,
+        // Without autofit the floor scale is 1.
+        minW: minComfortableWidth,
         neededScalingToFitWidth,
         minComfortableWidth,
       };
@@ -352,6 +354,7 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
       minH,
       idealH,
       maxH,
+      minW: getSizeAtScale(floorScale).minWidth,
       neededScalingToFitWidth,
       minComfortableWidth,
     };

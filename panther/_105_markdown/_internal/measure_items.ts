@@ -34,24 +34,6 @@ export type MeasuredMarkdownItemsResult = {
   items: MeasuredMarkdownItem[];
 };
 
-// Inline code keeps the code text style but sizes relative to the surrounding
-// text (a code span in an h1 is h1-sized), the way the HTML renderer's
-// `--md-code-size` em ratio does.
-export function getInlineCodeStyle(
-  baseTextInfo: TextInfoUnkeyed,
-  style: MergedMarkdownStyle,
-): InlineCodeStyle {
-  const codeText = style.text.code;
-  return {
-    textInfo: {
-      ...codeText,
-      fontSize: baseTextInfo.fontSize * codeText.fontSize /
-        style.text.paragraph.fontSize,
-    },
-    backgroundColor: style.code.backgroundColor,
-  };
-}
-
 export function measureMarkdownItems(
   rc: RenderContext,
   bounds: RectCoordsDims,
@@ -524,7 +506,7 @@ function expandTabs(codeLine: string): string {
 // indentation: the rest is measured in the width the indentation leaves, and
 // each line gets the indentation back as spaces, which a render context draws
 // at their advance.
-export function measureCodeLine(
+function measureCodeLine(
   rc: RenderContext,
   codeLine: string,
   textInfo: TextInfoUnkeyed,
@@ -605,5 +587,23 @@ function inlinesToFormattedText(
     runs,
     baseStyle: baseTextInfo,
     codeStyle: getInlineCodeStyle(baseTextInfo, style),
+  };
+}
+
+// Inline code keeps the code text style but sizes relative to the surrounding
+// text (a code span in an h1 is h1-sized), the way the HTML renderer's
+// `--md-code-size` em ratio does.
+function getInlineCodeStyle(
+  baseTextInfo: TextInfoUnkeyed,
+  style: MergedMarkdownStyle,
+): InlineCodeStyle {
+  const codeText = style.text.code;
+  return {
+    textInfo: {
+      ...codeText,
+      fontSize: baseTextInfo.fontSize * codeText.fontSize /
+        style.text.paragraph.fontSize,
+    },
+    backgroundColor: style.code.backgroundColor,
   };
 }

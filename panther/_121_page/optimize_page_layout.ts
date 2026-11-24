@@ -45,8 +45,8 @@ export function optimizePageLayout(
   const pageBounds = s.split.placement === "none"
     ? bounds
     : computeSplitBounds(bounds, s.split).contentBounds;
-  const contentBounds = measureContentBox(rc, pageBounds, chrome, s)
-    .rcdContentInner;
+  const box = measureContentBox(rc, pageBounds, chrome, s);
+  const chromeOverflows = box.overflowCauses.length > 0;
 
   const layoutStyle: LayoutStyleConfig = {
     gapX: s.content.gapX,
@@ -57,12 +57,15 @@ export function optimizePageLayout(
 
   const cachedMeasurer = createCachedMeasurer(itemMeasurer);
   const candidates = generateCandidates(itemNodes, config);
+  // A header or footer that overflows overflows every candidate alike.
   const scored = scoreLayouts(
     { rc, s },
     candidates,
-    contentBounds,
+    box.rcdContentInner,
     layoutStyle,
     cachedMeasurer,
+  ).map((c): ScoredLayout<PageContentItem> =>
+    chromeOverflows ? { ...c, score: { ...c.score, overflow: 1 } } : c
   );
   const best = pickBestLayout(scored);
   return { best, candidates, scored };
