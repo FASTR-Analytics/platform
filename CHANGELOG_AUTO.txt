@@ -1,3 +1,36 @@
+[2.17.0] [user] [added] - Teams can now be granted access to products
+[2.17.0] [user] [added] - Manage access dialog shows team members and their scope status
+[2.17.0] [user] [added] - Your teams are now shown in your profile
+[2.17.0] [user] [added] - Product access badge tooltip shows which team grants your access
+[2.17.0] [user] [added] - Bulk folder access now supports teams alongside people
+[2.17.0] [user] [added] - Select mode on the products page to move or delete multiple products at once
+[2.17.0] [user] [added] - Apply a deck blueprint to a slide deck from another country's template
+[2.17.0] [user] [added] - Blueprint outline review card lets you approve, edit, or drop topics before building
+[2.17.0] [user] [added] - Report backbones: a new house style system the AI writes reports to
+[2.17.0] [user] [added] - Create a report backbone by uploading an example PDF for the AI to read
+[2.17.0] [user] [added] - Create a report backbone by measuring the report you are editing
+[2.17.0] [user] [added] - Review and edit every backbone setting before saving
+[2.17.0] [user] [added] - Other screens can now trigger an AI assistant prompt from a menu action
+[2.17.0] [user] [changed] - Access dialog label changed from "People with access" to "People and teams with access"
+[2.17.0] [user] [changed] - Report style editor renamed to report backbone editor with wider dialog
+[2.17.0] [user] [changed] - New report backbones default to being visible across the whole instance
+[2.17.0] [admin] [added] - Teams can now be granted access to products
+[2.17.0] [admin] [added] - Product access dialog shows team members and scope warnings
+[2.17.0] [admin] [added] - Folder bulk access now supports teams alongside people
+[2.17.0] [admin] [added] - Product level badge tooltip shows which team grants access
+[2.17.0] [admin] [added] - Your teams now shown in your profile settings
+[2.17.0] [admin] [added] - Select mode on products page for bulk move and delete
+[2.17.0] [admin] [added] - Deck blueprints can be applied via the AI assistant
+[2.17.0] [admin] [added] - Report backbones: new house style system for AI-written reports
+[2.17.0] [admin] [added] - Draft a report backbone from an example PDF using AI
+[2.17.0] [admin] [added] - Measure the current report into a backbone for reuse
+[2.17.0] [admin] [added] - Report backbone editor with look, cover, length, structure, charts, and voice settings
+[2.17.0] [admin] [added] - AI assistant now understands the Teams page
+[2.17.0] [admin] [added] - Screens can inject actions into the AI assistant menu
+[2.17.0] [admin] [changed] - Custom styles renamed to report backbones throughout the interface
+[2.17.0] [admin] [changed] - New report backbones default to instance-wide visibility
+[2.17.0] [admin] [changed] - Access dialog labels updated to mention teams alongside people
+[2.17.0] [admin] [changed] - Report page fullness checks now respect backbone-specific limits
 [2.16.0] [user] [changed] - Slide overflow warnings now explain exactly what doesn't fit
 [2.16.0] [user] [fixed] - Tables and images in text blocks now show a clear error message instead of a cryptic failure
 [2.16.0] [user] [added] - Slide editor shows a helpful message when a text block contains a table or image that can't be displayed
