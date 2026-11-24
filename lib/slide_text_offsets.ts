@@ -943,7 +943,14 @@ type Atom =
   | { kind: "text"; ch: string; style: SlideCharStyle }
   | { kind: "br" };
 
+// A pipe is written as its entity, never as `\|`: markdown-it takes any line
+// holding a `|` as a possible table header, escaped or not, so `x \| y` over
+// `---` is a one-column table where `x | y` over `---` is a heading. No pipe
+// the canvas writes can then start or split a table.
+const PIPE_ENTITY = "&#124;";
+
 function escapeChar(ch: string): string {
+  if (ch === "|") return PIPE_ENTITY;
   return /[\\*_`[\]~<&]/.test(ch) ? "\\" + ch : ch;
 }
 
@@ -1307,7 +1314,76 @@ export function slideDeleteForward(
 export function escapeTypedSlideText(text: string): string {
   return text.replace(/[\\*_`[\]~]/g, (c) => "\\" + c)
     .replace(/<(?=[A-Za-z/!])/g, "\\<")
-    .replace(/&(?=#?[A-Za-z0-9]+;)/g, "\\&");
+    .replace(/&(?=#?[A-Za-z0-9]+;)/g, "\\&")
+    .replace(/\|/g, PIPE_ENTITY);
+}
+
+// What a table's delimiter row may start with before its first char: the
+// quote markers and indentation of the blocks holding the table.
+const DELIMITER_ROW_PREFIX = /^[ \t>]*/;
+
+// A private-use char no slide text holds, put before each `\` an escape
+// added: markdown-it parses the text as it does with the `\` alone, and a
+// code span holding the char holds a `\` it would draw.
+const CODE_PROBE = String.fromCharCode(0xe000);
+
+// What an insert no candidate verified stores: the text as typed, so typing
+// is never lost. That can still make a table the canvas never wrote (a pipe
+// typed above a row of dashes, dashes typed under literal pipes), so each new
+// table gets a `\` before its delimiter row's first char, which ends the
+// table and draws nothing; a quoted table the text already held stays as it
+// was. Undefined, so the insert is refused, when such a `\` would draw
+// (inside a code span) or the insert would still add a table or an image,
+// which slide text cannot draw.
+function rawInsert(
+  src: string,
+  pos: number,
+  ins: string,
+): { next: string; caret: number } | undefined {
+  let next = src.slice(0, pos) + ins + src.slice(pos);
+  let caret = pos + ins.length;
+  let escapes: number[] = [];
+  const first = src.slice(0, pos).split("\n").length - 1;
+  const added = ins.split("\n").length - 1;
+  const held = new Set(
+    slideTablesAndImages(src).flatMap((f) =>
+      f.kind === "table" ? [f.line] : []
+    ),
+  );
+  // A line of `next` is the source's line it was, or -1 for one the insert
+  // started.
+  const srcLine = (line: number) =>
+    line <= first ? line : line > first + added ? line - added : -1;
+  while (true) {
+    const table = slideTablesAndImages(next).find((f) =>
+      f.kind === "table" && !held.has(srcLine(f.line))
+    );
+    if (table === undefined) break;
+    const row = lineStartsOf(next)[table.line + 1];
+    const at = row + DELIMITER_ROW_PREFIX.exec(next.slice(row))![0].length;
+    if (!/[-|:]/.test(next[at] ?? "")) return undefined;
+    next = next.slice(0, at) + "\\" + next.slice(at);
+    escapes = [...escapes.map((e) => e >= at ? e + 1 : e), at];
+    if (at < caret) caret++;
+  }
+  const probed = [...escapes].sort((a, b) => b - a).reduce(
+    (doc, e) => doc.slice(0, e) + CODE_PROBE + doc.slice(e),
+    next,
+  );
+  const drawsEscape = escapes.length > 0 &&
+    slideTokens(probed).some((t) =>
+      t.children?.some((c) =>
+        c.type === "code_inline" && c.content.includes(CODE_PROBE)
+      )
+    );
+  const count = (doc: string, k: SlideTableOrImage["kind"]) =>
+    slideTablesAndImages(doc).filter((f) => f.kind === k).length;
+  if (
+    drawsEscape ||
+    count(next, "table") > count(src, "table") ||
+    count(next, "image") > count(src, "image")
+  ) return undefined;
+  return { next, caret };
 }
 
 /** Type `typed` at `pos` (after any selection was deleted). The new text
@@ -1394,10 +1470,11 @@ export function slideInsertText(
   );
   const hit = firstVerified([...simple, ...rebuilt], expected);
   if (!hit) {
-    return {
-      changes: [{ from: pos, to: pos, insert: ins }],
-      anchor: pos + ins.length,
-      head: pos + ins.length,
+    const raw = rawInsert(src, pos, ins);
+    return raw === undefined ? { changes: [], anchor: pos, head: pos } : {
+      changes: wholeDocChange(src, raw.next),
+      anchor: raw.caret,
+      head: raw.caret,
     };
   }
   const si = simple.indexOf(hit.next);
