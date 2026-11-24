@@ -3,17 +3,28 @@ import {
   createCanvasRenderContextBrowser,
   getFontsForPage,
   loadFontsWithTimeout,
+  type MeasuredPage,
   type PageInputs,
   PageRenderer,
   RectCoordsDims,
 } from "panther";
 import type { Slide, SlideDeckConfig } from "lib";
-import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import { describeSlideOverflowForAI, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
+import { slideTextField } from "~/components/products/slide_deck/slide_editor/mod.ts";
 
-// Whether a slide overflows the page, or the error that kept it from being
-// measured.
-export type SlideOverflow = boolean | Error;
+// Whether a slide's page overflows, and where.
+export type SlidePageOverflow = Pick<
+  MeasuredPage,
+  "overflow" | "overflowCauses"
+>;
+
+// A slide's page overflow, or the error that kept it from being measured.
+export type SlideOverflow = SlidePageOverflow | Error;
+
+export function slidePageOverflow(mPage: MeasuredPage): SlidePageOverflow {
+  return { overflow: mPage.overflow, overflowCauses: mPage.overflowCauses };
+}
 
 // The page the deck renders for a slide, with the fonts the deck's canvas
 // loads for that page, so a measurement here matches the canvas. Every
@@ -33,20 +44,21 @@ export function toSlideOverflowError(err: unknown): Error {
   return err instanceof Error ? err : new Error(String(err));
 }
 
-// Whether a slide overflows the page: the flag the deck's canvas badges, from
-// the same measurement. Every overflow the model is told comes from here or,
-// for a look, from the measurement it draws from. A slide that cannot be
-// measured gives its error, so one slide never fails a read of several.
+// Whether a slide overflows the page, and where: the flag the deck's canvas
+// badges, from the same measurement. Every overflow the model is told comes
+// from here or, for a look, from the measurement it draws from. A slide that
+// cannot be measured gives its error, so one slide never fails a read of
+// several.
 export async function measureSlideOverflow(
   slide: Slide,
   deckConfig: SlideDeckConfig,
 ): Promise<SlideOverflow> {
   try {
-    return PageRenderer.measure(
+    return slidePageOverflow(PageRenderer.measure(
       createCanvasRenderContextBrowser(),
       new RectCoordsDims([0, 0, PAGE_WIDTH_DU, PAGE_HEIGHT_DU]),
       await buildSlidePage(slide, deckConfig),
-    ).overflow;
+    ));
   } catch (err) {
     return toSlideOverflowError(err);
   }
@@ -54,7 +66,7 @@ export async function measureSlideOverflow(
 
 // A slide the model built that cannot be measured cannot be drawn on the
 // canvas or in the PDF export either, so the call that built it is refused.
-export function overflowOrRefuse(overflow: SlideOverflow): boolean {
+export function overflowOrRefuse(overflow: SlideOverflow): SlidePageOverflow {
   if (overflow instanceof Error) {
     throw new AIToolFailure(
       `This slide cannot be drawn: ${overflow.message}. Nothing was changed.`,
@@ -64,8 +76,8 @@ export function overflowOrRefuse(overflow: SlideOverflow): boolean {
 }
 
 // The one sentence every tool gives the model about whether a slide overflows
-// the page. It names no fix: the model decides what to change. `slideId` is
-// null for a draft, which has none.
+// the page, and what does not fit. It names no fix: the model decides what to
+// change. `slideId` is null for a draft, which has none.
 export function describeSlideOverflow(
   slideId: string | null,
   overflow: SlideOverflow,
@@ -74,7 +86,12 @@ export function describeSlideOverflow(
   if (overflow instanceof Error) {
     return `${subject}: could not be measured: ${overflow.message}`;
   }
-  return overflow
-    ? `${subject}: OVERFLOWS THE PAGE. Its content does not fit and is cut off. The slide is broken until it fits.`
+  return overflow.overflow
+    ? `${subject}: OVERFLOWS THE PAGE. ${
+      describeSlideOverflowForAI(
+        overflow.overflowCauses,
+        (id) => slideTextField(id)?.field,
+      )
+    }`
     : `${subject}: fits the page.`;
 }
