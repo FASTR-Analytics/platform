@@ -3,7 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { ColorKeyOrString, PointType } from "../deps.ts";
+import type { ColorKeyOrString, DataDimension, PointType } from "../deps.ts";
+import type { ValueAxisOfSeries } from "../_axes/axis_configs.ts";
 
 export type LegendEntry = {
   // The series id the entry stands for, when it stands for one.
@@ -13,6 +14,14 @@ export type LegendEntry = {
   pointStyle?: PointType | "as-block" | "as-line";
   lineDash?: "solid" | "dashed";
   lineStrokeWidthScaleFactor?: number;
+};
+
+export type LegendSwatch = Pick<LegendEntry, "pointStyle" | "lineDash">;
+
+export type LegendSeries = {
+  dimension: DataDimension | undefined;
+  valueAxisOfSeries?: ValueAxisOfSeries;
+  swatches?: LegendSwatch[];
 };
 
 export function isArrayOfLegendEntries(

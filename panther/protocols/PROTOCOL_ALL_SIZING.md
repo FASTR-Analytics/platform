@@ -107,7 +107,16 @@ await writeSlide("slide.png", page, {
   pageHeightDu: 844,
 });
 
-// PDF/PPTX: render the page's DU frame; the physical size (inches/points) is set
+// PPTX: the same pair; outputWidthPx is the width a slide shown at full size is
+// drawn for, so each figure's image has outputWidthPx / pageWidthDu pixels per
+// DU. The slide's size in inches follows the frame, never outputWidthPx
+const pptx = pagesToPptxBrowser(pages, {
+  outputWidthPx: 3840,
+  pageWidthDu: 1500,
+  pageHeightDu: 844,
+});
+
+// PDF: render the page's DU frame; the physical size (inches/points) is set
 // EXPLICITLY, separate from both the DU width and outputWidthPx (no fudge factor)
 ```
 
@@ -122,7 +131,7 @@ A page's frame is a value you **set**, not a per-surface override of a default. 
   <PageHolder pageInputs={page} pageWidthDu={1500} pageHeightDu={844} />             // roomier canvas
   ```
 
-- **The consequence you own.** Because authored DU sizes don't change with the width, a wider page has _relatively smaller_ text: a 14-DU font is a different relative size on a 1500-wide page than a 1000-wide one, so cross-page text consistency is not automatic. And the legibility floor (`MIN_FONT_SIZE_DU`, an absolute DU) is relatively smaller on a wider frame, so **print legibility becomes your responsibility**: check it at your PDF/print page width. This is a plain property of choosing a width, not a sanctioned rule-break, and it is _not_ a way to make one surface's text bigger/smaller for emphasis (that is the per-surface multiplier Rules 2–4 ban).
+- **The consequence you own.** Because authored DU sizes don't change with the width, a wider page has _relatively smaller_ text: a 14-DU font is a different relative size on a 1500-wide page than a 1000-wide one, so cross-page text consistency is not automatic. And a page's font floor (`freeform.content.minFontSize`, an absolute DU, default 10), below which its blocks' text never shrinks and the page overflows instead, is relatively smaller on a wider frame, so **print legibility becomes your responsibility**: set it for your PDF/print page width. This is a plain property of choosing a width, not a sanctioned rule-break, and it is _not_ a way to make one surface's text bigger/smaller for emphasis (that is the per-surface multiplier Rules 2–4 ban).
 
 - **One frame, screen + export.** A page's DU frame has one public pair, `(pageWidthDu, pageHeightDu)`, everywhere it's page-facing. Pass the _same_ pair to the on-screen `PageHolder` and to every page export (`writeSlide`, `pagesToPdf`, `pagesToPptx`) so screen and file stay in lockstep. Never give a page a different frame on screen than in export.
 

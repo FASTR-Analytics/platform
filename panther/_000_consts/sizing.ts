@@ -11,11 +11,12 @@
 export const REFERENCE_WIDTH_DU = 1000;
 export const _GLOBAL_LAYOUT_COLUMNS = 12;
 
-// Legibility floor for shrink-to-fit, in design units (DUs in the REFERENCE_WIDTH
-// frame). Shrink-to-fit never reduces the base font below this; below it the
-// content renders at the floor and is flagged `cramped`. One home for figures and
-// markdown so their floors can't drift. Placeholder value: the real legibility
-// floor has not been set.
+// The floor of shrink-to-fit outside a page, in design units (DUs in the
+// REFERENCE_WIDTH frame). Shrink-to-fit never reduces the base font below this;
+// below it the content renders at the floor and is flagged `cramped`. One home
+// for figures and markdown so their floors can't drift. Legibility is physical,
+// and only a page has a physical size, so a freeform page gives its blocks its
+// own floor (its style's content.minFontSize); this one is no legibility floor.
 export const MIN_FONT_SIZE_DU = 4;
 
 export type SizingMode = "reflow" | "zoom";
@@ -70,3 +71,13 @@ export function getExportDevicePxPerDu(
 ): number {
   return outputWidthPx / frameWidthDu;
 }
+
+// A page export's size: the page's DU frame, the pair the on-screen
+// PageHolder takes, and the output pixel width a slide is drawn for, which
+// sets the density of its rasters and never its layout. A raster's pixel
+// height follows the frame's aspect.
+export type SlideExportSizeOptions = {
+  outputWidthPx: number;
+  pageWidthDu: number;
+  pageHeightDu: number;
+};

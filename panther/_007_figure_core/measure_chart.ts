@@ -60,7 +60,7 @@ export function measureChart<
     subtitle,
     footnote,
     legend,
-    dataDimensions.series,
+    config.legendSeries ?? { dimension: dataDimensions.series },
   );
   const extraHeightDueToSurrounds = measuredSurrounds.extraHeightDueToSurrounds;
 

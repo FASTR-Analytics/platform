@@ -4,11 +4,14 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  buildCategoryAndValueLegendSeries,
+  buildSecondValueAxisConfig,
   CustomFigureStyle,
   measureChart,
   type MergedChartOHStyle,
   type PaneGrid,
   type RectCoordsDims,
+  referenceLinesOn,
   type RenderContext,
   type SimplifiedChartConfig,
 } from "../deps.ts";
@@ -69,13 +72,27 @@ export function measureChartOH(
         axisStyle: mergedStyle.xValueAxis,
         axisData: transformedData.valueAxisLimits,
         axisLabel: transformedData.xValueAxisLabel,
+        referenceLines: referenceLinesOn(
+          transformedData.referenceLines,
+          "first",
+        ),
       },
       y: {
         type: "text",
         indicatorMembers: transformedData.indicator.members,
         axisStyle: mergedStyle.yTextAxis,
       },
+      secondX: buildSecondValueAxisConfig(
+        transformedData.secondValueAxis,
+        mergedStyle.secondValueAxis,
+        transformedData.referenceLines,
+      ),
     },
+    subChartTexts: transformedData.subChartTexts,
+    legendSeries: buildCategoryAndValueLegendSeries(
+      mergedStyle.content,
+      transformedData,
+    ),
     paneGrid,
   };
 

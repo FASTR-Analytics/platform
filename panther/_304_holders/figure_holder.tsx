@@ -13,6 +13,7 @@ import {
   Show,
 } from "solid-js";
 import {
+  getDevicePixelRatio,
   loadFontsWithTimeout,
   releaseCanvasGPUMemory,
   runWithDarkKeyColors,
@@ -181,7 +182,7 @@ export function FigureHolder(p: Props) {
       renderedDom = { w: parentDomW, h: parentDomH };
       const sizing: SizingMode = p.sizing ?? "reflow";
       const resolution = p.resolution ?? 1;
-      const dpr = globalThis.devicePixelRatio || 1;
+      const dpr = getDevicePixelRatio();
 
       const { frameWidthDu: frameW, backingWidthPx: backingW, devicePxPerDu } =
         getStage2Sizing({
@@ -444,14 +445,15 @@ export function FigureHolder(p: Props) {
   }
 
   createEffect(() => {
-    // Track the inputs and the sizing props so a change to any of them
-    // re-renders even without a resize.
+    // Track the inputs, the sizing props and the device pixel ratio so a
+    // change to any of them re-renders even without a resize.
     const loaded = fontsLoaded();
     const inputs = p.figureInputs;
     const _height = p.height;
     const _sizing = p.sizing;
     const _frameWidthDu = p.frameWidthDu;
     const _resolution = p.resolution;
+    const _dpr = getDevicePixelRatio();
     const _schemeProp = p.scheme;
     const _scheme = effectiveScheme();
     if (loaded && inputs) {

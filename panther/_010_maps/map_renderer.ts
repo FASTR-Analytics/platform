@@ -144,7 +144,7 @@ export function getMapComponentSizes(
         : Math.max(minLabelSubChartExtent, labelBudget.vertical),
       labelBudget.insideBoxHeight,
     ),
-    xAxisHeight: 0,
+    xAxesHeight: 0,
     paneHeaderHeight: rc
       .mText(
         SIZING_SAMPLE.paneHeader,
@@ -152,7 +152,7 @@ export function getMapComponentSizes(
         PANE_HEADER_SAMPLE_MAX_W,
       )
       .dims.h(),
-    minYAxisWidth: estimateTierHeaderAndLabelGapWidth(
+    minYAxesWidth: estimateTierHeaderAndLabelGapWidth(
       rc,
       data.tier,
       data.lane,

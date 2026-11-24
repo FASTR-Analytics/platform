@@ -25,6 +25,11 @@ import type {
   PointStyle,
   RectStyle,
 } from "../render_context.ts";
+import type {
+  ChartValueAxis,
+  ReferenceLineInfo,
+  ScatterPointInfo,
+} from "../chart_info_types.ts";
 import type { PrimitiveItem, PrimitivePart } from "./identity.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -46,6 +51,8 @@ export const Z_INDEX = {
   CONTENT_AREA: 300,
   CONTENT_LINE: 400,
   CONTENT_BAR: 500,
+  // Over the bars a target is read against, beneath the points on it.
+  CONTENT_REFERENCE_LINE: 520,
   CONTENT_CONNECTOR: 550,
   CONTENT_POINT: 600,
   LABEL: 700,
@@ -57,7 +64,8 @@ export const Z_INDEX = {
   MAP_REGION: 300,
   // Pie defaults
   PIE_SLICE: 300,
-  // Figure labels (map areas, pie slices) — above all figure content
+  // Figure labels (map areas, pie slices, scatter points) — above all figure
+  // content
   FIGURE_LABEL: 750,
   // Sankey defaults
   SANKEY_LINK: 300,
@@ -284,6 +292,43 @@ export type ChartCascadeArrowPrimitive =
     dataLabel?: DataLabel;
   };
 
+// The line and its label are painted together; bounds and hitBounds unite
+// the line's stroke box and the label's box.
+export type ChartReferenceLinePrimitive =
+  & BasePrimitive
+  & Hittable<"body">
+  & {
+    type: "chart-reference-line";
+    meta: {
+      referenceLine: ReferenceLineInfo;
+    };
+    coords: [Coordinates, Coordinates];
+    style: LineStyle;
+    label?: DataLabel;
+  };
+
+// The align rect is the sub-chart's rect less its padding; bounds and
+// hitBounds are the painted text box.
+export type ChartSubChartTextPrimitive =
+  & BasePrimitive
+  & Hittable<"label">
+  & {
+    type: "chart-sub-chart-text";
+    meta: {
+      id: string;
+      i_pane: number;
+      i_tier: number;
+      i_lane: number;
+      paneMember?: DimensionMember;
+      tierMember?: DimensionMember;
+      laneMember?: DimensionMember;
+    };
+    mText: MeasuredText;
+    alignRcd: RectCoordsDims;
+    alignH: AlignH;
+    alignV: AlignV;
+  };
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 //    Chart Structural Primitives (Coarse-Grained)                            //
@@ -297,6 +342,8 @@ export type ChartAxisPrimitive =
     type: "chart-axis";
     meta: {
       axisType: "x-text" | "x-period" | "x-value" | "y-value" | "y-text";
+      // A text or a period axis has none.
+      valueAxis?: ChartValueAxis;
       i_pane: number;
       // An x-axis serves one lane and every tier; a y-axis one tier and every
       // lane.
@@ -485,6 +532,24 @@ export type PieSlicePrimitive =
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
+//    Scatter Primitives                                                      //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+export type ScatterPointPrimitive =
+  & BasePrimitive
+  & Hittable<"marker">
+  & {
+    type: "scatter-point";
+    meta: {
+      point: ScatterPointInfo;
+    };
+    coords: Coordinates;
+    style: PointStyle;
+  };
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
 //    Figure Primitives (shared by every figure)                              //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
@@ -551,7 +616,8 @@ export type FigureLabelPrimitive =
       i_pane: number;
       i_tier: number;
       i_lane: number;
-      // Pie only: which pie in the sub-chart's indicator grid. Absent for map.
+      // A pie's indicator, which pie of the sub-chart's indicator grid, or a
+      // scatter point's. Absent for map.
       i_indicator?: number;
       paneMember?: DimensionMember;
       tierMember?: DimensionMember;
@@ -822,6 +888,8 @@ export type Primitive =
   | ChartErrorBarPrimitive
   | ChartErrorBandPrimitive
   | ChartCascadeArrowPrimitive
+  | ChartReferenceLinePrimitive
+  | ChartSubChartTextPrimitive
   // Chart structure (coarse-grained)
   | ChartAxisPrimitive
   | ChartGridPrimitive
@@ -839,6 +907,8 @@ export type Primitive =
   | MapAreaPrimitive
   // Pie primitives
   | PieSlicePrimitive
+  // Scatter primitives
+  | ScatterPointPrimitive
   // Table primitives
   | TableCellPrimitive
   | TableRowHeaderPrimitive

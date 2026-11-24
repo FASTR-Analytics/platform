@@ -3,7 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { ValueRange } from "../types.ts";
+import type { TierOrLaneDimension } from "../chart_ov_or_oh_transform.ts";
+import type { ChartValueAxisLimits, ValueRange } from "../types.ts";
 
 export type ValueAxisLimitOption =
   | number
@@ -20,10 +21,10 @@ export type ValueAxisLimitOption =
 //   function    an authored fixed bound, per pane
 //   "auto"      the data's own bound — may sit above zero, which truncates the
 //               axis and visually exaggerates variation
-//   "auto-zero" the data's own bound, widened to always include zero. For data
-//               that never crosses zero this IS zero, i.e. identical to the
-//               default `min: 0` — it only differs where data would otherwise
-//               be mapped outside the sub-chart.
+//   "auto-zero" the data's own bound, widened to always include zero, and the
+//               default of both bounds. For data that never crosses zero the
+//               min IS zero, identical to a fixed `min: 0`; it differs only
+//               where data would otherwise be mapped outside the sub-chart.
 export function resolveValueAxisLimits(
   styleMin: ValueAxisLimitOption,
   styleMax: ValueAxisLimitOption,
@@ -39,6 +40,29 @@ export function resolveValueAxisLimits(
     return { valueMin: valueMax, valueMax: valueMin };
   }
   return { valueMin, valueMax };
+}
+
+export function resolveTierOrLaneValueAxisLimits(
+  limits: ChartValueAxisLimits,
+  tierOrLaneDimension: TierOrLaneDimension,
+  allowIndividualLimits: boolean,
+  styleMin: ValueAxisLimitOption,
+  styleMax: ValueAxisLimitOption,
+  i_pane: number,
+  i_tierOrLane: number,
+): ValueRange {
+  const paneLimits = limits.paneLimits[i_pane];
+  const own =
+    (tierOrLaneDimension === "tier"
+      ? paneLimits.tierLimits
+      : paneLimits.laneLimits)[i_tierOrLane];
+  return resolveValueAxisLimits(
+    styleMin,
+    styleMax,
+    i_pane,
+    allowIndividualLimits ? (own?.valueMin ?? 0) : paneLimits.valueMin,
+    allowIndividualLimits ? (own?.valueMax ?? 1) : paneLimits.valueMax,
+  );
 }
 
 function resolveOne(

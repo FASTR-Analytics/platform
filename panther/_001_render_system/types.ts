@@ -41,8 +41,12 @@ export type SizeConstraints = {
   // when it does not shrink), read from the size function its own cramped
   // reads. Given less, it draws past its rect.
   minW: number;
-  neededScalingToFitWidth?: "none" | number; // "none" = N/A, 1.0 = fits fine, <1.0 = had to shrink
-  minComfortableWidth?: number; // raw min width (neededScalingToFitWidth is derived from this)
+  // The scale at which minComfortableWidth fits the width: 1 where it fits at
+  // full size, "none" for content with no such width.
+  neededScalingToFitWidth?: "none" | number;
+  // The narrowest width the content draws comfortably in: at its full size,
+  // and for text, with lines long enough to read.
+  minComfortableWidth?: number;
 };
 
 // Synchronous renderer interface

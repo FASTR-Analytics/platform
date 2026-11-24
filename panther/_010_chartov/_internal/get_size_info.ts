@@ -4,12 +4,13 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  buildCategoryAndValueLegendSeries,
   calculateMinSubChartHeight,
   type ChartComponentSizes,
   computeTotalGridLineStrokeWidth,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
-  estimateMinYValueAxisWidth,
+  estimateMinYValueAxesWidth,
   estimateTierHeaderAndLabelGapWidth,
   getDimensionMembers,
   maxNVisible,
@@ -133,6 +134,7 @@ export function getChartOVComponentSizes(
     inputs.legend,
     data.series,
   );
+  const legendSeries = buildCategoryAndValueLegendSeries(ms.content, data);
 
   return {
     customFigureStyle: cs,
@@ -142,22 +144,23 @@ export function getChartOVComponentSizes(
     nPanes: getDimensionMembers(data.pane).length,
     minSubChartWidth,
     minSubChartHeight: calculateMinSubChartHeight(rc, ms.yValueAxis),
-    xAxisHeight,
+    xAxesHeight: xAxisHeight,
     paneHeaderHeight,
-    minYAxisWidth: estimateMinYValueAxisWidth(
+    minYAxesWidth: estimateMinYValueAxesWidth(
       rc,
       data.yValueAxisLabel,
-      ms.yValueAxis,
-      ms.grid,
+      data.secondValueAxis,
+      ms,
       estimateTierHeaderAndLabelGapWidth(rc, data.tier, data.lane, ms),
     ),
     surroundsMinWidth: estimateMinSurroundsWidth(
       rc,
       cs,
       resolvedLegendLabels,
-      data.series,
+      legendSeries,
     ),
     resolvedLegendLabels,
+    legendSeries,
     // Proportional layout: per-slot width floor + tick mode for the ragged
     // width decomposition (proportional OV pane widths sum per-pane totals).
     minSlotExtent: data.visibleIndicatorsByPaneLane ? minSlotExtent : undefined,

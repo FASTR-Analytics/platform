@@ -19,10 +19,12 @@ export { splitIntoBreakableChunks } from "../_002_canvas/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedChartOVStyle } from "../_003_figure_style/mod.ts";
 export {
+  buildCategoryAndValueLegendSeries,
+  buildSecondValueAxisConfig,
   calculateMinSubChartHeight,
   computeTotalGridLineStrokeWidth,
   estimateMinSurroundsWidth,
-  estimateMinYValueAxisWidth,
+  estimateMinYValueAxesWidth,
   estimateTierHeaderAndLabelGapWidth,
   getChartOVOrOHDataConfigIssues,
   getChartSizeConstraintsByMeasure,
@@ -31,6 +33,7 @@ export {
   measureChart,
   measureChartWithAutofit,
   PANE_HEADER_SAMPLE_MAX_W,
+  referenceLinesOn,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveDefaultLegend,
@@ -50,7 +53,11 @@ export type {
   MeasuredSurrounds,
   PaneGrid,
   PaneLayout,
+  ReferenceLineDataConfig,
+  SecondValueAxisDataConfig,
+  SecondValueAxisDataTransformed,
   SimplifiedChartConfig,
+  SubChartTextDataConfig,
   UncertaintyConfig,
   ValueSort,
 } from "../_007_figure_core/mod.ts";

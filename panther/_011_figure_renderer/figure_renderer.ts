@@ -18,6 +18,7 @@ import {
   type MeasuredDiagram,
   type MeasuredMap,
   type MeasuredPie,
+  type MeasuredScatter,
   type MeasuredScene,
   type MeasuredTable,
   type MeasuredTimeseries,
@@ -26,6 +27,8 @@ import {
   type RectCoordsDims,
   type RenderContext,
   type Renderer,
+  type ScatterInputs,
+  ScatterRenderer,
   type SceneInputs,
   SceneRenderer,
   type SizeConstraints,
@@ -46,6 +49,7 @@ export type FigureInputs =
   | TimeseriesInputs
   | MapInputs
   | PieInputs
+  | ScatterInputs
   | SceneInputs
   | DiagramInputs;
 
@@ -56,6 +60,7 @@ export type MeasuredFigure =
   | MeasuredTimeseries
   | MeasuredMap
   | MeasuredPie
+  | MeasuredScatter
   | MeasuredScene
   | MeasuredDiagram;
 
@@ -83,6 +88,7 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
       case "timeseries":
       case "map":
       case "pie":
+      case "scatter":
       case "scene":
       case "diagram":
         return true;
@@ -184,6 +190,8 @@ function pickRenderer(inputs: FigureInputs) {
       return MapRenderer;
     case "pie":
       return PieRenderer;
+    case "scatter":
+      return ScatterRenderer;
     case "scene":
       return SceneRenderer;
     case "diagram":

@@ -3,6 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+export { getExportDevicePxPerDu } from "../_000_consts/mod.ts";
+export type { SlideExportSizeOptions } from "../_000_consts/mod.ts";
 export { Color, getColor } from "../_001_color/mod.ts";
 export type { LetterSpacing } from "../_001_font/mod.ts";
 export { Padding, RectCoordsDims } from "../_001_geometry/mod.ts";

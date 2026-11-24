@@ -11,9 +11,13 @@ import {
   type RenderContext,
 } from "../../deps.ts";
 import { SIZING_SAMPLE } from "../../dimension_helpers.ts";
-import type { ChartValueAxisLimits } from "../../types.ts";
-import { getGoodAxisTickValues } from "../get_good_axis_tick_values.ts";
-import { resolveValueAxisLimits } from "../resolve_value_axis_limits.ts";
+import type { ChartValueAxisLimits, ValueRange } from "../../types.ts";
+import {
+  formatterForUniquenessCheck,
+  getAlignedAxisTickValues,
+  getGoodAxisTickValues,
+} from "../get_good_axis_tick_values.ts";
+import { resolveTierOrLaneValueAxisLimits } from "../resolve_value_axis_limits.ts";
 import type { XValueAxisHeightInfo, XValueAxisMeasuredInfo } from "./types.ts";
 
 function measureXValueAxisLabelAndGapHeight(
@@ -73,34 +77,107 @@ export function measureXValueAxisHeightInfo(
     ? Math.max(2, Math.floor(guessSubChartW / 2 / sampleW))
     : 2;
 
-  const formatterOption = sx.tickLabelFormatter;
-  const formatterForUniquenessCheck = typeof formatterOption === "function"
-    ? formatterOption
-    : undefined;
-
   // Per-LANE tick values — mirror of Y value axis's per-tier tick values in ChartOV.
   const xAxisTickValues = Array.from({ length: nLanes }, (_, i_lane) => {
-    const dataMin = sx.allowIndividualLaneLimits
-      ? (dx.paneLimits[i_pane].laneLimits[i_lane]?.valueMin ?? 0)
-      : dx.paneLimits[i_pane].valueMin;
-    const dataMax = sx.allowIndividualLaneLimits
-      ? (dx.paneLimits[i_pane].laneLimits[i_lane]?.valueMax ?? 1)
-      : dx.paneLimits[i_pane].valueMax;
-    const { valueMin, valueMax } = resolveValueAxisLimits(
-      sx.min,
-      sx.max,
+    const { valueMin, valueMax } = resolveLaneValueAxisLimits(
+      dx,
+      sx,
       i_pane,
-      dataMin,
-      dataMax,
+      i_lane,
     );
     return getGoodAxisTickValues(
       valueMax,
       valueMin,
       guessMaxNTicks,
-      formatterForUniquenessCheck,
+      formatterForUniquenessCheck(sx.tickLabelFormatter),
     );
   });
 
+  return completeXValueAxisHeightInfo(
+    rc,
+    xAxisTickValues,
+    sx,
+    heightIncludingXAxisStrokeWidth,
+  );
+}
+
+// In each lane the second axis takes as many ticks as the first, so they
+// stand on the first's grid lines. Its strip is measured as the first's is,
+// with its own axis label.
+export function measureSecondXValueAxisHeightInfo(
+  rc: RenderContext,
+  dx: ChartValueAxisLimits,
+  axisLabel: string | undefined,
+  sx: MergedXValueAxisStyle,
+  sg: MergedGridStyle,
+  i_pane: number,
+  firstAxisTickValues: number[][],
+): XValueAxisHeightInfo {
+  const xAxisTickValues = firstAxisTickValues.map(
+    (firstTickValues, i_lane) => {
+      const { valueMin, valueMax } = resolveLaneValueAxisLimits(
+        dx,
+        sx,
+        i_pane,
+        i_lane,
+      );
+      return getAlignedAxisTickValues(
+        firstTickValues,
+        valueMin,
+        valueMax,
+        formatterForUniquenessCheck(sx.tickLabelFormatter),
+      );
+    },
+  );
+
+  return completeXValueAxisHeightInfo(
+    rc,
+    xAxisTickValues,
+    sx,
+    measureXValueAxisHeight(rc, axisLabel, sx, sg),
+  );
+}
+
+export function measureXValueAxisLayout(
+  innerRcd: RectCoordsDims,
+  yAxisWidth: number,
+  y: number,
+  xValueAxisHeightInfo: XValueAxisHeightInfo,
+): XValueAxisMeasuredInfo {
+  const xStart = innerRcd.x() + yAxisWidth;
+  const xAxisRcd = innerRcd.getAdjusted(() => ({
+    x: xStart,
+    y,
+    w: innerRcd.rightX() - xStart,
+    h: xValueAxisHeightInfo.heightIncludingXAxisStrokeWidth,
+  }));
+  return { xAxisRcd, xValueAxisHeightInfo };
+}
+
+function resolveLaneValueAxisLimits(
+  dx: ChartValueAxisLimits,
+  sx: MergedXValueAxisStyle,
+  i_pane: number,
+  i_lane: number,
+): ValueRange {
+  return resolveTierOrLaneValueAxisLimits(
+    dx,
+    "lane",
+    sx.allowIndividualLaneLimits,
+    sx.min,
+    sx.max,
+    i_pane,
+    i_lane,
+  );
+}
+
+function completeXValueAxisHeightInfo(
+  rc: RenderContext,
+  xAxisTickValues: number[][],
+  sx: MergedXValueAxisStyle,
+  heightIncludingXAxisStrokeWidth: number,
+): XValueAxisHeightInfo {
+  const formatterOption = sx.tickLabelFormatter;
   const tickLabelFormatter: (v: number) => string =
     typeof formatterOption === "function"
       ? formatterOption
@@ -128,20 +205,4 @@ export function measureXValueAxisHeightInfo(
     tickLabelFormatter,
     maxTickLabelW,
   };
-}
-
-export function measureXValueAxisLayout(
-  innerRcd: RectCoordsDims,
-  yAxisWidth: number,
-  xValueAxisHeightInfo: XValueAxisHeightInfo,
-): XValueAxisMeasuredInfo {
-  const xStart = innerRcd.x() + yAxisWidth;
-  const xAxisRcd = innerRcd.getAdjusted(() => ({
-    x: xStart,
-    y: innerRcd.bottomY() -
-      xValueAxisHeightInfo.heightIncludingXAxisStrokeWidth,
-    w: innerRcd.rightX() - xStart,
-    h: xValueAxisHeightInfo.heightIncludingXAxisStrokeWidth,
-  }));
-  return { xAxisRcd, xValueAxisHeightInfo };
 }

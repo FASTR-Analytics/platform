@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { zType } from "./deps.ts";
+import type { GateView, zType } from "./deps.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // AI VIEW TYPES (the inert layer)
@@ -22,6 +22,11 @@ import type { zType } from "./deps.ts";
 // standalone declaration that still knows the app's views: the registry is
 // the only thing tool creation ever needs, and the live view state is
 // injected by the engine at execution.
+//
+// It also resolves a view's definition against a view state, for the chat's
+// controller and for a trial sent from a view alike: a message from a view
+// carries the same sections whichever surface sends it only if both resolve
+// it through the same functions.
 //
 // TParams is the serializable, model-visible part (validated on setView when
 // a schema is given); TContext is the non-serializable payload (live editor
@@ -147,6 +152,32 @@ export type AIViewVoidKeys<TDefs extends Record<string, AnyAIView>> = {
     : never;
 }[keyof TDefs];
 
+// The view state setView sets, as setView parses it: the id must name a view
+// of the registry, and the params pass the view's params schema before
+// anything reads them.
+export function parseViewState<
+  TDefs extends Record<string, AnyAIView>,
+  K extends keyof TDefs,
+>(
+  registry: AIViewRegistry<TDefs>,
+  id: K,
+  ...args: SetViewArgs<TDefs, K>
+): AIViewState<TDefs> {
+  if (!Object.hasOwn(registry._defs, id)) {
+    throw new Error(
+      `Unknown view id "${String(id)}"; the view registry holds ${
+        Object.keys(registry._defs).map((key) => `"${key}"`).join(", ")
+      }.`,
+    );
+  }
+  const marker = registry._defs[id];
+  const rawArgs = args as unknown[];
+  const params = marker._def.params
+    ? marker._def.params.parse(rawArgs[0])
+    : rawArgs[0];
+  return { id, params, context: rawArgs[1] } as AIViewState<TDefs>;
+}
+
 // Resolve a view's label against live params/context. Shared by the
 // controller (turn sections, currentLabel) and the navigation tool (its
 // result message): a label callback reads app state that may be torn down,
@@ -167,6 +198,112 @@ export function resolveViewLabel(
     );
     return null;
   }
+}
+
+// A view's instructions, whatever their delivery: the engine sends an
+// ephemeral view's, and a manual view's are the consumer's to compose. A
+// throw drops the section for the turn.
+export function resolveViewInstructions(
+  def: AIViewDefinition<unknown, unknown>,
+  id: string,
+  params: unknown,
+  context: unknown,
+): string | null {
+  if (def.instructions === undefined) return null;
+  if (typeof def.instructions === "string") return def.instructions;
+  try {
+    return def.instructions(params, context);
+  } catch (err) {
+    console.error(
+      `AI view instructions for "${id}" threw; dropping the section for this turn.`,
+      err,
+    );
+    return null;
+  }
+}
+
+function resolveViewStateText(
+  def: AIViewDefinition<unknown, unknown>,
+  id: string,
+  params: unknown,
+  context: unknown,
+): string | null {
+  if (def.state === undefined) return null;
+  try {
+    return def.state(params, context);
+  } catch (err) {
+    console.error(
+      `AI view state for "${id}" threw; dropping the section for this turn.`,
+      err,
+    );
+    return null;
+  }
+}
+
+// undefined: the view declares no identity; null: it threw, which the gate
+// treats as a move (never equal), so a stale identity refuses view-limited
+// calls until the user writes instead of failing the turn.
+function resolveViewIdentity(
+  def: AIViewDefinition<unknown, unknown>,
+  id: string,
+  params: unknown,
+  context: unknown,
+): AIViewIdentity | null | undefined {
+  if (def.identity === undefined) return undefined;
+  if (typeof def.identity !== "function") return def.identity;
+  try {
+    return def.identity(params, context);
+  } catch (err) {
+    console.error(
+      `AI view identity for "${id}" threw; view-limited calls are refused until the user writes. A stale identity must never fail a turn.`,
+      err,
+    );
+    return null;
+  }
+}
+
+function definitionOf<TDefs extends Record<string, AnyAIView>>(
+  registry: AIViewRegistry<TDefs>,
+  state: AIViewState<TDefs>,
+): AIViewDefinition<unknown, unknown> {
+  return registry._defs[state.id]._def as AIViewDefinition<unknown, unknown>;
+}
+
+// The view as the view line names it and the gate compares it.
+export function resolveGateView<TDefs extends Record<string, AnyAIView>>(
+  registry: AIViewRegistry<TDefs>,
+  state: AIViewState<TDefs>,
+): GateView {
+  const def = definitionOf(registry, state);
+  const id = String(state.id);
+  const label = resolveViewLabel(def, id, state.params, state.context);
+  const identity = resolveViewIdentity(def, id, state.params, state.context);
+  return identity === undefined ? { id, label } : { id, label, identity };
+}
+
+// The parts of the view sections a message sent from this view state
+// carries; view is also the reference the turn's gate checks calls against.
+export type ViewSectionParts = {
+  view: GateView;
+  viewState: string | null;
+  viewInstructions: string | null;
+};
+
+export function resolveViewSectionParts<
+  TDefs extends Record<string, AnyAIView>,
+>(
+  registry: AIViewRegistry<TDefs>,
+  state: AIViewState<TDefs>,
+): ViewSectionParts {
+  const def = definitionOf(registry, state);
+  const id = String(state.id);
+  return {
+    view: resolveGateView(registry, state),
+    viewState: resolveViewStateText(def, id, state.params, state.context),
+    viewInstructions: def.instructionsDelivery === "manual"
+      ? null
+      : resolveViewInstructions(def, id, state.params, state.context),
+  };
 }
 
 // The view state narrowed to a subset of the registry's keys — what a typed

@@ -22,6 +22,7 @@ import type {
   PieInputs,
   PointType,
   ScaleLegendConfig,
+  ScatterInputs,
   SceneBuilder,
   SceneInputs,
   TableInputs,
@@ -32,6 +33,7 @@ import { zColorKeyOrString } from "./leaves.ts";
 import { zChartOHData } from "./chartoh.ts";
 import { zChartOVData } from "./chartov.ts";
 import { zPieData } from "./pie.ts";
+import { zScatterData } from "./scatter.ts";
 import { zTableData } from "./table.ts";
 import { zTimeseriesData } from "./timeseries.ts";
 
@@ -214,6 +216,18 @@ export const zPieInputs = z.object({
 const _zPieInputsConforms: Conforms<z.infer<typeof zPieInputs>, PieInputs> =
   true;
 
+export const zScatterInputs = z.object({
+  ...figureInputsBaseFields,
+  figureType: z.literal("scatter").describe(
+    "A chart of points placed by two values, the x value across and the y value up",
+  ),
+  data: zScatterData,
+});
+const _zScatterInputsConforms: Conforms<
+  z.infer<typeof zScatterInputs>,
+  ScatterInputs
+> = true;
+
 // A scene is code (cf. zLabelFormatter): accepted for in-memory inputs, never
 // survives JSON storage.
 const zSceneBuild = z.custom<(s: SceneBuilder) => void>(
@@ -266,6 +280,7 @@ export const zFigureInputs: z.ZodType<FigureInputs> = z.discriminatedUnion(
     zTimeseriesInputs,
     zMapInputs,
     zPieInputs,
+    zScatterInputs,
     zSceneInputs,
     zDiagramInputs,
   ],

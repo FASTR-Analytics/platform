@@ -8,7 +8,10 @@ export type {
   ColorKeyOrString,
   ContinuousPaletteName,
 } from "../_001_color/mod.ts";
-export { getDimensionMembers } from "../_001_render_system/mod.ts";
+export {
+  ALL_CHART_VALUE_AXES,
+  getDimensionMembers,
+} from "../_001_render_system/mod.ts";
 export type {
   DataDimension,
   DimensionMember,
@@ -34,7 +37,11 @@ export type {
   JsonArrayItem,
   LegendEntry,
   LegendInput,
+  ReferenceLineDataConfig,
   ScaleLegendConfig,
+  SecondValueAxisDataConfig,
+  SecondValueAxisDataTransformed,
+  SubChartTextDataConfig,
   UncertaintyConfig,
   ValueSort,
 } from "../_007_figure_core/mod.ts";
@@ -60,6 +67,14 @@ export type {
   PieInputs,
   PieJsonDataConfig,
 } from "../_010_pie/mod.ts";
+export type {
+  ScatterData,
+  ScatterDataJson,
+  ScatterDataTransformed,
+  ScatterInputs,
+  ScatterJsonDataConfig,
+  ScatterReferenceLineDataConfig,
+} from "../_010_scatter/mod.ts";
 export { SceneBuilder } from "../_010_scene/mod.ts";
 export type {
   DiagramCustomNode,

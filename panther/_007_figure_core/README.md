@@ -95,7 +95,7 @@ This pane/tier/lane system is what distinguishes Charts from other Figures.
 
 ### Chart Measurement
 
-The stages: `measureChart` → `resolvePaneGridLayout` → `measurePane` → `buildSubCharts` → `generatePaneContentPrimitives`. `buildSubCharts` resolves each sub-chart's content (`resolveSubChartContent`: the info and the styles of every series, drawn value, connector and cascade arrow, and every data label and cascade arrow label measured) before its end clearance, which folds over the labels.
+The stages: `measureChart` → `resolvePaneGridLayout` → `measurePane` → `buildSubCharts` → `generatePaneContentPrimitives`. `buildSubCharts` resolves each sub-chart's content (`resolveSubChartContent`: the info and the styles of every series, drawn value, connector and cascade arrow, the bar series the bar group is divided among, and every data label and cascade arrow label measured) before its end clearance, which folds over the labels. On a scatter's value-and-value axis layout it resolves each sub-chart's points instead (`resolveScatterSubChartContent`: each drawn point's info and style, and its reach along each axis) before the clearance of both sides of both axes, which folds over their reaches (`measureScatterValueClearance`).
 
 ```typescript
 measureChart<TInputs, TData, TStyle>(
@@ -144,10 +144,15 @@ type MeasuredYAxis =
 // X-axis measurement
 measureXCategoryAxis(...): Extract<MeasuredXAxis, { type: "text" | "period" }>
 measureXValueAxis(...): Extract<MeasuredXAxis, { type: "value" }>
+// The second x value axis, below the lane headers, its ticks per lane aligned
+// to the first's
+measureSecondXValueAxis(...): Extract<MeasuredXAxis, { type: "value" }>
 
 // Y-axis measurement
 measureYCategoryAxis(...): Extract<MeasuredYAxis, { type: "text" }>
 measureYValueAxis(...): Extract<MeasuredYAxis, { type: "value" }>
+// The second y value axis, its ticks per tier aligned to the first's
+measureSecondYValueAxis(...): Extract<MeasuredYAxis, { type: "value" }>
 ```
 
 Note: Axis rendering is now handled via primitives (no direct rendering functions).
@@ -171,11 +176,23 @@ measureSurrounds(
   rc: RenderContext,
   bounds: RectCoordsDims,
   style: CustomFigureStyle,
-  title?: string,
-  subtitle?: string,
-  footnote?: string | string[],
-  legendEntries?: LegendEntry[],
+  title: string | undefined,
+  subtitle: string | undefined,
+  footnote: string | string[] | undefined,
+  legendLabels: LegendInput | undefined,
+  // The series dimension, each series' value axis, which the legend's
+  // seriesColorFunc reads, and each label's swatch, which a string label
+  // takes: buildCategoryAndValueLegendSeries or buildScatterLegendSeries.
+  legendSeries?: LegendSeries,
 ): MeasuredSurrounds
+
+// The right legend's width, from the same legendSeries as the layout
+estimateMinSurroundsWidth(
+  rc: RenderContext,
+  style: CustomFigureStyle,
+  legendLabels: LegendInput | undefined,
+  legendSeries?: LegendSeries,
+): number
 
 // Surrounds primitives generated via generateSurroundsPrimitives()
 ```

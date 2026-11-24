@@ -4,22 +4,28 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AIToolEarlierCall,
   AnyAITool,
   BuiltInToolsConfig,
   ContentBlock,
   MessageParam,
+  SDKToolRunContext,
   Usage,
 } from "./deps.ts";
 import {
+  buildToolResultContent,
   fillEmptyReplies,
   getHeadlessCapability,
+  limitToolDisplayStructured,
   renderOutgoingMessages,
   repairStrandedToolUse,
+  resolveAIToolCallContext,
   resolveBetas,
   resolveBuiltInTools,
   resolveModelConfig,
   resolveOutputConfig,
   resolveThinkingConfig,
+  runAIToolWithView,
 } from "./deps.ts";
 import type {
   CallAIOptions,
@@ -107,9 +113,10 @@ export async function callAI(
     thinking,
   );
 
+  const earlierCalls: AIToolEarlierCall[] = [];
   const allTools = hasTools
     ? [
-      ...(config.tools?.map((t) => t.sdkTool) || []),
+      ...(config.tools?.map((t) => withEarlierCalls(t, earlierCalls)) ?? []),
       ...resolvedBuiltInTools,
     ]
     : undefined;
@@ -211,4 +218,38 @@ function aggregateUsage(usages: Usage[]): Usage {
       cache_read_input_tokens: 0,
     },
   );
+}
+
+// callAI keeps no cards, and a trial's tools have none, so each call gets, as
+// its earlier calls, the structured output of every call this callAI ran
+// before it that a card would keep, within TOOL_DISPLAY_LIMITS, with the
+// input the model sent, where the chat hands only those its cards keep. The
+// runner starts the calls of one reply at once, so none of them sees
+// another, where the chat runs them in order; a call never needs one of its
+// own reply, since the model wrote both before either ran.
+function withEarlierCalls(
+  tool: AnyAITool,
+  earlierCalls: AIToolEarlierCall[],
+): AnyAITool["sdkTool"] {
+  const { runWithView: _runWithView, ...sdkTool } = tool.sdkTool;
+  return {
+    ...sdkTool,
+    run: async (input: unknown, context?: SDKToolRunContext) => {
+      const run = await runAIToolWithView(tool.sdkTool, input, undefined, {
+        ...resolveAIToolCallContext(context),
+        earlierCalls: [...earlierCalls],
+      });
+      if (
+        run.structured !== undefined &&
+        "structured" in limitToolDisplayStructured(run.structured)
+      ) {
+        earlierCalls.push({
+          toolName: sdkTool.name,
+          input: context?.toolUse.input ?? input,
+          structured: run.structured,
+        });
+      }
+      return buildToolResultContent(run.output);
+    },
+  };
 }

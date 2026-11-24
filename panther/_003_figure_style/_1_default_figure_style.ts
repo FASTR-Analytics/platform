@@ -22,6 +22,7 @@ import {
   normalizeTo01,
   type PaddingOptions,
   type PieSliceInfoFunc,
+  type ScatterPointInfoFunc,
   type TableCellInfoFunc,
   type TableHeaderInfoFunc,
   type TextKeyDefaults,
@@ -43,6 +44,8 @@ import type {
   GenericMapAreaStyle,
   GenericPieSliceStyle,
   GenericPointStyle,
+  GenericReferenceLineStyle,
+  GenericScatterPointStyle,
   GenericTableCellStyle,
   GenericTableHeaderStyle,
 } from "./style_func_types.ts";
@@ -57,7 +60,7 @@ import type {
 } from "./_3_merged_style_return_types.ts";
 import type { LegendPosition } from "./types.ts";
 
-// Shared default for every figure's labelCollision block (map, pie). The
+// Shared default for the map's and the pie's labelCollision blocks. The
 // blocks stay per-figure (collision policy is figure-wide structural style),
 // but the numbers are one calibration.
 function defaultLabelCollision(): LabelCollisionConfig {
@@ -204,9 +207,11 @@ const _DS = {
   },
   xValueAxis: {
     max: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(
-      "auto",
+      "auto-zero",
     ),
-    min: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(0),
+    min: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(
+      "auto-zero",
+    ),
     axisLabelGap: 10,
     tickLength: 10,
     tickLabelGap: 5,
@@ -235,9 +240,11 @@ const _DS = {
   },
   yValueAxis: {
     max: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(
-      "auto",
+      "auto-zero",
     ),
-    min: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(0),
+    min: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(
+      "auto-zero",
+    ),
     axisLabelGap: 10,
     tickLength: 5,
     tickLabelGap: 3,
@@ -246,6 +253,15 @@ const _DS = {
     maxOverhangClearanceFractionOfExtent: 0.4,
     exactAxisX: typed<"none" | number>("none"),
     allowIndividualTierLimits: false,
+  },
+  secondValueAxis: {
+    max: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(
+      "auto-zero",
+    ),
+    min: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(
+      "auto-zero",
+    ),
+    tickLabelFormatter: typed<"auto-number" | "auto-percent">("auto-percent"),
   },
   // Natural ideal-height policy, same decay family T × (a + (1−a) × k^(n−1)):
   // - idealSubChartHeight (ChartOV/Timeseries sub-chart height): anchor 450 DU at one
@@ -312,6 +328,7 @@ const _DS = {
       func: typed<GenericBarStyle>({
         show: false,
         fillColor: SERIES_COLOR_SENTINEL,
+        dataLabelPosition: "outside-end",
         dataLabel: {
           show: false,
           offset: 3,
@@ -409,6 +426,25 @@ const _DS = {
       arrowheadFitFallback: typed<ArrowheadFitFallback>("line-only"),
       arrowheadFitMinLineLength: 2,
     },
+    referenceLines: {
+      func: typed<GenericReferenceLineStyle>({
+        show: true,
+        strokeColor: { key: "baseContent" },
+        strokeWidth: 2,
+        lineDash: "dashed",
+        label: {
+          show: true,
+          offset: 3,
+          backgroundColor: "none",
+          padding: 0,
+          borderWidth: 0,
+          rectRadius: 0,
+        },
+      }),
+    },
+    subChartTexts: {
+      padding: typed<PaddingOptions>(6),
+    },
     mapAreas: {
       func: typed<GenericMapAreaStyle>({
         show: true,
@@ -444,6 +480,37 @@ const _DS = {
         },
       }),
       textFormatter: typed<PieSliceInfoFunc<string> | "none">("none"),
+    },
+    scatterPoints: {
+      // Every drawn point shows, since a point is a scatter's only mark; its
+      // label stands right of it, where Excel stands a scatter's labels.
+      func: typed<GenericScatterPointStyle>({
+        show: true,
+        pointStyle: "circle",
+        radius: 5,
+        color: SERIES_COLOR_SENTINEL,
+        strokeWidth: 2,
+        innerColorStrategy: { opacity: 0.5 },
+        dataLabelPosition: "right",
+        dataLabel: {
+          show: false,
+          offset: 3,
+          backgroundColor: "none",
+          padding: 0,
+          borderWidth: 0,
+          rectRadius: 0,
+        },
+      }),
+      textFormatter: typed<ScatterPointInfoFunc<string> | "none">("none"),
+      // A scatter's own calibration, not the map's and the pie's: its labels
+      // sit among points, so they need less room between them than a stack
+      // of outside labels and more room to move than a label on its own
+      // element.
+      labelCollision: {
+        gap: 2,
+        maxCentroidDisplacement: 40,
+        maxIterations: 30,
+      },
     },
     tableCells: {
       func: typed<GenericTableCellStyle>({

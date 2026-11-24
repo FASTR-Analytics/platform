@@ -4,16 +4,79 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  basicSetup,
+  autocompletion,
+  bracketMatching,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
   createEffect,
+  crosshairCursor,
+  defaultHighlightStyle,
+  defaultKeymap,
+  drawSelection,
+  dropCursor,
   EditorState,
   EditorView,
+  type Extension,
+  foldGutter,
+  foldKeymap,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  highlightSelectionMatches,
+  highlightSpecialChars,
+  history,
+  historyKeymap,
+  indentOnInput,
+  keymap,
+  lineNumbers,
+  lintKeymap,
   markdown,
   on,
   onCleanup,
   onMount,
+  rectangularSelection,
+  searchKeymap,
+  syntaxHighlighting,
 } from "./deps.ts";
 import type { TextEditorProps } from "./types.ts";
+
+// CodeMirror's basicSetup, written out because it cannot leave out its line
+// numbers: here they come only with showLineNumbers.
+function editorSetup(showLineNumbers: boolean): Extension[] {
+  return [
+    ...(showLineNumbers ? [lineNumbers(), highlightActiveLineGutter()] : []),
+    highlightSpecialChars(),
+    history(),
+    foldGutter(),
+    drawSelection(),
+    dropCursor(),
+    EditorState.allowMultipleSelections.of(true),
+    indentOnInput(),
+    syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+    bracketMatching(),
+    closeBrackets(),
+    autocompletion(),
+    rectangularSelection(),
+    crosshairCursor(),
+    highlightActiveLine(),
+    highlightSelectionMatches(),
+    keymap.of([
+      ...closeBracketsKeymap,
+      ...defaultKeymap,
+      ...searchKeymap,
+      ...historyKeymap,
+      ...foldKeymap,
+      ...completionKeymap,
+      ...lintKeymap,
+    ]),
+  ];
+}
+
+// CodeMirror's base theme sets the browser's monospace; the editor wears the
+// app's mono face, as every other code surface does.
+const APP_MONO_FONT = EditorView.theme({
+  ".cm-scroller": { fontFamily: "var(--font-mono)" },
+});
 
 export function TextEditor(p: TextEditorProps) {
   let containerRef: HTMLDivElement | undefined;
@@ -26,7 +89,8 @@ export function TextEditor(p: TextEditorProps) {
     }
 
     const extensions = [
-      basicSetup,
+      editorSetup(p.showLineNumbers ?? false),
+      APP_MONO_FONT,
       EditorView.updateListener.of((update) => {
         if (update.docChanged && p.onChange && !isInternalChange) {
           p.onChange(update.state.doc.toString());

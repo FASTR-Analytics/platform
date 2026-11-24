@@ -6,13 +6,14 @@
 import { extractGaps } from "./_internal/extract_gaps.ts";
 import {
   getSizeConstraints,
+  heightParts,
   type MeasureContext,
   measureNode,
 } from "./_internal/measure_internal.ts";
 import { normalizeLayout, validateLayout } from "./_internal/normalize.ts";
 import { _GLOBAL_LAYOUT_COLUMNS, type RectCoordsDims } from "./deps.ts";
 import type { LayoutStyleConfig } from "./optimizer.ts";
-import { isOverflow } from "./overflow.ts";
+import { isOverflow, layoutOverflowCause } from "./overflow.ts";
 import type {
   ItemLayoutNode,
   ItemSizeMeasurer,
@@ -95,12 +96,13 @@ export function measureLayout<T, U>(
     0,
   );
   const heightCauses: LayoutOverflowCause[] = isOverflow(root.minH, bounds.h())
-    ? [{
-      axis: "height",
-      need: root.minH,
-      available: bounds.h(),
-      neededBy: root.neededBy,
-    }]
+    ? [layoutOverflowCause(
+      "height",
+      root.minH,
+      bounds.h(),
+      bounds.h(),
+      heightParts(measureCtx, root.neededBy),
+    )]
     : [];
 
   const { measured, widthCauses } = measureNode(
@@ -111,12 +113,9 @@ export function measureLayout<T, U>(
   // A box of negative width has no room for anything it holds, so its one
   // cause names the root in place of every item it leaves short.
   const boxWidthCauses: LayoutOverflowCause[] = isOverflow(0, bounds.w())
-    ? [{
-      axis: "width",
-      need: 0,
-      available: bounds.w(),
-      neededBy: [{ id: normalizedLayout.id, need: 0 }],
-    }]
+    ? [layoutOverflowCause("width", 0, bounds.w(), bounds.w(), [
+      { id: normalizedLayout.id, need: 0, needAlone: 0 },
+    ])]
     : widthCauses;
   const overflowCauses = [...heightCauses, ...boxWidthCauses];
 

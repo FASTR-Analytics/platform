@@ -4,13 +4,13 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  CanvasRenderContext,
+  buildCanvasRenderContext,
   type CreateCanvasRenderContext,
   type PageInputs,
   pagesToPptx,
   PptxGenJS,
   type PptxGenJSInstance,
-  RectCoordsDims,
+  type SlideExportSizeOptions,
 } from "./deps.ts";
 import { createCanvasBrowser } from "./create_canvas_render_context_browser.ts";
 
@@ -20,29 +20,20 @@ const PptxGenJSConstructor = PptxGenJS as unknown as {
 
 export function pagesToPptxBrowser(
   pages: PageInputs[],
-  width: number,
-  height: number,
+  opts: SlideExportSizeOptions,
 ): PptxGenJSInstance {
   if (!pages || pages.length === 0) {
     throw new Error("At least one page is required");
   }
 
   const createCanvasRenderContext: CreateCanvasRenderContext = (
-    w: number,
-    h: number,
-  ) => {
-    const canvas = createCanvasBrowser(Math.floor(w), Math.floor(h));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      throw new Error("Failed to get canvas context");
-    }
-    const rc = new CanvasRenderContext(ctx, createCanvasBrowser);
-    const rcd = new RectCoordsDims([0, 0, canvas.width, canvas.height]);
-    return { canvas, rc, rcd };
-  };
+    w,
+    h,
+    devicePxPerDu,
+  ) => buildCanvasRenderContext(createCanvasBrowser, w, h, devicePxPerDu);
 
   const pptx = new PptxGenJSConstructor() as PptxGenJSInstance;
-  const { rc } = createCanvasRenderContext(100, 100);
+  const { rc } = createCanvasRenderContext(100, 100, 1);
 
-  return pagesToPptx(pptx, rc, pages, createCanvasRenderContext, width, height);
+  return pagesToPptx(pptx, rc, pages, createCanvasRenderContext, opts);
 }

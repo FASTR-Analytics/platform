@@ -66,6 +66,7 @@ import type { AIViewSnapshot, GateView } from "../deps.ts";
 import { saveConversation } from "../_core/persistence.ts";
 import {
   getDisplayItemsFromMessage,
+  getEarlierCalls,
   getStreamingDisplayItems,
   type ProvisionalCardLookup,
 } from "../_core/display_items.ts";
@@ -1702,6 +1703,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
               vc ? () => vc.current() : undefined,
               turn.abort.signal,
               viewSnapshotOf(live?.view),
+              getEarlierCalls(ts.displayItems[0]()),
             ).finally(() => {
               if (attributesNav) vc!.markAINavigation();
             }),

@@ -7,14 +7,25 @@ export * from "./_axes/x_period/types.ts";
 export * from "./_axes/x_value/types.ts";
 export * from "./_axes/x_text/types.ts";
 export * from "./_axes/y_text/types.ts";
+export {
+  buildSecondValueAxisConfig,
+  getValueAxisOfSeries,
+  referenceLinesOn,
+  type ValueAxisOfSeries,
+} from "./_axes/axis_configs.ts";
 export { measureXValueAxisHeight } from "./_axes/x_value/measure.ts";
-export { estimateMinYValueAxisWidth } from "./_axes/y_value/measure.ts";
+export {
+  estimateMinYValueAxesWidth,
+  estimateMinYValueAxisWidth,
+} from "./_axes/y_value/measure.ts";
 export { estimateMinYTextAxisWidth } from "./_axes/y_text/measure.ts";
 export { computeTotalGridLineStrokeWidth } from "./_axes/slot_layout.ts";
 export { estimateTierHeaderAndLabelGapWidth } from "./measure_pane.ts";
 export { buildDataLabelTextStyle } from "./_content/content_generation_types.ts";
+export * from "./_content/sample_series_infos.ts";
 export * from "./_labels/mod.ts";
 export { generateScaleLegendPrimitive } from "./_legend/generate_scale_legend_primitive.ts";
+export * from "./_legend/legend_series.ts";
 export * from "./_legend/measure_legend.ts";
 export * from "./_legend/measure_scale_legend.ts";
 export { resolveAutoScaleLegend } from "./_legend/resolve_auto_scale_legend.ts";

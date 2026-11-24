@@ -5,6 +5,7 @@
 
 import type {
   AIToolDisplayProps,
+  AIToolEarlierCall,
   ContentBlock,
   MessageParam,
   ToolUIMetadata,
@@ -193,4 +194,22 @@ export function getToolDisplayProps<TInput>(
     `The card of a "${item.toolName}" call is drawn without its structured output: it no longer parses through the tool's outputSchema.`,
   );
   return props;
+}
+
+// The earlier calls a handler reads: each card that kept a structured output,
+// oldest first, with its input as the model sent it and its structured output
+// as stored, which the reader parses, since a record outlives the deploy that
+// saved it.
+export function getEarlierCalls(
+  items: readonly DisplayItem[],
+): AIToolEarlierCall[] {
+  return items.flatMap((item) =>
+    item.type === "tool_display" && item.structured !== undefined
+      ? [{
+        toolName: item.toolName,
+        input: item.input,
+        structured: item.structured,
+      }]
+      : []
+  );
 }

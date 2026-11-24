@@ -129,12 +129,24 @@ export type ItemSizeMeasurer<T, U> = (
   width: number,
 ) => SizeConstraints;
 
-export type LayoutNodeNeed = { id: LayoutNodeId; need: number };
+export type LayoutNodeNeed = {
+  id: LayoutNodeId;
+  need: number;
+  // What it needs as the layout's only node, measured at the bounds' width.
+  needAlone: number;
+};
+
+// "part" when a part needs more than the bounds alone, so no arrangement of
+// the bounds holds it; "arrangement" when every part fits the bounds alone, so
+// another arrangement holds them.
+export type LayoutOverflowFault = "part" | "arrangement";
 
 export type LayoutOverflowCause = {
   axis: "height" | "width";
   need: number;
   available: number;
+  // The room any part has alone: the bounds' height or width.
+  availableAlone: number;
   // Height: every item that adds to it, as a rows passes on what each of its
   // children names and a cols what its tallest children name (every one of
   // them where they tie), and a node whose own minH raises its minimum, named
@@ -142,6 +154,7 @@ export type LayoutOverflowCause = {
   // lowers the need. Width: the item wider than its rect, or the root of a
   // box of negative width.
   neededBy: LayoutNodeNeed[];
+  fault: LayoutOverflowFault;
 };
 
 export type MeasureLayoutResult<U> = {

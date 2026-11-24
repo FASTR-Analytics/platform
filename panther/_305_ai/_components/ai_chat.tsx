@@ -41,6 +41,7 @@ type Props = {
   placeholder?: string;
   submitLabel?: string;
   inputHeight?: string;
+  contentWidth?: string;
   containerClass?: string;
   messagesClass?: string;
   inputClass?: string;
@@ -167,13 +168,16 @@ export function AIChat(p: Props) {
   };
 
   return (
-    <div class={p.containerClass ?? "flex h-full w-full flex-col"}>
+    <div
+      class={p.containerClass ?? "flex h-full w-full flex-col"}
+      style={{ "--ai-chat-content-width": p.contentWidth ?? "48rem" }}
+    >
       {p.headerContent}
       <div
         ref={ref}
         data-ai-messages-container
         class={p.messagesClass ??
-          "ui-pad h-0 w-full flex-1 overflow-y-auto"}
+          "ui-pad-y ui-pad-x-beside-side-controls h-0 w-full flex-1 overflow-y-auto [scrollbar-gutter:stable_both-edges]"}
       >
         <MessageList
           displayItems={displayItems()}
@@ -201,19 +205,21 @@ export function AIChat(p: Props) {
             correctness never depends on it. */
         }
         <div
-          class="text-base-content-muted px-4 pb-1 text-xs italic"
+          class="ui-pad-x-beside-side-controls pb-1"
           data-ai-pending-decision-hint
         >
-          {t3({
-            en:
-              "Waiting for your decision above — new messages will be answered after you decide.",
-            fr:
-              "En attente de votre décision ci-dessus — les nouveaux messages seront traités après votre décision.",
-            pt:
-              "A aguardar a sua decisão acima — as novas mensagens serão respondidas depois de decidir.",
-            th:
-              "กำลังรอการตัดสินใจของคุณด้านบน ข้อความใหม่จะได้รับการตอบหลังจากคุณตัดสินใจแล้ว",
-          })}
+          <div class="text-base-content-muted mx-auto max-w-(--ai-chat-content-width) text-xs italic">
+            {t3({
+              en:
+                "Waiting for your decision above — new messages will be answered after you decide.",
+              fr:
+                "En attente de votre décision ci-dessus — les nouveaux messages seront traités après votre décision.",
+              pt:
+                "A aguardar a sua decisão acima — as novas mensagens serão respondidas depois de decidir.",
+              th:
+                "กำลังรอการตัดสินใจของคุณด้านบน ข้อความใหม่จะได้รับการตอบหลังจากคุณตัดสินใจแล้ว",
+            })}
+          </div>
         </div>
       </Show>
       <MessageInput

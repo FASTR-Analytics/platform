@@ -18,6 +18,8 @@ export type PrimitiveItem = Readonly<Record<string, string>>;
 // `@` marks an item key for a thing that is not data, as JSON-LD marks its
 // reserved keys, so no reader takes it for a dimension.
 export const FIGURE_TEXT_ITEM_KEY = "@figure-text";
+export const REFERENCE_LINE_ITEM_KEY = "@reference-line";
+export const SUB_CHART_TEXT_ITEM_KEY = "@sub-chart-text";
 
 export type ItemCoordinate =
   | readonly [dimension: string, id: string]

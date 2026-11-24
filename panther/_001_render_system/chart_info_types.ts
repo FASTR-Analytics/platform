@@ -5,12 +5,21 @@
 
 import type { DimensionMember } from "./dimension_types.ts";
 
+export const ALL_CHART_VALUE_AXES = ["first", "second"] as const;
+
+export type ChartValueAxis = (typeof ALL_CHART_VALUE_AXES)[number];
+
 export type ChartSeriesInfo = {
   i_series: number;
   isFirstSeries: boolean;
   isLastSeries: boolean;
   seriesMember: DimensionMember | undefined;
+  // A chart with no axes has none, and neither has a scatter, whose series
+  // are drawn against both its axes, neither of them first or second.
+  valueAxis: ChartValueAxis | undefined;
   nSerieses: number;
+  // Empty on a scatter, whose series hold two values at each value index:
+  // ScatterPointInfo carries them.
   seriesValueArrays: (number | undefined)[][];
   nValues: number;
   i_pane: number;
@@ -76,7 +85,49 @@ export type PieSliceInfo = ChartSeriesInfo & {
 
 export type PieSliceInfoFunc<T> = (info: PieSliceInfo) => T;
 
+// A scatter point is a member of its series, so its info extends
+// ChartSeriesInfo, as a pie slice's does, and seriesColorFunc colours the
+// point as it colours its series' legend entry. Its two values are named for
+// their axes, since neither is the value.
+export type ScatterPointInfo = ChartSeriesInfo & {
+  xValue: number;
+  yValue: number;
+  xValueMin: number;
+  xValueMax: number;
+  yValueMin: number;
+  yValueMax: number;
+  seriesXValueArrays: (number | undefined)[][];
+  seriesYValueArrays: (number | undefined)[][];
+  i_indicator: number;
+  nIndicators: number;
+  indicatorMember: DimensionMember | undefined;
+};
+
+export type ScatterPointInfoFunc<T> = (info: ScatterPointInfo) => T;
+
+// valueMin and valueMax are the drawn range of the value axis the line stands
+// on, in its sub-chart.
+export type ReferenceLineInfo = {
+  id: string;
+  value: number;
+  label: string | undefined;
+  valueMin: number;
+  valueMax: number;
+  i_pane: number;
+  nPanes: number;
+  paneMember: DimensionMember | undefined;
+  i_tier: number;
+  nTiers: number;
+  tierMember: DimensionMember | undefined;
+  i_lane: number;
+  nLanes: number;
+  laneMember: DimensionMember | undefined;
+};
+
+export type ReferenceLineInfoFunc<T> = (info: ReferenceLineInfo) => T;
+
 export type ChartConnectorInfo = {
+  valueAxis: ChartValueAxis;
   i_value: number;
   isFirstValue: boolean;
   isLastValue: boolean;

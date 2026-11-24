@@ -9,7 +9,6 @@ import {
   type FigureInputs,
   FigureRenderer,
   getExportDevicePxPerDu,
-  RectCoordsDims,
   REFERENCE_WIDTH_DU,
 } from "./deps.ts";
 import { registerFontWithSkiaIfNeeded } from "./register_font.ts";
@@ -87,14 +86,11 @@ export async function getFigureAsCanvas(
     frameHDu = outputHeightPx / devicePxPerDu;
   }
 
-  const backingW = Math.round(REFERENCE_WIDTH_DU * devicePxPerDu); // === outputWidthPx
-  const backingH = Math.round(frameHDu * devicePxPerDu);
-
-  const { canvas, rc } = createCanvasRenderContext(backingW, backingH);
-  // Supersample: draw the DU-space picture into the device-pixel backing buffer.
-  const ctx = canvas.getContext("2d")!;
-  ctx.setTransform(devicePxPerDu, 0, 0, devicePxPerDu, 0, 0);
-  const rcd = new RectCoordsDims([0, 0, REFERENCE_WIDTH_DU, frameHDu]);
+  const { canvas, rc, rcd } = createCanvasRenderContext(
+    REFERENCE_WIDTH_DU,
+    frameHDu,
+    devicePxPerDu,
+  );
   const mFigure = FigureRenderer.measure(rc, rcd, inputs);
   FigureRenderer.render(rc, mFigure);
   return canvas;

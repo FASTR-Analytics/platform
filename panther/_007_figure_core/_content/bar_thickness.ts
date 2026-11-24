@@ -7,7 +7,7 @@ import type { MergedContentStyle } from "../deps.ts";
 
 export function computeBarThicknesses(
   slotExtent: number,
-  nSerieses: number,
+  nBarSerieses: number,
   bars: Pick<
     MergedContentStyle["bars"],
     | "stacking"
@@ -22,7 +22,7 @@ export function computeBarThicknesses(
 } {
   const barGroupThickness = slotExtent * bars.barGroupThicknessFractionOfSlot;
   const seriesOuterThickness = bars.stacking === "none"
-    ? barGroupThickness / nSerieses
+    ? barGroupThickness / nBarSerieses
     : barGroupThickness;
   const barThickness = Math.min(
     seriesOuterThickness * bars.barThicknessFractionOfSeriesOuterThickness,

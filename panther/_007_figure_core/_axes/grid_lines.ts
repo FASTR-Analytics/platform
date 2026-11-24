@@ -10,6 +10,32 @@ import { calculateVerticalGridLinesForLaneXPeriod } from "./x_period/grid_lines.
 import { calculateVerticalGridLinesForLaneXValue } from "./x_value/grid_lines.ts";
 import { calculateHorizontalGridLinesForTier as calculateHorizontalGridLinesForTierYValue } from "./y_value/grid_lines.ts";
 
+export function calculateValueAndValueGridLines(
+  subChart: Extract<SubChart, { kind: "value-and-value" }>,
+  xAxis: Extract<MeasuredXAxis, { type: "value" }>,
+  yAxis: Extract<MeasuredYAxis, { type: "value" }>,
+): {
+  horizontalLines: { y: number; tickValue: number }[];
+  verticalLines: { x: number; tickValue: number }[];
+} {
+  return {
+    horizontalLines: calculateHorizontalGridLinesForTierYValue(
+      subChart.i_tier,
+      yAxis.info,
+      subChart.rcd.y(),
+      subChart.rcd.h(),
+      subChart.yValueClearance,
+    ),
+    verticalLines: calculateVerticalGridLinesForLaneXValue(
+      subChart.i_lane,
+      xAxis.info.xValueAxisHeightInfo,
+      subChart.rcd.x(),
+      subChart.rcd.w(),
+      subChart.xValueClearance,
+    ),
+  };
+}
+
 export function calculateXAxisGridLines(
   subChart: Extract<SubChart, { kind: "category-and-value" }>,
   xAxis: MeasuredXAxis,

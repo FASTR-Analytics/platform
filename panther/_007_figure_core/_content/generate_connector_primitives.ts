@@ -67,7 +67,9 @@ export function generateConnectorPrimitives(
 
     primitives.push({
       type: "chart-connector",
-      key: `connector-${i_pane}-${i_tier}-${i_lane}-${info.i_value}`,
+      key: `${
+        info.valueAxis === "first" ? "connector" : "connector-second"
+      }-${i_pane}-${i_tier}-${i_lane}-${info.i_value}`,
       item: chartConnectorItem(ctx.itemDataDimensions, info),
       part: "link",
       bounds,

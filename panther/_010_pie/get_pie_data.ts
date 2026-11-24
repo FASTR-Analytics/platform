@@ -8,6 +8,7 @@ import {
   buildDataDimension,
   compareBlankLast,
   createArray,
+  createEmptyValuesArray,
   type DataDimension,
   type DataDimensions,
   fillValues,
@@ -192,31 +193,6 @@ function applyGroupSmallSlices(
     values: newValues,
     series: { name: series.name, members: newMembers },
   };
-}
-
-function createEmptyValuesArray(
-  nPanes: number,
-  nTiers: number,
-  nLanes: number,
-  nSerieses: number,
-  nIndicators: number,
-): (number | undefined)[][][][][] {
-  return createArray(
-    nPanes,
-    () =>
-      createArray(
-        nTiers,
-        () =>
-          createArray(
-            nLanes,
-            () =>
-              createArray(
-                nSerieses,
-                () => createArray(nIndicators, () => undefined),
-              ),
-          ),
-      ),
-  );
 }
 
 function reorderSeriesByGlobalSum(

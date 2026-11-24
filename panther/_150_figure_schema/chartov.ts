@@ -14,6 +14,8 @@ import {
   CHART_LIMITS_LENGTH_MESSAGE,
   chartLimitsMatchMembers,
   type Conforms,
+  SECOND_VALUE_AXIS_SERIES_MESSAGE,
+  secondValueAxisAssignsSomeSeries,
   zChartOVProportional,
   zChartUncertainty,
   zChartValueAxisLimits,
@@ -21,6 +23,10 @@ import {
   zDimensionMembership,
   zJsonArray,
   zMemberSortConfig,
+  zReferenceLineDataConfig,
+  zSecondValueAxisDataConfig,
+  zSecondValueAxisDataTransformed,
+  zSubChartTextDataConfig,
   zUncertaintyConfig,
   zValues5D,
   zVisibleByPane,
@@ -58,6 +64,9 @@ export const zChartOVJsonDataConfig = z.object({
     .optional(),
   sortIndicatorValues: zValueSort.optional(),
   yValueAxisLabel: z.string().optional(),
+  secondValueAxis: zSecondValueAxisDataConfig.optional(),
+  referenceLines: z.array(zReferenceLineDataConfig).optional(),
+  subChartTexts: z.array(zSubChartTextDataConfig).optional(),
 });
 const _zChartOVJsonDataConfigConforms: Conforms<
   z.infer<typeof zChartOVJsonDataConfig>,
@@ -84,6 +93,9 @@ const zChartOVDataTransformedObject = z.object({
   uncertaintyValues: zChartUncertainty.optional(),
   valueAxisLimits: zChartValueAxisLimits,
   yValueAxisLabel: z.string().optional(),
+  secondValueAxis: zSecondValueAxisDataTransformed.optional(),
+  referenceLines: z.array(zReferenceLineDataConfig).optional(),
+  subChartTexts: z.array(zSubChartTextDataConfig).optional(),
   visibleIndicatorsByPane: zVisibleByPane.optional(),
   visibleLanesByPane: zVisibleByPane.optional(),
   visibleIndicatorsByPaneLane: zVisibleByPaneTierOrLane.optional(),
@@ -95,10 +107,9 @@ const _zChartOVDataTransformedConforms: Conforms<
 > = true;
 
 export const zChartOVDataTransformed: z.ZodType<ChartOVDataTransformed> =
-  zChartOVDataTransformedObject.refine(
-    chartLimitsMatchMembers,
-    CHART_LIMITS_LENGTH_MESSAGE,
-  );
+  zChartOVDataTransformedObject
+    .refine(chartLimitsMatchMembers, CHART_LIMITS_LENGTH_MESSAGE)
+    .refine(secondValueAxisAssignsSomeSeries, SECOND_VALUE_AXIS_SERIES_MESSAGE);
 
 export const zChartOVData: z.ZodType<ChartOVData> = z.union([
   zChartOVDataJson,

@@ -281,6 +281,8 @@ export type MeasuredFreeformPage = MeasuredPageBase & {
     rcdFooterOuter: RectCoordsDims;
     logosMaxWidth: number;
   };
+  // Each item as it is measured and drawn: its autofit floor is the page's
+  // content.minFontSize, unless its own autofit names one or is off.
   mLayout: MeasuredLayoutNode<PageContentItem>;
   rcdContentOuter: RectCoordsDims;
   rcdContentInner: RectCoordsDims;

@@ -51,9 +51,14 @@ async function registerFont(fontInfo: FontInfo): Promise<void> {
   }
 }
 
-export async function registerGlobalFontsWithSkia(): Promise<void> {
-  const fonts = new CustomStyle().getFontsToRegister();
+export async function registerFontsWithSkiaIfNeeded(
+  fonts: FontInfo[],
+): Promise<void> {
   for (const font of fonts) {
     await registerFontWithSkiaIfNeeded(font);
   }
+}
+
+export function registerGlobalFontsWithSkia(): Promise<void> {
+  return registerFontsWithSkiaIfNeeded(new CustomStyle().getFontsToRegister());
 }

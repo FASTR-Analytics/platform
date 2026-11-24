@@ -16,7 +16,10 @@ import {
   type PageContentItem,
   type PageRenderContext,
 } from "../../types.ts";
+import { withFontFloor } from "./font_floor.ts";
 
+// Measures with the page's font floor, so a layout the optimizer scores from
+// the caller's items is measured as the page draws them.
 export const itemMeasurer: ItemSizeMeasurer<
   PageRenderContext,
   PageContentItem
@@ -25,7 +28,7 @@ export const itemMeasurer: ItemSizeMeasurer<
   node: ItemLayoutNode<PageContentItem>,
   width,
 ): SizeConstraints => {
-  const item = node.data;
+  const item = withFontFloor(node.data, src.s.content.minFontSize);
 
   if (MarkdownRenderer.isType(item)) {
     return MarkdownRenderer.getIdealHeight(src.rc, width, item);

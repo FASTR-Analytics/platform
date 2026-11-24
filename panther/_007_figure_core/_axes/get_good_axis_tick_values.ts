@@ -3,7 +3,21 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { isUnique } from "../deps.ts";
+import { isUnique, type TickLabelFormatterOption } from "../deps.ts";
+import type { ValueRange } from "../types.ts";
+
+// A round increment, 1, 2 or 5 times a power of ten, kept as its mantissa and
+// exponent so that a tick is an integer times it, written without the float
+// error a running sum of increments gathers.
+type RoundIncrement = { mantissa: 1 | 2 | 5; exponent: number };
+
+// Tick values and bounds carry float noise, so a value within a billionth of
+// a range or an increment of a tick stands on it, as the zero line reads it.
+const NEAR_FRACTION = 1e-9;
+
+// A formatter that never writes distinct labels would step the increment up
+// forever, so the steps stop after ten decades.
+const MAX_FORMATTER_STEPS = 30;
 
 export function getGoodAxisTickValues(
   maxValue: number,
@@ -11,23 +25,9 @@ export function getGoodAxisTickValues(
   startingMaxNumberTicks: number,
   formatter?: (v: number) => string,
 ): number[] {
-  if (!isFinite(maxValue) || !isFinite(minValue)) {
-    throw new Error(
-      `Invalid axis range: maxValue (${maxValue}) or minValue (${minValue}) is not finite`,
-    );
-  }
+  assertAxisRange(minValue, maxValue);
 
-  if (maxValue < minValue) {
-    throw new Error(
-      `Invalid axis range: maxValue (${maxValue}) < minValue (${minValue})`,
-    );
-  }
-
-  const range = maxValue - minValue;
-  const avgMagnitude = Math.max(Math.abs(maxValue), Math.abs(minValue));
-  const epsilon = avgMagnitude * Number.EPSILON * 100;
-
-  if (range <= epsilon) {
+  if (hasNoExtent(minValue, maxValue)) {
     const adjustedMax = maxValue === 0 ? 1 : maxValue * 1.1;
     const adjustedMin = minValue === 0 ? 0 : minValue * 0.9;
     return getGoodAxisTickValues(
@@ -49,6 +49,131 @@ export function getGoodAxisTickValues(
   }
 
   return arr;
+}
+
+// The second value axis's ticks: as many as the first's, so they stand on the
+// first's grid lines, at the smallest round increment whose ticks cover the
+// bounds, starting from zero on the first's zero tick wherever that increment
+// allows it.
+export function getAlignedAxisTickValues(
+  firstTickValues: number[],
+  valueMin: number,
+  valueMax: number,
+  formatter?: (v: number) => string,
+): number[] {
+  assertAxisRange(valueMin, valueMax);
+  if (hasNoExtent(valueMin, valueMax)) {
+    const widened = widenBoundsOfNoExtent(valueMin, valueMax);
+    return getAlignedAxisTickValues(
+      firstTickValues,
+      widened.valueMin,
+      widened.valueMax,
+      formatter,
+    );
+  }
+
+  const nIntervals = Math.max(1, firstTickValues.length - 1);
+  const i_zero = indexOfZeroTick(firstTickValues);
+  const startFromFloor = (increment: RoundIncrement): number =>
+    Math.floor(valueMin / roundIncrementValue(increment) + NEAR_FRACTION);
+  const covers = (increment: RoundIncrement, start: number): boolean =>
+    start <= valueMin / roundIncrementValue(increment) + NEAR_FRACTION &&
+    start + nIntervals >=
+      valueMax / roundIncrementValue(increment) - NEAR_FRACTION;
+  const smallestCovering = (increment: RoundIncrement): RoundIncrement =>
+    covers(increment, startFromFloor(increment))
+      ? increment
+      : smallestCovering(nextRoundIncrement(increment));
+  const ticksAt = (increment: RoundIncrement): number[] => {
+    const zeroAlignedStart = i_zero === undefined ? undefined : 0 - i_zero;
+    const start =
+      zeroAlignedStart !== undefined && covers(increment, zeroAlignedStart)
+        ? zeroAlignedStart
+        : startFromFloor(increment);
+    return Array.from(
+      { length: nIntervals + 1 },
+      (_, i) => tickValueAt(start + i, increment),
+    );
+  };
+  const alignedTicks = (increment: RoundIncrement, step: number): number[] => {
+    const ticks = ticksAt(increment);
+    return formatter !== undefined && step < MAX_FORMATTER_STEPS &&
+        isNotUnique(ticks, formatter)
+      ? alignedTicks(smallestCovering(nextRoundIncrement(increment)), step + 1)
+      : ticks;
+  };
+
+  return alignedTicks(
+    smallestCovering({
+      mantissa: 1,
+      exponent: Math.floor(Math.log10((valueMax - valueMin) / nIntervals)) - 1,
+    }),
+    0,
+  );
+}
+
+// A function tick label formatter is the one whose labels can coincide, so
+// both tick value functions check its labels for repeats.
+export function formatterForUniquenessCheck(
+  tickLabelFormatter: TickLabelFormatterOption,
+): ((v: number) => string) | undefined {
+  return typeof tickLabelFormatter === "function"
+    ? tickLabelFormatter
+    : undefined;
+}
+
+function assertAxisRange(valueMin: number, valueMax: number): void {
+  if (!isFinite(valueMin) || !isFinite(valueMax)) {
+    throw new Error(
+      `Invalid axis range: valueMin (${valueMin}) or valueMax (${valueMax}) is not finite`,
+    );
+  }
+  if (valueMax < valueMin) {
+    throw new Error(
+      `Invalid axis range: valueMax (${valueMax}) < valueMin (${valueMin})`,
+    );
+  }
+}
+
+function hasNoExtent(valueMin: number, valueMax: number): boolean {
+  return valueMax - valueMin <=
+    Math.max(Math.abs(valueMax), Math.abs(valueMin)) * Number.EPSILON * 100;
+}
+
+// Bounds of no extent widen as getGoodAxisTickValues widens them, by a tenth
+// either side, or to 0 to 1 at zero.
+function widenBoundsOfNoExtent(
+  valueMin: number,
+  valueMax: number,
+): ValueRange {
+  const a = valueMin === 0 ? 0 : valueMin * 0.9;
+  const b = valueMax === 0 ? 1 : valueMax * 1.1;
+  return { valueMin: Math.min(a, b), valueMax: Math.max(a, b) };
+}
+
+function indexOfZeroTick(tickValues: number[]): number | undefined {
+  const near = Math.abs((tickValues.at(-1) ?? 0) - (tickValues.at(0) ?? 0)) *
+    NEAR_FRACTION;
+  const i_zero = tickValues.findIndex((v) => Math.abs(v) <= near);
+  return i_zero === -1 ? undefined : i_zero;
+}
+
+function nextRoundIncrement(increment: RoundIncrement): RoundIncrement {
+  return increment.mantissa === 1
+    ? { mantissa: 2, exponent: increment.exponent }
+    : increment.mantissa === 2
+    ? { mantissa: 5, exponent: increment.exponent }
+    : { mantissa: 1, exponent: increment.exponent + 1 };
+}
+
+function roundIncrementValue(increment: RoundIncrement): number {
+  return tickValueAt(1, increment);
+}
+
+function tickValueAt(index: number, increment: RoundIncrement): number {
+  return increment.exponent >= 0
+    ? index * increment.mantissa * 10 ** increment.exponent
+    : (index * increment.mantissa) / 10 ** -increment.exponent;
 }
 
 function getArrayForNTicksAndExpandedRange(

@@ -77,6 +77,7 @@ export function generateLinePrimitives(
           dataLabel: makeValueEndDataLabel(
             label,
             mappedValue.coords,
+            "end",
             ctx.orientation,
           ),
         });

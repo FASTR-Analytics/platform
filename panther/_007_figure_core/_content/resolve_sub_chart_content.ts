@@ -18,9 +18,18 @@ import { getDimensionMembers } from "../deps.ts";
 import type { ChartItemDataDimensions } from "../chart_items.ts";
 import { buildLabelHalo } from "../label_halo.ts";
 import type { SubChart } from "../sub_charts.ts";
+import type { ValueRange } from "../types.ts";
 import { computeBarThicknesses } from "./bar_thickness.ts";
 import {
+  valueRangeOfAxis,
+  zeroLineValue,
+} from "./calculate_mapped_coordinates.ts";
+import {
+  type BarSpan,
   buildDataLabelTextStyle,
+  groupSeriesByValueAxis,
+  placeSeriesOnValueAxes,
+  type ResolvedBarDataLabelPosition,
   type ResolvedCascadeArrow,
   type ResolvedChartConnector,
   type ResolvedDataLabel,
@@ -29,7 +38,7 @@ import {
   type SubChartContent,
 } from "./content_generation_types.ts";
 import { cascadeArrowLabelStandoff } from "./generate_cascade_arrow_primitives.ts";
-import type { Orientation } from "./orientation_helpers.ts";
+import type { Orientation, ValueAxisSide } from "./orientation_helpers.ts";
 
 type TextFormatter = MergedContentStyle["points"]["textFormatter"];
 
@@ -39,7 +48,12 @@ type PointLabelPosition = ReturnType<
 
 type Stack = {
   stackTotal: number;
-  i_topSeries: number;
+  topPositions: number[];
+};
+
+type ValueStyles = Pick<ResolvedValue, "info" | "point" | "bar"> & {
+  value: number;
+  barDrawn: boolean;
 };
 
 type DrawnBar = {
@@ -48,14 +62,30 @@ type DrawnBar = {
   endSideEdgeValue: number;
 };
 
-type DataLabelClaim = {
-  owner: ResolvedDataLabel["owner"];
-  dataLabel: DataLabelStyle;
-  textFormatter: TextFormatter;
-  offset: number;
-  anchorValue: number;
-  maxWidth: number;
+type BarEnds = {
+  span: BarSpan;
+  labelAnchorValue: number;
+  labelSide: ValueAxisSide;
 };
+
+// A drawn value's place in its value axis's stack at its value index.
+type SeriesStacking = {
+  stack: Stack | undefined;
+  barEnds: BarEnds;
+};
+
+type DataLabelClaim =
+  & {
+    dataLabel: DataLabelStyle;
+    textFormatter: TextFormatter;
+    offset: number;
+    anchorValue: number;
+    maxWidth: number;
+  }
+  & (
+    | { owner: Exclude<ResolvedDataLabel["owner"], "bars"> }
+    | ({ owner: "bars" } & ResolvedBarDataLabelPosition)
+  );
 
 export function resolveSubChartContent(
   rc: RenderContext,
@@ -82,11 +112,6 @@ export function resolveSubChartContent(
   const nSerieses = getDimensionMembers(dims.series).length;
   const hasBounds = p.uncertaintyUbSeriesValues !== undefined &&
     p.uncertaintyLbSeriesValues !== undefined;
-  const { barThickness } = computeBarThicknesses(
-    subChart.slotExtent,
-    p.seriesValues.length,
-    s.bars,
-  );
 
   const drawnValues = Array.from(
     { length: subChart.nValues },
@@ -97,12 +122,8 @@ export function resolveSubChartContent(
           : values[i_value]
       ),
   );
-  const stacks = stacking === "none"
-    ? undefined
-    : drawnValues.map((atValueIndex) => resolveStack(atValueIndex, stacking));
-  const endSideEdgeValues = drawnValues.map((atValueIndex) =>
-    barEndSideEdgeValues(stacking, atValueIndex)
-  );
+  const valueAxisGroups = groupSeriesByValueAxis(subChart.seriesValueAxes);
+  const seriesPlaces = placeSeriesOnValueAxes(subChart.seriesValueAxes);
 
   const resolvedSeries = p.seriesValues.map(
     (_, i_series): ResolvedSeries => {
@@ -122,6 +143,7 @@ export function resolveSubChartContent(
         isFirstSeries: i_series === 0,
         isLastSeries: i_series === nSerieses - 1,
         seriesMember: dims.series?.members[i_series],
+        valueAxis: subChart.seriesValueAxes[i_series],
         nValues: subChart.nValues,
       };
       const line = s.lines.getStyle(info);
@@ -136,97 +158,159 @@ export function resolveSubChartContent(
     },
   );
 
-  const resolvedValues = resolvedSeries.map((series, i_series) =>
-    drawnValues.map((atValueIndex, i_value): ResolvedValue | undefined => {
-      const value = atValueIndex[i_series];
-      if (value === undefined) {
-        return undefined;
-      }
-      const info: ChartValueInfo = {
-        ...series.info,
-        value,
-        i_value,
-        isFirstValue: i_value === subChart.slotOrder[0],
-        isLastValue:
-          i_value === subChart.slotOrder[subChart.slotOrder.length - 1],
-        valueMin: subChart.valueRange.valueMin,
-        valueMax: subChart.valueRange.valueMax,
-        indicatorMember: dims.indicator?.members[i_value],
-      };
-      const point = s.points.getStyle(info);
-      const bar = s.bars.getStyle(info);
-      const barDrawn = isBarDrawn(bar, stacking, atValueIndex, i_series);
-      const stack = stacks?.[i_value];
-      const stackInfo = stack === undefined ? undefined : {
-        isTopOfStack: i_series === stack.i_topSeries,
-        stackTotal: stack.stackTotal,
-        positionInStack: i_series,
-      };
-      const hasBothBounds =
-        p.uncertaintyUbSeriesValues?.[i_series]?.[i_value] !== undefined &&
-        p.uncertaintyLbSeriesValues?.[i_series]?.[i_value] !== undefined;
+  const valueStyles = resolvedSeries.map((series, i_series) => {
+    const valueRange = valueRangeOfAxis(
+      subChart,
+      subChart.seriesValueAxes[i_series],
+    );
+    const place = seriesPlaces[i_series];
+    return drawnValues.map(
+      (atValueIndex, i_value): ValueStyles | undefined => {
+        const value = atValueIndex[i_series];
+        if (value === undefined) {
+          return undefined;
+        }
+        const info: ChartValueInfo = {
+          ...series.info,
+          value,
+          i_value,
+          isFirstValue: i_value === subChart.slotOrder[0],
+          isLastValue:
+            i_value === subChart.slotOrder[subChart.slotOrder.length - 1],
+          valueMin: valueRange.valueMin,
+          valueMax: valueRange.valueMax,
+          indicatorMember: dims.indicator?.members[i_value],
+        };
+        const point = s.points.getStyle(info);
+        const bar = s.bars.getStyle(info);
+        return {
+          info,
+          value,
+          point,
+          bar,
+          barDrawn: isBarDrawn(bar, stacking, atValueIndex, place.previous),
+        };
+      },
+    );
+  });
 
-      const claim: DataLabelClaim | undefined =
-        point.show && point.dataLabel.show
-          ? {
-            owner: "points",
-            dataLabel: point.dataLabel,
-            textFormatter: s.points.textFormatter,
-            offset: point.radius + point.dataLabel.offset,
-            anchorValue: value,
-            maxWidth: Number.POSITIVE_INFINITY,
-          }
-          : bar.show && bar.dataLabel.show
-          ? barDrawn && stackInfo?.isTopOfStack !== false
-            ? {
-              owner: "bars",
-              dataLabel: bar.dataLabel,
-              textFormatter: s.bars.textFormatter,
-              offset: bar.dataLabel.offset,
-              anchorValue: endSideEdgeValues[i_value][i_series],
-              maxWidth: p.orientation === "horizontal"
-                ? Number.POSITIVE_INFINITY
-                : barThickness,
-            }
-            : undefined
-          : series.line.show && series.line.dataLabel.show
-          ? {
-            owner: "lines",
-            dataLabel: series.line.dataLabel,
-            textFormatter: s.lines.textFormatter,
-            offset: series.line.dataLabel.offset,
-            anchorValue: value,
-            maxWidth: Number.POSITIVE_INFINITY,
-          }
-          : undefined;
-
-      return {
-        info,
-        point,
-        bar,
-        stackInfo,
-        errorBar: hasBothBounds && (barDrawn || point.show)
-          ? s.errorBars.getStyle(info)
-          : undefined,
-        label: claim === undefined ? undefined : measureDataLabel(
-          rc,
-          claim,
-          claim.textFormatter !== "none"
-            ? claim.textFormatter(info)
-            : String(value),
-          point.dataLabelPosition,
-          p,
-        ),
-      };
-    })
+  // A series drawn as a line or as points takes no part of the bar group, so
+  // a lone bar series stands on its slot's centre, where they stand.
+  const barSeriesIndices = valueStyles.flatMap((atSeries, i_series) =>
+    atSeries.some((styles) => styles?.barDrawn === true) ? [i_series] : []
+  );
+  const { barThickness } = computeBarThicknesses(
+    subChart.slotExtent,
+    barSeriesIndices.length,
+    s.bars,
   );
 
-  const resolvedConnectors = drawnValues.flatMap(
-    (atValueIndex, i_value): ResolvedChartConnector[] => {
-      const endpoints = connectorEndpoints(
-        atValueIndex,
-        s.connectors.joinAcrossGaps,
+  const seriesStacking = drawnValues.map((atValueIndex, i_value) =>
+    valueAxisGroups.reduce<SeriesStacking[]>((bySeries, group) => {
+      const onAxis = group.seriesIndices.map((i_series) =>
+        atValueIndex[i_series]
       );
+      const stack = stacking === "none" ? undefined : resolveStack(
+        onAxis,
+        group.seriesIndices.map((i_series) =>
+          valueStyles[i_series][i_value]?.barDrawn === true
+        ),
+        stacking,
+      );
+      const barEnds = resolveBarEnds(
+        stacking,
+        onAxis,
+        valueRangeOfAxis(subChart, group.valueAxis),
+      );
+      group.seriesIndices.forEach((i_series, position) => {
+        bySeries[i_series] = { stack, barEnds: barEnds[position] };
+      });
+      return bySeries;
+    }, [])
+  );
+
+  const resolvedValues = valueStyles.map((atSeries, i_series) => {
+    const series = resolvedSeries[i_series];
+    const place = seriesPlaces[i_series];
+    return atSeries.map(
+      (styles, i_value): ResolvedValue | undefined => {
+        if (styles === undefined) {
+          return undefined;
+        }
+        const { info, value, point, bar, barDrawn } = styles;
+        const { stack, barEnds } = seriesStacking[i_value][i_series];
+        const stackInfo = stack === undefined ? undefined : {
+          isTopOfStack: stack.topPositions.includes(place.position),
+          stackTotal: stack.stackTotal,
+          positionInStack: place.position,
+        };
+        const hasBothBounds =
+          p.uncertaintyUbSeriesValues?.[i_series]?.[i_value] !== undefined &&
+          p.uncertaintyLbSeriesValues?.[i_series]?.[i_value] !== undefined;
+
+        const claim: DataLabelClaim | undefined =
+          point.show && point.dataLabel.show
+            ? {
+              owner: "points",
+              dataLabel: point.dataLabel,
+              textFormatter: s.points.textFormatter,
+              offset: point.radius + point.dataLabel.offset,
+              anchorValue: value,
+              maxWidth: Number.POSITIVE_INFINITY,
+            }
+            : bar.show && bar.dataLabel.show
+            ? barDrawn && claimsBarLabel(bar, stacking, stackInfo)
+              ? barLabelClaim(
+                bar,
+                barEnds,
+                s.bars.textFormatter,
+                p.orientation,
+                barThickness,
+              )
+              : undefined
+            : series.line.show && series.line.dataLabel.show
+            ? {
+              owner: "lines",
+              dataLabel: series.line.dataLabel,
+              textFormatter: s.lines.textFormatter,
+              offset: series.line.dataLabel.offset,
+              anchorValue: value,
+              maxWidth: Number.POSITIVE_INFINITY,
+            }
+            : undefined;
+
+        return {
+          info,
+          point,
+          bar,
+          barSpan: barDrawn ? barEnds.span : undefined,
+          stackInfo,
+          errorBar: hasBothBounds && (barDrawn || point.show)
+            ? s.errorBars.getStyle(info)
+            : undefined,
+          label: claim === undefined ? undefined : measureDataLabel(
+            rc,
+            claim,
+            claim.textFormatter !== "none"
+              ? claim.textFormatter(info)
+              : String(value),
+            point.dataLabelPosition,
+            p,
+          ),
+        };
+      },
+    );
+  });
+
+  const resolvedConnectors = drawnValues.flatMap((atValueIndex, i_value) =>
+    valueAxisGroups.flatMap((group): ResolvedChartConnector[] => {
+      const endpoints = connectorEndpoints(
+        group.seriesIndices.map((i_series) => atValueIndex[i_series]),
+        s.connectors.joinAcrossGaps,
+      ).map(({ position, value }) => ({
+        i_series: group.seriesIndices[position],
+        value,
+      }));
       const first = endpoints.length < 2
         ? undefined
         : resolvedValues[endpoints[0].i_series][i_value]?.info;
@@ -234,6 +318,7 @@ export function resolveSubChartContent(
         return [];
       }
       const info: ChartConnectorInfo = {
+        valueAxis: group.valueAxis,
         i_value: first.i_value,
         isFirstValue: first.isFirstValue,
         isLastValue: first.isLastValue,
@@ -259,7 +344,7 @@ export function resolveSubChartContent(
       };
       const style = s.connectors.getStyle(info);
       return style.show ? [{ info, style }] : [];
-    },
+    })
   );
 
   const resolvedCascadeArrows = p.orientation === "vertical"
@@ -269,18 +354,14 @@ export function resolveSubChartContent(
         subChart.slotOrder.flatMap((i_value): DrawnBar[] => {
           const resolvedValue = atSeries[i_value];
           const value = drawnValues[i_value][i_series];
+          const span = resolvedValue?.barSpan;
           return resolvedValue === undefined || value === undefined ||
-              !isBarDrawn(
-                resolvedValue.bar,
-                stacking,
-                drawnValues[i_value],
-                i_series,
-              )
+              span === undefined
             ? []
             : [{
               info: resolvedValue.info,
               value,
-              endSideEdgeValue: endSideEdgeValues[i_value][i_series],
+              endSideEdgeValue: Math.max(span.from, span.to),
             }];
         }),
         s.cascadeArrows,
@@ -291,20 +372,79 @@ export function resolveSubChartContent(
   return {
     resolvedSeries,
     resolvedValues,
+    barSeriesIndices,
     resolvedConnectors,
     resolvedCascadeArrows,
   };
 }
 
+// Under diff bars, a bar after its value axis's first series needs the
+// previous series of its axis to have a drawn value.
 function isBarDrawn(
   bar: ResolvedValue["bar"],
   stacking: MergedContentStyle["bars"]["stacking"],
   atValueIndex: (number | undefined)[],
-  i_series: number,
+  previousOnAxis: number | undefined,
 ): boolean {
   return bar.show === true &&
-    (stacking !== "diff" || i_series === 0 ||
-      atValueIndex[i_series - 1] !== undefined);
+    (stacking !== "diff" || previousOnAxis === undefined ||
+      atValueIndex[previousOnAxis] !== undefined);
+}
+
+// A bar's label stands where no other bar does. Under stacked bars a bar's
+// centre is its own and its value end is clear only at the top of its stack;
+// imposed and diff bars overlay one another, so only a top is clear of the
+// bars drawn over it.
+function claimsBarLabel(
+  bar: ResolvedValue["bar"],
+  stacking: MergedContentStyle["bars"]["stacking"],
+  stackInfo: ResolvedValue["stackInfo"],
+): boolean {
+  return stackInfo === undefined || stackInfo.isTopOfStack ||
+    (stacking === "stacked" && bar.dataLabelPosition === "center");
+}
+
+// On a vertical chart a label wraps at its bar's thickness, and a centre
+// label's halo stands inside that thickness too. Its text is centred on the
+// bar, so its halo's wider side reaches out on both.
+function barLabelClaim(
+  bar: ResolvedValue["bar"],
+  barEnds: BarEnds,
+  textFormatter: TextFormatter,
+  orientation: Orientation,
+  barThickness: number,
+): DataLabelClaim {
+  const dataLabel = bar.dataLabel;
+  const claimed = {
+    owner: "bars" as const,
+    dataLabel,
+    textFormatter,
+    offset: dataLabel.offset,
+  };
+  if (bar.dataLabelPosition === "center") {
+    const halo = buildLabelHalo(dataLabel);
+    const haloAcross = halo === undefined
+      ? 0
+      : 2 * Math.max(halo.padding.pl(), halo.padding.pr()) +
+        (halo.borderWidth ?? 0);
+    return {
+      ...claimed,
+      position: "center",
+      anchorValue: (barEnds.span.from + barEnds.span.to) / 2,
+      maxWidth: orientation === "horizontal"
+        ? Number.POSITIVE_INFINITY
+        : Math.max(0, barThickness - haloAcross),
+    };
+  }
+  return {
+    ...claimed,
+    position: "outside-end",
+    anchorValue: barEnds.labelAnchorValue,
+    side: barEnds.labelSide,
+    maxWidth: orientation === "horizontal"
+      ? Number.POSITIVE_INFINITY
+      : barThickness,
+  };
 }
 
 function resolveCascadeArrows(
@@ -389,37 +529,82 @@ function measureCascadeArrowLabel(
   };
 }
 
+// onAxis holds the values of one value axis's series at a value index, and
+// drawn whether each one's bar is drawn, by position among those series.
+// Stacked and imposed bars stand from the zero line, so each side of it has
+// an outermost bar, whose value end holds a label; diff bars chain from the
+// previous series and have one. A value whose bar is not drawn has no end to
+// hold one, so it is never a top.
 function resolveStack(
-  atValueIndex: (number | undefined)[],
+  onAxis: (number | undefined)[],
+  drawn: boolean[],
   stacking: "stacked" | "imposed" | "diff",
 ): Stack {
+  const lastDrawn = (onSide: (value: number) => boolean) =>
+    onAxis.findLastIndex((value, position) =>
+      value !== undefined && drawn[position] && onSide(value)
+    );
+  const tops = stacking === "diff"
+    ? [lastDrawn(() => true)]
+    : [lastDrawn((value) => value >= 0), lastDrawn((value) => value < 0)];
   return {
-    stackTotal: stacking === "stacked"
-      ? sumOfDefined(atValueIndex)
-      : atValueIndex.reduce<number>(
-        (largest, value) =>
-          value !== undefined && value > largest ? value : largest,
-        0,
-      ),
-    i_topSeries: atValueIndex.findLastIndex((value) => value !== undefined),
+    stackTotal: stacking === "stacked" ? sumOfDefined(onAxis) : Math.max(
+      ...onAxis.filter((value): value is number => value !== undefined),
+    ),
+    topPositions: tops.filter((position) => position !== -1),
   };
 }
 
-// An entry where the series has no drawn value is never read.
-function barEndSideEdgeValues(
+// An entry where the series has no drawn value is never read. Where zero lies
+// off the axis, a bar's end beyond the zero line toward zero stands at it. An
+// end within a billionth of the value range of the zero line stands on it,
+// since tick values and running sums carry float noise (an axis ending at the
+// tick -0.19999999999999996 under a stack bottom of -0.2) that would otherwise
+// decide whether a bar takes the half stroke or paints it alone.
+function resolveBarEnds(
   stacking: MergedContentStyle["bars"]["stacking"],
   atValueIndex: (number | undefined)[],
-): number[] {
-  let stackTop = 0;
-  return atValueIndex.map((value, i_series) => {
+  valueRange: ValueRange,
+): BarEnds[] {
+  const zeroLine = zeroLineValue(valueRange);
+  const nearZeroLine = (valueRange.valueMax - valueRange.valueMin) * 1e-9;
+  const cutAtZeroLine = (value: number): number =>
+    Math.abs(value - zeroLine) <= nearZeroLine
+      ? zeroLine
+      : valueRange.valueMin > 0
+      ? Math.max(value, zeroLine)
+      : valueRange.valueMax < 0
+      ? Math.min(value, zeroLine)
+      : value;
+  let positiveTop = 0;
+  let negativeTop = 0;
+  return atValueIndex.map((value, i_series): BarEnds => {
     const own = value ?? 0;
-    stackTop += own;
+    const stackBottom = own < 0 ? negativeTop : positiveTop;
+    const stackTop = stackBottom + own;
+    if (own < 0) {
+      negativeTop = stackTop;
+    } else {
+      positiveTop = stackTop;
+    }
     const previous = i_series > 0 ? atValueIndex[i_series - 1] : undefined;
-    return stacking === "stacked"
-      ? stackTop
-      : stacking === "diff" && previous !== undefined
-      ? Math.max(previous, own)
-      : own;
+    if (stacking === "diff" && previous !== undefined) {
+      const span = { from: cutAtZeroLine(previous), to: cutAtZeroLine(own) };
+      return {
+        span,
+        labelAnchorValue: Math.max(span.from, span.to),
+        labelSide: "end",
+      };
+    }
+    const span = {
+      from: cutAtZeroLine(stacking === "stacked" ? stackBottom : 0),
+      to: cutAtZeroLine(stacking === "stacked" ? stackTop : own),
+    };
+    return {
+      span,
+      labelAnchorValue: span.to,
+      labelSide: span.to < span.from ? "start" : "end",
+    };
   });
 }
 
@@ -450,12 +635,26 @@ function measureDataLabel(
     ? mText.dims.w()
     : mText.dims.h();
   const outset = endSideOutset(halo, p.orientation);
-  return {
-    owner: claim.owner,
+  const measured = {
     mText,
     halo,
     offset: claim.offset,
     anchorValue: claim.anchorValue,
+  };
+  if (claim.owner === "bars") {
+    return claim.position === "center"
+      ? { ...measured, owner: "bars", position: "center", endExtent: 0 }
+      : {
+        ...measured,
+        owner: "bars",
+        position: "outside-end",
+        side: claim.side,
+        endExtent: claim.side === "end" ? claim.offset + extent + outset : 0,
+      };
+  }
+  return {
+    ...measured,
+    owner: claim.owner,
     endExtent: claim.owner === "points"
       ? pointLabelEndExtent(
         pointLabelPosition,
@@ -500,17 +699,19 @@ function pointLabelEndExtent(
   return extent / 2 + outset;
 }
 
+// The endpoints of one value axis's connector, each at its position among
+// that axis's series.
 function connectorEndpoints(
-  atValueIndex: (number | undefined)[],
+  onAxis: (number | undefined)[],
   joinAcrossGaps: boolean,
-): { i_series: number; value: number }[] {
-  const i_first = atValueIndex.findIndex((value) => value !== undefined);
-  const i_gap = joinAcrossGaps ? -1 : atValueIndex.findIndex(
-    (value, i_series) => i_series > i_first && value === undefined,
+): { position: number; value: number }[] {
+  const firstPosition = onAxis.findIndex((value) => value !== undefined);
+  const gapPosition = joinAcrossGaps ? -1 : onAxis.findIndex(
+    (value, position) => position > firstPosition && value === undefined,
   );
-  return atValueIndex
-    .slice(0, i_gap === -1 ? undefined : i_gap)
-    .flatMap((value, i_series) =>
-      value === undefined ? [] : [{ i_series, value }]
+  return onAxis
+    .slice(0, gapPosition === -1 ? undefined : gapPosition)
+    .flatMap((value, position) =>
+      value === undefined ? [] : [{ position, value }]
     );
 }

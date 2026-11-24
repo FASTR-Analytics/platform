@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 // Transforms raw JSON data into multi-dimensional value arrays for chart rendering
+import { referenceLinesOn } from "./_axes/axis_configs.ts";
 import {
   assert,
   BLANK_SENTINEL,
@@ -12,17 +13,28 @@ import {
   createDimensionMembers,
   type DataDimension,
   type DimensionMember,
+  getDimensionMembers,
   getValidNumberOrUndefined,
   isBlankValue,
   type MemberSortConfig,
   sortDimensionMembers,
   sum,
 } from "./deps.ts";
+import {
+  getSubChartMembers,
+  namesSubChart,
+  type SubChartDimensions,
+} from "./sub_chart_members.ts";
 import type {
   ChartValueAxisLimits,
   ChartValueAxisPaneLimits,
   JsonArray,
   JsonArrayItem,
+  ReferenceLine,
+  ReferenceLineDataConfig,
+  SecondValueAxisDataConfig,
+  SecondValueAxisDataTransformed,
+  SubChartTextDataConfig,
 } from "./types.ts";
 
 // A dimension, named from its prop, or undefined when no prop is given.
@@ -85,16 +97,101 @@ export function getMemberIndex(
   return dimension.members.findIndex((h) => h.id === id);
 }
 
-export function calculateChartValueAxisLimits(
-  values: (number | undefined)[][][][][],
-  counts: {
-    nPanes: number;
-    nTiers: number;
-    nLanes: number;
-    nSerieses: number;
-    nValues: number;
-  },
+type ChartValueTensors = {
+  values: (number | undefined)[][][][][];
+  uncertaintyValues?: ChartUncertaintyTensors;
+};
+
+type ChartValueCounts = {
+  nPanes: number;
+  nTiers: number;
+  nLanes: number;
+  nValues: number;
+};
+
+// The series each value axis measures: the second those whose member id its
+// data config names, the first every other.
+function getSeriesByValueAxis(
+  series: DataDimension | undefined,
+  secondValueAxis: SecondValueAxisDataConfig | undefined,
+): { first: number[]; second: number[] } {
+  const assigned = new Set(secondValueAxis?.seriesMemberIds);
+  const isAssigned = (i_series: number) =>
+    series !== undefined && assigned.has(series.members[i_series].id);
+  const indices = getDimensionMembers(series).map((_, i_series) => i_series);
+  return {
+    first: indices.filter((i_series) => !isAssigned(i_series)),
+    second: indices.filter(isAssigned),
+  };
+}
+
+// A chart's value axes: the first's limits, from the series not assigned to
+// the second and the reference lines on it, and the second where its data
+// config names a series member.
+export function calculateChartValueAxes(
+  tensors: ChartValueTensors,
+  counts: ChartValueCounts,
   stacked: boolean,
+  dimensions: DataDimensions,
+  secondValueAxis: SecondValueAxisDataConfig | undefined,
+  referenceLines: ReferenceLineDataConfig[] | undefined,
+): {
+  valueAxisLimits: ChartValueAxisLimits;
+  secondValueAxis: SecondValueAxisDataTransformed | undefined;
+  firstValueAxisSeriesIndices: number[];
+} {
+  const { series } = dimensions;
+  const { first, second } = getSeriesByValueAxis(series, secondValueAxis);
+  return {
+    valueAxisLimits: calculateChartValueAxisLimits(
+      tensors,
+      counts,
+      stacked,
+      first,
+      referenceLinesOn(referenceLines, "first"),
+      dimensions,
+    ),
+    secondValueAxis: series === undefined || second.length === 0 ? undefined : {
+      seriesMemberIds: second.map((i_series) => series.members[i_series].id),
+      valueAxisLimits: calculateChartValueAxisLimits(
+        tensors,
+        counts,
+        stacked,
+        second,
+        referenceLinesOn(referenceLines, "second"),
+        dimensions,
+      ),
+      axisLabel: secondValueAxis?.axisLabel?.trim(),
+    },
+    firstValueAxisSeriesIndices: first,
+  };
+}
+
+export function trimReferenceLineLabels<T extends ReferenceLine>(
+  lines: T[] | undefined,
+): T[] | undefined {
+  return lines?.map((line) =>
+    line.label === undefined ? line : { ...line, label: line.label.trim() }
+  );
+}
+
+export function trimSubChartTexts(
+  texts: SubChartTextDataConfig[] | undefined,
+): SubChartTextDataConfig[] | undefined {
+  return texts?.map((text) => ({ ...text, text: text.text.trim() }));
+}
+
+// Per pane, tier and lane, the smallest and largest of the values and bounds
+// of the series a value axis measures, stacked values summed by sign at each
+// value index, and of the reference lines drawn there; 0 to 1 where they hold
+// none.
+export function calculateChartValueAxisLimits(
+  tensors: ChartValueTensors,
+  counts: ChartValueCounts,
+  stacked: boolean,
+  seriesIndices: number[],
+  referenceLines: ReferenceLine[],
+  dimensions: SubChartDimensions,
 ): ChartValueAxisLimits {
   const paneLimits: ChartValueAxisPaneLimits[] = createArray(
     counts.nPanes,
@@ -112,43 +209,51 @@ export function calculateChartValueAxisLimits(
     }),
   );
 
+  const boundTensors = tensors.uncertaintyValues
+    ? [tensors.uncertaintyValues.ub, tensors.uncertaintyValues.lb]
+    : [];
   for (let i_pane = 0; i_pane < counts.nPanes; i_pane++) {
     for (let i_tier = 0; i_tier < counts.nTiers; i_tier++) {
       for (let i_lane = 0; i_lane < counts.nLanes; i_lane++) {
-        if (stacked) {
-          for (
-            let i_value = 0;
-            i_value < counts.nValues;
-            i_value++
-          ) {
-            const valuesToSum = values[i_pane][i_tier][i_lane]
-              .map((s) => s[i_value])
-              .filter((v): v is number => v !== undefined);
-
-            if (valuesToSum.length === 0) continue;
-
-            const value = sum(valuesToSum);
-            if (value === undefined) continue;
-
+        const update = (value: number | undefined) => {
+          if (value !== undefined) {
             updateLimits(paneLimits, i_pane, i_tier, i_lane, value);
           }
-        } else {
-          for (
-            let i_series = 0;
-            i_series < counts.nSerieses;
-            i_series++
-          ) {
-            for (
-              let i_value = 0;
-              i_value < counts.nValues;
-              i_value++
-            ) {
-              const value = values[i_pane][i_tier][i_lane][i_series][i_value];
-
-              if (value === undefined) continue;
-
-              updateLimits(paneLimits, i_pane, i_tier, i_lane, value);
+        };
+        const seriesValues = tensors.values[i_pane][i_tier][i_lane];
+        if (stacked) {
+          for (let i_value = 0; i_value < counts.nValues; i_value++) {
+            const stackValues = seriesIndices
+              .map((i_series) => seriesValues[i_series][i_value])
+              .filter((v): v is number => v !== undefined);
+            const bySign = [
+              stackValues.filter((v) => v >= 0),
+              stackValues.filter((v) => v < 0),
+            ];
+            for (const ofSign of bySign) {
+              if (ofSign.length > 0) {
+                update(sum(ofSign));
+              }
             }
+          }
+        } else {
+          for (const i_series of seriesIndices) {
+            seriesValues[i_series].forEach(update);
+          }
+        }
+        for (const tensor of boundTensors) {
+          for (const i_series of seriesIndices) {
+            tensor[i_pane][i_tier][i_lane][i_series].forEach(update);
+          }
+        }
+        const members = getSubChartMembers(dimensions, {
+          i_pane,
+          i_tier,
+          i_lane,
+        });
+        for (const line of referenceLines) {
+          if (namesSubChart(line, members)) {
+            update(line.value);
           }
         }
       }
@@ -344,18 +449,27 @@ function orderByKey(
   );
 }
 
-function sumDefined(cells: (number | undefined)[][], i: number): number {
-  return cells.reduce((acc, series) => acc + (series[i] ?? 0), 0);
+function sumDefined(
+  cells: (number | undefined)[][],
+  seriesIndices: number[],
+  i: number,
+): number {
+  return seriesIndices.reduce(
+    (acc, i_series) => acc + (cells[i_series][i] ?? 0),
+    0,
+  );
 }
 
-// A value sort keys on the sum over every series and every tier-or-lane member
-// (lanes on OV, tiers on OH: the members that share one scale), at member 0
-// of the value-direction dimension, whose members carry their own limits and so
-// cannot be summed. The sort is a presentation order on the masks; storage
+// A value sort keys on the sum over the first value axis's series and every
+// tier-or-lane member (lanes on OV, tiers on OH: the members that share one
+// scale), at member 0 of the value-direction dimension, whose members carry
+// their own limits and so cannot be summed; the second value axis's series
+// are in other units. The sort is a presentation order on the masks; storage
 // and the members keep sort.indicator order.
 export function orderVisibleByPane(
   visibleByPane: number[][],
   values: (number | undefined)[][][][][],
+  seriesIndices: number[],
   indicators: DimensionMember[],
   tierOrLaneDimension: "tier" | "lane",
   direction: ValueSortDirection | undefined,
@@ -372,7 +486,10 @@ export function orderVisibleByPane(
       visible,
       indicators,
       (i) =>
-        tierOrLaneCells.reduce((acc, cells) => acc + sumDefined(cells, i), 0),
+        tierOrLaneCells.reduce(
+          (acc, cells) => acc + sumDefined(cells, seriesIndices, i),
+          0,
+        ),
       direction,
     );
   });
@@ -381,6 +498,7 @@ export function orderVisibleByPane(
 export function orderVisibleByPaneTierOrLane(
   visibleByPaneTierOrLane: number[][][],
   values: (number | undefined)[][][][][],
+  seriesIndices: number[],
   indicators: DimensionMember[],
   tierOrLaneDimension: "tier" | "lane",
   direction: ValueSortDirection | undefined,
@@ -396,7 +514,7 @@ export function orderVisibleByPaneTierOrLane(
       return orderByKey(
         visible,
         indicators,
-        (i) => sumDefined(cells, i),
+        (i) => sumDefined(cells, seriesIndices, i),
         direction,
       );
     })
@@ -441,6 +559,26 @@ export type DataDimensions = {
   tier: DataDimension | undefined;
   pane: DataDimension | undefined;
 };
+
+export function createEmptyValuesArray(
+  nPanes: number,
+  nTiers: number,
+  nLanes: number,
+  nSerieses: number,
+  nValues: number,
+): (number | undefined)[][][][][] {
+  return createArray(
+    nPanes,
+    () =>
+      createArray(
+        nTiers,
+        () =>
+          createArray(nLanes, () =>
+            createArray(nSerieses, () =>
+              createArray(nValues, () => undefined))),
+      ),
+  );
+}
 
 // columns[i] is read into the place of valueProps[i], so a bound column fills
 // its value column's member. Each place takes one row's cell: the data

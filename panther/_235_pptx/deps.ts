@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+export type { SlideExportSizeOptions } from "../_000_consts/mod.ts";
 export type { PageInputs } from "../_121_page/mod.ts";
 export { pagesToPptx, PptxGenJS } from "../_122_pptx/mod.ts";
 export type { PptxGenJSInstance } from "../_122_pptx/mod.ts";

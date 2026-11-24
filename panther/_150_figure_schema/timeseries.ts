@@ -14,12 +14,18 @@ import {
   CHART_LIMITS_LENGTH_MESSAGE,
   chartLimitsMatchMembers,
   type Conforms,
+  SECOND_VALUE_AXIS_SERIES_MESSAGE,
+  secondValueAxisAssignsSomeSeries,
   zChartUncertainty,
   zChartValueAxisLimits,
   zDataDimension,
   zJsonArray,
   zMemberSortConfig,
   zPeriodType,
+  zReferenceLineDataConfig,
+  zSecondValueAxisDataConfig,
+  zSecondValueAxisDataTransformed,
+  zSubChartTextDataConfig,
   zUncertaintyConfig,
   zValues5D,
 } from "./shared.ts";
@@ -43,6 +49,9 @@ export const zTimeseriesJsonDataConfig = z.object({
     })
     .optional(),
   yValueAxisLabel: z.string().optional(),
+  secondValueAxis: zSecondValueAxisDataConfig.optional(),
+  referenceLines: z.array(zReferenceLineDataConfig).optional(),
+  subChartTexts: z.array(zSubChartTextDataConfig).optional(),
 });
 const _zTimeseriesJsonDataConfigConforms: Conforms<
   z.infer<typeof zTimeseriesJsonDataConfig>,
@@ -75,6 +84,9 @@ const zTimeseriesDataTransformedObject = z.object({
   uncertaintyValues: zChartUncertainty.optional(),
   valueAxisLimits: zChartValueAxisLimits,
   yValueAxisLabel: z.string().optional(),
+  secondValueAxis: zSecondValueAxisDataTransformed.optional(),
+  referenceLines: z.array(zReferenceLineDataConfig).optional(),
+  subChartTexts: z.array(zSubChartTextDataConfig).optional(),
 });
 const _zTimeseriesDataTransformedConforms: Conforms<
   z.infer<typeof zTimeseriesDataTransformedObject>,
@@ -82,10 +94,9 @@ const _zTimeseriesDataTransformedConforms: Conforms<
 > = true;
 
 export const zTimeseriesDataTransformed: z.ZodType<TimeseriesDataTransformed> =
-  zTimeseriesDataTransformedObject.refine(
-    chartLimitsMatchMembers,
-    CHART_LIMITS_LENGTH_MESSAGE,
-  );
+  zTimeseriesDataTransformedObject
+    .refine(chartLimitsMatchMembers, CHART_LIMITS_LENGTH_MESSAGE)
+    .refine(secondValueAxisAssignsSomeSeries, SECOND_VALUE_AXIS_SERIES_MESSAGE);
 
 export const zTimeseriesData: z.ZodType<TimeseriesData> = z.union([
   zTimeseriesDataJson,

@@ -29,6 +29,7 @@ import {
   CanvasRenderContext,
   createCanvasBrowser,
   findHitTarget,
+  getDevicePixelRatio,
   getFontsForPage,
   getMinimumSpan,
   getStage2Sizing,
@@ -142,7 +143,7 @@ export function PageHolder(p: Props) {
   const [displayedW, setDisplayedW] = createSignal(0);
   const dims = createMemo(() => {
     const dw = displayedW();
-    const dpr = globalThis.devicePixelRatio || 1;
+    const dpr = getDevicePixelRatio();
     const frameH = p.pageHeightDu; // DU height in the pageWidthDu frame
     const { frameWidthDu: frameW, backingWidthPx: backingW, devicePxPerDu } =
       getStage2Sizing({

@@ -166,6 +166,7 @@ export function getPieComponentSizes(
     inputs.legend,
     data.series,
   );
+  const legendSeries = { dimension: data.series };
 
   return {
     customFigureStyle,
@@ -191,7 +192,7 @@ export function getPieComponentSizes(
         ) +
           headerAllowance) +
       (nSlotRows - 1) * ind.gapY,
-    xAxisHeight: 0,
+    xAxesHeight: 0,
     paneHeaderHeight: rc
       .mText(
         SIZING_SAMPLE.paneHeader,
@@ -199,22 +200,20 @@ export function getPieComponentSizes(
         PANE_HEADER_SAMPLE_MAX_W,
       )
       .dims.h(),
-    minYAxisWidth: estimateTierHeaderAndLabelGapWidth(
+    minYAxesWidth: estimateTierHeaderAndLabelGapWidth(
       rc,
       data.tier,
       data.lane,
       mergedStyle,
     ),
-    // The 4th argument matters: without it the estimator synthesizes
-    // { id: label, label } members, so a seriesColorFunc keyed on .id with
-    // labelReplacements active would estimate the wrong width.
     surroundsMinWidth: estimateMinSurroundsWidth(
       rc,
       customFigureStyle,
       resolvedLegendLabels,
-      data.series,
+      legendSeries,
     ),
     resolvedLegendLabels,
+    legendSeries,
   };
 }
 

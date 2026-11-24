@@ -107,10 +107,16 @@ const MARKDOWN_BASE_STYLES = `
   [&_th]:px-[var(--md-table-cell-px)] [&_th]:py-[var(--md-table-cell-py)]
   [&_th]:bg-[color:var(--md-table-header-bg)]
   [&_th]:font-700 [&_th]:text-left
+  [&_th]:[font-family:var(--md-table-family)]
+  [&_th]:text-[length:var(--md-table-size)] [&_th]:text-[color:var(--md-table-color)]
+  [&_th]:leading-[var(--md-table-lh)]
   [&_td]:border-[length:var(--md-table-border-width)]
   [&_td]:border-[color:var(--md-table-border-color)]
   [&_td]:px-[var(--md-table-cell-px)] [&_td]:py-[var(--md-table-cell-py)]
   [&_td]:bg-base-100
+  [&_td]:[font-family:var(--md-table-family)]
+  [&_td]:text-[length:var(--md-table-size)] [&_td]:text-[color:var(--md-table-color)]
+  [&_td]:leading-[var(--md-table-lh)]
 
   [&_hr]:my-[var(--md-hr-my)] [&_hr]:border-t [&_hr]:border-[color:var(--md-hr-color)]
 
@@ -311,6 +317,10 @@ export function deriveMarkdownCssVars(
     "--md-table-cell-px": `${em.table.cellPaddingH}em`,
     "--md-table-cell-py": `${em.table.cellPaddingV}em`,
     "--md-table-header-bg": merged.table.headerShadingColor,
+    "--md-table-family": merged.text.paragraph.font.fontFamily,
+    "--md-table-size": "1em",
+    "--md-table-lh": `${merged.text.paragraph.lineHeight}`,
+    "--md-table-color": merged.text.paragraph.color,
   };
 
   return vars as JSX.CSSProperties;

@@ -18,6 +18,7 @@ import {
   toolThrowToResultParts,
 } from "../deps.ts";
 import type {
+  AIToolEarlierCall,
   AIToolRun,
   AIToolWithMetadata,
   AIViewSnapshot,
@@ -340,6 +341,8 @@ export async function processToolUses(
   // The view the calls run in, the snapshot the gate admitted, stored with
   // each card.
   view: AIViewSnapshot | undefined,
+  // The conversation's earlier calls, read from its cards before these run.
+  earlierCalls: readonly AIToolEarlierCall[],
 ): Promise<{
   results: ToolResult[];
   errorItems: DisplayItem[];
@@ -368,7 +371,7 @@ export async function processToolUses(
           toolWithMetadata.sdkTool,
           block.input,
           getView,
-          { toolUseId: block.id, signal },
+          { toolUseId: block.id, signal, earlierCalls },
         );
         return { block, run };
       } catch (error) {

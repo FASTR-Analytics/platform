@@ -7,8 +7,8 @@ import {
   assert,
   assertNoDataConfigIssues,
   buildDataDimension,
-  calculateChartValueAxisLimits,
-  createArray,
+  calculateChartValueAxes,
+  createEmptyValuesArray,
   type DataDimensions,
   getDimensionMembers,
   getMemberIndex,
@@ -20,6 +20,8 @@ import {
   type JsonArrayItem,
   type MemberSortConfig,
   type PeriodType,
+  trimReferenceLineLabels,
+  trimSubChartTexts,
 } from "./deps.ts";
 import {
   getTimeseriesDataConfigIssues,
@@ -52,26 +54,6 @@ export function getTimeseriesDataTransformed(
   // TypeScript exhaustiveness check
   const _exhaustive: never = d;
   throw new Error(`Unhandled timeseries data type: ${_exhaustive}`);
-}
-
-function createEmptyTimeseries(
-  nPanes: number,
-  nTiers: number,
-  nLanes: number,
-  nSerieses: number,
-  nTimePoints: number,
-): (number | undefined)[][][][][] {
-  return createArray(
-    nPanes,
-    () =>
-      createArray(
-        nTiers,
-        () =>
-          createArray(nLanes, () =>
-            createArray(nSerieses, () =>
-              new Array(nTimePoints).fill(undefined))),
-      ),
-  );
 }
 
 // columns[i] is read into the place of valueProps[i], so a bound column fills
@@ -200,7 +182,7 @@ export function getTimeseriesDataJsonTransformed(
   const nSerieses = getDimensionMembers(series).length;
   const dimensions: DataDimensions = { series, lane, tier, pane };
 
-  const values = createEmptyTimeseries(
+  const values = createEmptyValuesArray(
     nPanes,
     nTiers,
     nLanes,
@@ -225,14 +207,14 @@ export function getTimeseriesDataJsonTransformed(
   } | undefined;
 
   if (uncertainty) {
-    const ubValues = createEmptyTimeseries(
+    const ubValues = createEmptyValuesArray(
       nPanes,
       nTiers,
       nLanes,
       nSerieses,
       nTimePoints,
     );
-    const lbValues = createEmptyTimeseries(
+    const lbValues = createEmptyValuesArray(
       nPanes,
       nTiers,
       nLanes,
@@ -295,71 +277,14 @@ export function getTimeseriesDataJsonTransformed(
     uncertaintyValues = { ub: ubValues, lb: lbValues };
   }
 
-  const counts = {
-    nPanes,
-    nTiers,
-    nLanes,
-    nSerieses,
-    nValues: nTimePoints,
-  };
-
-  const valueAxisLimits = calculateChartValueAxisLimits(
-    values,
-    counts,
+  const valueAxes = calculateChartValueAxes(
+    { values, uncertaintyValues },
+    { nPanes, nTiers, nLanes, nValues: nTimePoints },
     stacked,
+    dimensions,
+    jsonDataConfig.secondValueAxis,
+    jsonDataConfig.referenceLines,
   );
-
-  if (uncertaintyValues) {
-    const ubLimits = calculateChartValueAxisLimits(
-      uncertaintyValues.ub,
-      counts,
-      false,
-    );
-    const lbLimits = calculateChartValueAxisLimits(
-      uncertaintyValues.lb,
-      counts,
-      false,
-    );
-    const main = valueAxisLimits.paneLimits;
-    const ub = ubLimits.paneLimits;
-    const lb = lbLimits.paneLimits;
-    for (let i = 0; i < nPanes; i++) {
-      main[i].valueMin = Math.min(
-        main[i].valueMin,
-        ub[i].valueMin,
-        lb[i].valueMin,
-      );
-      main[i].valueMax = Math.max(
-        main[i].valueMax,
-        ub[i].valueMax,
-        lb[i].valueMax,
-      );
-      for (let j = 0; j < nTiers; j++) {
-        main[i].tierLimits[j].valueMin = Math.min(
-          main[i].tierLimits[j].valueMin,
-          ub[i].tierLimits[j].valueMin,
-          lb[i].tierLimits[j].valueMin,
-        );
-        main[i].tierLimits[j].valueMax = Math.max(
-          main[i].tierLimits[j].valueMax,
-          ub[i].tierLimits[j].valueMax,
-          lb[i].tierLimits[j].valueMax,
-        );
-      }
-      for (let k = 0; k < nLanes; k++) {
-        main[i].laneLimits[k].valueMin = Math.min(
-          main[i].laneLimits[k].valueMin,
-          ub[i].laneLimits[k].valueMin,
-          lb[i].laneLimits[k].valueMin,
-        );
-        main[i].laneLimits[k].valueMax = Math.max(
-          main[i].laneLimits[k].valueMax,
-          ub[i].laneLimits[k].valueMax,
-          lb[i].laneLimits[k].valueMax,
-        );
-      }
-    }
-  }
 
   return {
     isTransformed: true,
@@ -376,7 +301,10 @@ export function getTimeseriesDataJsonTransformed(
     pane,
     values,
     uncertaintyValues,
-    valueAxisLimits: valueAxisLimits,
+    valueAxisLimits: valueAxes.valueAxisLimits,
+    secondValueAxis: valueAxes.secondValueAxis,
     yValueAxisLabel: jsonDataConfig.yValueAxisLabel?.trim(),
+    referenceLines: trimReferenceLineLabels(jsonDataConfig.referenceLines),
+    subChartTexts: trimSubChartTexts(jsonDataConfig.subChartTexts),
   };
 }

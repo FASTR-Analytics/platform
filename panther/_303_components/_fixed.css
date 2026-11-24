@@ -500,6 +500,12 @@
   --md-table-border-color: var(--color-border);
   --md-table-cell-px: 0.5em;
   --md-table-cell-py: 0.25em;
+  /* The document model gives cell text no style of its own, so a cell takes
+     the paragraph's and reads as the text around its table. */
+  --md-table-family: var(--md-p-family);
+  --md-table-size: 1em;
+  --md-table-lh: var(--md-p-lh);
+  --md-table-color: var(--md-p-color);
   /* Headers read by weight (font-700), not by tone — same surface as body
      cells. The document look overrides this with the model's header shading. */
   --md-table-header-bg: var(--color-base-100);
@@ -613,6 +619,14 @@
 
 @utility ui-pad-x { /* = px-4 */
   padding-inline: var(--ui-pad-x);
+}
+
+/* ui-pad-x plus the width of the three-column frame's side controls on each
+   edge, which the frame publishes on its centre: for content of the centre
+   that sits beside the controls. Outside that centre it is ui-pad-x. */
+@utility ui-pad-x-beside-side-controls {
+  padding-left: calc(var(--ui-pad-x) + var(--ui-side-controls-left, 0px));
+  padding-right: calc(var(--ui-pad-x) + var(--ui-side-controls-right, 0px));
 }
 
 @utility ui-pad-x-lg { /* = px-8 */

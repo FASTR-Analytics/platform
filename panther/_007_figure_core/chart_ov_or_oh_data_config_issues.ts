@@ -10,9 +10,11 @@ import type {
 import { getTierOrLaneKey } from "./common_data_transform.ts";
 import {
   type DataConfigIssue,
+  getEverySeriesOnSecondValueAxisIssues,
   getNoRowsIssues,
   getProportionalConflictIssues,
   getValuePropsDataConfigIssues,
+  indexRows,
 } from "./data_config_issues.ts";
 import type { JsonArray } from "./types.ts";
 
@@ -42,6 +44,12 @@ export function getChartOVOrOHDataConfigIssues(
     ...getProportionalConflictIssues(
       cfg.proportional,
       getTierOrLaneKey(spec.tierOrLaneDimension),
+    ),
+    ...getEverySeriesOnSecondValueAxisIssues(
+      indexRows(jsonArray),
+      cfg.seriesProp,
+      cfg.valueProps,
+      cfg.secondValueAxis,
     ),
   ];
 }

@@ -5,9 +5,14 @@
 
 import type { RectCoordsDims, RenderContext } from "./deps.ts";
 
+// A canvas for a picture `width` by `height` DU drawn at `devicePxPerDu`
+// device pixels per DU: the canvas is `round(width × devicePxPerDu)` by
+// `round(height × devicePxPerDu)` pixels, its context carries that scale, and
+// `rcd` is the DU frame `[0, 0, width, height]`.
 export type CreateCanvasRenderContext = (
   width: number,
   height: number,
+  devicePxPerDu: number,
 ) => {
   canvas: { toDataURL(format: "png" | "jpeg" | "webp"): string };
   rc: RenderContext;

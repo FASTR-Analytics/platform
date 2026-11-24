@@ -7,6 +7,7 @@ import {
   type DataConfigField,
   type DataConfigIssue,
   getEveryRowBlankIssues,
+  getEverySeriesOnSecondValueAxisIssues,
   getNoRowsIssues,
   getNotAPeriodIssues,
   getRowColumns,
@@ -69,5 +70,11 @@ export function getTimeseriesDataConfigIssues(
         periodProp === "--v" || isPeriodCell(row[periodProp], periodType),
     ),
     ...periodIssues,
+    ...getEverySeriesOnSecondValueAxisIssues(
+      rows.filter(({ row }) => !hasBlankPeriod(row, periodProp)),
+      jsonDataConfig.seriesProp,
+      valueProps,
+      jsonDataConfig.secondValueAxis,
+    ),
   ];
 }

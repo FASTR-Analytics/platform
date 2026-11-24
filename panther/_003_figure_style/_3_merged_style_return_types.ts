@@ -20,8 +20,8 @@ import type {
   MapAreaInfoFunc,
   Padding,
   PieSliceInfoFunc,
-  PointStyle,
-  RectStyle,
+  ReferenceLineInfoFunc,
+  ScatterPointInfoFunc,
   TableCellInfoFunc,
   TableHeaderInfoFunc,
   TextInfoUnkeyed,
@@ -37,6 +37,9 @@ import type {
   ErrorBarStyle,
   MapAreaStyle,
   PieSliceStyle,
+  ReferenceLineStyle,
+  ResolvedBarStyle,
+  ResolvedPointStyle,
   TableCellStyle,
   TableHeaderStyle,
 } from "./style_func_types.ts";
@@ -92,13 +95,13 @@ export type MergedScaleLegendStyle = {
 
 export type MergedIdealHeightStyle = {
   // Natural per-sub-chart sub-chart height (DU) for value-axis charts (ChartOV,
-  // Timeseries), as a function of the number of vertically-stacked sub-chart
-  // rows (nPaneRows × nTiers). Decays so stacked grids stay bounded. Ignored by
-  // ChartOH (category-driven) and Table (deterministic).
+  // Timeseries, Scatter), as a function of the number of vertically-stacked
+  // sub-chart rows (nPaneRows × nTiers). Decays so stacked grids stay bounded.
+  // Ignored by ChartOH (category-driven) and Table (deterministic).
   idealSubChartHeight: (nSubChartRows: number) => number;
   // Natural per-bar-row thickness (DU) for ChartOH, as a function of the
   // figure's total bar rows. Decays so dense category charts thin their bars.
-  // Ignored by ChartOV, Timeseries, and Table.
+  // Ignored by ChartOV, Timeseries, Scatter and Table.
   idealRowThickness: (nTotalBarRows: number) => number;
   // Natural pie content diameter (DU) as a function of indicators per
   // sub-chart. A cap on the width-driven term. Ignored by every other figure.
@@ -140,6 +143,7 @@ export type MergedChartStyleBase = {
     laneHeaders: TextInfoUnkeyed;
     tierHeaders: TextInfoUnkeyed;
     dataLabels: TextInfoUnkeyed;
+    subChartTexts: TextInfoUnkeyed;
   };
 };
 
@@ -226,12 +230,19 @@ export type MergedPieStyle = MergedChartStyleBase & {
 
 export type MergedChartOVStyle = MergedChartStyleBase & {
   yValueAxis: MergedYValueAxisStyle;
+  secondValueAxis: MergedYValueAxisStyle;
   xTextAxis: MergedXTextAxisStyle;
 };
 
 export type MergedChartOHStyle = MergedChartStyleBase & {
   xValueAxis: MergedXValueAxisStyle;
+  secondValueAxis: MergedXValueAxisStyle;
   yTextAxis: MergedYTextAxisStyle;
+};
+
+export type MergedScatterStyle = MergedChartStyleBase & {
+  xValueAxis: MergedXValueAxisStyle;
+  yValueAxis: MergedYValueAxisStyle;
 };
 
 export type MergedCascadeArrowStyle = {
@@ -273,6 +284,7 @@ export type MergedXValueAxisStyle = {
 
 export type MergedTimeseriesStyle = MergedChartStyleBase & {
   yValueAxis: MergedYValueAxisStyle;
+  secondValueAxis: MergedYValueAxisStyle;
   xPeriodAxis: MergedXPeriodAxisStyle;
 };
 
@@ -336,15 +348,11 @@ export type MergedPaneStyle = {
 
 export type MergedContentStyle = {
   points: {
-    getStyle: ChartValueInfoFunc<
-      PointStyle & { dataLabel: DataLabelStyle; annotationGroup?: string }
-    >;
+    getStyle: ChartValueInfoFunc<ResolvedPointStyle>;
     textFormatter: ChartValueInfoFunc<string> | "none";
   };
   bars: {
-    getStyle: ChartValueInfoFunc<
-      RectStyle & { dataLabel: DataLabelStyle; annotationGroup?: string }
-    >;
+    getStyle: ChartValueInfoFunc<ResolvedBarStyle>;
     textFormatter: ChartValueInfoFunc<string> | "none";
     stacking:
       | "none"
@@ -376,6 +384,12 @@ export type MergedContentStyle = {
   errorBands: MergedErrorBandStyle;
   cascadeArrows: MergedCascadeArrowStyle;
   connectors: MergedConnectorStyle;
+  referenceLines: {
+    getStyle: ReferenceLineInfoFunc<ReferenceLineStyle>;
+  };
+  subChartTexts: {
+    padding: Padding;
+  };
   mapAreas: {
     getStyle: MapAreaInfoFunc<MapAreaStyle>;
     textFormatter: MapAreaInfoFunc<string> | "none";
@@ -383,6 +397,11 @@ export type MergedContentStyle = {
   slices: {
     getStyle: PieSliceInfoFunc<PieSliceStyle>;
     textFormatter: PieSliceInfoFunc<string> | "none";
+  };
+  scatterPoints: {
+    getStyle: ScatterPointInfoFunc<ResolvedPointStyle>;
+    textFormatter: ScatterPointInfoFunc<string> | "none";
+    labelCollision: LabelCollisionConfig;
   };
 };
 

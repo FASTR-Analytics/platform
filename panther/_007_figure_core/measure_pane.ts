@@ -4,11 +4,13 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  measureSecondYValueAxis,
   measureYAxisLayout,
   measureYCategoryAxis,
   measureYValueAxis,
 } from "./_axes/measure_y_axis.ts";
 import {
+  measureSecondXValueAxis,
   measureXCategoryAxis,
   measureXValueAxis,
 } from "./_axes/measure_x_axis.ts";
@@ -204,8 +206,8 @@ export function measurePane<TData>(
     ? Math.max(1, visibleLanes.length)
     : nLanes;
   const lanes = mergedStyle.lanes;
-  const uniformSubChartWidthFor = (yAxisWidth: number) => {
-    const xAxisW = config.geometry.innerRcd.w() - yAxisWidth;
+  const uniformSubChartWidthFor = (yAxesWidth: number) => {
+    const xAxisW = config.geometry.innerRcd.w() - yAxesWidth;
     return (xAxisW -
       (lanes.paddingLeft + Math.max(0, nLaidOutLanes - 1) * lanes.gapX +
         lanes.paddingRight)) /
@@ -223,6 +225,7 @@ export function measurePane<TData>(
   const measureAxes = (): {
     measuredAxes: MeasuredAxes;
     yAxisWidth: number;
+    secondYAxisWidth: number;
     uniformSubChartWidth: number;
     laneLayout?: PaneTierOrLaneLayout;
   } => {
@@ -239,6 +242,34 @@ export function measurePane<TData>(
           }),
         },
         yAxisWidth,
+        secondYAxisWidth: 0,
+        uniformSubChartWidth: uniformSubChartWidthFor(yAxisWidth),
+      };
+    }
+    if (axes.kind === "value-and-value") {
+      const y = measureYValueAxis(
+        rc,
+        axes.y,
+        mergedStyle.grid,
+        config.geometry.innerRcd,
+        i_pane,
+        tierHeaderAndLabelGapWidth,
+        nTiers,
+      );
+      const yAxisWidth = y.info.widthIncludingYAxisStrokeWidth;
+      const x = measureXValueAxis(
+        rc,
+        config.geometry.innerRcd,
+        y.info,
+        axes.x,
+        mergedStyle.grid,
+        i_pane,
+        nLanes,
+      );
+      return {
+        measuredAxes: { kind: "value-and-value", x, y },
+        yAxisWidth,
+        secondYAxisWidth: 0,
         uniformSubChartWidth: uniformSubChartWidthFor(yAxisWidth),
       };
     }
@@ -253,8 +284,21 @@ export function measurePane<TData>(
           tierHeaderAndLabelGapWidth,
           nTiers,
         );
+        const secondY = axes.secondY === undefined
+          ? undefined
+          : measureSecondYValueAxis(
+            rc,
+            axes.secondY,
+            mergedStyle.grid,
+            y,
+            i_pane,
+          );
         const yAxisWidth = y.info.widthIncludingYAxisStrokeWidth;
-        const uniformSubChartWidth = uniformSubChartWidthFor(yAxisWidth);
+        const secondYAxisWidth = secondY?.info.widthIncludingYAxisStrokeWidth ??
+          0;
+        const uniformSubChartWidth = uniformSubChartWidthFor(
+          yAxisWidth + secondYAxisWidth,
+        );
         // Proportional lanes (OV): solve slotExtent from the free width — exactly
         // the equal-split numerator, reconstructed as uniformSubChartWidth × nTiersOrLanes.
         const laneLayout = proportionalLaneIndices && tierOrLaneMasks &&
@@ -269,9 +313,12 @@ export function measurePane<TData>(
             config.slotExtent,
           )
           : undefined;
+        const innerRcdLeftOfSecondYAxis = config.geometry.innerRcd.getAdjusted(
+          (prev) => ({ w: prev.w() - secondYAxisWidth }),
+        );
         const x = measureXCategoryAxis(
           rc,
-          config.geometry.innerRcd,
+          innerRcdLeftOfSecondYAxis,
           y.info,
           uniformSubChartWidth,
           axes.x,
@@ -285,8 +332,10 @@ export function measurePane<TData>(
             orientation: "vertical",
             x,
             y,
+            secondY,
           },
           yAxisWidth,
+          secondYAxisWidth,
           uniformSubChartWidth,
           laneLayout,
         };
@@ -318,16 +367,22 @@ export function measurePane<TData>(
             y,
           },
           yAxisWidth,
+          secondYAxisWidth: 0,
           uniformSubChartWidth,
         };
       }
     }
   };
-  const { measuredAxes, yAxisWidth, uniformSubChartWidth, laneLayout } =
-    measureAxes();
-  const xAxisRcd = measuredAxes.kind === "none"
-    ? measuredAxes.xAxisRcd
-    : measuredAxes.x.info.xAxisRcd;
+  const {
+    measuredAxes: measuredAxesBeforeLaneHeaders,
+    yAxisWidth,
+    secondYAxisWidth,
+    uniformSubChartWidth,
+    laneLayout,
+  } = measureAxes();
+  const xAxisRcd = measuredAxesBeforeLaneHeaders.kind === "none"
+    ? measuredAxesBeforeLaneHeaders.xAxisRcd
+    : measuredAxesBeforeLaneHeaders.x.info.xAxisRcd;
 
   const {
     value: laneHeaderTextHeight,
@@ -341,8 +396,36 @@ export function measurePane<TData>(
     ? laneHeaderTextHeight + mergedStyle.lanes.headerGap
     : 0;
 
+  // The second x value axis stands below the lane headers, so its strip is
+  // placed once their height is known.
+  const measuredAxes: MeasuredAxes =
+    measuredAxesBeforeLaneHeaders.kind === "category-and-value" &&
+      measuredAxesBeforeLaneHeaders.orientation === "horizontal" &&
+      axes.kind === "category-and-value" &&
+      axes.orientation === "horizontal" && axes.secondX !== undefined
+      ? {
+        ...measuredAxesBeforeLaneHeaders,
+        secondX: measureSecondXValueAxis(
+          rc,
+          config.geometry.innerRcd,
+          measuredAxesBeforeLaneHeaders.y.info,
+          axes.secondX,
+          mergedStyle.grid,
+          measuredAxesBeforeLaneHeaders.x,
+          i_pane,
+          config.geometry.innerRcd.y() + topHeightForLaneHeaders,
+        ),
+      }
+      : measuredAxesBeforeLaneHeaders;
+  const secondXAxisHeight = measuredAxes.kind === "category-and-value" &&
+      measuredAxes.orientation === "horizontal" &&
+      measuredAxes.secondX !== undefined
+    ? measuredAxes.secondX.info.xAxisRcd.h()
+    : 0;
+
   const { yAxisRcd, uniformSubChartHeight } = measureYAxisLayout(
     topHeightForLaneHeaders,
+    secondXAxisHeight,
     xAxisRcd.h(),
     yAxisWidth,
     mergedStyle.tiers,
@@ -367,9 +450,21 @@ export function measurePane<TData>(
     : undefined;
   const tierOrLaneLayout = laneLayout ?? tierLayout;
 
+  const secondYAxisRcd = measuredAxes.kind === "category-and-value" &&
+      measuredAxes.orientation === "vertical" &&
+      measuredAxes.secondY !== undefined
+    ? new RectCoordsDims({
+      x: config.geometry.innerRcd.rightX() - secondYAxisWidth,
+      y: yAxisRcd.y(),
+      w: secondYAxisWidth,
+      h: yAxisRcd.h(),
+    })
+    : undefined;
+
   const measured = {
     axes: measuredAxes,
     yAxisRcd,
+    secondYAxisRcd,
     uniformSubChartHeight,
     uniformSubChartWidth,
     topHeightForLaneHeaders,
@@ -419,7 +514,8 @@ export function measurePane<TData>(
   // inside.
   const tierHeaderTopNudge = measuredAxes.kind === "none"
     ? 0
-    : measuredAxes.orientation === "vertical"
+    : measuredAxes.kind === "value-and-value" ||
+        measuredAxes.orientation === "vertical"
     ? (measuredAxes.y.config.axisStyle.tickLabelAlignment === "inset"
       ? 0
       : Math.min(
@@ -439,6 +535,7 @@ export function measurePane<TData>(
       tierHeaderAndLabelGapHeight,
       { ...mergedStyle.tiers, headerPosition },
       config.geometry.innerRcd,
+      secondYAxisWidth,
       i_pane,
       pane,
       tier,
@@ -449,7 +546,7 @@ export function measurePane<TData>(
   const laneHeaderStripRcd = new RectCoordsDims({
     x: xAxisRcd.x(),
     y: config.geometry.innerRcd.y(),
-    w: config.geometry.innerRcd.rightX() - xAxisRcd.x(),
+    w: config.geometry.innerRcd.rightX() - secondYAxisWidth - xAxisRcd.x(),
     h: laneHeaderTextHeight,
   });
   labelPrimitives.push(
@@ -473,7 +570,7 @@ export function measurePane<TData>(
     uniformSubChartWidth: measured.uniformSubChartWidth,
     topHeightForLaneHeaders: measured.topHeightForLaneHeaders,
     tierHeaderAndLabelGapHeight: measured.tierHeaderAndLabelGapHeight,
-    yAxisWidth,
+    yAxesWidth: yAxisWidth + secondYAxisWidth,
     paneInnerWidth: config.geometry.innerRcd.w(),
     nProportionalSlots: tierOrLaneLayout
       ? tierOrLaneLayout.visibleIndicators.reduce((a, v) => a + v.length, 0)
@@ -636,6 +733,7 @@ function tierHeaderLabelPrimitives(
     headerPosition: "left" | "above-axis" | "above-sub-chart";
   },
   innerRcd: RectCoordsDims,
+  secondYAxisWidth: number,
   i_pane: number,
   pane: DataDimension | undefined,
   tier: DataDimension | undefined,
@@ -657,10 +755,12 @@ function tierHeaderLabelPrimitives(
   const primitives: ChartHeaderPrimitive[] = [];
 
   if (tiers.headerPosition !== "left") {
-    const boundsX = tiers.headerPosition === "above-axis"
-      ? yAxisRcd.x()
-      : yAxisRcd.rightX();
-    const boundsW = innerRcd.rightX() - boundsX;
+    // A header above the axis spans the second y axis too; one above the
+    // sub-chart ends where the sub-charts end.
+    const [boundsX, boundsRightX] = tiers.headerPosition === "above-axis"
+      ? [yAxisRcd.x(), innerRcd.rightX()]
+      : [yAxisRcd.rightX(), innerRcd.rightX() - secondYAxisWidth];
+    const boundsW = boundsRightX - boundsX;
     let currentY = yAxisRcd.y() + tiers.paddingTop;
 
     for (

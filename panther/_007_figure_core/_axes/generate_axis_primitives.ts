@@ -7,6 +7,7 @@ import type {
   AlignH,
   AlignV,
   ChartAxisPrimitive,
+  ChartValueAxis,
   ItemCoordinate,
   LineStyle,
   MergedGridStyle,
@@ -29,9 +30,11 @@ import {
   periodCoordinate,
 } from "../chart_items.ts";
 import type { SubChart } from "../sub_charts.ts";
+import type { OverhangClearance } from "../types.ts";
 import type { MeasuredXAxis } from "./measure_x_axis.ts";
 import type { MeasuredYAxis } from "./measure_y_axis.ts";
 import { getValueAxisTickPositions } from "./value_axis_tick_positions.ts";
+import { yValueAxisLabelRotation } from "./y_value/measure.ts";
 import {
   getLargePeriodLabel,
   getSmallPeriodLabelIfAny,
@@ -41,6 +44,10 @@ import {
   shouldLabelYear,
 } from "./x_period/helpers.ts";
 
+// The side of the sub-charts a value axis stands on: its tick labels stand
+// beyond its axis line on that side, aligned toward the line.
+type ValueAxisPlacement = "left" | "right" | "bottom" | "top";
+
 // Tick label alignment for value axes. "center" centers every label on its
 // tick; "inset" pulls the first/last labels inward so they stay within the
 // value axis extent without any overhang clearance.
@@ -48,29 +55,32 @@ function getValueAxisTickLabelAlignment(
   i_tick: number,
   nTicks: number,
   mode: "center" | "inset",
-  axis: "x" | "y",
+  placement: ValueAxisPlacement,
 ): { alignH: AlignH; alignV: AlignV } {
-  if (mode === "center" || nTicks <= 1) {
-    return axis === "x"
-      ? { alignH: "center", alignV: "top" }
-      : { alignH: "right", alignV: "middle" };
-  }
-  if (axis === "x") {
+  if (placement === "bottom" || placement === "top") {
+    const alignV = placement === "bottom" ? "top" : "bottom";
+    if (mode === "center" || nTicks <= 1) {
+      return { alignH: "center", alignV };
+    }
     if (i_tick === 0) {
-      return { alignH: "left", alignV: "top" };
+      return { alignH: "left", alignV };
     }
     if (i_tick === nTicks - 1) {
-      return { alignH: "right", alignV: "top" };
+      return { alignH: "right", alignV };
     }
-    return { alignH: "center", alignV: "top" };
+    return { alignH: "center", alignV };
+  }
+  const alignH = placement === "left" ? "right" : "left";
+  if (mode === "center" || nTicks <= 1) {
+    return { alignH, alignV: "middle" };
   }
   if (i_tick === 0) {
-    return { alignH: "right", alignV: "bottom" };
+    return { alignH, alignV: "bottom" };
   }
   if (i_tick === nTicks - 1) {
-    return { alignH: "right", alignV: "top" };
+    return { alignH, alignV: "top" };
   }
-  return { alignH: "right", alignV: "middle" };
+  return { alignH, alignV: "middle" };
 }
 
 export function generateXTextAxisPrimitive(
@@ -461,11 +471,16 @@ export function generateXPeriodAxisPrimitive(
   });
 }
 
+// The first y value axis stands left of the sub-charts and the second right
+// of them, each the other's mirror: its axis line on the edge of its rect
+// toward the sub-charts, its ticks and tick labels outward from it.
 export function generateYValueAxisPrimitive(
   rc: RenderContext,
-  subChart: Extract<SubChart, { kind: "category-and-value" }>,
+  subChart: Pick<SubChart, "rcd" | "i_pane" | "i_tier">,
+  clearance: OverhangClearance,
   yAxis: Extract<MeasuredYAxis, { type: "value" }>,
   yAxisRcd: RectCoordsDims,
+  valueAxis: ChartValueAxis,
   gridStyle: MergedGridStyle,
   itemDataDimensions: ChartItemDataDimensions,
 ): ChartAxisPrimitive {
@@ -478,7 +493,10 @@ export function generateYValueAxisPrimitive(
     subChart.i_pane,
     subChart.i_tier,
   );
-  const axisX = yAxisRcd.rightX() - sg.axisStrokeWidth / 2;
+  const [axisEdgeX, outward] = valueAxis === "first"
+    ? [yAxisRcd.rightX(), -1]
+    : [yAxisRcd.x(), 1];
+  const axisX = axisEdgeX + outward * (sg.axisStrokeWidth / 2);
   const ticks: ChartAxisPrimitive["ticks"] = [];
 
   const tickValues = my.yAxisTickValues[subChart.i_tier];
@@ -486,7 +504,7 @@ export function generateYValueAxisPrimitive(
     rcd.y(),
     rcd.h(),
     tickValues.length,
-    subChart.valueClearance,
+    clearance,
     "y",
   );
 
@@ -501,26 +519,26 @@ export function generateYValueAxisPrimitive(
       position: new Coordinates([axisX, tickY]),
       tickLine: {
         start: new Coordinates([
-          yAxisRcd.rightX() - (sg.axisStrokeWidth + sy.tickLength),
+          axisEdgeX + outward * (sg.axisStrokeWidth + sy.tickLength),
           tickY,
         ]),
         end: new Coordinates([
-          yAxisRcd.rightX() - sg.axisStrokeWidth,
+          axisEdgeX + outward * sg.axisStrokeWidth,
           tickY,
         ]),
       },
       label: {
         mText: mTickLabel,
         position: new Coordinates([
-          yAxisRcd.rightX() -
-          (sg.axisStrokeWidth + sy.tickLength + sy.tickLabelGap),
+          axisEdgeX +
+          outward * (sg.axisStrokeWidth + sy.tickLength + sy.tickLabelGap),
           tickY,
         ]),
         ...getValueAxisTickLabelAlignment(
           i_tick,
           tickValues.length,
           sy.tickLabelAlignment,
-          "y",
+          valueAxis === "first" ? "left" : "right",
         ),
       },
       value: tickValue,
@@ -546,24 +564,33 @@ export function generateYValueAxisPrimitive(
       yAxis.config.axisLabel,
       sy.text.yValueAxisLabel,
       Number.POSITIVE_INFINITY,
-      { rotation: "anticlockwise" },
+      { rotation: yValueAxisLabelRotation(valueAxis) },
     );
-    axisLabel = {
-      mText: mLabel,
-      position: new Coordinates([
-        yAxisRcd.x() + my.tierHeaderAndLabelGapWidth,
-        rcd.centerY(),
-      ]),
-      alignH: "left",
-      alignV: "middle",
-    };
+    axisLabel = valueAxis === "first"
+      ? {
+        mText: mLabel,
+        position: new Coordinates([
+          yAxisRcd.x() + my.tierHeaderAndLabelGapWidth,
+          rcd.centerY(),
+        ]),
+        alignH: "left",
+        alignV: "middle",
+      }
+      : {
+        mText: mLabel,
+        position: new Coordinates([yAxisRcd.rightX(), rcd.centerY()]),
+        alignH: "right",
+        alignV: "middle",
+      };
   }
 
   return withPaintedBounds({
     type: "chart-axis",
-    key: `y-value-axis-${subChart.i_pane}-${subChart.i_tier}`,
+    key: `${
+      valueAxis === "first" ? "" : "second-"
+    }y-value-axis-${subChart.i_pane}-${subChart.i_tier}`,
     item: buildItem(identity.coordinates),
-    meta: { axisType: "y-value", ...identity.meta },
+    meta: { axisType: "y-value", valueAxis, ...identity.meta },
     ticks,
     axisLine,
     tickStyle: {
@@ -576,10 +603,15 @@ export function generateYValueAxisPrimitive(
   });
 }
 
+// The first x value axis stands below the sub-charts and the second above
+// them, each the other's mirror: its axis line on the edge of its rect toward
+// the sub-charts, its ticks and tick labels outward from it.
 export function generateXValueAxisPrimitive(
   rc: RenderContext,
-  subChart: Extract<SubChart, { kind: "category-and-value" }>,
+  subChart: Pick<SubChart, "rcd" | "i_pane" | "i_lane">,
+  clearance: OverhangClearance,
   xAxis: Extract<MeasuredXAxis, { type: "value" }>,
+  valueAxis: ChartValueAxis,
   gridStyle: MergedGridStyle,
   itemDataDimensions: ChartItemDataDimensions,
 ): ChartAxisPrimitive {
@@ -592,7 +624,10 @@ export function generateXValueAxisPrimitive(
     subChart.i_pane,
     subChart.i_lane,
   );
-  const axisY = xAxisRcd.y() + sg.axisStrokeWidth / 2;
+  const [axisEdgeY, outward] = valueAxis === "first"
+    ? [xAxisRcd.y(), 1]
+    : [xAxisRcd.bottomY(), -1];
+  const axisY = axisEdgeY + outward * (sg.axisStrokeWidth / 2);
   const ticks: ChartAxisPrimitive["ticks"] = [];
 
   const tickValues = xValueAxisHeightInfo.xAxisTickValues[subChart.i_lane];
@@ -600,7 +635,7 @@ export function generateXValueAxisPrimitive(
     rcd.x(),
     rcd.w(),
     tickValues.length,
-    subChart.valueClearance,
+    clearance,
     "x",
   );
 
@@ -615,24 +650,25 @@ export function generateXValueAxisPrimitive(
       tickLine: {
         start: new Coordinates([
           tickX,
-          xAxisRcd.y() + sg.axisStrokeWidth,
+          axisEdgeY + outward * sg.axisStrokeWidth,
         ]),
         end: new Coordinates([
           tickX,
-          xAxisRcd.y() + sg.axisStrokeWidth + sx.tickLength,
+          axisEdgeY + outward * sg.axisStrokeWidth + outward * sx.tickLength,
         ]),
       },
       label: {
         mText: mTickLabel,
         position: new Coordinates([
           tickX,
-          xAxisRcd.y() + sg.axisStrokeWidth + sx.tickLength + sx.tickLabelGap,
+          axisEdgeY + outward * sg.axisStrokeWidth + outward * sx.tickLength +
+          outward * sx.tickLabelGap,
         ]),
         ...getValueAxisTickLabelAlignment(
           i_tick,
           tickValues.length,
           sx.tickLabelAlignment,
-          "x",
+          valueAxis === "first" ? "bottom" : "top",
         ),
       },
       value: tickValue,
@@ -663,7 +699,9 @@ export function generateXValueAxisPrimitive(
       mText: mLabel,
       position: new Coordinates([
         rcd.centerX(),
-        xAxisRcd.bottomY() - mLabel.dims.h(),
+        valueAxis === "first"
+          ? xAxisRcd.bottomY() - mLabel.dims.h()
+          : xAxisRcd.y(),
       ]),
       alignH: "center",
       alignV: "top",
@@ -672,9 +710,11 @@ export function generateXValueAxisPrimitive(
 
   return withPaintedBounds({
     type: "chart-axis",
-    key: `x-value-axis-${subChart.i_pane}-${subChart.i_lane}`,
+    key: `${
+      valueAxis === "first" ? "" : "second-"
+    }x-value-axis-${subChart.i_pane}-${subChart.i_lane}`,
     item: buildItem(identity.coordinates),
-    meta: { axisType: "x-value", ...identity.meta },
+    meta: { axisType: "x-value", valueAxis, ...identity.meta },
     ticks,
     axisLine,
     tickStyle: {

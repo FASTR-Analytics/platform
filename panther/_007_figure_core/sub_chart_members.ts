@@ -5,6 +5,13 @@
 
 import type { DataDimension, DimensionMember, ItemCoordinate } from "./deps.ts";
 import { itemCoordinate } from "./deps.ts";
+import type { SubChartMemberIds } from "./types.ts";
+
+export type SubChartDimensions = {
+  pane?: DataDimension;
+  tier?: DataDimension;
+  lane?: DataDimension;
+};
 
 // The pane, tier and lane members one sub-chart sits in, each undefined when
 // its prop is not given.
@@ -15,7 +22,7 @@ export type SubChartMembers = {
 };
 
 export function getSubChartMembers(
-  data: { pane?: DataDimension; tier?: DataDimension; lane?: DataDimension },
+  data: SubChartDimensions,
   indices: { i_pane: number; i_tier: number; i_lane: number },
 ): SubChartMembers {
   return {
@@ -25,8 +32,21 @@ export function getSubChartMembers(
   };
 }
 
+export function namesSubChart(
+  memberIds: SubChartMemberIds,
+  members: SubChartMembers,
+): boolean {
+  const names = (
+    ids: string[] | undefined,
+    member: DimensionMember | undefined,
+  ) => ids === undefined || member === undefined || ids.includes(member.id);
+  return names(memberIds.paneMemberIds, members.paneMember) &&
+    names(memberIds.tierMemberIds, members.tierMember) &&
+    names(memberIds.laneMemberIds, members.laneMember);
+}
+
 export function subChartItemCoordinates(
-  data: { pane?: DataDimension; tier?: DataDimension; lane?: DataDimension },
+  data: SubChartDimensions,
   members: SubChartMembers,
 ): ItemCoordinate[] {
   return [

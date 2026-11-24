@@ -7,10 +7,14 @@ export {
   getExportDevicePxPerDu,
   REFERENCE_WIDTH_DU,
 } from "../_000_consts/mod.ts";
+export type { SlideExportSizeOptions } from "../_000_consts/mod.ts";
 export { getFontInfoId } from "../_001_font/mod.ts";
 export type { FontInfo } from "../_001_font/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
-export { CanvasRenderContext } from "../_002_canvas/mod.ts";
+export {
+  buildCanvasRenderContext,
+  CanvasRenderContext,
+} from "../_002_canvas/mod.ts";
 export type { CreateCanvas, GfxCanvasImage } from "../_002_canvas/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export { CustomPageStyle } from "../_005_page_style/mod.ts";
@@ -23,8 +27,17 @@ export {
   resolveSequence,
 } from "../_012_sequence/mod.ts";
 export type { SequenceInputs } from "../_012_sequence/mod.ts";
-export { PageRenderer } from "../_121_page/mod.ts";
+export { getFontsForPage, PageRenderer } from "../_121_page/mod.ts";
 export type { PageInputs } from "../_121_page/mod.ts";
+export {
+  drawFigureAsToolImage,
+  drawPageAsToolImage,
+} from "../_123_tool_image/mod.ts";
+export type {
+  DrawnToolImage,
+  PageFrame,
+  ToolImageSurface,
+} from "../_123_tool_image/mod.ts";
 export { validateFilePath } from "../_230_file_utils/mod.ts";
 export { getWoffFontAbsoluteFilePath } from "../_231_font_paths/mod.ts";
 export { Canvas, createCanvas, Fonts, Image } from "@gfx/canvas";

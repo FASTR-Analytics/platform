@@ -14,6 +14,7 @@ import {
   getGlobalFigureStyle,
 } from "./_2_custom_figure_style_options.ts";
 import type {
+  LabelCollisionConfig,
   MergedChartOHStyle,
   MergedChartOVStyle,
   MergedChartStyleBase,
@@ -26,6 +27,7 @@ import type {
   MergedPieStyle,
   MergedSankeyStyle,
   MergedScaleLegendStyle,
+  MergedScatterStyle,
   MergedSceneStyle,
   MergedTableStyle,
   MergedTimeseriesStyle,
@@ -60,6 +62,8 @@ import {
   getMapAreaStyleFunc,
   getPieSliceStyleFunc,
   getPointStyleFunc,
+  getReferenceLineStyleFunc,
+  getScatterPointStyleFunc,
   getTableCellStyleFunc,
   getTableColHeaderStyleFunc,
   getTableRowHeaderStyleFunc,
@@ -361,6 +365,11 @@ export class CustomFigureStyle {
           g.text?.dataLabels,
           baseText,
         ),
+        subChartTexts: getTextInfo(
+          c.text?.subChartTexts,
+          g.text?.subChartTexts,
+          baseText,
+        ),
       },
       lanes: {
         hideHeaders: m(
@@ -467,25 +476,39 @@ export class CustomFigureStyle {
   }
 
   getMergedChartOVStyle(): MergedChartOVStyle {
+    const yValueAxis = this.getMergedYValueAxisStyle();
     return {
       ...this.getMergedChartStyleBase(),
-      yValueAxis: this.getMergedYValueAxisStyle(),
+      yValueAxis,
+      secondValueAxis: this.getMergedSecondValueAxisStyle(yValueAxis),
       xTextAxis: this.getMergedXTextAxisStyle(),
     };
   }
 
   getMergedChartOHStyle(): MergedChartOHStyle {
+    const xValueAxis = this.getMergedXValueAxisStyle();
     return {
       ...this.getMergedChartStyleBase(),
-      xValueAxis: this.getMergedXValueAxisStyle(),
+      xValueAxis,
+      secondValueAxis: this.getMergedSecondValueAxisStyle(xValueAxis),
       yTextAxis: this.getMergedYTextAxisStyle(),
     };
   }
 
-  getMergedTimeseriesStyle(): MergedTimeseriesStyle {
+  getMergedScatterStyle(): MergedScatterStyle {
     return {
       ...this.getMergedChartStyleBase(),
+      xValueAxis: this.getMergedXValueAxisStyle(),
       yValueAxis: this.getMergedYValueAxisStyle(),
+    };
+  }
+
+  getMergedTimeseriesStyle(): MergedTimeseriesStyle {
+    const yValueAxis = this.getMergedYValueAxisStyle();
+    return {
+      ...this.getMergedChartStyleBase(),
+      yValueAxis,
+      secondValueAxis: this.getMergedSecondValueAxisStyle(yValueAxis),
       xPeriodAxis: this.getMergedXPeriodAxisStyle(),
     };
   }
@@ -511,25 +534,12 @@ export class CustomFigureStyle {
           g.map?.calloutMargin,
           d.map.calloutMargin,
         ),
-        labelCollision: {
-          gap: ms(
-            sf,
-            c.map?.labelCollision?.gap,
-            g.map?.labelCollision?.gap,
-            d.map.labelCollision.gap,
-          ),
-          maxCentroidDisplacement: ms(
-            sf,
-            c.map?.labelCollision?.maxCentroidDisplacement,
-            g.map?.labelCollision?.maxCentroidDisplacement,
-            d.map.labelCollision.maxCentroidDisplacement,
-          ),
-          maxIterations: m(
-            c.map?.labelCollision?.maxIterations,
-            g.map?.labelCollision?.maxIterations,
-            d.map.labelCollision.maxIterations,
-          ),
-        },
+        labelCollision: mergeLabelCollision(
+          sf,
+          c.map?.labelCollision,
+          g.map?.labelCollision,
+          d.map.labelCollision,
+        ),
         // Placement policy: enums, ratios and angles are scale-invariant; only
         // the clearance floor is a length.
         outsideLabelPlacement: m(
@@ -651,25 +661,12 @@ export class CustomFigureStyle {
           g.pie?.centerLabel,
           d.pie.centerLabel,
         ),
-        labelCollision: {
-          gap: ms(
-            sf,
-            c.pie?.labelCollision?.gap,
-            g.pie?.labelCollision?.gap,
-            d.pie.labelCollision.gap,
-          ),
-          maxCentroidDisplacement: ms(
-            sf,
-            c.pie?.labelCollision?.maxCentroidDisplacement,
-            g.pie?.labelCollision?.maxCentroidDisplacement,
-            d.pie.labelCollision.maxCentroidDisplacement,
-          ),
-          maxIterations: m(
-            c.pie?.labelCollision?.maxIterations,
-            g.pie?.labelCollision?.maxIterations,
-            d.pie.labelCollision.maxIterations,
-          ),
-        },
+        labelCollision: mergeLabelCollision(
+          sf,
+          c.pie?.labelCollision,
+          g.pie?.labelCollision,
+          d.pie.labelCollision,
+        ),
         // Placement policy: enums, ratios and angles are scale-invariant; only
         // the clearance floor is a length.
         outsideLabelPlacement: m(
@@ -912,6 +909,26 @@ export class CustomFigureStyle {
         c.yValueAxis?.exactAxisX,
         g.yValueAxis?.exactAxisX,
         d.yValueAxis.exactAxisX,
+      ),
+    };
+  }
+
+  // The second value axis is drawn as the first is: only its limits and its
+  // tick label formatter, which depend on the series it measures, are its own.
+  private getMergedSecondValueAxisStyle<
+    T extends MergedYValueAxisStyle | MergedXValueAxisStyle,
+  >(firstValueAxis: T): T {
+    const c = this._c.secondValueAxis;
+    const g = this._g.secondValueAxis;
+    const d = this._d.secondValueAxis;
+    return {
+      ...firstValueAxis,
+      max: m(c?.max, g?.max, d.max),
+      min: m(c?.min, g?.min, d.min),
+      tickLabelFormatter: m(
+        c?.tickLabelFormatter,
+        g?.tickLabelFormatter,
+        d.tickLabelFormatter,
       ),
     };
   }
@@ -1331,6 +1348,17 @@ export class CustomFigureStyle {
           d.content.connectors.arrowheadFitMinLineLength,
         ),
       },
+      referenceLines: {
+        getStyle: getReferenceLineStyleFunc(sf, c, g, d),
+      },
+      subChartTexts: {
+        padding: msPadding(
+          sf,
+          c.content?.subChartTexts?.padding,
+          g.content?.subChartTexts?.padding,
+          d.content.subChartTexts.padding,
+        ),
+      },
       mapAreas: {
         getStyle: getMapAreaStyleFunc(sf, c, g, d),
         textFormatter: m(
@@ -1345,6 +1373,20 @@ export class CustomFigureStyle {
           c.content?.slices?.textFormatter,
           g.content?.slices?.textFormatter,
           d.content.slices.textFormatter,
+        ),
+      },
+      scatterPoints: {
+        getStyle: getScatterPointStyleFunc(sf, c, g, d),
+        textFormatter: m(
+          c.content?.scatterPoints?.textFormatter,
+          g.content?.scatterPoints?.textFormatter,
+          d.content.scatterPoints.textFormatter,
+        ),
+        labelCollision: mergeLabelCollision(
+          sf,
+          c.content?.scatterPoints?.labelCollision,
+          g.content?.scatterPoints?.labelCollision,
+          d.content.scatterPoints.labelCollision,
         ),
       },
     };
@@ -1840,4 +1882,24 @@ export class CustomFigureStyle {
       },
     );
   }
+}
+
+// The gap and the displacement are lengths, so they scale; the iteration
+// count does not.
+function mergeLabelCollision(
+  sf: number,
+  c: Partial<LabelCollisionConfig> | undefined,
+  g: Partial<LabelCollisionConfig> | undefined,
+  d: LabelCollisionConfig,
+): LabelCollisionConfig {
+  return {
+    gap: ms(sf, c?.gap, g?.gap, d.gap),
+    maxCentroidDisplacement: ms(
+      sf,
+      c?.maxCentroidDisplacement,
+      g?.maxCentroidDisplacement,
+      d.maxCentroidDisplacement,
+    ),
+    maxIterations: m(c?.maxIterations, g?.maxIterations, d.maxIterations),
+  };
 }

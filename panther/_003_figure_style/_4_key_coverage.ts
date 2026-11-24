@@ -104,6 +104,9 @@ export type FigureStyleKeyCoverage = {
   yValueAxis: AssertNoMissingKeys<
     Missing<"yValueAxis", MergedYValueAxisStyle>
   >;
+  secondValueAxis: AssertNoMissingKeys<
+    Missing<"secondValueAxis", MergedYValueAxisStyle>
+  >;
   content: AssertNoMissingKeys<Missing<"content", MergedContentAuthoringView>>;
   contentFuncPayloads: AssertNoMissingKeys<
     Exclude<FuncPayloadMissing, FuncPayloadExempt>

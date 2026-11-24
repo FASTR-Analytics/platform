@@ -14,6 +14,8 @@ import {
   CHART_LIMITS_LENGTH_MESSAGE,
   chartLimitsMatchMembers,
   type Conforms,
+  SECOND_VALUE_AXIS_SERIES_MESSAGE,
+  secondValueAxisAssignsSomeSeries,
   zChartOHProportional,
   zChartUncertainty,
   zChartValueAxisLimits,
@@ -21,6 +23,10 @@ import {
   zDimensionMembership,
   zJsonArray,
   zMemberSortConfig,
+  zReferenceLineDataConfig,
+  zSecondValueAxisDataConfig,
+  zSecondValueAxisDataTransformed,
+  zSubChartTextDataConfig,
   zUncertaintyConfig,
   zValues5D,
   zVisibleByPane,
@@ -58,6 +64,9 @@ export const zChartOHJsonDataConfig = z.object({
     .optional(),
   sortIndicatorValues: zValueSort.optional(),
   xValueAxisLabel: z.string().optional(),
+  secondValueAxis: zSecondValueAxisDataConfig.optional(),
+  referenceLines: z.array(zReferenceLineDataConfig).optional(),
+  subChartTexts: z.array(zSubChartTextDataConfig).optional(),
 });
 const _zChartOHJsonDataConfigConforms: Conforms<
   z.infer<typeof zChartOHJsonDataConfig>,
@@ -84,6 +93,9 @@ const zChartOHDataTransformedObject = z.object({
   uncertaintyValues: zChartUncertainty.optional(),
   valueAxisLimits: zChartValueAxisLimits,
   xValueAxisLabel: z.string().optional(),
+  secondValueAxis: zSecondValueAxisDataTransformed.optional(),
+  referenceLines: z.array(zReferenceLineDataConfig).optional(),
+  subChartTexts: z.array(zSubChartTextDataConfig).optional(),
   visibleIndicatorsByPane: zVisibleByPane.optional(),
   visibleTiersByPane: zVisibleByPane.optional(),
   visibleIndicatorsByPaneTier: zVisibleByPaneTierOrLane.optional(),
@@ -95,10 +107,9 @@ const _zChartOHDataTransformedConforms: Conforms<
 > = true;
 
 export const zChartOHDataTransformed: z.ZodType<ChartOHDataTransformed> =
-  zChartOHDataTransformedObject.refine(
-    chartLimitsMatchMembers,
-    CHART_LIMITS_LENGTH_MESSAGE,
-  );
+  zChartOHDataTransformedObject
+    .refine(chartLimitsMatchMembers, CHART_LIMITS_LENGTH_MESSAGE)
+    .refine(secondValueAxisAssignsSomeSeries, SECOND_VALUE_AXIS_SERIES_MESSAGE);
 
 export const zChartOHData: z.ZodType<ChartOHData> = z.union([
   zChartOHDataJson,

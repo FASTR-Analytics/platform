@@ -16,6 +16,7 @@ import {
   type RenderContext,
   walkLayout,
 } from "../../deps.ts";
+import { withPageFontFloor } from "./font_floor.ts";
 import { itemMeasurer } from "./item_measurer.ts";
 import { renderItem } from "./item_renderer.ts";
 import type { FreeformPageInputs, PageContentItem } from "../../types.ts";
@@ -39,9 +40,11 @@ export function measureContent(
     alreadyScaledValue: s.alreadyScaledValue,
   };
 
+  // The measured layout's items carry the floor, so every drawing of the page
+  // reads the inputs the layout measured.
   const result = measureLayout(
     { rc, s },
-    inputs.content,
+    withPageFontFloor(inputs.content, s.content.minFontSize),
     rcdContentInner,
     layoutStyle,
     createCachedMeasurer(itemMeasurer),

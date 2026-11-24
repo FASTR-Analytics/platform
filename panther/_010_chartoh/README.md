@@ -84,6 +84,7 @@ Axis placement within the pane (horizontal):
 
 - **Y-text axis** at the left of the pane, one per tier. All tiers show the same indicator labels (categories); drawn once per tier on the lane‑0 pass.
 - **X value axis** at the bottom of the pane, one per lane. Each lane can have its own value range via `allowIndividualLaneLimits`. The axis's height includes its axis label (`xValueAxisLabel`), below the tick labels and separated from them by `xValueAxis.axisLabelGap`.
+- **Second x value axis** at the top of the pane, below the lane headers and above the first tier, one per lane, where the data config's `secondValueAxis.seriesMemberIds` names a series member: those series are drawn against it. Its ticks stand on the first's grid lines, its tick labels above its axis line, and its axis label (`secondValueAxis.axisLabel`) above them; its strip is measured as the first's is, with its own axis label.
 
 ## Out of Scope (v1)
 
@@ -94,7 +95,7 @@ Axis placement within the pane (horizontal):
 ## Module Dependencies
 
 - `_007_figure_core` — axis dispatchers, pane measurement, content primitives
-- `_003_figure_style` — `MergedChartOHStyle` (extends `MergedChartStyleBase` with `xValueAxis` + `yTextAxis`)
+- `_003_figure_style` — `MergedChartOHStyle` (extends `MergedChartStyleBase` with `xValueAxis`, `secondValueAxis` + `yTextAxis`)
 - `_001_render_system` — primitive types
 - `_001_geometry` — `RectCoordsDims`, `Coordinates`
 - `_000_utils` — data-transform helpers

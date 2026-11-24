@@ -5,7 +5,6 @@
 
 export {
   assert,
-  createArray,
   getTimeFromPeriodId,
   getValidNumberOrUndefined,
   isBlankValue,
@@ -26,15 +25,19 @@ export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedTimeseriesStyle } from "../_003_figure_style/mod.ts";
 export {
   assertNoDataConfigIssues,
+  buildCategoryAndValueLegendSeries,
   buildDataDimension,
-  calculateChartValueAxisLimits,
+  buildSecondValueAxisConfig,
+  calculateChartValueAxes,
   calculateMinSubChartHeight,
   calculateTimeseriesMinSubChartWidth,
+  createEmptyValuesArray,
   estimateMinSurroundsWidth,
-  estimateMinYValueAxisWidth,
+  estimateMinYValueAxesWidth,
   estimateTierHeaderAndLabelGapWidth,
   getChartSizeConstraintsByMeasure,
   getEveryRowBlankIssues,
+  getEverySeriesOnSecondValueAxisIssues,
   getMemberIndex,
   getNoRowsIssues,
   getNotAPeriodIssues,
@@ -48,11 +51,14 @@ export {
   measureChart,
   measureChartWithAutofit,
   PANE_HEADER_SAMPLE_MAX_W,
+  referenceLinesOn,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveDefaultLegend,
   resolveValueAxisSubChartHeight,
   SIZING_SAMPLE,
+  trimReferenceLineLabels,
+  trimSubChartTexts,
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartComponentSizes,
@@ -68,6 +74,10 @@ export type {
   MeasuredSurrounds,
   PaneGrid,
   PaneLayout,
+  ReferenceLineDataConfig,
+  SecondValueAxisDataConfig,
+  SecondValueAxisDataTransformed,
   SimplifiedChartConfig,
+  SubChartTextDataConfig,
   UncertaintyConfig,
 } from "../_007_figure_core/mod.ts";

@@ -4,6 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  ChartValueAxis,
+  DataDimension,
   DimensionMember,
   MergedXPeriodAxisStyle,
   MergedXTextAxisStyle,
@@ -12,7 +14,12 @@ import type {
   MergedYValueAxisStyle,
   PeriodType,
 } from "../deps.ts";
-import type { ChartValueAxisLimits } from "../types.ts";
+import type {
+  ChartValueAxisLimits,
+  ReferenceLine,
+  ReferenceLineDataConfig,
+  SecondValueAxisDataTransformed,
+} from "../types.ts";
 
 export type XAxisConfig =
   | {
@@ -34,6 +41,7 @@ export type XAxisConfig =
     axisStyle: MergedXValueAxisStyle;
     axisData: ChartValueAxisLimits;
     axisLabel?: string;
+    referenceLines: ReferenceLine[];
   };
 
 export type YAxisConfig =
@@ -42,6 +50,7 @@ export type YAxisConfig =
     axisStyle: MergedYValueAxisStyle;
     axisData: ChartValueAxisLimits;
     axisLabel?: string;
+    referenceLines: ReferenceLine[];
   }
   | {
     type: "text";
@@ -63,11 +72,73 @@ export type ChartAxesConfig =
     orientation: "vertical";
     x: XCategoryAxisConfig;
     y: YValueAxisConfig;
+    secondY?: YValueAxisConfig & { seriesMemberIds: string[] };
   }
   | {
     kind: "category-and-value";
     orientation: "horizontal";
     x: XValueAxisConfig;
     y: YCategoryAxisConfig;
+    secondX?: XValueAxisConfig & { seriesMemberIds: string[] };
   }
+  | { kind: "value-and-value"; x: XValueAxisConfig; y: YValueAxisConfig }
   | { kind: "none" };
+
+export function referenceLinesOn(
+  referenceLines: ReferenceLineDataConfig[] | undefined,
+  valueAxis: ChartValueAxis,
+): ReferenceLine[] {
+  return (referenceLines ?? []).filter((line) =>
+    (line.valueAxis ?? "first") === valueAxis
+  );
+}
+
+export function buildSecondValueAxisConfig<
+  TAxisStyle extends MergedYValueAxisStyle | MergedXValueAxisStyle,
+>(
+  secondValueAxis: SecondValueAxisDataTransformed | undefined,
+  axisStyle: TAxisStyle,
+  referenceLines: ReferenceLineDataConfig[] | undefined,
+):
+  | {
+    type: "value";
+    axisStyle: TAxisStyle;
+    axisData: ChartValueAxisLimits;
+    axisLabel?: string;
+    referenceLines: ReferenceLine[];
+    seriesMemberIds: string[];
+  }
+  | undefined {
+  return secondValueAxis && {
+    type: "value",
+    axisStyle,
+    axisData: secondValueAxis.valueAxisLimits,
+    axisLabel: secondValueAxis.axisLabel,
+    referenceLines: referenceLinesOn(referenceLines, "second"),
+    seriesMemberIds: secondValueAxis.seriesMemberIds,
+  };
+}
+
+export type ValueAxisOfSeries = (i_series: number) => ChartValueAxis;
+
+export function getValueAxisOfSeries(
+  series: DataDimension | undefined,
+  secondValueAxisSeriesMemberIds: string[] | undefined,
+): ValueAxisOfSeries {
+  const assigned = new Set(secondValueAxisSeriesMemberIds);
+  return (i_series) => {
+    const id = series?.members[i_series]?.id;
+    return id !== undefined && assigned.has(id) ? "second" : "first";
+  };
+}
+
+export function getSecondValueAxisSeriesMemberIds(
+  axes: ChartAxesConfig,
+): string[] | undefined {
+  if (axes.kind !== "category-and-value") {
+    return undefined;
+  }
+  return axes.orientation === "vertical"
+    ? axes.secondY?.seriesMemberIds
+    : axes.secondX?.seriesMemberIds;
+}

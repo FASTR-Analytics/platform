@@ -214,7 +214,7 @@ export function MessageList(p: Props) {
     p.displayItems.filter((item) => item.type === "tool_in_progress");
 
   return (
-    <div class="ui-gap flex flex-col">
+    <div class="ui-gap mx-auto flex w-full max-w-(--ai-chat-content-width) flex-col">
       <Show
         when={p.displayItems.length > 0 || p.isStreaming ||
           (p.queuedTexts?.length ?? 0) > 0}

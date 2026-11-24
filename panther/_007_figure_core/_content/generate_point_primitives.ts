@@ -4,10 +4,13 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  type AlignH,
+  type AlignV,
   Coordinates,
   type DataLabel,
   type Primitive,
   RectCoordsDims,
+  type ResolvedPointStyle,
   Z_INDEX,
 } from "../deps.ts";
 import { chartValueItem } from "../chart_items.ts";
@@ -72,38 +75,49 @@ export function generatePointPrimitives(
   return primitives;
 }
 
+export function pointLabelPlace(
+  centre: Coordinates,
+  side: ResolvedPointStyle["dataLabelPosition"],
+  offset: number,
+): { position: Coordinates; alignH: AlignH; alignV: AlignV } {
+  const cx = centre.x();
+  const cy = centre.y();
+  switch (side) {
+    case "top":
+      return {
+        position: new Coordinates([cx, cy - offset]),
+        alignH: "center",
+        alignV: "bottom",
+      };
+    case "bottom":
+      return {
+        position: new Coordinates([cx, cy + offset]),
+        alignH: "center",
+        alignV: "top",
+      };
+    case "left":
+      return {
+        position: new Coordinates([cx - offset, cy]),
+        alignH: "right",
+        alignV: "middle",
+      };
+    case "right":
+      return {
+        position: new Coordinates([cx + offset, cy]),
+        alignH: "left",
+        alignV: "middle",
+      };
+  }
+}
+
 function makePointDataLabel(
   label: ResolvedDataLabel,
   dataLabelPosition: ResolvedValue["point"]["dataLabelPosition"],
   coords: Coordinates,
 ): DataLabel {
-  const cx = coords.x();
-  const cy = coords.y();
-  const off = label.offset;
-  const pos = dataLabelPosition === "top"
-    ? new Coordinates([cx, cy - off])
-    : dataLabelPosition === "bottom"
-    ? new Coordinates([cx, cy + off])
-    : dataLabelPosition === "left"
-    ? new Coordinates([cx - off, cy])
-    : dataLabelPosition === "right"
-    ? new Coordinates([cx + off, cy])
-    : coords;
-  const alignH = dataLabelPosition === "left"
-    ? "right" as const
-    : dataLabelPosition === "right"
-    ? "left" as const
-    : "center" as const;
-  const alignV = dataLabelPosition === "top"
-    ? "bottom" as const
-    : dataLabelPosition === "bottom"
-    ? "top" as const
-    : "middle" as const;
   return {
     mText: label.mText,
-    position: pos,
-    alignH,
-    alignV,
+    ...pointLabelPlace(coords, dataLabelPosition, label.offset),
     halo: label.halo,
   };
 }

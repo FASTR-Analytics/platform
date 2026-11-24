@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 // Pure box arithmetic over label rectangles — no figure knowledge. Shared by
-// every figure that places labels (map areas, pie slices).
+// every figure that places labels (map areas, pie slices, scatter points).
 export type CollisionLabel = {
   naturalX: number;
   naturalY: number;

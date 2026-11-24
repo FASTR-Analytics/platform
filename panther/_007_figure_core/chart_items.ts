@@ -11,6 +11,7 @@ import type {
   ItemCoordinate,
   PeriodType,
   PrimitiveItem,
+  ScatterPointInfo,
 } from "./deps.ts";
 import { buildItem, getPeriodIdFromTime, itemCoordinate } from "./deps.ts";
 import { subChartItemCoordinates } from "./sub_chart_members.ts";
@@ -45,6 +46,17 @@ export function chartValueItem(
     ...subChartItemCoordinates(dimensions, info),
     itemCoordinate(dimensions.series?.name, info.seriesMember),
     valueIndexCoordinate(dimensions, info.i_value),
+  ]);
+}
+
+export function scatterPointItem(
+  dimensions: ChartItemDataDimensions,
+  info: ScatterPointInfo,
+): PrimitiveItem | undefined {
+  return buildItem([
+    ...subChartItemCoordinates(dimensions, info),
+    itemCoordinate(dimensions.series?.name, info.seriesMember),
+    itemCoordinate(dimensions.indicator?.name, info.indicatorMember),
   ]);
 }
 

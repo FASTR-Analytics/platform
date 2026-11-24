@@ -35,6 +35,12 @@ export {
   PieRenderer,
 } from "../_010_pie/mod.ts";
 export type { MeasuredPie, PieInputs } from "../_010_pie/mod.ts";
+export {
+  getScatterDataConfigIssues,
+  isScatterDataTransformed,
+  ScatterRenderer,
+} from "../_010_scatter/mod.ts";
+export type { MeasuredScatter, ScatterInputs } from "../_010_scatter/mod.ts";
 export { DiagramRenderer, SceneRenderer } from "../_010_scene/mod.ts";
 export type {
   CustomDraw,

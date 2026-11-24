@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  buildCategoryAndValueLegendSeries,
   calculateMinSubChartWidth,
   type ChartComponentSizes,
   computeTotalGridLineStrokeWidth,
@@ -45,16 +46,22 @@ export function getChartOHComponentSizes(
   );
   const ms = cs.getMergedChartOHStyle();
 
-  const xAxisHeight = measureXValueAxisHeight(
+  const xAxesHeight = measureXValueAxisHeight(
     rc,
     data.xValueAxisLabel,
     ms.xValueAxis,
     ms.grid,
-  );
+  ) +
+    (data.secondValueAxis === undefined ? 0 : measureXValueAxisHeight(
+      rc,
+      data.secondValueAxis.axisLabel,
+      ms.secondValueAxis,
+      ms.grid,
+    ));
 
   // Y-text axis width (sample). Actual width depends on indicator labels;
   // the estimator gives a conservative minimum.
-  const minYAxisWidth = estimateMinYTextAxisWidth(
+  const minYAxesWidth = estimateMinYTextAxisWidth(
     rc,
     ms.yTextAxis,
     ms.grid,
@@ -121,6 +128,7 @@ export function getChartOHComponentSizes(
     inputs.legend,
     data.series,
   );
+  const legendSeries = buildCategoryAndValueLegendSeries(ms.content, data);
 
   return {
     customFigureStyle: cs,
@@ -130,16 +138,17 @@ export function getChartOHComponentSizes(
     nPanes: getDimensionMembers(data.pane).length,
     minSubChartWidth,
     minSubChartHeight,
-    xAxisHeight,
+    xAxesHeight,
     paneHeaderHeight,
-    minYAxisWidth,
+    minYAxesWidth,
     surroundsMinWidth: estimateMinSurroundsWidth(
       rc,
       cs,
       resolvedLegendLabels,
-      data.series,
+      legendSeries,
     ),
     resolvedLegendLabels,
+    legendSeries,
     // Proportional layout: the tick mode drives the inter-slot stroke term
     // in the ragged decompositions.
     slotTicksCentered: data.visibleIndicatorsByPaneTier

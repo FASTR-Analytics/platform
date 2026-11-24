@@ -41,6 +41,7 @@ export function renderFreeformSlide(
   pptx: PptxGenJSInstance,
   measured: MeasuredFreeformPage,
   createCanvasRenderContext: CreateCanvasRenderContext,
+  figureDevicePxPerDu: number,
 ): PptxSlide {
   const slide = pptx.addSlide() as unknown as PptxSlide;
   const inputs = measured.inputs;
@@ -96,7 +97,13 @@ export function renderFreeformSlide(
   }
 
   // Render content
-  renderContent(rc, slide, measured, createCanvasRenderContext);
+  renderContent(
+    rc,
+    slide,
+    measured,
+    createCanvasRenderContext,
+    figureDevicePxPerDu,
+  );
 
   // Watermark
   if (inputs.watermark) {
@@ -319,12 +326,19 @@ function renderContent(
   slide: PptxSlide,
   measured: MeasuredFreeformPage,
   createCanvasRenderContext: CreateCanvasRenderContext,
+  figureDevicePxPerDu: number,
 ): void {
   // Walk layout and render container styles + content items
   walkLayout(measured.mLayout, (node: MeasuredLayoutNode<PageContentItem>) => {
     renderContainerStyle(slide, node);
     if (node.type === "item") {
-      addContentItem(rc, slide, node, createCanvasRenderContext);
+      addContentItem(
+        rc,
+        slide,
+        node,
+        createCanvasRenderContext,
+        figureDevicePxPerDu,
+      );
     }
   });
 }
@@ -392,6 +406,7 @@ function addContentItem(
   slide: PptxSlide,
   node: MeasuredLayoutNode<PageContentItem> & { type: "item" },
   createCanvasRenderContext: CreateCanvasRenderContext,
+  figureDevicePxPerDu: number,
 ): void {
   const item = node.data;
   const bounds = node.contentRpd;
@@ -403,13 +418,14 @@ function addContentItem(
     return;
   }
 
-  // Figure: rasterize at exact measured dimensions (same as PDF)
+  // Figure: laid out in its measured rect, as the PDF draws it, and
+  // rasterised at the export's output pixel width
   if (FigureRenderer.isType(item)) {
     const {
       canvas,
       rc: figureRc,
       rcd,
-    } = createCanvasRenderContext(bounds.w(), bounds.h());
+    } = createCanvasRenderContext(bounds.w(), bounds.h(), figureDevicePxPerDu);
     FigureRenderer.measureAndRender(figureRc, rcd, item as FigureInputs);
     slide.addImage({
       data: canvas.toDataURL("png"),

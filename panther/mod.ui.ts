@@ -30,6 +30,7 @@ export * from "./_010_chartoh/mod.ts";
 export * from "./_010_chartov/mod.ts";
 export * from "./_010_maps/mod.ts";
 export * from "./_010_pie/mod.ts";
+export * from "./_010_scatter/mod.ts";
 export * from "./_010_scene/mod.ts";
 export * from "./_010_table/mod.ts";
 export * from "./_010_timeseries/mod.ts";
@@ -94,6 +95,7 @@ export * from "./_116_ai_one_shot/mod.ts";
 export * from "./_121_page/mod.ts";
 export * from "./_122_pdf/mod.ts";
 export * from "./_122_pptx/mod.ts";
+export * from "./_123_tool_image/mod.ts";
 export * from "./_150_figure_schema/mod.ts";
 export * from "./_151_long_table_schema/mod.ts";
 

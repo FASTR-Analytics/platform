@@ -93,6 +93,8 @@ const _DS = {
       gapX: 20,
       gapY: 20,
       figureMaxStretch: 1.5,
+      // 9.6 pt on a 16:9 slide 1000 wide, 6 pt on an A4 page 1000 wide.
+      minFontSize: 10,
     },
     layoutContainers: {
       padding: typed<PaddingOptions>(0),

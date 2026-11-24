@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { getDimensionMembers, z } from "./deps.ts";
+import { ALL_CHART_VALUE_AXES, getDimensionMembers, z } from "./deps.ts";
 import type {
   ChartValueAxisLimits,
   ChartValueAxisLimitsEntry,
@@ -21,6 +21,10 @@ import type {
   MemberSortFunc,
   NColsOrAuto,
   PeriodType,
+  ReferenceLineDataConfig,
+  SecondValueAxisDataConfig,
+  SecondValueAxisDataTransformed,
+  SubChartTextDataConfig,
   UncertaintyConfig,
   ValueSort,
 } from "./deps.ts";
@@ -238,20 +242,85 @@ const _zChartValueAxisLimitsConforms: Conforms<
   ChartValueAxisLimits
 > = true;
 
-// Mirrors the malformed-limits condition in the consumer migration gate
-// (pre-2026 blobs stored truncated tierLimits, e.g. length 1 on a 3-tier
-// chart): every per-pane tierLimits/laneLimits array must match the member
-// counts, so those blobs fail and trigger the upgrader.
-export function chartLimitsMatchMembers(d: {
+// strict: a mistyped key must error, not be silently stripped, since the
+// transform reads only the keys of its type.
+export const zSecondValueAxisDataConfig = z.strictObject({
+  seriesMemberIds: z.array(z.string()),
+  axisLabel: z.string().optional(),
+});
+const _zSecondValueAxisDataConfigConforms: ConformsExactly<
+  z.infer<typeof zSecondValueAxisDataConfig>,
+  SecondValueAxisDataConfig
+> = true;
+
+export const zSecondValueAxisDataTransformed = z.object({
+  seriesMemberIds: z.array(z.string()),
+  valueAxisLimits: zChartValueAxisLimits,
+  axisLabel: z.string().optional(),
+});
+const _zSecondValueAxisDataTransformedConforms: ConformsExactly<
+  z.infer<typeof zSecondValueAxisDataTransformed>,
+  SecondValueAxisDataTransformed
+> = true;
+
+const zSubChartMemberIdsShape = {
+  paneMemberIds: z.array(z.string()).optional(),
+  tierMemberIds: z.array(z.string()).optional(),
+  laneMemberIds: z.array(z.string()).optional(),
+};
+
+// The fields every figure's reference line shares; each figure's own schema
+// adds the value axis it names, and is strict as the second value axis's is.
+export const zReferenceLineShape = {
+  id: z.string(),
+  value: z.number(),
+  label: z.string().optional(),
+  labelPosition: z
+    .enum(["top-left", "top-right", "bottom-left", "bottom-right"])
+    .optional(),
+  ...zSubChartMemberIdsShape,
+};
+
+export const zReferenceLineDataConfig = z.strictObject({
+  ...zReferenceLineShape,
+  valueAxis: z.enum(ALL_CHART_VALUE_AXES).optional(),
+});
+const _zReferenceLineDataConfigConforms: ConformsExactly<
+  z.infer<typeof zReferenceLineDataConfig>,
+  ReferenceLineDataConfig
+> = true;
+
+export const zSubChartTextDataConfig = z.strictObject({
+  id: z.string(),
+  text: z.string(),
+  alignH: z.enum(["left", "center", "right"]),
+  alignV: z.enum(["top", "middle", "bottom"]),
+  ...zSubChartMemberIdsShape,
+});
+const _zSubChartTextDataConfigConforms: ConformsExactly<
+  z.infer<typeof zSubChartTextDataConfig>,
+  SubChartTextDataConfig
+> = true;
+
+type LayoutMembers = {
   pane?: DataDimension;
   tier?: DataDimension;
   lane?: DataDimension;
+};
+
+type ChartLimitsAndMembers = LayoutMembers & {
+  series?: DataDimension;
   valueAxisLimits: ChartValueAxisLimits;
-}): boolean {
+  secondValueAxis?: SecondValueAxisDataTransformed;
+};
+
+function limitsMatchMembers(
+  d: LayoutMembers,
+  limits: ChartValueAxisLimits,
+): boolean {
   return (
-    d.valueAxisLimits.paneLimits.length ===
-      getDimensionMembers(d.pane).length &&
-    d.valueAxisLimits.paneLimits.every(
+    limits.paneLimits.length === getDimensionMembers(d.pane).length &&
+    limits.paneLimits.every(
       (p) =>
         p.tierLimits.length === getDimensionMembers(d.tier).length &&
         p.laneLimits.length === getDimensionMembers(d.lane).length,
@@ -259,8 +328,48 @@ export function chartLimitsMatchMembers(d: {
   );
 }
 
+// Mirrors the malformed-limits condition in the consumer migration gate
+// (pre-2026 blobs stored truncated tierLimits, e.g. length 1 on a 3-tier
+// chart): every per-pane tierLimits/laneLimits array must match the member
+// counts, so those blobs fail and trigger the upgrader.
+export function chartLimitsMatchMembers(d: ChartLimitsAndMembers): boolean {
+  return limitsMatchMembers(d, d.valueAxisLimits) &&
+    (d.secondValueAxis === undefined ||
+      limitsMatchMembers(d, d.secondValueAxis.valueAxisLimits));
+}
+
 export const CHART_LIMITS_LENGTH_MESSAGE =
-  "valueAxisLimits pane/tier/lane lengths must match members";
+  "valueAxisLimits and secondValueAxis.valueAxisLimits pane/tier/lane lengths must match members";
+
+export function scatterLimitsMatchMembers(
+  d: LayoutMembers & {
+    xValueAxisLimits: ChartValueAxisLimits;
+    yValueAxisLimits: ChartValueAxisLimits;
+  },
+): boolean {
+  return limitsMatchMembers(d, d.xValueAxisLimits) &&
+    limitsMatchMembers(d, d.yValueAxisLimits);
+}
+
+export const SCATTER_LIMITS_LENGTH_MESSAGE =
+  "xValueAxisLimits and yValueAxisLimits pane/tier/lane lengths must match members";
+
+// As the transform builds it: the second value axis exists only where it
+// assigns a series member, and leaves the first value axis at least one.
+export function secondValueAxisAssignsSomeSeries(
+  d: ChartLimitsAndMembers,
+): boolean {
+  if (d.secondValueAxis === undefined) {
+    return true;
+  }
+  const memberIds = new Set(d.series?.members.map((member) => member.id));
+  const assigned = new Set(d.secondValueAxis.seriesMemberIds);
+  return assigned.size > 0 && assigned.size < memberIds.size &&
+    [...assigned].every((id) => memberIds.has(id));
+}
+
+export const SECOND_VALUE_AXIS_SERIES_MESSAGE =
+  "secondValueAxis.seriesMemberIds must name series members, at least one and not every one";
 
 // Present-and-object, nothing more — for deliberately unvalidated members.
 // The validator must reject undefined: a validator accepting undefined would

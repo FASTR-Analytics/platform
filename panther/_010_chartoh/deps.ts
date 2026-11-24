@@ -18,6 +18,8 @@ export type {
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedChartOHStyle } from "../_003_figure_style/mod.ts";
 export {
+  buildCategoryAndValueLegendSeries,
+  buildSecondValueAxisConfig,
   calculateMinSubChartWidth,
   computeTotalGridLineStrokeWidth,
   countProportionalSlots,
@@ -32,9 +34,11 @@ export {
   measureChartWithAutofit,
   measureXValueAxisHeight,
   PANE_HEADER_SAMPLE_MAX_W,
+  referenceLinesOn,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveDefaultLegend,
+  sampleSeriesInfos,
   SIZING_SAMPLE,
   transformChartOVOrOHJson,
 } from "../_007_figure_core/mod.ts";
@@ -50,9 +54,13 @@ export type {
   MeasuredSurrounds,
   PaneGrid,
   PaneLayout,
+  ReferenceLineDataConfig,
   ResolveFloorExtent,
   ResolveTargetExtent,
+  SecondValueAxisDataConfig,
+  SecondValueAxisDataTransformed,
   SimplifiedChartConfig,
+  SubChartTextDataConfig,
   UncertaintyConfig,
   ValueSort,
 } from "../_007_figure_core/mod.ts";

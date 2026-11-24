@@ -5,6 +5,7 @@
 
 export type { Pt, Rect } from "../_001_geometry/mod.ts";
 export { ease } from "../_001_motion/mod.ts";
+export { getDevicePixelRatio } from "../_301_util_funcs/mod.ts";
 export {
   createEffect,
   createSignal,

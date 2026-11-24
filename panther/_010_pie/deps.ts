@@ -48,6 +48,7 @@ export {
   calculateMinLabelSubChartExtent,
   circleTrack,
   computeNRows,
+  createEmptyValuesArray,
   estimateMinSurroundsWidth,
   estimateTierHeaderAndLabelGapWidth,
   fillValues,

@@ -13,6 +13,7 @@ import {
 } from "./deps.ts";
 import type { FigureInputsBase } from "./types.ts";
 import type { LegendInput } from "./_legend/scale_legend_types.ts";
+import type { LegendSeries } from "./_legend/types.ts";
 import type { PaneLayout } from "./measure_types.ts";
 import { computeTotalGridLineStrokeWidth } from "./_axes/slot_layout.ts";
 import {
@@ -100,11 +101,12 @@ export type ChartComponentSizes = {
   nPanes: number;
   minSubChartWidth: number;
   minSubChartHeight: number;
-  xAxisHeight: number;
+  xAxesHeight: number;
   paneHeaderHeight: number;
-  minYAxisWidth: number;
+  minYAxesWidth: number;
   surroundsMinWidth: number;
   resolvedLegendLabels: LegendInput | undefined;
+  legendSeries?: LegendSeries;
   // Proportional tier-or-lane layout only: the per-slot minimum along the
   // categorical direction (per-column width floor on OV) and the text-axis
   // tick mode (drives the inter-slot stroke term). Set by the renderers'
@@ -115,10 +117,10 @@ export type ChartComponentSizes = {
 
 // Each renderer supplies this: turn the figure's content + a probe's layout
 // geometry into the natural per-sub-chart height (the raw target before
-// the legibility-floor clamp). Value-axis charts (ChartOV, Timeseries) share
-// resolveValueAxisSubChartHeight below; ChartOH, Map and Pie provide their own
-// from the probe's geometry. paneGrid is the grid the caller resolved for this
-// scale and width.
+// the legibility-floor clamp). Value-axis charts (ChartOV, Timeseries,
+// Scatter) share resolveValueAxisSubChartHeight below; ChartOH, Map and Pie
+// provide their own from the probe's geometry. paneGrid is the grid the
+// caller resolved for this scale and width.
 export type ResolveTargetExtent = (
   info: ChartComponentSizes,
   probeLayouts: PaneLayout[],
@@ -160,10 +162,11 @@ export type ChartProbeSizing = {
   resolveFloorSlotExtent?: ResolveFloorExtent;
 };
 
-// Natural sub-chart-height resolver for value-axis charts (ChartOV, Timeseries):
-// the idealHeight.idealSubChartHeight policy evaluated at the vertically-stacked
-// sub-chart-row count (nPaneRows × nTiers). Layout-independent — probeLayouts
-// is unused. Both renderers pass this as their ResolveTargetExtent.
+// Natural sub-chart-height resolver for value-axis charts (ChartOV,
+// Timeseries, Scatter): the idealHeight.idealSubChartHeight policy evaluated
+// at the vertically-stacked sub-chart-row count (nPaneRows × nTiers).
+// Layout-independent — probeLayouts is unused. The three renderers pass this
+// as their ResolveTargetExtent.
 export function resolveValueAxisSubChartHeight(
   info: ChartComponentSizes,
   _probeLayouts: PaneLayout[],
@@ -224,10 +227,10 @@ function minWidthColumns(info: ChartComponentSizes): number {
 
 function chartMinWidthAt(
   info: ChartComponentSizes,
-  yAxisWidth: number,
+  yAxesWidth: number,
 ): number {
   const nPaneCols = minWidthColumns(info);
-  return calculateColumnMinWidth(info, yAxisWidth) * nPaneCols +
+  return calculateColumnMinWidth(info, yAxesWidth) * nPaneCols +
     (nPaneCols - 1) * info.mergedStyle.panes.gapX +
     info.surroundsMinWidth;
 }
@@ -255,7 +258,7 @@ export function calculateChartIdealHeight(
       (info.paneHeaderHeight + info.mergedStyle.panes.headerGap) * nPaneRows;
   }
 
-  const xAxisHeight = info.xAxisHeight * nPaneRows;
+  const xAxesHeight = info.xAxesHeight * nPaneRows;
 
   const dummyBounds = new RectCoordsDims({
     x: 0,
@@ -271,6 +274,7 @@ export function calculateChartIdealHeight(
     inputs.subtitle,
     inputs.footnote,
     info.resolvedLegendLabels,
+    info.legendSeries,
   );
 
   return (
@@ -279,7 +283,7 @@ export function calculateChartIdealHeight(
     paneGapsHeight +
     tierPaddingHeight +
     paneHeadersHeight +
-    xAxisHeight +
+    xAxesHeight +
     mSurrounds.extraHeightDueToSurrounds
   );
 }
@@ -430,7 +434,7 @@ function probeChartSizes(
   };
 }
 
-// The chart's minimum width with the probe's real y-axis widths in place of
+// The chart's minimum width with the probe's real y axes' widths in place of
 // the estimate; proportional OV pane widths sum per-pane totals instead of
 // max × count.
 function chartMinWidthFromLayouts(
@@ -439,7 +443,7 @@ function chartMinWidthFromLayouts(
 ): number {
   return proportionalPanesDirectionOf(layouts) === "width"
     ? calculateChartMinWidthProportionalPanes(info, layouts)
-    : chartMinWidthAt(info, Math.max(...layouts.map((l) => l.yAxisWidth)));
+    : chartMinWidthAt(info, Math.max(...layouts.map((l) => l.yAxesWidth)));
 }
 
 // ---------------------------------------------------------------------------
@@ -592,7 +596,7 @@ function computeChartIdealHeightProportionalPanes(
 
 // Proportional panes, OV (free = WIDTH): a pane row's width is the SUM over
 // its panes of (slot total × per-slot width + strokes + lane gaps/padding +
-// that pane's own probed y-axis width), not max × count. Mirrors
+// that pane's own probed y axes' width), not max × count. Mirrors
 // chartMinWidthAt's terms (pane padding is likewise not modeled).
 function calculateChartMinWidthProportionalPanes(
   info: ChartComponentSizes,
@@ -610,7 +614,7 @@ function calculateChartMinWidthProportionalPanes(
       computeTotalGridLineStrokeWidth(slots, nTiersOrLanes, centered, gsw) +
       Math.max(0, nTiersOrLanes - 1) * lanes.gapX +
       lanes.paddingLeft + lanes.paddingRight +
-      l.yAxisWidth;
+      l.yAxesWidth;
   }
   const paneGapsWidth = (layouts.length - 1) * info.mergedStyle.panes.gapX;
   return total + paneGapsWidth + info.surroundsMinWidth;

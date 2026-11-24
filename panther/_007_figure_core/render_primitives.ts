@@ -291,12 +291,32 @@ export function renderPrimitive(
       renderCascadeArrowPrimitive(rc, primitive);
       break;
 
+    case "chart-reference-line":
+      rc.rLine(primitive.coords, primitive.style);
+      if (primitive.label) {
+        renderDataLabel(rc, primitive.label);
+      }
+      break;
+
+    case "chart-sub-chart-text":
+      rc.rText(
+        primitive.mText,
+        primitive.alignRcd,
+        primitive.alignH,
+        primitive.alignV,
+      );
+      break;
+
     case "map-area":
       rc.rPath(primitive.pathSegments, primitive.pathStyle);
       break;
 
     case "pie-slice":
       renderPieSlicePrimitive(rc, primitive);
+      break;
+
+    case "scatter-point":
+      rc.rPoint(primitive.coords, primitive.style);
       break;
 
     case "figure-label":

@@ -506,12 +506,12 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   const hasRight = () => !!rightChild();
   const stripWidth = () =>
     p.noBorder ? HANDLE_STRIP_NO_BORDER_PX : HANDLE_STRIP_PX;
-  const [leftGutterWidth, setLeftGutterWidth] = createSignal(0);
-  const [rightGutterWidth, setRightGutterWidth] = createSignal(0);
-  // The gutters are in the centre's row and never shrink, so a panel that
-  // took their room would push the row past the frame's edge.
+  const [leftControlsWidth, setLeftControlsWidth] = createSignal(0);
+  const [rightControlsWidth, setRightControlsWidth] = createSignal(0);
+  // The controls lie over the centre's two edges, so a centre narrower than
+  // both would put one side's over the other's.
   const centreFloor = () =>
-    stripWidth() + leftGutterWidth() + rightGutterWidth();
+    stripWidth() + leftControlsWidth() + rightControlsWidth();
 
   const left = createResizablePanel({
     side: "left",
@@ -593,9 +593,16 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
           </div>
         </Show>
         <div
-          class="flex h-full"
+          class="relative h-full overflow-hidden"
           classList={{ "mr-px": hasRight() && !p.noBorder }}
+          style={{
+            "--ui-side-controls-left": `${leftControlsWidth()}px`,
+            "--ui-side-controls-right": `${rightControlsWidth()}px`,
+          }}
         >
+          <div class={slotClass("h-full w-full overflow-auto", p.pad, p.spy)}>
+            {p.centerChild}
+          </div>
           <Show when={p.leftTabs}>
             {(tabs) => (
               <SideControls
@@ -603,17 +610,10 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
                 open={hasLeft()}
                 tabs={tabs()}
                 onClose={() => p.onLeftClose?.()}
-                onWidth={setLeftGutterWidth}
+                onWidth={setLeftControlsWidth}
               />
             )}
           </Show>
-          <div class="h-full w-0 flex-1 overflow-hidden">
-            <div
-              class={slotClass("h-full w-full overflow-auto", p.pad, p.spy)}
-            >
-              {p.centerChild}
-            </div>
-          </div>
           <Show when={p.rightTabs}>
             {(tabs) => (
               <SideControls
@@ -621,7 +621,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
                 open={hasRight()}
                 tabs={tabs()}
                 onClose={() => p.onRightClose?.()}
-                onWidth={setRightGutterWidth}
+                onWidth={setRightControlsWidth}
               />
             )}
           </Show>
@@ -645,12 +645,14 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
 const CLOSE_LABEL = { en: "Close", fr: "Fermer", pt: "Fechar", th: "ปิด" };
 const OPEN_LABEL = { en: "Open", fr: "Ouvrir", pt: "Abrir", th: "เปิด" };
 
-// One side's controls, in a gutter of the centre's row beside its slot, so no
-// content of the centre is ever under them: a close button while the side is
-// open, one tab per tab of the side while it is closed. They start one heading
-// bar below the centre's top, so they sit beside its content, not its header,
-// and on the drag handles' layer, after their strips, so a strip that reaches
-// into the gutter never takes their clicks.
+// One side's controls, laid over the centre's edge so the centre runs to the
+// frame's edge, its header included: a close button while the side is open,
+// one tab per tab of the side while it is closed. They start 1rem below one
+// heading bar, so they never cover a centre's HeadingBar, and their width is
+// published on the centre as --ui-side-controls-left / -right, which content
+// beside them pads by (ui-pad-x-beside-side-controls). They are on the drag
+// handles' layer, after their strips, so a strip that reaches over the
+// centre's edge never takes their clicks.
 function SideControls(p: {
   side: "left" | "right";
   open: boolean;
@@ -658,7 +660,7 @@ function SideControls(p: {
   onClose: () => void;
   onWidth: (width: number) => void;
 }) {
-  let gutter!: HTMLDivElement;
+  let controls!: HTMLDivElement;
   let observer: ResizeObserver | undefined;
   onMount(() => {
     observer = new ResizeObserver((entries) => {
@@ -666,7 +668,7 @@ function SideControls(p: {
         p.onWidth(entry.contentRect.width);
       }
     });
-    observer.observe(gutter);
+    observer.observe(controls);
   });
   onCleanup(() => {
     observer?.disconnect();
@@ -676,15 +678,15 @@ function SideControls(p: {
   // The clicked control is replaced by the other kind, which would drop focus
   // to the document, so focus moves to the replacement.
   const run = (action: () => void) => {
-    const hadFocus = gutter.contains(document.activeElement);
+    const hadFocus = controls.contains(document.activeElement);
     action();
-    if (hadFocus && !gutter.contains(document.activeElement)) {
-      gutter.querySelector("button")?.focus();
+    if (hadFocus && !controls.contains(document.activeElement)) {
+      controls.querySelector("button")?.focus();
     }
   };
 
   const skinClass = () =>
-    `ui-hoverable-base-200 ui-focusable relative z-40 border text-sm ${
+    `ui-hoverable-base-200 ui-focusable border text-sm ${
       p.side === "left" ? "rounded-r border-l-0" : "rounded-l border-r-0"
     }`;
   const sideLabel = () =>
@@ -694,8 +696,9 @@ function SideControls(p: {
 
   return (
     <div
-      ref={gutter}
-      class="ui-gap-sm flex h-full flex-none flex-col pt-[calc(var(--ui-heading-bar-height)+var(--ui-pad-y))]"
+      ref={controls}
+      class="ui-gap-sm absolute top-[calc(var(--ui-heading-bar-height)+--spacing(4))] z-40 flex flex-col"
+      classList={{ "left-0": p.side === "left", "right-0": p.side === "right" }}
     >
       <Show
         when={p.open}
@@ -704,7 +707,7 @@ function SideControls(p: {
             {(tab) => (
               <button
                 type="button"
-                class={`${skinClass()} ui-pad-x-sm ui-pad-y-sm ui-gap-sm flex flex-col items-center`}
+                class={`${skinClass()} ui-pad-x-sm ui-pad-y ui-gap-sm flex flex-col items-center`}
                 aria-label={`${t3(OPEN_LABEL)} ${tab.label}`}
                 aria-expanded="false"
                 onClick={() => run(tab.onOpen)}

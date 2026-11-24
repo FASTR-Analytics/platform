@@ -111,6 +111,19 @@ const passed = trials[0].filter((trial) =>
 );
 ```
 
+A chat with a view controller sends every message from a view, so its trials name the view registry and send each question from a view, written as `setView` takes it. The question's message carries the view's label, state and instructions as the chat's message from that view does, and a view-bound tool runs gated against that view and handed its state. Full contract: DOC_AI_CHAT.md "Trials from a view".
+
+```typescript
+const trials = await runAITrials(
+  { sdkClient: anthropic, system: () => SYSTEM_PROMPT, tools, viewRegistry },
+  [
+    { text: "How many ANC1 visits were there in 2024?", view: ["home"] },
+    { text: "Make the bars green.", view: ["figure", { id, version: 1 }] },
+  ],
+  { runs: 10 },
+);
+```
+
 ## Custom Tools
 
 ```typescript
@@ -340,6 +353,8 @@ const showRows = createAITool({
   handler: (input) => readRows(input.table),
 });
 ```
+
+**Width:** `AIChat`'s `contentWidth`, a CSS length (default `48rem`), is the widest the transcript's items and the composer are set, centred in a wider chat. No card is set wider: a figure or a slide lays out in its fixed frame whatever width it is shown at, so a wider card would only enlarge it, and content that cannot be read at the content width is content to change.
 
 ## Custom Renderers
 

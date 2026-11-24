@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { _GLOBAL_LAYOUT_COLUMNS, type RectCoordsDims } from "./deps.ts";
+import { _GLOBAL_LAYOUT_COLUMNS, type RectCoordsDims, sum } from "./deps.ts";
 import { createColsNode, createRowsNode } from "./id.ts";
 import { measureLayout } from "./measure.ts";
 import {
@@ -17,6 +17,7 @@ import type {
   LayoutNode,
   MeasuredItemLayoutNode,
   MeasuredLayoutNode,
+  MeasureLayoutResult,
   ResolvedContainerStyle,
 } from "./types.ts";
 
@@ -44,6 +45,9 @@ export type OptimizerConfig = {
 
 export type LayoutScore = {
   overflow: 0 | 1;
+  // How far the layout overflows: over its causes, the need past the room as
+  // a share of the room alone, or of one design unit where that is less.
+  overflowExcess: number;
   shrinkPenalty: number;
   stretchPenalty: number;
   scalePenalty: number;
@@ -57,8 +61,9 @@ export type ScoredLayout<U> = {
   score: LayoutScore;
 };
 
+// The weights of the terms that grade how a layout draws. Overflow has none:
+// pickBestLayout ranks by it first.
 export type LayoutScoreWeights = {
-  overflow?: number;
   shrinkPenalty?: number;
   stretchPenalty?: number;
   scalePenalty?: number;
@@ -67,14 +72,10 @@ export type LayoutScoreWeights = {
 };
 
 const DEFAULT_WEIGHTS: Required<LayoutScoreWeights> = {
-  overflow: 100_000,
   shrinkPenalty: 10,
   stretchPenalty: 5,
   scalePenalty: 8,
   heightImbalance: 2,
-  // Phase D: now meaningful since figure idealH is natural (Phase B2) and
-  // maxH is finite (idealH × 1.5) — unused space at the bottom of a page
-  // is a real layout quality signal, not a phantom from floor == ideal.
   wastedSpace: 1,
 };
 
@@ -117,7 +118,7 @@ export function scoreLayouts<T, U>(
 ): ScoredLayout<U>[] {
   return candidates.map((candidate) => {
     const result = measureLayout(ctx, candidate, bounds, style, itemMeasurer);
-    const score = scoreOneMeasured(result.measured, bounds, result.overflow);
+    const score = scoreOneMeasured(result, bounds);
     return { layout: candidate, measured: result.measured, score };
   });
 }
@@ -131,28 +132,28 @@ export function computeWeightedScore(
   weights?: LayoutScoreWeights,
 ): number {
   const w = { ...DEFAULT_WEIGHTS, ...weights };
-  return score.overflow * w.overflow +
-    score.shrinkPenalty * w.shrinkPenalty +
+  return score.shrinkPenalty * w.shrinkPenalty +
     score.stretchPenalty * w.stretchPenalty +
     score.scalePenalty * w.scalePenalty +
     score.heightImbalance * w.heightImbalance +
     score.wastedSpace * w.wastedSpace;
 }
 
+// A candidate that fits beats every candidate that overflows, and of two that
+// overflow the one that overflows less wins, whatever their other terms: a
+// page that overflows is broken, and a weight of any size on overflow could
+// be outweighed by the rest. The first of equal candidates wins.
 export function pickBestLayout<U>(
   scored: ScoredLayout<U>[],
   weights?: LayoutScoreWeights,
 ): ScoredLayout<U> {
-  let best = scored[0];
-  let bestTotal = computeWeightedScore(best.score, weights);
-  for (let i = 1; i < scored.length; i++) {
-    const total = computeWeightedScore(scored[i].score, weights);
-    if (total < bestTotal) {
-      best = scored[i];
-      bestTotal = total;
-    }
-  }
-  return best;
+  const rank = (a: LayoutScore, b: LayoutScore) =>
+    a.overflow - b.overflow ||
+    a.overflowExcess - b.overflowExcess ||
+    computeWeightedScore(a, weights) - computeWeightedScore(b, weights);
+  return scored.reduce((best, candidate) =>
+    rank(candidate.score, best.score) < 0 ? candidate : best
+  );
 }
 
 // =============================================================================
@@ -177,6 +178,7 @@ export function optimizeLayout<T, U>(
       measured: result.measured,
       score: {
         overflow: 0,
+        overflowExcess: 0,
         shrinkPenalty: 0,
         stretchPenalty: 0,
         scalePenalty: 0,
@@ -346,9 +348,8 @@ function generateCandidatesExhaustive<U>(
 // =============================================================================
 
 function scoreOneMeasured<U>(
-  measured: MeasuredLayoutNode<U>,
+  { measured, overflow, overflowCauses }: MeasureLayoutResult<U>,
   bounds: RectCoordsDims,
-  overflow: boolean,
 ): LayoutScore {
   let shrinkPenalty = 0;
   let stretchPenalty = 0;
@@ -387,11 +388,17 @@ function scoreOneMeasured<U>(
 
   const heightImbalance = calculateHeightImbalance(measured);
 
-  const totalIdealHeight = sumIdealHeights(measured);
-  const wastedSpace = Math.max(0, bounds.h() - totalIdealHeight);
+  // The room below the layout as drawn, where items side by side take the
+  // height of the tallest, never the sum of theirs.
+  const wastedSpace = Math.max(0, bounds.h() - measured.rpd.h());
 
   return {
     overflow: overflow ? 1 : 0,
+    overflowExcess: sum(
+      overflowCauses.map((c) =>
+        (c.need - c.available) / Math.max(1, c.availableAlone)
+      ),
+    ),
     shrinkPenalty,
     stretchPenalty,
     scalePenalty,
@@ -435,12 +442,4 @@ function walkMeasuredItems<U>(
       walkMeasuredItems(child, callback);
     }
   }
-}
-
-function sumIdealHeights<U>(node: MeasuredLayoutNode<U>): number {
-  let total = 0;
-  walkMeasuredItems(node, (item) => {
-    total += item.idealH;
-  });
-  return total;
 }

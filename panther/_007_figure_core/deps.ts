@@ -8,6 +8,7 @@ export {
   _GLOBAL_MAX_YEAR_FOR_PERIODS,
   _GLOBAL_MIN_YEAR_FOR_PERIODS,
   assert,
+  assertNotUndefined,
   BLANK_SENTINEL,
   buildAutoFormatter,
   createArray,
@@ -28,6 +29,7 @@ export type {
   FiscalYearRule,
   Language,
   PeriodType,
+  TickLabelFormatterOption,
 } from "../_000_utils/mod.ts";
 export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
@@ -41,6 +43,7 @@ export {
 } from "../_001_geometry/mod.ts";
 export type { AlignH, AlignV, PaddingOptions } from "../_001_geometry/mod.ts";
 export {
+  ALL_CHART_VALUE_AXES,
   buildItem,
   compareBlankLast,
   computeBoundsForPath,
@@ -49,7 +52,9 @@ export {
   getDimensionMembers,
   itemCoordinate,
   labelBoxRcd,
+  REFERENCE_LINE_ITEM_KEY,
   sortDimensionMembers,
+  SUB_CHART_TEXT_ITEM_KEY,
   textBoxInAlignRcd,
   unionRectCoordsDims,
   Z_INDEX,
@@ -66,7 +71,10 @@ export type {
   ChartErrorBarPrimitive,
   ChartGridPrimitive,
   ChartHeaderPrimitive,
+  ChartReferenceLinePrimitive,
   ChartSeriesInfo,
+  ChartSubChartTextPrimitive,
+  ChartValueAxis,
   ChartValueInfo,
   DataDimension,
   DataLabel,
@@ -90,9 +98,11 @@ export type {
   Primitive,
   PrimitiveItem,
   RectStyle,
+  ReferenceLineInfo,
   RenderContext,
   SankeyLinkPrimitive,
   SankeyNodePrimitive,
+  ScatterPointInfo,
   ShapePathPrimitive,
   ShapePrimitive,
   SizeConstraints,
@@ -119,4 +129,5 @@ export type {
   MergedXValueAxisStyle,
   MergedYTextAxisStyle,
   MergedYValueAxisStyle,
+  ResolvedPointStyle,
 } from "../_003_figure_style/mod.ts";

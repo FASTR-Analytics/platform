@@ -69,6 +69,11 @@ export type ContentStyleOptions = {
   // own their ideal height, the page owns how much they stretch past it.
   // Figures that fill freely (sankey, map, image) ignore this.
   figureMaxStretch?: number;
+  // The smallest size, in design units, a block's base text shrinks to: the
+  // autofit floor of every markdown and figure the page holds whose own
+  // autofit names none. Legibility is physical and a page has a physical
+  // size, so the page owns it; a block that fits only below it overflows.
+  minFontSize?: number;
 };
 
 export type LayoutContainersStyleOptions = {

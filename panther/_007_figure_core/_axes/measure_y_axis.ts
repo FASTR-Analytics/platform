@@ -14,7 +14,10 @@ import type {
   YValueAxisConfig,
 } from "./axis_configs.ts";
 import type { ValueRange, YValueAxisWidthInfo } from "../types.ts";
-import { measureYValueAxisWidthInfo } from "./y_value/measure.ts";
+import {
+  measureSecondYValueAxisWidthInfo,
+  measureYValueAxisWidthInfo,
+} from "./y_value/measure.ts";
 import { measureYTextAxisWidthInfo } from "./y_text/measure.ts";
 import type { YTextAxisWidthInfo } from "./y_text/types.ts";
 
@@ -56,6 +59,28 @@ export function measureYValueAxis(
   };
 }
 
+export function measureSecondYValueAxis(
+  rc: RenderContext,
+  config: YValueAxisConfig,
+  gridStyle: MergedGridStyle,
+  firstAxis: Extract<MeasuredYAxis, { type: "value" }>,
+  iPane: number,
+): Extract<MeasuredYAxis, { type: "value" }> {
+  return {
+    type: "value",
+    config,
+    info: measureSecondYValueAxisWidthInfo(
+      rc,
+      config.axisData,
+      config.axisLabel,
+      config.axisStyle,
+      gridStyle,
+      iPane,
+      firstAxis.info.yAxisTickValues,
+    ),
+  };
+}
+
 export function measureYCategoryAxis(
   rc: RenderContext,
   config: YCategoryAxisConfig,
@@ -77,8 +102,11 @@ export function measureYCategoryAxis(
   };
 }
 
+// The tiers stand below the lane headers and, on a horizontal chart with a
+// second x value axis, below that axis's strip, and above the x axis.
 export function measureYAxisLayout(
   topHeightForLaneHeaders: number,
+  secondXAxisHeight: number,
   xAxisHeight: number,
   yAxisWidth: number,
   tiers: { paddingTop: number; paddingBottom: number; gapY: number },
@@ -86,10 +114,11 @@ export function measureYAxisLayout(
   nTiers: number,
   tierHeaderAndLabelGapHeight: number,
 ): { yAxisRcd: RectCoordsDims; uniformSubChartHeight: number } {
+  const heightAboveTiers = topHeightForLaneHeaders + secondXAxisHeight;
   const yAxisRcd = innerRcd.getAdjusted((prev) => ({
-    y: prev.y() + topHeightForLaneHeaders,
+    y: prev.y() + heightAboveTiers,
     w: yAxisWidth,
-    h: prev.h() - (topHeightForLaneHeaders + xAxisHeight),
+    h: prev.h() - (heightAboveTiers + xAxisHeight),
   }));
 
   const uniformSubChartHeight = (yAxisRcd.h() -

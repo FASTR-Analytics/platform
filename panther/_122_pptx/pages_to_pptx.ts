@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  getExportDevicePxPerDu,
   type MeasuredPage,
   type MeasuredText,
   type MergedPageNumberStyle,
@@ -11,6 +12,7 @@ import {
   PageRenderer,
   RectCoordsDims,
   type RenderContext,
+  type SlideExportSizeOptions,
 } from "./deps.ts";
 import type {
   CreateCanvasRenderContext,
@@ -23,34 +25,44 @@ import { renderCoverSlide } from "./render_cover_slide.ts";
 import { renderSectionSlide } from "./render_section_slide.ts";
 import { renderFreeformSlide } from "./render_freeform_slide.ts";
 
-const DPI = 96;
-
 export function pagesToPptx(
   pptx: PptxGenJSInstance,
   rc: RenderContext,
   pages: PageInputs[],
   createCanvasRenderContext: CreateCanvasRenderContext,
-  width: number,
-  height: number,
+  opts: SlideExportSizeOptions,
 ): PptxGenJSInstance {
   if (!pages || pages.length === 0) {
     throw new Error("At least one page is required");
   }
 
-  const slideWidthInches = width / DPI;
-  const slideHeightInches = height / DPI;
   pptx.defineLayout({
     name: "CUSTOM",
-    width: slideWidthInches,
-    height: slideHeightInches,
+    width: pixelsToInches(opts.pageWidthDu),
+    height: pixelsToInches(opts.pageHeightDu),
   });
   pptx.layout = "CUSTOM";
 
-  const bounds = new RectCoordsDims([0, 0, width, height]);
+  const bounds = new RectCoordsDims([
+    0,
+    0,
+    opts.pageWidthDu,
+    opts.pageHeightDu,
+  ]);
+  const figureDevicePxPerDu = getExportDevicePxPerDu(
+    opts.outputWidthPx,
+    opts.pageWidthDu,
+  );
 
   for (const page of pages) {
     const measured = PageRenderer.measure(rc, bounds, page);
-    renderSlideFromMeasured(rc, pptx, measured, createCanvasRenderContext);
+    renderSlideFromMeasured(
+      rc,
+      pptx,
+      measured,
+      createCanvasRenderContext,
+      figureDevicePxPerDu,
+    );
   }
 
   return pptx;
@@ -61,6 +73,7 @@ function renderSlideFromMeasured(
   pptx: PptxGenJSInstance,
   measured: MeasuredPage,
   createCanvasRenderContext: CreateCanvasRenderContext,
+  figureDevicePxPerDu: number,
 ): void {
   let slide: PptxSlide;
   switch (measured.type) {
@@ -76,6 +89,7 @@ function renderSlideFromMeasured(
         pptx,
         measured,
         createCanvasRenderContext,
+        figureDevicePxPerDu,
       );
       break;
   }

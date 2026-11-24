@@ -15,7 +15,6 @@ import {
   computeTotalGridLineStrokeWidth,
   countProportionalSlots,
   getChartSizeConstraintsByMeasure,
-  getDimensionMembers,
   maxNVisible,
   maxProportionalPaneCategoryAxisExtent,
   measureChartWithAutofit,
@@ -25,6 +24,7 @@ import {
   type Renderer,
   type ResolveFloorExtent,
   type ResolveTargetExtent,
+  sampleSeriesInfos,
   type SizeConstraints,
 } from "./deps.ts";
 import type { MergedChartOHStyle } from "./deps.ts";
@@ -80,53 +80,20 @@ function ohSubChartHeight(
     );
 }
 
-// Do series occupy separate vertical sub-rows? Only for GROUPED bars: the
-// renderer splits each bar group nSerieses ways when bars.stacking === "none".
-// Stacked/imposed/diff bars overlay, and points/lines/areas overlay — all one
-// row. There's no boolean mark flag (marks are per-value getStyle funcs), so we
-// sample the bar style per series the way the renderer does: if any series draws
-// grouped bars, the bar group is partitioned.
-function shouldConsiderNSeries(
+// As the draw divides a slot's bar group among the series that draw a bar.
+// No sub-chart exists yet, so each series' bar style is asked of its sample.
+// A slot of points or lines alone is one row.
+function countBarsPerIndicator(
   ohStyle: MergedChartOHStyle,
   data: ChartOHDataTransformed,
-): boolean {
-  if (ohStyle.content.bars.stacking !== "none") return false;
-  const seriesMembers = getDimensionMembers(data.series);
-  const paneMembers = getDimensionMembers(data.pane);
-  const tierMembers = getDimensionMembers(data.tier);
-  const laneMembers = getDimensionMembers(data.lane);
-  const nSerieses = seriesMembers.length;
-  const nValues = data.indicator.members.length;
-  const seriesValueArrays = data.values[0]?.[0]?.[0] ?? [];
-  for (let i_series = 0; i_series < nSerieses; i_series++) {
-    const shown = ohStyle.content.bars.getStyle({
-      i_series,
-      isFirstSeries: i_series === 0,
-      isLastSeries: i_series === nSerieses - 1,
-      seriesMember: seriesMembers[i_series],
-      nSerieses,
-      seriesValueArrays,
-      nValues,
-      i_pane: 0,
-      nPanes: paneMembers.length,
-      paneMember: paneMembers[0],
-      i_tier: 0,
-      nTiers: tierMembers.length,
-      tierMember: tierMembers[0],
-      i_lane: 0,
-      nLanes: laneMembers.length,
-      laneMember: laneMembers[0],
-      value: seriesValueArrays[i_series]?.[0],
-      i_value: 0,
-      isFirstValue: true,
-      isLastValue: nValues === 1,
-      valueMin: 0,
-      valueMax: 0,
-      indicatorMember: data.indicator.members[0],
-    }).show;
-    if (shown) return true;
-  }
-  return false;
+): number {
+  const bars = ohStyle.content.bars;
+  if (bars.stacking !== "none") return 1;
+  const nBarSerieses =
+    sampleSeriesInfos(data).filter((sample) =>
+      bars.getStyle(sample.firstValue).show
+    ).length;
+  return Math.max(1, nBarSerieses);
 }
 
 // ChartOH sub-chart height is category-driven (not a value-axis sub-chart height):
@@ -148,10 +115,7 @@ function buildOHResolveTarget(
     );
     if (nIndicators === 0) return info.minSubChartHeight;
     const ohStyle = info.mergedStyle as MergedChartOHStyle;
-    const nSerieses = getDimensionMembers(data.series).length;
-    const nBarsPerIndicator = shouldConsiderNSeries(ohStyle, data)
-      ? nSerieses
-      : 1;
+    const nBarsPerIndicator = countBarsPerIndicator(ohStyle, data);
     // Proportional tier-or-lane layout: the thickness decay sees the true ragged
     // bar-row total (per grid column, matching the uniform formula's
     // one-column semantics); otherwise the uniform product.
@@ -235,9 +199,7 @@ function buildOHResolveTargetSlotExtent(
 ): ResolveTargetExtent {
   return (info, probeLayouts, { nCols: nPaneCols }) => {
     const ohStyle = info.mergedStyle as MergedChartOHStyle;
-    const nBarsPerIndicator = shouldConsiderNSeries(ohStyle, data)
-      ? getDimensionMembers(data.series).length
-      : 1;
+    const nBarsPerIndicator = countBarsPerIndicator(ohStyle, data);
     const raggedSlots = data.visibleIndicatorsByPaneTier
       ? countProportionalSlots(data.visibleIndicatorsByPaneTier)
       : data.indicator.members.length * info.nTiers *

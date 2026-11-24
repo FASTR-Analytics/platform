@@ -13,14 +13,13 @@ import {
   sum,
 } from "../deps.ts";
 import type { LayoutStyleConfig } from "../optimizer.ts";
-import { isOverflow } from "../overflow.ts";
+import { isOverflow, layoutOverflowCause } from "../overflow.ts";
 import type {
   ContainerDecorationOptions,
   ContainerStyleOptions,
   ItemLayoutNode,
   ItemSizeMeasurer,
   LayoutNode,
-  LayoutNodeBase,
   LayoutNodeNeed,
   LayoutOverflowCause,
   MeasuredColsLayoutNode,
@@ -47,9 +46,15 @@ export type MeasureContext<T, U> = {
   parentAvailableSpan: number;
 };
 
-type NodeMinimum = { minH: number; neededBy: LayoutNodeNeed[] };
+// A part of a height need: a node whose own minimum adds to it.
+type NodePart<U> = { node: LayoutNode<U>; need: number };
 
-type NodeHeightConstraints = NodeMinimum & { idealH: number; maxH: number };
+type NodeMinimum<U> = { minH: number; neededBy: NodePart<U>[] };
+
+type NodeHeightConstraints<U> = NodeMinimum<U> & {
+  idealH: number;
+  maxH: number;
+};
 
 // A node placed in its rect, with the items under it that are wider than
 // theirs.
@@ -121,7 +126,7 @@ export function getSizeConstraints<T, U>(
   width: number,
   availableColumns: number,
   startColumn: number,
-): NodeHeightConstraints {
+): NodeHeightConstraints<U> {
   if (node.type === "item") {
     const { minH, idealH, maxH, neededBy } = measureItemConstraints(
       mctx,
@@ -141,7 +146,7 @@ export function getSizeConstraints<T, U>(
   }
 
   let minH: number;
-  let neededBy: LayoutNodeNeed[];
+  let neededBy: NodePart<U>[];
   let idealH: number;
   let maxH: number;
 
@@ -211,10 +216,10 @@ export function getSizeConstraints<T, U>(
   return resolveNodeConstraints(node, { minH, neededBy, idealH, maxH });
 }
 
-function stackedMinimum(
-  children: NodeHeightConstraints[],
+function stackedMinimum<U>(
+  children: NodeHeightConstraints<U>[],
   gapY: number,
-): NodeMinimum {
+): NodeMinimum<U> {
   return {
     minH: sum(children.map((c) => c.minH)) +
       Math.max(0, children.length - 1) * gapY,
@@ -222,7 +227,9 @@ function stackedMinimum(
   };
 }
 
-function tallestMinimum(children: NodeHeightConstraints[]): NodeMinimum {
+function tallestMinimum<U>(
+  children: NodeHeightConstraints<U>[],
+): NodeMinimum<U> {
   const minH = Math.max(...children.map((c) => c.minH), 0);
   return {
     minH,
@@ -230,32 +237,52 @@ function tallestMinimum(children: NodeHeightConstraints[]): NodeMinimum {
   };
 }
 
-function resolveNodeConstraints(
-  node: LayoutNodeBase,
-  content: NodeHeightConstraints,
-): NodeHeightConstraints {
+function resolveNodeConstraints<U>(
+  node: LayoutNode<U>,
+  content: NodeHeightConstraints<U>,
+): NodeHeightConstraints<U> {
   const minH = Math.max(content.minH, node.minH ?? 0);
   const maxH = Math.max(minH, node.maxH ?? content.maxH);
   const raised = node.minH !== undefined && node.minH > content.minH;
   return {
     minH,
-    neededBy: raised ? [{ id: node.id, need: minH }] : content.neededBy,
+    neededBy: raised ? [{ node, need: minH }] : content.neededBy,
     idealH: clamp(content.idealH, minH, maxH),
     maxH,
   };
 }
 
+// The height cause's parts, each with what it needs as the layout's only
+// node: its minimum at the bounds' width, from the first column.
+export function heightParts<T, U>(
+  mctx: MeasureContext<T, U>,
+  parts: NodePart<U>[],
+): LayoutNodeNeed[] {
+  return parts.map(({ node, need }) => ({
+    id: node.id,
+    need,
+    needAlone: getSizeConstraints(
+      mctx,
+      node,
+      mctx.boundsW,
+      mctx.nAbsoluteGridColumns,
+      0,
+    ).minH,
+  }));
+}
+
 // An item's content constraints, read at the width its padding and border
-// leave, and its total heights: padding and border added, maxH unbounded when
-// it aligns its content or fills its background, and its own minH and maxH
-// applied.
+// leave, its total heights: padding and border added, maxH unbounded when it
+// aligns its content or fills its background, and its own minH and maxH
+// applied, and its total minimum width.
 function measureItemConstraints<T, U>(
   mctx: MeasureContext<T, U>,
   node: ItemLayoutNode<U>,
   width: number,
-): NodeHeightConstraints & {
+): NodeHeightConstraints<U> & {
   resolved: ResolvedContainerStyle;
   content: SizeConstraints;
+  minW: number;
 } {
   const resolved = resolveContainerStyle(node.style, mctx.layoutStyle);
   const borderTotal = resolved.borderWidth * 2;
@@ -269,9 +296,10 @@ function measureItemConstraints<T, U>(
   return {
     resolved,
     content,
+    minW: content.minW + resolved.padding.totalPx() + borderTotal,
     ...resolveNodeConstraints(node, {
       minH,
-      neededBy: [{ id: node.id, need: minH }],
+      neededBy: [{ node, need: minH }],
       idealH: content.idealH + paddingAndBorder,
       maxH: node.alignV || resolved.backgroundExtent === "fill"
         ? Infinity
@@ -493,7 +521,7 @@ function measureItemNode<T, U>(
   node: LayoutNode<U> & { type: "item" },
   bounds: RectCoordsDims,
 ): PlacedNode<MeasuredItemLayoutNode<U>> {
-  const { resolved, content, idealH, maxH } = measureItemConstraints(
+  const { resolved, content, idealH, maxH, minW } = measureItemConstraints(
     mctx,
     node,
     bounds.w(),
@@ -504,14 +532,12 @@ function measureItemNode<T, U>(
   const boundsAfterBorder = bounds.getPadded(new Padding(borderWidth));
   const innerBounds = boundsAfterBorder.getPadded(pad);
 
-  const minW = content.minW + pad.totalPx() + borderWidth * 2;
   const widthCauses: LayoutOverflowCause[] = isOverflow(minW, bounds.w())
-    ? [{
-      axis: "width",
+    ? [layoutOverflowCause("width", minW, bounds.w(), mctx.boundsW, [{
+      id: node.id,
       need: minW,
-      available: bounds.w(),
-      neededBy: [{ id: node.id, need: minW }],
-    }]
+      needAlone: measureItemConstraints(mctx, node, mctx.boundsW).minW,
+    }])]
     : [];
 
   const span = node.span ?? mctx.parentAvailableSpan;

@@ -9,6 +9,7 @@ import {
   pagesToPptx,
   PptxGenJS,
   type PptxGenJSInstance,
+  type SlideExportSizeOptions,
 } from "./deps.ts";
 
 const PptxGenJSConstructor = PptxGenJS as unknown as {
@@ -17,8 +18,7 @@ const PptxGenJSConstructor = PptxGenJS as unknown as {
 
 export function pagesToPptxDeno(
   pages: PageInputs[],
-  width: number,
-  height: number,
+  opts: SlideExportSizeOptions,
 ): PptxGenJSInstance {
   if (!pages || pages.length === 0) {
     throw new Error("At least one page is required");
@@ -27,5 +27,5 @@ export function pagesToPptxDeno(
   const pptx = new PptxGenJSConstructor() as PptxGenJSInstance;
   const { rc } = createCanvasRenderContext(100, 100);
 
-  return pagesToPptx(pptx, rc, pages, createCanvasRenderContext, width, height);
+  return pagesToPptx(pptx, rc, pages, createCanvasRenderContext, opts);
 }

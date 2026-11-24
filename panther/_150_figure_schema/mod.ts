@@ -53,6 +53,12 @@ export {
   zPieJsonDataConfig,
 } from "./pie.ts";
 export {
+  zScatterData,
+  zScatterDataJson,
+  zScatterDataTransformed,
+  zScatterJsonDataConfig,
+} from "./scatter.ts";
+export {
   zTableData,
   zTableDataJson,
   zTableDataTransformed,
@@ -67,6 +73,7 @@ export {
   zLegendInput,
   zMapInputs,
   zPieInputs,
+  zScatterInputs,
   zSceneInputs,
   zTableInputs,
   zTimeseriesInputs,

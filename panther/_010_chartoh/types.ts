@@ -17,6 +17,10 @@ import type {
   MergedChartOHStyle,
   PaneLayout,
   Primitive,
+  ReferenceLineDataConfig,
+  SecondValueAxisDataConfig,
+  SecondValueAxisDataTransformed,
+  SubChartTextDataConfig,
   UncertaintyConfig,
   ValueSort,
 } from "./deps.ts";
@@ -68,6 +72,9 @@ export type ChartOHJsonDataConfig = {
   };
   sortIndicatorValues?: ValueSort;
   xValueAxisLabel?: string;
+  secondValueAxis?: SecondValueAxisDataConfig;
+  referenceLines?: ReferenceLineDataConfig[];
+  subChartTexts?: SubChartTextDataConfig[];
 };
 
 export type ChartOHDataTransformed = {
@@ -86,6 +93,9 @@ export type ChartOHDataTransformed = {
   };
   valueAxisLimits: ChartValueAxisLimits;
   xValueAxisLabel?: string;
+  secondValueAxis?: SecondValueAxisDataTransformed;
+  referenceLines?: ReferenceLineDataConfig[];
+  subChartTexts?: SubChartTextDataConfig[];
   // Per-pane indicator masks (global indices, in this pane's slot order),
   // present under unbalanced indicator membership, proportional tiers, or a
   // value sort (then a full permutation per pane). Absent = every pane shows

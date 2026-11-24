@@ -4,11 +4,14 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  buildCategoryAndValueLegendSeries,
+  buildSecondValueAxisConfig,
   CustomFigureStyle,
   measureChart,
   type MergedChartOVStyle,
   type PaneGrid,
   type RectCoordsDims,
+  referenceLinesOn,
   type RenderContext,
   type SimplifiedChartConfig,
 } from "../deps.ts";
@@ -74,8 +77,22 @@ export function measureChartOV(
         axisStyle: mergedStyle.yValueAxis,
         axisData: transformedData.valueAxisLimits,
         axisLabel: transformedData.yValueAxisLabel,
+        referenceLines: referenceLinesOn(
+          transformedData.referenceLines,
+          "first",
+        ),
       },
+      secondY: buildSecondValueAxisConfig(
+        transformedData.secondValueAxis,
+        mergedStyle.secondValueAxis,
+        transformedData.referenceLines,
+      ),
     },
+    subChartTexts: transformedData.subChartTexts,
+    legendSeries: buildCategoryAndValueLegendSeries(
+      mergedStyle.content,
+      transformedData,
+    ),
     paneGrid,
   };
 

@@ -29,55 +29,22 @@ export function generateContentPrimitives(
     gridLineStrokeWidth: number;
   },
 ): Primitive[] {
-  const {
-    rcd,
-    valueRange,
-    valueClearance,
-    isCentered,
-    slotExtent,
-    positionOrdinals,
-    content,
-  } = subChart;
+  const { content } = subChart;
   const { seriesValues, gridLineStrokeWidth, orientation } = p;
+  const mapValues = (values: (number | undefined)[][]) =>
+    calculateMappedCoordinates(
+      values,
+      subChart,
+      gridLineStrokeWidth,
+      orientation,
+    );
 
-  const mapped = calculateMappedCoordinates(
-    seriesValues,
-    rcd,
-    slotExtent,
-    isCentered,
-    gridLineStrokeWidth,
-    valueRange,
-    valueClearance,
-    orientation,
-    positionOrdinals,
-  );
-
+  const mapped = mapValues(seriesValues);
   const mappedUncertaintyUb = p.uncertaintyUbSeriesValues
-    ? calculateMappedCoordinates(
-      p.uncertaintyUbSeriesValues,
-      rcd,
-      slotExtent,
-      isCentered,
-      gridLineStrokeWidth,
-      valueRange,
-      valueClearance,
-      orientation,
-      positionOrdinals,
-    )
+    ? mapValues(p.uncertaintyUbSeriesValues)
     : undefined;
-
   const mappedUncertaintyLb = p.uncertaintyLbSeriesValues
-    ? calculateMappedCoordinates(
-      p.uncertaintyLbSeriesValues,
-      rcd,
-      slotExtent,
-      isCentered,
-      gridLineStrokeWidth,
-      valueRange,
-      valueClearance,
-      orientation,
-      positionOrdinals,
-    )
+    ? mapValues(p.uncertaintyLbSeriesValues)
     : undefined;
 
   const ctx: ContentGenerationContext = {

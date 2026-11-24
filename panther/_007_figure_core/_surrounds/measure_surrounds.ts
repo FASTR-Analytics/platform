@@ -6,7 +6,6 @@
 import {
   Coordinates,
   type CustomFigureStyle,
-  type DataDimension,
   type MeasuredText,
   type MergedLegendStyle,
   type MergedSurroundsStyle,
@@ -21,7 +20,7 @@ import {
   type MeasuredScaleLegend,
   measureScaleLegend,
 } from "../_legend/measure_scale_legend.ts";
-import { isArrayOfLegendEntries } from "../_legend/types.ts";
+import { isArrayOfLegendEntries, type LegendSeries } from "../_legend/types.ts";
 import {
   isConcreteScaleLegendConfig,
   type LegendInput,
@@ -32,7 +31,7 @@ export function estimateMinSurroundsWidth(
   rc: RenderContext,
   cs: CustomFigureStyle,
   legendLabels: LegendInput | undefined,
-  series?: DataDimension,
+  legendSeries?: LegendSeries,
 ): number {
   const sSurrounds = cs.getMergedSurroundsStyle();
 
@@ -57,7 +56,7 @@ export function estimateMinSurroundsWidth(
   const legendEntries = getLegendEntries(
     legendLabels,
     sSurrounds.legend,
-    series,
+    legendSeries,
   );
   if (!legendEntries) {
     return sSurrounds.padding.totalPx();
@@ -108,7 +107,7 @@ export function measureSurrounds(
   subtitle: string | undefined,
   footnote: string | string[] | undefined,
   legendLabels: LegendInput | undefined,
-  series?: DataDimension,
+  legendSeries?: LegendSeries,
 ): MeasuredSurrounds {
   const sSurrounds = cs.getMergedSurroundsStyle();
   const paddedRcd = rcd.getPadded(sSurrounds.padding);
@@ -196,7 +195,7 @@ export function measureSurrounds(
     const legendEntries = getLegendEntries(
       legendLabels,
       sSurrounds.legend,
-      series,
+      legendSeries,
     );
 
     if (isConcreteScaleLegendConfig(legendLabels)) {
@@ -255,7 +254,7 @@ export function measureSurrounds(
         type: "entries",
         rcd: legendRcd,
         mLegend,
-        seriesDimension: series?.name,
+        seriesDimension: legendSeries?.dimension?.name,
       };
     }
   }
@@ -322,7 +321,7 @@ function positionLegend(
 function getLegendEntries(
   legendLabels: LegendInput,
   sLegend: MergedLegendStyle,
-  series: DataDimension | undefined,
+  legendSeries: LegendSeries | undefined,
 ): LegendEntry[] | undefined {
   if (!Array.isArray(legendLabels) || legendLabels.length === 0) {
     return undefined;
@@ -330,14 +329,17 @@ function getLegendEntries(
   if (isArrayOfLegendEntries(legendLabels)) {
     return legendLabels;
   }
+  const members = legendSeries?.dimension?.members;
   return legendLabels.map((label, i_label, arr_label) => ({
-    id: series?.members[i_label]?.id,
+    id: members?.[i_label]?.id,
     label,
+    ...legendSeries?.swatches?.[i_label],
     color: sLegend.seriesColorFunc({
       i_series: i_label,
       isFirstSeries: i_label === 0,
       isLastSeries: i_label === arr_label.length - 1,
-      seriesMember: series?.members[i_label] ?? { id: label, label },
+      seriesMember: members?.[i_label] ?? { id: label, label },
+      valueAxis: legendSeries?.valueAxisOfSeries?.(i_label),
       nSerieses: arr_label.length,
       seriesValueArrays: [],
       nValues: 0,

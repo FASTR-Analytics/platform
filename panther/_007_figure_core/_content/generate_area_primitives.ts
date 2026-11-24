@@ -5,22 +5,24 @@
 
 import {
   type AreaDiffPair,
+  type ChartValueAxis,
   computeBoundsForPath,
   Coordinates,
   type Primitive,
   Z_INDEX,
 } from "../deps.ts";
 import { chartSeriesItem } from "../chart_items.ts";
-import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
-import type {
-  ContentGenerationContext,
-  SubChartContent,
-} from "./content_generation_types.ts";
 import {
-  valueBaselineCoord,
-  valueExtendDir,
-  withValueCoord,
-} from "./orientation_helpers.ts";
+  type MappedValueCoordinate,
+  valueRangeOfAxis,
+  zeroLineCoord,
+} from "./calculate_mapped_coordinates.ts";
+import {
+  type ContentGenerationContext,
+  placeSeriesOnValueAxes,
+  type SubChartContent,
+} from "./content_generation_types.ts";
+import { valueExtendDir, withValueCoord } from "./orientation_helpers.ts";
 
 export function generateAreaPrimitives(
   mapped: MappedValueCoordinate[][],
@@ -29,13 +31,27 @@ export function generateAreaPrimitives(
 ): Primitive[] {
   const s = ctx.contentStyle;
   const { i_pane, i_tier, i_lane, slotOrder, rcd: subChartRcd } = ctx.subChart;
-  // Half a grid stroke past the baseline, so the area's edge covers the
-  // baseline grid line.
-  const zeroLineValue = valueBaselineCoord(
-    subChartRcd,
-    ctx.orientation,
-    ctx.subChart.valueClearance.start,
-  ) - valueExtendDir(ctx.orientation) * ctx.gridLineStrokeWidth / 2;
+  // At an axis edge an area lies on one side of the zero line and reaches half
+  // a grid stroke past it, covering the edge's grid line; inside the axis an
+  // area may lie on both sides, so it closes on the line. Each value axis has
+  // its own zero line.
+  const halfStroke = valueExtendDir(ctx.orientation) *
+    ctx.gridLineStrokeWidth / 2;
+  const closingEdgeOf = (valueAxis: ChartValueAxis): number => {
+    const valueRange = valueRangeOfAxis(ctx.subChart, valueAxis);
+    const zeroLine = zeroLineCoord({
+      subChartRcd,
+      valueRange,
+      valueClearance: ctx.subChart.valueClearance,
+      orientation: ctx.orientation,
+    });
+    return valueRange.valueMin >= 0
+      ? zeroLine - halfStroke
+      : valueRange.valueMax <= 0
+      ? zeroLine + halfStroke
+      : zeroLine;
+  };
+  const seriesPlaces = placeSeriesOnValueAxes(ctx.subChart.seriesValueAxes);
 
   const primitives: Primitive[] = [];
 
@@ -46,6 +62,13 @@ export function generateAreaPrimitives(
       if (!areaStyle.show) {
         continue;
       }
+      const closingEdge = closingEdgeOf(
+        ctx.subChart.seriesValueAxes[i_series],
+      );
+      const previousOnAxis = seriesPlaces[i_series].previous;
+      const otherSeries = previousOnAxis === undefined
+        ? undefined
+        : mapped[previousOnAxis];
       const valueIndices = slotOrder.filter((i_value) =>
         mapped[i_series][i_value] !== undefined
       );
@@ -67,22 +90,20 @@ export function generateAreaPrimitives(
         if (areaStyle.to === "zero-line") {
           mirrorCoords = withValueCoord(
             mappedValueThisSeries.coords,
-            zeroLineValue,
+            closingEdge,
             ctx.orientation,
           );
         } else if (areaStyle.to === "previous-series-or-zero") {
-          const otherSeries = mapped[i_series - 1];
           if (!otherSeries) {
             mirrorCoords = withValueCoord(
               mappedValueThisSeries.coords,
-              zeroLineValue,
+              closingEdge,
               ctx.orientation,
             );
           } else if (otherSeries[i_value]) {
             mirrorCoords = otherSeries[i_value]!.coords;
           }
         } else if (areaStyle.to === "previous-series-or-skip") {
-          const otherSeries = mapped[i_series - 1];
           if (otherSeries?.[i_value]) {
             mirrorCoords = otherSeries[i_value]!.coords;
           }
@@ -136,10 +157,13 @@ export function generateAreaPrimitives(
   } else {
     s.areas.diff.pairs.forEach((pair, i_pair) => {
       // A pair naming an absent series has nothing to diff — degrade rather
-      // than dereference.
+      // than dereference. Nor does a pair of series drawn against different
+      // value axes, whose values are in different units.
       if (
         mapped[pair.series[0]] === undefined ||
-        mapped[pair.series[1]] === undefined
+        mapped[pair.series[1]] === undefined ||
+        ctx.subChart.seriesValueAxes[pair.series[0]] !==
+          ctx.subChart.seriesValueAxes[pair.series[1]]
       ) {
         return;
       }

@@ -357,6 +357,12 @@ export class CustomPageStyle {
           g.freeform?.content?.figureMaxStretch,
           d.freeform.content.figureMaxStretch,
         ),
+        // A legibility floor, so the page's own fit scale never lowers it.
+        minFontSize: m(
+          c.freeform?.content?.minFontSize,
+          g.freeform?.content?.minFontSize,
+          d.freeform.content.minFontSize,
+        ),
       },
       layoutContainers: {
         padding: msPadding(

@@ -30,6 +30,10 @@ import {
   type PointStyle,
   type PointType,
   type RectStyle,
+  type ReferenceLineInfo,
+  type ReferenceLineInfoFunc,
+  type ScatterPointInfo,
+  type ScatterPointInfoFunc,
   type TableCellInfo,
   type TableCellInfoFunc,
   type TableHeaderInfo,
@@ -525,14 +529,11 @@ export function getTableCellStyleFunc(
   };
 }
 
-export type GenericPointStyleOptions = {
+type PointStyleOptionsOf<TColor> = {
   show?: boolean;
   pointStyle?: PointType;
   radius?: number;
-  color?:
-    | ColorKeyOrString
-    | typeof SERIES_COLOR_SENTINEL
-    | typeof VALUES_COLOR_SENTINEL;
+  color?: TColor;
   strokeWidth?: number;
   innerColorStrategy?: ColorAdjustmentStrategy;
   dataLabelPosition?: "top" | "left" | "bottom" | "right";
@@ -540,35 +541,98 @@ export type GenericPointStyleOptions = {
   annotationGroup?: string;
 };
 
-export type GenericPointStyle = {
+type PointStyleOf<TColor> = {
   show: boolean;
   pointStyle: PointType;
   radius: number;
-  color:
-    | ColorKeyOrString
-    | typeof SERIES_COLOR_SENTINEL
-    | typeof VALUES_COLOR_SENTINEL;
+  color: TColor;
   strokeWidth: number;
   innerColorStrategy: ColorAdjustmentStrategy;
   dataLabelPosition: "top" | "left" | "bottom" | "right";
   dataLabel: GenericDataLabelStyle;
 };
 
+export type ResolvedPointStyle = PointStyle & {
+  dataLabel: DataLabelStyle;
+  annotationGroup?: string;
+};
+
+type ChartPointColor =
+  | ColorKeyOrString
+  | typeof SERIES_COLOR_SENTINEL
+  | typeof VALUES_COLOR_SENTINEL;
+
+export type GenericPointStyleOptions = PointStyleOptionsOf<ChartPointColor>;
+
+export type GenericPointStyle = PointStyleOf<ChartPointColor>;
+
+// A scatter point has two values and neither is the value, so no one value
+// colours it through valuesColorFunc.
+type ScatterPointColor = ColorKeyOrString | typeof SERIES_COLOR_SENTINEL;
+
+export type GenericScatterPointStyleOptions = PointStyleOptionsOf<
+  ScatterPointColor
+>;
+
+export type GenericScatterPointStyle = PointStyleOf<ScatterPointColor>;
+
 export function getPointStyleFunc(
   _sf: number,
   _c: CustomFigureStyleOptions,
   _g: CustomFigureStyleOptions,
   _d: DefaultFigureStyle,
-): ChartValueInfoFunc<
-  PointStyle & { dataLabel: DataLabelStyle; annotationGroup?: string }
-> {
-  const { c, cf, g, gf } = splitStyleLevels(
-    _c.content?.points?.func,
-    _g.content?.points?.func,
-  );
-  const d = _d.content.points.func;
+): ChartValueInfoFunc<ResolvedPointStyle> {
   const seriesColorFunc = resolveSeriesColorFunc(_c, _g, _d);
   const valuesColorFunc = resolveValuesColorFunc(_c, _g, _d);
+  return makePointStyleFunc(
+    _sf,
+    _c,
+    _g,
+    _d,
+    _c.content?.points?.func,
+    _g.content?.points?.func,
+    _d.content.points.func,
+    (color, info: ChartValueInfo) =>
+      color === VALUES_COLOR_SENTINEL
+        ? valuesColorFunc(info.value, info.valueMin, info.valueMax, info) ??
+          seriesColorFunc(info)
+        : color === SERIES_COLOR_SENTINEL
+        ? seriesColorFunc(info)
+        : color,
+  );
+}
+
+export function getScatterPointStyleFunc(
+  _sf: number,
+  _c: CustomFigureStyleOptions,
+  _g: CustomFigureStyleOptions,
+  _d: DefaultFigureStyle,
+): ScatterPointInfoFunc<ResolvedPointStyle> {
+  const seriesColorFunc = resolveSeriesColorFunc(_c, _g, _d);
+  return makePointStyleFunc(
+    _sf,
+    _c,
+    _g,
+    _d,
+    _c.content?.scatterPoints?.func,
+    _g.content?.scatterPoints?.func,
+    _d.content.scatterPoints.func,
+    (color, info: ScatterPointInfo) =>
+      color === SERIES_COLOR_SENTINEL ? seriesColorFunc(info) : color,
+  );
+}
+
+function makePointStyleFunc<TInfo, TColor>(
+  _sf: number,
+  _c: CustomFigureStyleOptions,
+  _g: CustomFigureStyleOptions,
+  _d: DefaultFigureStyle,
+  cRaw: StyleFuncLevel<PointStyleOptionsOf<TColor>, TInfo>,
+  gRaw: StyleFuncLevel<PointStyleOptionsOf<TColor>, TInfo>,
+  d: PointStyleOf<TColor>,
+  resolveColor: (color: TColor, info: TInfo) => ColorKeyOrString,
+): (info: TInfo) => ResolvedPointStyle {
+  const { c, cf, g, gf } = splitStyleLevels(cRaw, gRaw);
   const dShow = m(c?.show, g?.show, d.show);
   const dPointStyle = m(c?.pointStyle, g?.pointStyle, d.pointStyle);
   const dRadius = ms(_sf, c?.radius, g?.radius, d.radius);
@@ -593,20 +657,15 @@ export function getPointStyleFunc(
     g?.dataLabel,
     d.dataLabel,
   );
-  return (
-    info: ChartValueInfo,
-  ): PointStyle & { dataLabel: DataLabelStyle; annotationGroup?: string } => {
+  return (info: TInfo): ResolvedPointStyle => {
     const oc = cf?.(info);
     const og = gf?.(info);
-    const color = oc?.color ?? og?.color ?? dColor;
     const oRadius = oc?.radius ?? og?.radius;
     const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
-    const resolvedColor = color === VALUES_COLOR_SENTINEL
-      ? valuesColorFunc(info.value, info.valueMin, info.valueMax, info) ??
-        seriesColorFunc(info)
-      : color === SERIES_COLOR_SENTINEL
-      ? seriesColorFunc(info)
-      : color;
+    const resolvedColor = resolveColor(
+      oc?.color ?? og?.color ?? dColor,
+      info,
+    );
     const dl = resolveDataLabelInstance(
       dDataLabel,
       oc?.dataLabel,
@@ -632,12 +691,15 @@ export function getPointStyleFunc(
   };
 }
 
+export type BarDataLabelPosition = "outside-end" | "center";
+
 export type GenericBarStyleOptions = {
   show?: boolean;
   fillColor?:
     | ColorKeyOrString
     | typeof SERIES_COLOR_SENTINEL
     | typeof VALUES_COLOR_SENTINEL;
+  dataLabelPosition?: BarDataLabelPosition;
   dataLabel?: GenericDataLabelStyleOptions;
   annotationGroup?: string;
 };
@@ -648,7 +710,14 @@ export type GenericBarStyle = {
     | ColorKeyOrString
     | typeof SERIES_COLOR_SENTINEL
     | typeof VALUES_COLOR_SENTINEL;
+  dataLabelPosition: BarDataLabelPosition;
   dataLabel: GenericDataLabelStyle;
+};
+
+export type ResolvedBarStyle = RectStyle & {
+  dataLabelPosition: BarDataLabelPosition;
+  dataLabel: DataLabelStyle;
+  annotationGroup?: string;
 };
 
 export function getBarStyleFunc(
@@ -656,9 +725,7 @@ export function getBarStyleFunc(
   _c: CustomFigureStyleOptions,
   _g: CustomFigureStyleOptions,
   _d: DefaultFigureStyle,
-): ChartValueInfoFunc<
-  RectStyle & { dataLabel: DataLabelStyle; annotationGroup?: string }
-> {
+): ChartValueInfoFunc<ResolvedBarStyle> {
   const { c, cf, g, gf } = splitStyleLevels(
     _c.content?.bars?.func,
     _g.content?.bars?.func,
@@ -668,6 +735,11 @@ export function getBarStyleFunc(
   const valuesColorFunc = resolveValuesColorFunc(_c, _g, _d);
   const dShow = m(c?.show, g?.show, d.show);
   const dColor = m(c?.fillColor, g?.fillColor, d.fillColor);
+  const dDataLabelPosition = m(
+    c?.dataLabelPosition,
+    g?.dataLabelPosition,
+    d.dataLabelPosition,
+  );
   const dDataLabel = resolveDataLabelDefaults(
     _sf,
     _c,
@@ -677,9 +749,7 @@ export function getBarStyleFunc(
     g?.dataLabel,
     d.dataLabel,
   );
-  return (
-    info: ChartValueInfo,
-  ): RectStyle & { dataLabel: DataLabelStyle; annotationGroup?: string } => {
+  return (info: ChartValueInfo): ResolvedBarStyle => {
     const oc = cf?.(info);
     const og = gf?.(info);
     const color = oc?.fillColor ?? og?.fillColor ?? dColor;
@@ -699,6 +769,8 @@ export function getBarStyleFunc(
     return {
       show: oc?.show ?? og?.show ?? dShow,
       fillColor: resolvedFillColor,
+      dataLabelPosition: oc?.dataLabelPosition ?? og?.dataLabelPosition ??
+        dDataLabelPosition,
       dataLabel: dl,
       annotationGroup: oc?.annotationGroup ?? og?.annotationGroup,
     };
@@ -1037,6 +1109,76 @@ export function getConnectorStyleFunc(
         ? oArrowHeadLength * _sf
         : dArrowHeadLength,
       annotationGroup: oc?.annotationGroup ?? og?.annotationGroup,
+    };
+  };
+}
+
+export type GenericReferenceLineStyleOptions = {
+  show?: boolean;
+  strokeColor?: ColorKeyOrString;
+  strokeWidth?: number;
+  lineDash?: "solid" | "dashed";
+  label?: GenericDataLabelStyleOptions;
+};
+
+export type GenericReferenceLineStyle = {
+  show: boolean;
+  strokeColor: ColorKeyOrString;
+  strokeWidth: number;
+  lineDash: "solid" | "dashed";
+  label: GenericDataLabelStyle;
+};
+
+export type ReferenceLineStyle = LineStyle & {
+  show: boolean;
+  label: DataLabelStyle;
+};
+
+// The label's colorStrategy adjusts the line's stroke colour, so a label can
+// take its line's colour.
+export function getReferenceLineStyleFunc(
+  _sf: number,
+  _c: CustomFigureStyleOptions,
+  _g: CustomFigureStyleOptions,
+  _d: DefaultFigureStyle,
+): ReferenceLineInfoFunc<ReferenceLineStyle> {
+  const { c, cf, g, gf } = splitStyleLevels(
+    _c.content?.referenceLines?.func,
+    _g.content?.referenceLines?.func,
+  );
+  const d = _d.content.referenceLines.func;
+  const dShow = m(c?.show, g?.show, d.show);
+  const dStrokeColor = m(c?.strokeColor, g?.strokeColor, d.strokeColor);
+  const dStrokeWidth = ms(_sf, c?.strokeWidth, g?.strokeWidth, d.strokeWidth);
+  const dLineDash = m(c?.lineDash, g?.lineDash, d.lineDash);
+  const dLabel = resolveDataLabelDefaults(
+    _sf,
+    _c,
+    _g,
+    _d,
+    c?.label,
+    g?.label,
+    d.label,
+  );
+  return (info: ReferenceLineInfo): ReferenceLineStyle => {
+    const oc = cf?.(info);
+    const og = gf?.(info);
+    const strokeColor = oc?.strokeColor ?? og?.strokeColor ?? dStrokeColor;
+    const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
+    return {
+      show: oc?.show ?? og?.show ?? dShow,
+      strokeColor,
+      strokeWidth: oStrokeWidth !== undefined
+        ? oStrokeWidth * _sf
+        : dStrokeWidth,
+      lineDash: oc?.lineDash ?? og?.lineDash ?? dLineDash,
+      label: resolveDataLabelInstance(
+        dLabel,
+        oc?.label,
+        og?.label,
+        _sf,
+        strokeColor,
+      ),
     };
   };
 }

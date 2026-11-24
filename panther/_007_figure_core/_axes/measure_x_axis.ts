@@ -18,6 +18,7 @@ import type {
 import { measureXPeriodAxis } from "./x_period/measure.ts";
 import type { XPeriodAxisMeasuredInfo } from "./x_period/types.ts";
 import {
+  measureSecondXValueAxisHeightInfo,
   measureXValueAxisHeightInfo,
   measureXValueAxisLayout,
 } from "./x_value/measure.ts";
@@ -116,7 +117,40 @@ export function measureXValueAxis(
     info: measureXValueAxisLayout(
       innerRcd,
       yAxisWidthInfo.widthIncludingYAxisStrokeWidth,
+      innerRcd.bottomY() - xValueAxisHeightInfo.heightIncludingXAxisStrokeWidth,
       xValueAxisHeightInfo,
+    ),
+  };
+}
+
+// The second x value axis stands above the tiers, below the lane headers, at
+// topY, with as many ticks per lane as the first's.
+export function measureSecondXValueAxis(
+  rc: RenderContext,
+  innerRcd: RectCoordsDims,
+  yAxisWidthInfo: YAxisWidthInfoBase,
+  config: XValueAxisConfig,
+  gridStyle: MergedGridStyle,
+  firstAxis: Extract<MeasuredXAxis, { type: "value" }>,
+  i_pane: number,
+  topY: number,
+): Extract<MeasuredXAxis, { type: "value" }> {
+  return {
+    type: "value",
+    config,
+    info: measureXValueAxisLayout(
+      innerRcd,
+      yAxisWidthInfo.widthIncludingYAxisStrokeWidth,
+      topY,
+      measureSecondXValueAxisHeightInfo(
+        rc,
+        config.axisData,
+        config.axisLabel,
+        config.axisStyle,
+        gridStyle,
+        i_pane,
+        firstAxis.info.xValueAxisHeightInfo.xAxisTickValues,
+      ),
     ),
   };
 }

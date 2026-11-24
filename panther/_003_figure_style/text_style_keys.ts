@@ -19,6 +19,7 @@ export const FIGURE_TEXT_STYLE_KEYS = [
   "yValueAxisTickLabels",
   "yValueAxisLabel",
   "dataLabels",
+  "subChartTexts",
   "legend",
   // Table
   "colHeaders",

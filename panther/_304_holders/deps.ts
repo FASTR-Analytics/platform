@@ -53,6 +53,7 @@ export type {
 } from "../_121_page/mod.ts";
 export {
   createCanvasBrowser,
+  getDevicePixelRatio,
   releaseCanvasGPUMemory,
   trackCanvas,
   untrackCanvas,

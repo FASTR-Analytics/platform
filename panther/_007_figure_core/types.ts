@@ -4,6 +4,9 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AlignH,
+  AlignV,
+  ChartValueAxis,
   ColorKeyOrString,
   CustomFigureStyleOptions,
   PaddingOptions,
@@ -69,6 +72,53 @@ export type ChartValueAxisPaneLimits = ChartValueAxisLimitsEntry & {
 
 export type ChartValueAxisLimits = {
   paneLimits: ChartValueAxisPaneLimits[];
+};
+
+export type SecondValueAxisDataConfig = {
+  seriesMemberIds: string[];
+  axisLabel?: string;
+};
+
+export type SecondValueAxisDataTransformed = {
+  seriesMemberIds: string[];
+  valueAxisLimits: ChartValueAxisLimits;
+  axisLabel?: string;
+};
+
+// The sub-charts a reference line or a sub-chart text is drawn in: an absent
+// list names every member, and a list of a dimension no prop names acts as
+// absent.
+export type SubChartMemberIds = {
+  paneMemberIds?: string[];
+  tierMemberIds?: string[];
+  laneMemberIds?: string[];
+};
+
+export type ReferenceLineLabelPosition =
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
+
+// On a value axis config, the axis a line stands on is the one whose config
+// holds it.
+export type ReferenceLine = SubChartMemberIds & {
+  id: string;
+  value: number;
+  label?: string;
+  labelPosition?: ReferenceLineLabelPosition;
+};
+
+export type ReferenceLineDataConfig = ReferenceLine & {
+  valueAxis?: ChartValueAxis;
+};
+
+// Aligned in its sub-chart's rect less content.subChartTexts.padding.
+export type SubChartTextDataConfig = SubChartMemberIds & {
+  id: string;
+  text: string;
+  alignH: AlignH;
+  alignV: AlignV;
 };
 
 export type YAxisWidthInfoBase = {

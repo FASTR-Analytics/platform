@@ -17,6 +17,10 @@ import type {
   PaneLayout,
   PeriodType,
   Primitive,
+  ReferenceLineDataConfig,
+  SecondValueAxisDataConfig,
+  SecondValueAxisDataTransformed,
+  SubChartTextDataConfig,
   UncertaintyConfig,
 } from "./deps.ts";
 
@@ -56,6 +60,9 @@ export type TimeseriesJsonDataConfig = {
     pane?: MemberSortConfig;
   };
   yValueAxisLabel?: string;
+  secondValueAxis?: SecondValueAxisDataConfig;
+  referenceLines?: ReferenceLineDataConfig[];
+  subChartTexts?: SubChartTextDataConfig[];
 };
 
 ///////////////////////
@@ -87,6 +94,9 @@ export type TimeseriesDataTransformed = {
   };
   valueAxisLimits: ChartValueAxisLimits;
   yValueAxisLabel?: string;
+  secondValueAxis?: SecondValueAxisDataTransformed;
+  referenceLines?: ReferenceLineDataConfig[];
+  subChartTexts?: SubChartTextDataConfig[];
 };
 
 ///////////////////////////////////////////////////////////////////////////////////

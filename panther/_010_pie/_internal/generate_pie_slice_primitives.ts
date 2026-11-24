@@ -245,6 +245,7 @@ function buildPieSliceInfo(
     isFirstSeries: i_series === 0,
     isLastSeries: i_series === nSerieses - 1,
     seriesMember: data.series?.members[i_series],
+    valueAxis: undefined,
     nSerieses,
     // values[pane][tier][lane] IS the seriesValueArrays shape ChartSeriesInfo
     // wants — the payoff of keeping the 5-D tensor.

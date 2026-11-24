@@ -8,7 +8,6 @@ import {
   CustomFigureStyle,
   FigureRenderer,
   getExportDevicePxPerDu,
-  RectCoordsDims,
   renderTransitionFrame,
   resolveSequence,
 } from "./deps.ts";
@@ -37,14 +36,12 @@ export async function writeSequenceFrames(
     }
   }
   const { w, h } = sequence.frame;
-  const devicePxPerDu = getExportDevicePxPerDu(opts.outputWidthPx, w);
-  const { canvas, rc } = createCanvasRenderContext(
-    Math.round(w * devicePxPerDu),
-    Math.round(h * devicePxPerDu),
+  const { canvas, rc, rcd } = createCanvasRenderContext(
+    w,
+    h,
+    getExportDevicePxPerDu(opts.outputWidthPx, w),
   );
   const ctx = canvas.getContext("2d")!;
-  ctx.setTransform(devicePxPerDu, 0, 0, devicePxPerDu, 0, 0);
-  const rcd = new RectCoordsDims([0, 0, w, h]);
   const measured = resolved.entries.map((entry) =>
     FigureRenderer.measure(rc, rcd, entry.figure)
   );

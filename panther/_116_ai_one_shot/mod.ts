@@ -7,7 +7,12 @@ export { callAI } from "./one_shot.ts";
 export type { CallAIConfig } from "./one_shot.ts";
 export { callAIStructured } from "./one_shot_structured.ts";
 export { readAITrial, runAITrials } from "./trials.ts";
-export type { AITrial, AITrialsOptions, AITrialToolCall } from "./trials.ts";
+export type {
+  AITrial,
+  AITrialQuestion,
+  AITrialsOptions,
+  AITrialToolCall,
+} from "./trials.ts";
 export type {
   CallAIOptions,
   CallAIResult,

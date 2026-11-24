@@ -4,12 +4,13 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  buildCategoryAndValueLegendSeries,
   calculateMinSubChartHeight,
   calculateTimeseriesMinSubChartWidth,
   type ChartComponentSizes,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
-  estimateMinYValueAxisWidth,
+  estimateMinYValueAxesWidth,
   estimateTierHeaderAndLabelGapWidth,
   getDimensionMembers,
   PANE_HEADER_SAMPLE_MAX_W,
@@ -70,6 +71,7 @@ export function getTimeseriesComponentSizes(
     inputs.legend,
     data.series,
   );
+  const legendSeries = buildCategoryAndValueLegendSeries(ms.content, data);
 
   return {
     customFigureStyle: cs,
@@ -79,21 +81,22 @@ export function getTimeseriesComponentSizes(
     nPanes: getDimensionMembers(data.pane).length,
     minSubChartWidth,
     minSubChartHeight: calculateMinSubChartHeight(rc, ms.yValueAxis),
-    xAxisHeight,
+    xAxesHeight: xAxisHeight,
     paneHeaderHeight,
-    minYAxisWidth: estimateMinYValueAxisWidth(
+    minYAxesWidth: estimateMinYValueAxesWidth(
       rc,
       data.yValueAxisLabel,
-      ms.yValueAxis,
-      ms.grid,
+      data.secondValueAxis,
+      ms,
       estimateTierHeaderAndLabelGapWidth(rc, data.tier, data.lane, ms),
     ),
     surroundsMinWidth: estimateMinSurroundsWidth(
       rc,
       cs,
       resolvedLegendLabels,
-      data.series,
+      legendSeries,
     ),
     resolvedLegendLabels,
+    legendSeries,
   };
 }

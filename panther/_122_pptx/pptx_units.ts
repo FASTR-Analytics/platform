@@ -42,7 +42,7 @@ export function imageToDataUrl(
   const imgHeight = img.naturalHeight ?? img.height;
   const width = crop?.sw ?? imgWidth;
   const height = crop?.sh ?? imgHeight;
-  const { canvas, rc } = createCanvasRenderContext(width, height);
+  const { canvas, rc } = createCanvasRenderContext(width, height, 1);
 
   if (crop) {
     rc.rImage(img, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height);

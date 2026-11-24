@@ -8,24 +8,28 @@ import {
   buildInteractionDigest,
   createInteractionLog,
   createSignal,
+  parseViewState,
+  resolveGateView,
+  resolveViewInstructions,
+  resolveViewLabel,
+  resolveViewSectionParts,
   untrack,
 } from "../deps.ts";
-import type { AIInteractionDefLike } from "../deps.ts";
 import type {
   AIInteractionRegistry,
   AnyAIInteraction,
   NotifyArgs,
 } from "./interactions.ts";
-import { resolveViewLabel } from "../deps.ts";
 import type {
+  AIInteractionDefLike,
   AIViewDefinition,
-  AIViewIdentity,
   AIViewRegistry,
   AIViewState,
   AIViewVoidKeys,
   AnyAIView,
   GateView,
   SetViewArgs,
+  ViewSectionParts,
 } from "../deps.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -141,11 +145,7 @@ export type AIViewController<
   // safely (a throwing label/state/instructions/identity is logged and
   // degraded, never a turn failure); `view` is also the turn's reference for
   // the gate. Consumers never call this.
-  _turnSectionParts(): {
-    view: GateView;
-    viewState: string | null;
-    viewInstructions: string | null;
-  };
+  _turnSectionParts(): ViewSectionParts;
   // Engine-internal: ONE read of the live view with its label and identity
   // resolved, for one gate check or one approval lifecycle, so the check and
   // what runs after it see the same view. Consumers never call this.
@@ -285,76 +285,8 @@ export function createAIViewController<
     return registry._defs[s.id]._def as AIViewDefinition<unknown, unknown>;
   }
 
-  function resolveLabel(s: AIViewState<TDefs>): string | null {
+  function labelOf(s: AIViewState<TDefs>): string | null {
     return resolveViewLabel(defFor(s), String(s.id), s.params, s.context);
-  }
-
-  function resolveInstructions(s: AIViewState<TDefs>): string | null {
-    const def = defFor(s);
-    if (def.instructions === undefined) return null;
-    if (typeof def.instructions === "string") return def.instructions;
-    try {
-      return def.instructions(s.params, s.context);
-    } catch (err) {
-      console.error(
-        `AI view instructions for "${
-          String(s.id)
-        }" threw; dropping the section for this turn.`,
-        err,
-      );
-      return null;
-    }
-  }
-
-  function resolveState(s: AIViewState<TDefs>): string | null {
-    const def = defFor(s);
-    if (def.state === undefined) return null;
-    try {
-      return def.state(s.params, s.context);
-    } catch (err) {
-      console.error(
-        `AI view state for "${
-          String(s.id)
-        }" threw; dropping the section for this turn.`,
-        err,
-      );
-      return null;
-    }
-  }
-
-  function instructionsDeliveryFor(
-    s: AIViewState<TDefs>,
-  ): "ephemeral" | "manual" {
-    return defFor(s).instructionsDelivery ?? "ephemeral";
-  }
-
-  // undefined: the view declares no identity; null: it threw, which the gate
-  // treats as a move (never equal), so a stale identity refuses view-limited
-  // calls until the user writes instead of failing the turn.
-  function resolveIdentity(
-    s: AIViewState<TDefs>,
-  ): AIViewIdentity | null | undefined {
-    const def = defFor(s);
-    if (def.identity === undefined) return undefined;
-    if (typeof def.identity !== "function") return def.identity;
-    try {
-      return def.identity(s.params, s.context);
-    } catch (err) {
-      console.error(
-        `AI view identity for "${
-          String(s.id)
-        }" threw; view-limited calls are refused until the user writes. A stale identity must never fail a turn.`,
-        err,
-      );
-      return null;
-    }
-  }
-
-  function gateView(s: AIViewState<TDefs>): GateView {
-    const identity = resolveIdentity(s);
-    return identity === undefined
-      ? { id: String(s.id), label: resolveLabel(s) }
-      : { id: String(s.id), label: resolveLabel(s), identity };
   }
 
   // Built-in __navigation event around every state change: labels resolved
@@ -369,8 +301,8 @@ export function createAIViewController<
   // subscribe that effect to `state` through these reads — and since setState
   // writes a fresh object literal every call, Solid's `===` equality guard
   // never settles it, so the effect re-triggers itself until the stack
-  // overflows. resolveLabel is inside the untrack for the same reason: a
-  // label closure may read live context signals.
+  // overflows. labelOf is inside the untrack for the same reason: a label
+  // closure may read live context signals.
   function applyWithNavigation(apply: () => void): void {
     if (!reportNavigation) {
       apply();
@@ -378,14 +310,14 @@ export function createAIViewController<
     }
     const before = untrack(state);
     const fromId = String(before.id);
-    const fromLabel = untrack(() => resolveLabel(before)) ?? fromId;
+    const fromLabel = untrack(() => labelOf(before)) ?? fromId;
     apply();
     const after = untrack(state);
     interactionLog!.recordNavigation({
       fromId,
       fromLabel,
       toId: String(after.id),
-      toLabel: untrack(() => resolveLabel(after)) ?? String(after.id),
+      toLabel: untrack(() => labelOf(after)) ?? String(after.id),
     });
   }
 
@@ -394,23 +326,12 @@ export function createAIViewController<
       id: K,
       ...args: SetViewArgs<TDefs, K>
     ): void {
-      const v = registry._defs[id];
-      if (!v) {
-        throw new Error(`setView: unknown view id "${String(id)}"`);
-      }
-      const rawArgs = args as unknown[];
       // Parse BEFORE recording navigation — a rejected params object leaves
       // both the view state and the interaction queue untouched.
-      const params = v._def.params
-        ? v._def.params.parse(rawArgs[0])
-        : rawArgs[0];
+      const next = parseViewState(registry, id, ...args);
       // Functional setter: with a generic state type, Solid's value overload
       // cannot exclude the function case.
-      applyWithNavigation(() =>
-        setState(
-          () => ({ id, params, context: rawArgs[1] } as AIViewState<TDefs>),
-        )
-      );
+      applyWithNavigation(() => setState(() => next));
     },
     clearView(): void {
       applyWithNavigation(() => setState(() => fallbackState));
@@ -418,12 +339,13 @@ export function createAIViewController<
     current: state,
     currentLabel(): string {
       const s = state();
-      return resolveLabel(s) ?? String(s.id);
+      return labelOf(s) ?? String(s.id);
     },
     instructions(): string | null {
       const s = state();
-      if (instructionsDeliveryFor(s) !== "manual") return null;
-      return resolveInstructions(s);
+      const def = defFor(s);
+      if (def.instructionsDelivery !== "manual") return null;
+      return resolveViewInstructions(def, String(s.id), s.params, s.context);
     },
     notify<K extends keyof TIDefs>(
       id: K,
@@ -454,7 +376,7 @@ export function createAIViewController<
         const s = state();
         const live = { id: String(s.id), params: s.params, context: s.context };
         if (!admitInteraction(String(id), def, payload, live)) return null;
-        return { id: live.id, label: resolveLabel(s) ?? live.id };
+        return { id: live.id, label: labelOf(s) ?? live.id };
       });
       if (recorded) interactionLog.record(String(id), payload, recorded);
     },
@@ -511,18 +433,11 @@ export function createAIViewController<
       }
     },
     _turnSectionParts() {
-      const s = state();
-      return {
-        view: gateView(s),
-        viewState: resolveState(s),
-        viewInstructions: instructionsDeliveryFor(s) === "ephemeral"
-          ? resolveInstructions(s)
-          : null,
-      };
+      return resolveViewSectionParts(registry, state());
     },
     _snapshot() {
       const s = state();
-      return { state: s, view: gateView(s) };
+      return { state: s, view: resolveGateView(registry, s) };
     },
     _activateConversation(conversationId: string): void {
       interactionLog?.activate(conversationId);

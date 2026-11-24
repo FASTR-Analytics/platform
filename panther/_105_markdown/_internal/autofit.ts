@@ -28,7 +28,8 @@ type ResolvedAutofitOptions = {
 // Shrink-to-fit is ON by default (per the sizing model, D6): only an explicit
 // `false` opts out. `true`, an options object, or omitting it all enable it.
 // maxScale is capped at 1 so markdown never grows; `minFontSize` (DU) is the
-// legibility floor, shared with figures via MIN_FONT_SIZE_DU.
+// font floor, MIN_FONT_SIZE_DU by default as for figures; a page passes its
+// own.
 function resolveAutofitOptions(
   autofit: boolean | MarkdownAutofitOptions | undefined,
 ): ResolvedAutofitOptions | null {
@@ -59,8 +60,7 @@ export function getAutofitScales(
 ): number[] | undefined {
   const options = resolveAutofitOptions(input.autofit);
   if (!options) return undefined;
-  const baseFontSize = new CustomMarkdownStyle(input.style)
-    .getMergedMarkdownStyle().text.paragraph.fontSize;
+  const baseFontSize = paragraphFontSize(input);
   const stated = Math.max(
     options.minScale,
     options.minFontSize / baseFontSize,
@@ -104,6 +104,55 @@ export function getMinWidthAtScale(
 ): number {
   const bounds = new RectCoordsDims({ x: 0, y: 0, w: 0, h: 99999 });
   return widestOverrun(measureMarkdown(rc, bounds, input, scale));
+}
+
+// A line this many times the paragraph font size long, about 40 characters,
+// is the shortest that reads comfortably.
+const COMFORTABLE_LINE_EMS = 20;
+
+const UNWRAPPED_WIDTH = 99999;
+
+// The narrowest width the markdown reads comfortably in at full size: its
+// widest word, or a comfortable line, never wider than the markdown is with
+// no line wrapped. The layout's optimizer reads it, so a text column narrower
+// than a readable line scores as text that must shrink to read in it.
+export function getMinComfortableWidth(
+  rc: RenderContext,
+  input: MarkdownRendererInput,
+): number {
+  return Math.max(
+    getMinWidthAtScale(rc, input, 1),
+    Math.min(
+      getUnwrappedWidth(rc, input),
+      COMFORTABLE_LINE_EMS * paragraphFontSize(input),
+    ),
+  );
+}
+
+function paragraphFontSize(input: MarkdownRendererInput): number {
+  return new CustomMarkdownStyle(input.style).getMergedMarkdownStyle().text
+    .paragraph.fontSize;
+}
+
+// The width its widest line takes with no line wrapped, its item's insets
+// included.
+function getUnwrappedWidth(
+  rc: RenderContext,
+  input: MarkdownRendererInput,
+): number {
+  const bounds = new RectCoordsDims({
+    x: 0,
+    y: 0,
+    w: UNWRAPPED_WIDTH,
+    h: 99999,
+  });
+  return measureMarkdown(rc, bounds, input, 1).markdownItems
+    .flatMap(textWidths)
+    .reduce(
+      (width, { lineW, maxW }) =>
+        Math.max(width, lineW + (UNWRAPPED_WIDTH - maxW)),
+      0,
+    );
 }
 
 // How far the widest line reaches past the width its item gives its text: the

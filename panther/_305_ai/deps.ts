@@ -74,18 +74,22 @@ export {
   buildAITool,
   buildToolResultContent,
   createAITool,
+  parseViewState,
   resolveAIToolReturn,
+  resolveGateView,
+  resolveViewInstructions,
   resolveViewLabel,
+  resolveViewSectionParts,
   runAIToolWithView,
   toolThrowToResultParts,
 } from "../_112_ai_tool_core/mod.ts";
 export type {
   AIToolDisplayProps,
+  AIToolEarlierCall,
   AIToolKind,
   AIToolRun,
   AIToolWithMetadata,
   AIViewDefinition,
-  AIViewIdentity,
   AIViewParams,
   AIViewRegistry,
   AIViewSnapshot,
@@ -98,6 +102,7 @@ export type {
   ProposalResult,
   SetViewArgs,
   ToolUIMetadata,
+  ViewSectionParts,
 } from "../_112_ai_tool_core/mod.ts";
 export {
   Button,

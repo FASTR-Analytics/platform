@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+export { buildCanvasRenderContext } from "./build_canvas_render_context.ts";
 export {
   CanvasRenderContext,
   type CreateCanvas,

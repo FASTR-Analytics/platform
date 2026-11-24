@@ -47,6 +47,7 @@ export type MergedFreeformContentStyle = {
   // stretch-beyond-ideal policy (figures own ideal height; fill-figures —
   // sankey/map/image — report Infinity and are left uncapped).
   figureMaxStretch: number;
+  minFontSize: number;
 };
 
 export type MergedFreeformLayoutContainersStyle = {

@@ -7,6 +7,7 @@ import {
   findOptimalScale,
   getAutofitScales,
   getAutofitSizeConstraints,
+  getMinComfortableWidth,
   getMinWidthAtScale,
   widestOverrun,
 } from "./_internal/autofit.ts";
@@ -98,7 +99,7 @@ export const MarkdownRenderer: Renderer<
   ): SizeConstraints {
     const scales = getAutofitScales(input);
 
-    const minComfortableWidth = getMinWidthAtScale(rc, input, 1.0);
+    const minComfortableWidth = getMinComfortableWidth(rc, input);
     const neededScalingToFitWidth: "none" | number =
       width >= minComfortableWidth ? 1.0 : width / minComfortableWidth;
 
@@ -124,7 +125,7 @@ export const MarkdownRenderer: Renderer<
       idealH: h,
       maxH,
       // Without autofit the floor scale is 1.
-      minW: minComfortableWidth,
+      minW: getMinWidthAtScale(rc, input, 1),
       neededScalingToFitWidth,
       minComfortableWidth,
     };

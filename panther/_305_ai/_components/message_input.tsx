@@ -50,38 +50,40 @@ export function MessageInput(p: Props) {
   };
 
   return (
-    <div class="ui-pad ui-gap bg-primary-subtle flex w-full flex-none">
-      <div class="w-0 flex-1" data-ai-input-wrapper>
-        <TextArea
-          ref={p.ref}
-          value={p.value}
-          onChange={p.onChange}
-          onKeyDown={handleKeyDown}
-          placeholder={p.placeholder ??
-            t3({
-              en: "Type your message... (Shift+Enter for new line)",
-              fr: "Tapez votre message... (Maj+Entrée pour un saut de ligne)",
-              pt: "Escreva a sua mensagem... (Shift+Enter para nova linha)",
-              th: "พิมพ์ข้อความของคุณ... (Shift+Enter เพื่อขึ้นบรรทัดใหม่)",
-            })}
-          height={p.height ?? "100px"}
-          // mono
-          fullWidth
-        />
-      </div>
-      <div
-        class="ui-gap-sm flex flex-none flex-col items-start"
-        data-ai-submit-wrapper
-      >
-        <Button onClick={p.onSubmit} intent="primary">
-          {p.submitLabel ??
-            t3({ en: "Submit", fr: "Envoyer", pt: "Enviar", th: "ส่ง" })}
-        </Button>
-        <Show when={p.isGenerating && p.onStop}>
-          <Button onClick={() => p.onStop!()} outline onBackground="base-300">
-            {t3({ en: "Stop", fr: "Arrêter", pt: "Parar", th: "หยุด" })}
+    <div class="ui-pad-y ui-pad-x-beside-side-controls bg-primary-subtle w-full flex-none">
+      <div class="ui-gap mx-auto flex max-w-(--ai-chat-content-width)">
+        <div class="w-0 flex-1" data-ai-input-wrapper>
+          <TextArea
+            ref={p.ref}
+            value={p.value}
+            onChange={p.onChange}
+            onKeyDown={handleKeyDown}
+            placeholder={p.placeholder ??
+              t3({
+                en: "Type your message... (Shift+Enter for new line)",
+                fr: "Tapez votre message... (Maj+Entrée pour un saut de ligne)",
+                pt: "Escreva a sua mensagem... (Shift+Enter para nova linha)",
+                th: "พิมพ์ข้อความของคุณ... (Shift+Enter เพื่อขึ้นบรรทัดใหม่)",
+              })}
+            height={p.height ?? "100px"}
+            // mono
+            fullWidth
+          />
+        </div>
+        <div
+          class="ui-gap-sm flex flex-none flex-col items-start"
+          data-ai-submit-wrapper
+        >
+          <Button onClick={p.onSubmit} intent="primary">
+            {p.submitLabel ??
+              t3({ en: "Submit", fr: "Envoyer", pt: "Enviar", th: "ส่ง" })}
           </Button>
-        </Show>
+          <Show when={p.isGenerating && p.onStop}>
+            <Button onClick={() => p.onStop!()} outline onBackground="base-300">
+              {t3({ en: "Stop", fr: "Arrêter", pt: "Parar", th: "หยุด" })}
+            </Button>
+          </Show>
+        </div>
       </div>
     </div>
   );

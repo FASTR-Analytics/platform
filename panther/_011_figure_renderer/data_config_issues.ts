@@ -9,11 +9,13 @@ import {
   getChartOVDataConfigIssues,
   getMapDataConfigIssues,
   getPieDataConfigIssues,
+  getScatterDataConfigIssues,
   getTableDataConfigIssues,
   getTimeseriesDataConfigIssues,
   isChartOHDataJson,
   isChartOVDataJson,
   isPieDataTransformed,
+  isScatterDataTransformed,
   isTableDataJson,
   isTimeseriesDataJson,
 } from "./deps.ts";
@@ -38,6 +40,10 @@ export function getDataConfigIssues(inputs: FigureInputs): DataConfigIssue[] {
       return isPieDataTransformed(inputs.data)
         ? []
         : getPieDataConfigIssues(inputs.data);
+    case "scatter":
+      return isScatterDataTransformed(inputs.data)
+        ? []
+        : getScatterDataConfigIssues(inputs.data);
     case "map":
       return "isTransformed" in inputs.data
         ? []

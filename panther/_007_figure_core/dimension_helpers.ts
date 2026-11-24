@@ -30,17 +30,17 @@ export function computeNRows(n: number, nCols: number): number {
 }
 
 // One grid column at its legibility floor: a pane's sub-charts across its
-// lanes, the lane gaps and padding, and its y axis. yAxisWidth defaults to
+// lanes, the lane gaps and padding, and its y axes. yAxesWidth defaults to
 // the sample estimate; a probe-based caller passes the real width.
 export function calculateColumnMinWidth(
   info: ChartComponentSizes,
-  yAxisWidth: number = info.minYAxisWidth,
+  yAxesWidth: number = info.minYAxesWidth,
 ): number {
   const lanes = info.mergedStyle.lanes;
   return info.minSubChartWidth * info.nLanes +
     (info.nLanes - 1) * lanes.gapX +
     lanes.paddingLeft + lanes.paddingRight +
-    yAxisWidth;
+    yAxesWidth;
 }
 
 // Under panes.nCols "auto", the grid packs as many columns as the frame's

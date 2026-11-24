@@ -25,6 +25,7 @@ export {
   createAITool,
   findOpenObjectPath,
   getHeadlessCapability,
+  resolveAIToolCallContext,
   runAIToolWithView,
   wireInputSchema,
 } from "./tool_helpers.ts";
@@ -36,7 +37,15 @@ export {
 } from "./tool_output.ts";
 export type { AIToolRun } from "./tool_output.ts";
 export type { AIToolImage } from "./tool_image.ts";
-export { defineAIViews, resolveViewLabel, view } from "./view_types.ts";
+export {
+  defineAIViews,
+  parseViewState,
+  resolveGateView,
+  resolveViewInstructions,
+  resolveViewLabel,
+  resolveViewSectionParts,
+  view,
+} from "./view_types.ts";
 export { buildToolCatalog } from "./tool_catalog.ts";
 export {
   buildMCPServerCore,
@@ -54,6 +63,7 @@ export type {
   AIToolApprovalConfig,
   AIToolCallContext,
   AIToolDisplayProps,
+  AIToolEarlierCall,
   AIToolKind,
   AIToolWithMetadata,
   AnyAITool,
@@ -81,6 +91,7 @@ export type {
   AIViewVoidKeys,
   AnyAIView,
   SetViewArgs,
+  ViewSectionParts,
 } from "./view_types.ts";
 export type {
   CreateMCPServerConfig,

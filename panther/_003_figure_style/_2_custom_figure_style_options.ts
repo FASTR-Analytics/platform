@@ -19,6 +19,8 @@ import {
   type MapAreaInfoFunc,
   type PaddingOptions,
   type PieSliceInfoFunc,
+  type ReferenceLineInfoFunc,
+  type ScatterPointInfoFunc,
   type TableCellInfoFunc,
   type TableHeaderInfoFunc,
   type TickLabelFormatterOption,
@@ -38,10 +40,13 @@ import type {
   GenericMapAreaStyleOptions,
   GenericPieSliceStyleOptions,
   GenericPointStyleOptions,
+  GenericReferenceLineStyleOptions,
+  GenericScatterPointStyleOptions,
   GenericTableCellStyleOptions,
   GenericTableHeaderStyleOptions,
 } from "./style_func_types.ts";
 import type {
+  LabelCollisionConfig,
   MapProjection,
   NColsOrAuto,
 } from "./_3_merged_style_return_types.ts";
@@ -171,6 +176,11 @@ export type CustomFigureStyleOptions = {
     exactAxisX?: "none" | number;
     allowIndividualTierLimits?: boolean;
   };
+  secondValueAxis?: {
+    max?: number | "auto" | "auto-zero" | ((i_pane: number) => number);
+    min?: number | "auto" | "auto-zero" | ((i_pane: number) => number);
+    tickLabelFormatter?: TickLabelFormatterOption;
+  };
   content?: {
     dataLabel?: GenericDataLabelStyleOptions;
     points?: {
@@ -242,6 +252,17 @@ export type CustomFigureStyleOptions = {
       arrowheadFitFallback?: ArrowheadFitFallback;
       arrowheadFitMinLineLength?: number;
     };
+    referenceLines?: {
+      func?:
+        | GenericReferenceLineStyleOptions
+        | ReferenceLineInfoFunc<GenericReferenceLineStyleOptions>
+        | "none";
+    };
+    // A sub-chart text is one of the figure's texts, set in text.subChartTexts
+    // as its titles and headers are set in theirs.
+    subChartTexts?: {
+      padding?: PaddingOptions;
+    };
     mapAreas?: {
       func?:
         | GenericMapAreaStyleOptions
@@ -255,6 +276,17 @@ export type CustomFigureStyleOptions = {
         | PieSliceInfoFunc<GenericPieSliceStyleOptions>
         | "none";
       textFormatter?: PieSliceInfoFunc<string> | "none";
+    };
+    scatterPoints?: {
+      func?:
+        | GenericScatterPointStyleOptions
+        | ScatterPointInfoFunc<GenericScatterPointStyleOptions>
+        | "none";
+      textFormatter?: ScatterPointInfoFunc<string> | "none";
+      // On the content block, not a structural one as the map's and the
+      // pie's are, since the chart core draws a scatter's labels and reads
+      // only MergedChartStyleBase.
+      labelCollision?: Partial<LabelCollisionConfig>;
     };
     tableCells?: {
       func?:
@@ -400,11 +432,7 @@ export type CustomFigureStyleOptions = {
     fit?: "all-map-areas" | "only-map-areas-in-data";
     dataLabelMode?: "none" | "centroid" | "callout" | "auto";
     calloutMargin?: number;
-    labelCollision?: {
-      gap?: number;
-      maxCentroidDisplacement?: number;
-      maxIterations?: number;
-    };
+    labelCollision?: Partial<LabelCollisionConfig>;
     outsideLabelPlacement?: "nearest" | "flank";
     labelClearanceFloor?: number;
     labelAlignmentSwitchAngle?: number;
@@ -432,11 +460,7 @@ export type CustomFigureStyleOptions = {
       gapY?: number;
       nCols?: NColsOrAuto;
     };
-    labelCollision?: {
-      gap?: number;
-      maxCentroidDisplacement?: number;
-      maxIterations?: number;
-    };
+    labelCollision?: Partial<LabelCollisionConfig>;
     outsideLabelPlacement?: "nearest" | "flank";
     labelClearanceFloor?: number;
     labelAlignmentSwitchAngle?: number;
@@ -455,7 +479,7 @@ export type CustomFigureStyleOptions = {
   // concern (page style content.figureMaxStretch). Resolution: custom → global
   // → default.
   idealHeight?: {
-    // Value-axis charts (ChartOV, Timeseries): natural per-sub-chart
+    // Value-axis charts (ChartOV, Timeseries, Scatter): natural per-sub-chart
     // height (DU) as a function of vertically-stacked sub-chart rows
     // (nPaneRows × nTiers). Decays so stacked grids stay bounded. Clamped to
     // >= the legibility floor. Ignored by ChartOH and Table.
@@ -464,7 +488,7 @@ export type CustomFigureStyleOptions = {
     // ChartOH: natural per-bar-row thickness (DU) as a function of the figure's
     // total bar rows (nPaneRows × nTiers × nIndicators × (stacked ? 1 : nSerieses)).
     // Decays so dense category charts thin their bars instead of growing
-    // without bound. Ignored by ChartOV, Timeseries, and Table.
+    // without bound. Ignored by ChartOV, Timeseries, Scatter and Table.
     idealRowThickness?: (nTotalBarRows: number) => number;
 
     // Pie: natural DISC diameter (DU) as a function of indicators per

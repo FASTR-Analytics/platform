@@ -40,6 +40,7 @@ export function MarkdownTextEditor(p: Props) {
             language="markdown"
             fullHeight
             lineWrapping
+            showLineNumbers
           />
         </div>
       </Match>

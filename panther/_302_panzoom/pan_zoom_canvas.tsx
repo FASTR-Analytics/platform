@@ -6,6 +6,7 @@
 import {
   createEffect,
   createSignal,
+  getDevicePixelRatio,
   onCleanup,
   onMount,
   untrack,
@@ -55,23 +56,10 @@ export function PanZoomCanvas(p: PanZoomCanvasProps) {
     if (ctx === null) {
       throw new Error("PanZoomCanvas: could not get 2d context");
     }
-    // Redraw when devicePixelRatio changes (monitor move). One cleanup over
-    // the current mq: re-arming registers no owner-bound cleanup of its own
-    // (the change callback runs outside any reactive owner).
-    let dprMq: MediaQueryList | undefined;
-    const onDprChange = () => {
-      scheduleFrame();
-      watchDpr();
-    };
-    function watchDpr(): void {
-      dprMq = matchMedia(`(resolution: ${globalThis.devicePixelRatio}dppx)`);
-      dprMq.addEventListener("change", onDprChange, { once: true });
-    }
-    watchDpr();
-    onCleanup(() => dprMq?.removeEventListener("change", onDprChange));
     createEffect(() => {
       cam.camera();
       cam.viewportSize();
+      getDevicePixelRatio();
       scheduleFrame();
     });
     createEffect(() => {
@@ -82,7 +70,7 @@ export function PanZoomCanvas(p: PanZoomCanvasProps) {
       if (v === undefined) {
         return;
       }
-      const dpr = globalThis.devicePixelRatio || 1;
+      const dpr = untrack(getDevicePixelRatio);
       const backingW = Math.round(size.w * dpr);
       const backingH = Math.round(size.h * dpr);
       if (canvasEl.width !== backingW) {

@@ -5,6 +5,7 @@
 
 export { buildAvailabilityHint, IMAGE_LIMITS } from "../_110_ai_types/mod.ts";
 export type {
+  GateView,
   ImageContentBlock,
   ImageMediaType,
   ToolResultContent,

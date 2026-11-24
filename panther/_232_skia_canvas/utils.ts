@@ -4,11 +4,12 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  type Canvas,
-  CanvasRenderContext,
+  buildCanvasRenderContext,
+  Canvas,
+  type CanvasRenderContext,
   type CreateCanvas,
   createCanvas,
-  RectCoordsDims,
+  type RectCoordsDims,
   validateFilePath,
 } from "./deps.ts";
 import {
@@ -20,6 +21,7 @@ import {
 export function createCanvasRenderContext(
   width: number,
   height: number,
+  devicePxPerDu = 1,
 ): { canvas: Canvas; rc: CanvasRenderContext; rcd: RectCoordsDims } {
   if (width <= 0 || height <= 0) {
     throw new InvalidDimensionsError(
@@ -34,20 +36,15 @@ export function createCanvasRenderContext(
   }
 
   try {
-    const roundedW = Math.floor(width);
-    const roundedH = Math.floor(height);
-
-    const canvas = createCanvas(roundedW, roundedH);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      throw new CanvasCreationError("Failed to get 2D context from canvas");
-    }
-
-    const rc = new CanvasRenderContext(
-      ctx as unknown as CanvasRenderingContext2D,
+    const { canvas, rc, rcd } = buildCanvasRenderContext(
       createCanvas as unknown as CreateCanvas,
+      width,
+      height,
+      devicePxPerDu,
     );
-    const rcd = new RectCoordsDims([0, 0, roundedW, roundedH]);
+    if (!(canvas instanceof Canvas)) {
+      throw new CanvasCreationError("The canvas is not a skia canvas");
+    }
     return { canvas, rc, rcd };
   } catch (error) {
     if (

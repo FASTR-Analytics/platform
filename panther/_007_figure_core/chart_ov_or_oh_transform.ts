@@ -19,8 +19,9 @@ import {
 } from "./deps.ts";
 import {
   buildDataDimension,
-  calculateChartValueAxisLimits,
+  calculateChartValueAxes,
   type ChartOVOrOHProportional,
+  createEmptyValuesArray,
   type DataDimensions,
   deriveVisibleIndicatorsByPane,
   deriveVisibleIndicatorsByPaneTierOrLane,
@@ -32,6 +33,8 @@ import {
   orderVisibleByPane,
   orderVisibleByPaneTierOrLane,
   resolveChartProportional,
+  trimReferenceLineLabels,
+  trimSubChartTexts,
   type ValueSort,
 } from "./common_data_transform.ts";
 import { getChartOVOrOHDataConfigIssues } from "./chart_ov_or_oh_data_config_issues.ts";
@@ -43,6 +46,10 @@ import {
   type ChartValueAxisLimits,
   isRowBasedUncertainty,
   type JsonArray,
+  type ReferenceLineDataConfig,
+  type SecondValueAxisDataConfig,
+  type SecondValueAxisDataTransformed,
+  type SubChartTextDataConfig,
   type UncertaintyConfig,
 } from "./types.ts";
 
@@ -78,6 +85,9 @@ export type ChartOVOrOHJsonConfigCore = {
     pane?: MemberSortConfig;
   };
   sortIndicatorValues?: ValueSort;
+  secondValueAxis?: SecondValueAxisDataConfig;
+  referenceLines?: ReferenceLineDataConfig[];
+  subChartTexts?: SubChartTextDataConfig[];
 };
 
 export type ChartOVOrOHTransformResult = {
@@ -93,31 +103,14 @@ export type ChartOVOrOHTransformResult = {
     lb: (number | undefined)[][][][][];
   };
   valueAxisLimits: ChartValueAxisLimits;
+  secondValueAxis?: SecondValueAxisDataTransformed;
+  referenceLines?: ReferenceLineDataConfig[];
+  subChartTexts?: SubChartTextDataConfig[];
   visibleIndicatorsByPane?: number[][];
   visibleTiersOrLanesByPane?: number[][]; // → visibleLanesByPane / visibleTiersByPane
   visibleIndicatorsByPaneTierOrLane?: number[][][];
   proportionalPanes?: boolean;
 };
-
-function createEmptyValuesArray(
-  nPanes: number,
-  nTiers: number,
-  nLanes: number,
-  nSerieses: number,
-  nValues: number,
-): (number | undefined)[][][][][] {
-  return createArray(
-    nPanes,
-    () =>
-      createArray(
-        nTiers,
-        () =>
-          createArray(nLanes, () =>
-            createArray(nSerieses, () =>
-              createArray(nValues, () => undefined))),
-      ),
-  );
-}
 
 export function transformChartOVOrOHJson(
   jsonArray: JsonArray,
@@ -138,6 +131,9 @@ export function transformChartOVOrOHJson(
     labelReplacements,
     sort,
     sortIndicatorValues,
+    secondValueAxis,
+    referenceLines,
+    subChartTexts,
   } = cfg;
 
   assertNoDataConfigIssues(
@@ -283,71 +279,14 @@ export function transformChartOVOrOHJson(
     uncertaintyValues = { ub: ubValues, lb: lbValues };
   }
 
-  const counts = {
-    nPanes,
-    nTiers,
-    nLanes,
-    nSerieses,
-    nValues: nIndicators,
-  };
-
-  const valueAxisLimits = calculateChartValueAxisLimits(
-    values,
-    counts,
+  const valueAxes = calculateChartValueAxes(
+    { values, uncertaintyValues },
+    { nPanes, nTiers, nLanes, nValues: nIndicators },
     stacked,
+    dimensions,
+    secondValueAxis,
+    referenceLines,
   );
-
-  if (uncertaintyValues) {
-    const ubLimits = calculateChartValueAxisLimits(
-      uncertaintyValues.ub,
-      counts,
-      false,
-    );
-    const lbLimits = calculateChartValueAxisLimits(
-      uncertaintyValues.lb,
-      counts,
-      false,
-    );
-    const main = valueAxisLimits.paneLimits;
-    const ub = ubLimits.paneLimits;
-    const lb = lbLimits.paneLimits;
-    for (let i = 0; i < nPanes; i++) {
-      main[i].valueMin = Math.min(
-        main[i].valueMin,
-        ub[i].valueMin,
-        lb[i].valueMin,
-      );
-      main[i].valueMax = Math.max(
-        main[i].valueMax,
-        ub[i].valueMax,
-        lb[i].valueMax,
-      );
-      for (let j = 0; j < nTiers; j++) {
-        main[i].tierLimits[j].valueMin = Math.min(
-          main[i].tierLimits[j].valueMin,
-          ub[i].tierLimits[j].valueMin,
-          lb[i].tierLimits[j].valueMin,
-        );
-        main[i].tierLimits[j].valueMax = Math.max(
-          main[i].tierLimits[j].valueMax,
-          ub[i].tierLimits[j].valueMax,
-          lb[i].tierLimits[j].valueMax,
-        );
-      }
-      for (let k = 0; k < nLanes; k++) {
-        main[i].laneLimits[k].valueMin = Math.min(
-          main[i].laneLimits[k].valueMin,
-          ub[i].laneLimits[k].valueMin,
-          lb[i].laneLimits[k].valueMin,
-        );
-        main[i].laneLimits[k].valueMax = Math.max(
-          main[i].laneLimits[k].valueMax,
-          ub[i].laneLimits[k].valueMax,
-          lb[i].laneLimits[k].valueMax,
-        );
-      }
-    }
-  }
 
   // The value sort is a presentation order: it permutes the masks, never the
   // storage, so every data lookup keeps sort.indicator's global index. A
@@ -363,6 +302,7 @@ export function transformChartOVOrOHJson(
         ? deriveVisibleIndicatorsByPane(values, uncertaintyValues, nIndicators)
         : createArray(nPanes, () => indicator.members.map((_, i) => i)),
       values,
+      valueAxes.firstValueAxisSeriesIndices,
       indicator.members,
       spec.tierOrLaneDimension,
       valueSort,
@@ -389,6 +329,7 @@ export function transformChartOVOrOHJson(
         spec.tierOrLaneDimension,
       ),
       values,
+      valueAxes.firstValueAxisSeriesIndices,
       indicator.members,
       spec.tierOrLaneDimension,
       valueSort,
@@ -404,7 +345,10 @@ export function transformChartOVOrOHJson(
     pane,
     values,
     uncertaintyValues,
-    valueAxisLimits: valueAxisLimits,
+    valueAxisLimits: valueAxes.valueAxisLimits,
+    secondValueAxis: valueAxes.secondValueAxis,
+    referenceLines: trimReferenceLineLabels(referenceLines),
+    subChartTexts: trimSubChartTexts(subChartTexts),
     visibleIndicatorsByPane,
     visibleTiersOrLanesByPane,
     visibleIndicatorsByPaneTierOrLane,

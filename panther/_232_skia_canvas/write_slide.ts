@@ -9,20 +9,10 @@ import {
   getExportDevicePxPerDu,
   type PageInputs,
   PageRenderer,
-  RectCoordsDims,
+  type SlideExportSizeOptions,
 } from "./deps.ts";
 import { registerFontWithSkiaIfNeeded } from "./register_font.ts";
 import { createCanvasRenderContext, writeCanvas } from "./utils.ts";
-
-// Slide export sizing. A slide renders the page's fixed DU frame
-// (pageWidthDu × pageHeightDu) — the same frame the on-screen PageHolder and the
-// pdf/pptx exports use. `outputWidthPx` is the file's pixel width (the
-// supersample); the pixel height follows the frame aspect.
-export type SlideExportSizeOptions = {
-  outputWidthPx: number;
-  pageWidthDu: number;
-  pageHeightDu: number;
-};
 
 export async function writeSlide(
   filePath: string,
@@ -80,16 +70,11 @@ async function getSlideAsCanvas(
     await registerFontWithSkiaIfNeeded(font);
   }
 
-  // Pages are always zoom: lay out in the fixed (pageWidthDu × pageHeightDu)
-  // frame. outputWidthPx is the supersample; the backing height follows aspect.
-  const devicePxPerDu = getExportDevicePxPerDu(outputWidthPx, pageWidthDu);
-  const backingW = Math.round(pageWidthDu * devicePxPerDu); // === outputWidthPx
-  const backingH = Math.round(pageHeightDu * devicePxPerDu);
-
-  const { canvas, rc } = createCanvasRenderContext(backingW, backingH);
-  const ctx = canvas.getContext("2d")!;
-  ctx.setTransform(devicePxPerDu, 0, 0, devicePxPerDu, 0, 0);
-  const rcd = new RectCoordsDims([0, 0, pageWidthDu, pageHeightDu]);
+  const { canvas, rc, rcd } = createCanvasRenderContext(
+    pageWidthDu,
+    pageHeightDu,
+    getExportDevicePxPerDu(outputWidthPx, pageWidthDu),
+  );
 
   const mSlide = await PageRenderer.measure(rc, rcd, inputs);
 

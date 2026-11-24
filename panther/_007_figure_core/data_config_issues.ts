@@ -19,6 +19,7 @@ import {
   isRowBasedUncertainty,
   type JsonArray,
   type JsonArrayItem,
+  type SecondValueAxisDataConfig,
   type UncertaintyConfig,
 } from "./types.ts";
 
@@ -35,7 +36,8 @@ export type DataConfigIssueCode =
   | "not-a-period"
   | "every-row-blank"
   | "two-rows-one-value"
-  | "proportional-conflict";
+  | "proportional-conflict"
+  | "every-series-on-second-value-axis";
 
 export type DataConfigIssue = {
   code: DataConfigIssueCode;
@@ -430,6 +432,45 @@ export function getProportionalConflictIssues(
     : [];
 }
 
+// The series members are the ones the transform builds: the ids of the series
+// column in the rows the figure places, or the value props under "--v". An id
+// that names no member assigns nothing, and a second value axis that assigns
+// none is not drawn, so only one that leaves the first value axis no series
+// is an issue.
+export function getEverySeriesOnSecondValueAxisIssues(
+  rows: IndexedRow[],
+  seriesProp: string | undefined,
+  valueProps: string[],
+  secondValueAxis: SecondValueAxisDataConfig | undefined,
+): DataConfigIssue[] {
+  if (secondValueAxis === undefined || seriesProp === undefined) {
+    return [];
+  }
+  if (
+    seriesProp !== "--v" &&
+    !getRowColumns(rows.map(({ row }) => row)).includes(seriesProp)
+  ) {
+    return [];
+  }
+  const members = [
+    ...new Set(
+      seriesProp === "--v"
+        ? valueProps
+        : rows.map(({ row }) => getDimensionId(row, seriesProp)),
+    ),
+  ];
+  const assigned = new Set(secondValueAxis.seriesMemberIds);
+  return members.length === 0 || !members.every((id) => assigned.has(id))
+    ? []
+    : [{
+      code: "every-series-on-second-value-axis",
+      path: ["secondValueAxis", "seriesMemberIds"],
+      message: `secondValueAxis.seriesMemberIds names every series member, ${
+        listMemberIds(members)
+      }, so the first value axis would measure none.`,
+    }];
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Uncertainty
 ///////////////////////////////////////////////////////////////////////////////
@@ -514,8 +555,6 @@ export function getUncertaintyConfigIssues(
   });
 }
 
-const N_MEMBERS_NAMED = 10;
-
 export function getMemberNotInRowsIssues(
   rows: IndexedRow[],
   uncertainty: RowBasedUncertainty,
@@ -529,13 +568,9 @@ export function getMemberNotInRowsIssues(
     ),
   ];
   const heldSet = new Set(held);
-  const named = held.slice(0, N_MEMBERS_NAMED).map(quote);
-  const nMore = held.length - named.length;
   const heldText = held.length === 0
     ? "Its cells are blank."
-    : `Its cells hold ${
-      nMore > 0 ? `${named.join(", ")} and ${nMore} more` : listWithAnd(named)
-    }.`;
+    : `Its cells hold ${listMemberIds(held)}.`;
   return UNCERTAINTY_MEMBER_KEYS.filter((key) => !heldSet.has(uncertainty[key]))
     .map((key) => ({
       code: "member-not-in-rows",
@@ -713,6 +748,16 @@ function listWithAnd(items: string[]): string {
   return items.length <= 1
     ? items.join("")
     : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+const N_MEMBERS_NAMED = 10;
+
+function listMemberIds(ids: string[]): string {
+  const named = ids.slice(0, N_MEMBERS_NAMED).map(quote);
+  const nMore = ids.length - named.length;
+  return nMore > 0
+    ? `${named.join(", ")} and ${nMore} more`
+    : listWithAnd(named);
 }
 
 function listWithOr(items: string[]): string {

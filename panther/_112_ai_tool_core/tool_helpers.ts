@@ -240,30 +240,42 @@ export type ObjectJsonSchema = {
   additionalProperties: false;
 };
 
-// What a handler gets beside its input: the tool_use id the call answers and
-// the abort signal of the turn it runs in, which Stop aborts first.
+// A call of the same conversation whose structured output the conversation
+// keeps: in the chat, a card that kept one; in callAI, a call it ran.
+export type AIToolEarlierCall = {
+  toolName: string;
+  input: unknown;
+  structured: unknown;
+};
+
+// What a handler gets beside its input: the tool_use id the call answers, the
+// abort signal of the turn it runs in, which Stop aborts first, and the
+// conversation's earlier calls, oldest first.
 export type AIToolCallContext = {
   toolUseId: string;
   signal: AbortSignal;
+  earlierCalls: readonly AIToolEarlierCall[];
 };
 
 let detachedCalls = 0;
 
 // For a call no chat turn and no tool runner owns (an MCP client, a direct
-// run()): a fresh id, and a signal that never aborts.
+// run()): a fresh id, a signal that never aborts, and no earlier calls.
 export function detachedCallContext(): AIToolCallContext {
   detachedCalls += 1;
   return {
     toolUseId: `detached-${detachedCalls}`,
     signal: new AbortController().signal,
+    earlierCalls: [],
   };
 }
 
 // The part of the context the SDK's tool runner passes as run()'s second
 // argument (BetaToolRunner: `tool.run(input, { toolUse, toolUseBlock,
-// signal })`) that run() reads: the call's id and callAI's signal.
+// signal })`) that panther reads: the call's id, callAI's signal, and the
+// input the model sent, which callAI keeps with an earlier call.
 export type SDKToolRunContext = {
-  toolUse: { id: string };
+  toolUse: { id: string; input?: unknown };
   signal?: AbortSignal | null;
 };
 
@@ -271,6 +283,20 @@ export type SDKToolRunContext = {
 // it.
 function runContextOf(ctx: AIToolCallContext): SDKToolRunContext {
   return { toolUse: { id: ctx.toolUseId }, signal: ctx.signal };
+}
+
+// The runner's context carries no earlier calls: callAI hands a tool its
+// earlier calls through runWithView.
+export function resolveAIToolCallContext(
+  context?: SDKToolRunContext,
+): AIToolCallContext {
+  return context
+    ? {
+      toolUseId: context.toolUse.id,
+      signal: context.signal ?? new AbortController().signal,
+      earlierCalls: [],
+    }
+    : detachedCallContext();
 }
 
 export type SDKTool<TInput = unknown> = {
@@ -932,16 +958,8 @@ export function buildAITool<TInput>(
     input_schema: inputSchema,
     run: async (input: TInput, context?: SDKToolRunContext) =>
       buildToolResultContent(
-        (await execute(
-          input,
-          undefined,
-          context
-            ? {
-              toolUseId: context.toolUse.id,
-              signal: context.signal ?? new AbortController().signal,
-            }
-            : detachedCallContext(),
-        )).output,
+        (await execute(input, undefined, resolveAIToolCallContext(context)))
+          .output,
       ),
     runWithView: execute,
   };

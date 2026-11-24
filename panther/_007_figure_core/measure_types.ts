@@ -13,11 +13,13 @@ import type {
   RectCoordsDims,
 } from "./deps.ts";
 import type { LegendInput } from "./_legend/scale_legend_types.ts";
+import type { LegendSeries } from "./_legend/types.ts";
 import type { MeasuredSurrounds } from "./_surrounds/measure_surrounds.ts";
 import type { ChartAxesConfig } from "./_axes/axis_configs.ts";
 import type { MeasuredXAxis } from "./_axes/measure_x_axis.ts";
 import type { MeasuredYAxis } from "./_axes/measure_y_axis.ts";
 import type { PaneGrid } from "./dimension_helpers.ts";
+import type { SubChartTextDataConfig } from "./types.ts";
 
 export type { MeasuredSurrounds };
 
@@ -28,7 +30,7 @@ export type PaneLayout = {
   uniformSubChartWidth: number;
   topHeightForLaneHeaders: number;
   tierHeaderAndLabelGapHeight: number;
-  yAxisWidth: number; // widthIncludingYAxisStrokeWidth — real value for min-width calc
+  yAxesWidth: number; // both y axes, strokes included — real value for min-width calc
   paneInnerWidth: number; // pane inner width — the y-text axis label wrap basis
   // Proportional tier-or-lane layout (when active): this pane's visible slot total
   // (Σ over tiers or lanes of visible indicator counts) and visible tier-or-lane count. The
@@ -90,7 +92,9 @@ export type SimplifiedChartConfig<
     proportionalPanes?: boolean;
   };
   axes: ChartAxesConfig;
+  subChartTexts?: SubChartTextDataConfig[];
   resolvedLegend?: LegendInput;
+  legendSeries?: LegendSeries;
   // Resolved by the caller (resolvePaneGrid at the applied fit scale and the
   // frame width), never here: the measured content width would not match
   // the fit decision's estimate.
@@ -117,12 +121,19 @@ export type MeasuredAxes =
     orientation: "vertical";
     x: Extract<MeasuredXAxis, { type: "text" | "period" }>;
     y: Extract<MeasuredYAxis, { type: "value" }>;
+    secondY?: Extract<MeasuredYAxis, { type: "value" }>;
   }
   | {
     kind: "category-and-value";
     orientation: "horizontal";
     x: Extract<MeasuredXAxis, { type: "value" }>;
     y: Extract<MeasuredYAxis, { type: "text" }>;
+    secondX?: Extract<MeasuredXAxis, { type: "value" }>;
+  }
+  | {
+    kind: "value-and-value";
+    x: Extract<MeasuredXAxis, { type: "value" }>;
+    y: Extract<MeasuredYAxis, { type: "value" }>;
   }
   | { kind: "none"; xAxisRcd: RectCoordsDims };
 

@@ -20,6 +20,7 @@ export type {
   LayoutNodeId,
   LayoutNodeNeed,
   LayoutOverflowCause,
+  LayoutOverflowFault,
   MeasuredColsLayoutNode,
   MeasuredItemLayoutNode,
   MeasuredLayoutNode,

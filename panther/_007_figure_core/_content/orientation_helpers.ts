@@ -15,10 +15,15 @@ import type {
   DataLabel,
   PrimitiveItem,
 } from "../deps.ts";
-import { Coordinates, RectCoordsDims } from "../deps.ts";
-import type { ResolvedDataLabel } from "./content_generation_types.ts";
+import { Coordinates, Padding, RectCoordsDims } from "../deps.ts";
+import {
+  dataLabelBox,
+  type ResolvedDataLabel,
+} from "./content_generation_types.ts";
 
 export type Orientation = "vertical" | "horizontal";
+
+export type ValueAxisSide = "start" | "end";
 
 // Extract the value-axis coordinate from a mapped Coordinates object.
 // Vertical: value lives on Y. Horizontal: value lives on X.
@@ -32,25 +37,7 @@ export function catCoord(c: Coordinates, orientation: Orientation): number {
   return orientation === "horizontal" ? c.y() : c.x();
 }
 
-// Screen coordinate of the value-axis baseline (the valueMin grid line).
-// Vertical: bottom edge of sub-chart minus the start-side overhang clearance
-// (positive values grow upward). Horizontal: left edge plus the clearance
-// (positive values grow rightward). Must stay consistent with
-// calculateMappedCoordinates and getValueAxisTickPositions.
-// Pure — callers apply the half-grid-stroke fudge themselves where they need
-// a bar edge to extend past the baseline to mask the baseline grid line:
-//   valueStart = valueBaseline - valueExtendDir * gridLineStrokeWidth / 2
-export function valueBaselineCoord(
-  subChartRcd: RectCoordsDims,
-  orientation: Orientation,
-  valueClearanceStart: number,
-): number {
-  return orientation === "horizontal"
-    ? subChartRcd.x() + valueClearanceStart
-    : subChartRcd.bottomY() - valueClearanceStart;
-}
-
-// Direction a positive value extends from the baseline.
+// Direction a positive value extends from the zero line.
 // Vertical: Y decreases as value increases (bar grows upward) → -1.
 // Horizontal: X increases as value increases (bar grows rightward) → +1.
 export function valueExtendDir(orientation: Orientation): 1 | -1 {
@@ -107,20 +94,27 @@ export function catCenterOfRect(
   return orientation === "horizontal" ? rect.centerY() : rect.centerX();
 }
 
-export function endSideEdgeCenterOfRect(
+export function sideEdgeCenterOfRect(
   rect: RectCoordsDims,
+  side: ValueAxisSide,
   orientation: Orientation,
 ): Coordinates {
   return orientation === "horizontal"
-    ? new Coordinates([rect.rightX(), rect.centerY()])
-    : new Coordinates([rect.centerX(), rect.y()]);
+    ? new Coordinates([
+      side === "end" ? rect.rightX() : rect.x(),
+      rect.centerY(),
+    ])
+    : new Coordinates([
+      rect.centerX(),
+      side === "end" ? rect.y() : rect.bottomY(),
+    ]);
 }
 
 // Build a bar rectangle from logical extents.
 // - catStart / catExtent: position/extent along the category axis (series slot).
 // - valueStart / valueEnd: two points on the value axis; the bar spans between
-//   them regardless of which is closer to the baseline (handles stacking /
-//   diff modes where either end may be "first").
+//   them whichever lies toward the end side (a bar drawn toward the start
+//   side, or a diff bar whose value is below the previous series').
 export function makeBarRect(
   p: {
     catStart: number;
@@ -210,26 +204,53 @@ export function makeErrorBarPrimitive(params: {
   };
 }
 
-// `anchor` is the mark's value end: the middle of a bar's end-side edge, or a
-// line's point.
+// A centre label is drawn only where its box fits its bar with its offset
+// clear of each end of the bar along the value axis, where the next segment
+// of a stack or the bar's own end begins.
+export function makeBarCenterDataLabel(
+  label: ResolvedDataLabel,
+  barRcd: RectCoordsDims,
+  orientation: Orientation,
+): DataLabel | undefined {
+  const place = {
+    position: barRcd.centerCoords(),
+    alignH: "center",
+    alignV: "middle",
+  } as const;
+  const box = dataLabelBox(label, place);
+  const room = barRcd.getPadded(
+    new Padding(
+      orientation === "horizontal" ? { x: label.offset } : { y: label.offset },
+    ),
+  );
+  const fits = box.x() >= room.x() && box.rightX() <= room.rightX() &&
+    box.y() >= room.y() && box.bottomY() <= room.bottomY();
+  return fits ? { mText: label.mText, ...place, halo: label.halo } : undefined;
+}
+
+// `anchor` is the mark's value end: the middle of a bar's edge at its value
+// end, or a line's point. The label stands past it on `side`.
 export function makeValueEndDataLabel(
   label: ResolvedDataLabel,
   anchor: Coordinates,
+  side: ValueAxisSide,
   orientation: Orientation,
 ): DataLabel {
+  const offset = valueExtendDir(orientation) *
+    (side === "end" ? label.offset : -label.offset);
   return orientation === "horizontal"
     ? {
       mText: label.mText,
-      position: new Coordinates([anchor.x() + label.offset, anchor.y()]),
-      alignH: "left",
+      position: new Coordinates([anchor.x() + offset, anchor.y()]),
+      alignH: side === "end" ? "left" : "right",
       alignV: "middle",
       halo: label.halo,
     }
     : {
       mText: label.mText,
-      position: new Coordinates([anchor.x(), anchor.y() - label.offset]),
+      position: new Coordinates([anchor.x(), anchor.y() + offset]),
       alignH: "center",
-      alignV: "bottom",
+      alignV: side === "end" ? "bottom" : "top",
       halo: label.halo,
     };
 }
