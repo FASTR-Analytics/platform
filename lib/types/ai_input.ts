@@ -31,6 +31,16 @@ import {
   TEXT_BACKGROUND_KEYS,
 } from "./slides.ts";
 
+// The relative period members, closed: a tool input admits no undeclared
+// key (panther refuses the whole tool otherwise).
+const [rel0, ...relRest] = relativePeriodFilterSchema.options.map((o) =>
+  z.strictObject(o.shape)
+);
+const aiRelativePeriodFilterSchema = z.discriminatedUnion("filterType", [
+  rel0,
+  ...relRest,
+]);
+
 // ============================================================================
 // Shared filter and disaggregation schemas - DERIVED from storage schema
 // (configDStrict.filterBy, configDStrict.disaggregateBy)
@@ -203,8 +213,10 @@ export const AiFigureFromMetricSchema = z.strictObject({
     ),
   // DERIVED from storage (the relative members of configDStrict's
   // periodFilter): a period that names no dates and keeps moving with the
-  // data. Mutually exclusive with startDate/endDate.
-  relativePeriod: relativePeriodFilterSchema.optional().describe(
+  // data. Mutually exclusive with startDate/endDate. Each member is closed
+  // here because every object in a tool input must be a strict object;
+  // storage keeps its own (loose) members so stored filters still parse.
+  relativePeriod: aiRelativePeriodFilterSchema.optional().describe(
     "Optional: a relative time range that moves with the data (e.g. { filterType: 'last_n_months', nMonths: 12 }). Use instead of startDate/endDate, never with them.",
   ),
 });

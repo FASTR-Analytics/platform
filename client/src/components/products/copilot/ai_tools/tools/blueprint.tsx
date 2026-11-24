@@ -3,7 +3,6 @@ import {
   DECK_BLUEPRINT_MAX_BLOCKS,
   DECK_BLUEPRINT_PROVENANCE_KIND,
   type DeckBlueprint,
-  deckBlueprintOutlineTopicSchema,
   type DeckBlueprintProvenance,
   deckConfigWithLook,
   formatPeriodRange,
@@ -140,15 +139,15 @@ function describeRun(
   ].join("\n");
 }
 
-const outlineInputSchema = z.object({
-  reportingPeriod: z.object({
+const outlineInputSchema = z.strictObject({
+  reportingPeriod: z.strictObject({
     start: z.number().int().describe("First month, YYYYMM (e.g. 202507)."),
     end: z.number().int().describe("Last month, YYYYMM (e.g. 202509)."),
   }).describe(
     "The reporting period every period role resolves from: the one the person chose, or the latest complete one you found in the data.",
   ),
   topics: z.array(
-    deckBlueprintOutlineTopicSchema.extend({
+    z.strictObject({
       topicId: z.string().describe("The blueprint topic's id (t1, t2, …)."),
       slideCount: z.number().int().min(0).max(30).describe(
         "Slides planned for this topic in THIS deck; 0 drops it.",
@@ -159,7 +158,7 @@ const outlineInputSchema = z.object({
       slideNotes: z.array(z.string()).optional().describe(
         "One short line per planned slide: what it is about.",
       ),
-      standIns: z.array(z.object({
+      standIns: z.array(z.strictObject({
         original: z.string().describe(
           "What the blueprint asked for (metric, preset, filter or map level).",
         ),
@@ -369,7 +368,7 @@ export function getClientToolsForDeckBlueprints(): AnyAITool[] {
     name: "get_blueprint_run",
     description:
       "Read the deck blueprint the person asked to apply to this deck: the steps to follow, the chosen reporting period and the blueprint itself (topics, scaling rules, slide patterns, look). Call it first whenever the person asks to apply a blueprint.",
-    inputSchema: z.object({}),
+    inputSchema: z.strictObject({}),
     availableIn: COPILOT_TOOL_VIEWS.get_blueprint_run,
     kind: "read",
     handler: async (_input, view) => {
