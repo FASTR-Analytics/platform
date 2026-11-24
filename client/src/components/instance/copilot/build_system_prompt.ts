@@ -12,6 +12,7 @@ import {
   FIGURE_EDITOR_LOOK_LINE,
   type InstalledModuleSummary,
   type InstanceState,
+  labelWithId,
   type PackageScope,
   periodChoiceId,
   type ResolvedView,
@@ -332,10 +333,6 @@ export type ExploreSelection = {
   type: ExploreViewTypeId | undefined;
   resolved: ResolvedView | undefined;
 };
-
-function labelWithId(label: string, id: string): string {
-  return label === id ? id : `${label} (${id})`;
-}
 
 function optionLabel(
   options: { id: string; label: string }[],

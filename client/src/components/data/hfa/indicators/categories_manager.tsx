@@ -1,6 +1,7 @@
 import {
   type HfaIndicatorCategory,
   type HfaIndicatorSubCategory,
+  labelWithId,
   t3,
 } from "lib";
 import {
@@ -137,7 +138,7 @@ function CategoriesPane(p: {
           pt:
             "Eliminar esta categoria? As suas subcategorias também serão eliminadas, e os indicadores que a utilizam ficarão sem categoria.",
         }),
-        itemList: [`${category.label} (${category.id})`],
+        itemList: [labelWithId(category.label, category.id)],
       },
       () => serverActions.deleteHfaIndicatorCategory({ id: category.id }),
     );
@@ -313,7 +314,7 @@ function SubCategoriesPane(p: {
           pt:
             "Eliminar esta subcategoria? Os indicadores que a utilizam ficarão sem subcategoria.",
         }),
-        itemList: [`${subCategory.label} (${subCategory.id})`],
+        itemList: [labelWithId(subCategory.label, subCategory.id)],
       },
       () => serverActions.deleteHfaIndicatorSubCategory({ id: subCategory.id }),
     );

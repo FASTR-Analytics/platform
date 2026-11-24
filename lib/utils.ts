@@ -1,7 +1,12 @@
 import { getTruncatedString } from "@timroberton/panther";
 import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
 import { formatReplicantLabelForDisplay } from "./format_nigeria_admin_label.ts";
-import type { AdminAreaLevel, PresentationObjectConfig } from "./types/mod.ts";
+import {
+  type AdminAreaLevel,
+  type DisaggregationOption,
+  isIndicatorDisaggregationOption,
+  type PresentationObjectConfig,
+} from "./types/mod.ts";
 
 export function withReplicant(
   str: string,
@@ -27,6 +32,22 @@ export function withReplicant(
   return str
     .replaceAll("REPLICANT", replicantLabel)
     .replaceAll("RÉPLICANT", replicantLabel);
+}
+
+export function labelWithId(label: string, id: string): string {
+  return label === id ? id : `${label} (${id})`;
+}
+
+// An indicator's option label carries its id, because panther's option
+// search matches the label only and an indicator is searched by its id too.
+export function dimensionValueSelectLabel(
+  disOpt: DisaggregationOption,
+  id: string,
+  label: string,
+): string {
+  return isIndicatorDisaggregationOption(disOpt)
+    ? labelWithId(label, id)
+    : label;
 }
 
 export function csvCell(text: string): string {

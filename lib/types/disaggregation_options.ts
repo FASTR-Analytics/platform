@@ -44,6 +44,15 @@ export const INDICATOR_DISAGGREGATION_OPTIONS = [
   "hfa_indicator",
   "iceh_indicator",
 ] as const satisfies readonly DisaggregationOption[];
+
+export function isIndicatorDisaggregationOption(
+  disOpt: DisaggregationOption,
+): boolean {
+  return (INDICATOR_DISAGGREGATION_OPTIONS as readonly string[]).includes(
+    disOpt,
+  );
+}
+
 // The dimensions whose values are ids of the package catalog, which stamps
 // each with the instance's own order (HFA indicators in workbook order, the
 // HFA taxonomies in their reorderable order, ICEH strata in ICEH_STRAT_INFO

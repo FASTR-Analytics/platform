@@ -1,4 +1,5 @@
 import {
+  dimensionValueSelectLabel,
   DisaggregationOption,
   formatReplicantLabelForDisplay,
   getFetchConfigFromPresentationObjectConfig,
@@ -11,13 +12,7 @@ import {
 } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
-import {
-  Button,
-  getSelectOptionsFromIdLabel,
-  SelectSearch,
-  StateHolder,
-  StateHolderWrapper,
-} from "panther";
+import { Button, SelectSearch, StateHolder, StateHolderWrapper } from "panther";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/products/t2_replicant_options";
 import {
   createEffect,
@@ -50,7 +45,10 @@ function cleanedReplicantSelectOptions(
   if (cleaned.some((c, i) => c.label !== possibleValues[i].label)) {
     cleaned.sort((a, b) => a.label.localeCompare(b.label));
   }
-  return getSelectOptionsFromIdLabel(cleaned);
+  return cleaned.map((c) => ({
+    value: c.id,
+    label: dimensionValueSelectLabel(replicateBy, c.id, c.label),
+  }));
 }
 
 type ReplicateByOptionsProps = {

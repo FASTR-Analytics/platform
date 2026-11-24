@@ -29,6 +29,7 @@ import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { FileUploadSelector } from "~/components/_shared/mod.ts";
+import { indicatorNameText } from "~/components/data/hmis/_shared/mod.ts";
 
 export type CsvWizardProps = {
   runsQuery: Query<DatasetHmisImportRunSummary[]>;
@@ -526,7 +527,7 @@ function MappingStep(p: {
       .filter((i) => hasRows(i.definition.type))
       .map((i) => ({
         value: definitionDataId(i.definition) ?? "",
-        label: `${i.indicator_common_label} (${i.indicator_common_id})`,
+        label: indicatorNameText(i),
       })),
   ]);
   const indicatorById = createMemo(() => {

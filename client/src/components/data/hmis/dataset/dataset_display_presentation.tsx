@@ -21,6 +21,7 @@ import {
 import { createMemo, Show } from "solid-js";
 import { liveFigureStyle } from "~/generate_visualization/mod";
 import type { SetStoreFunction } from "solid-js/store";
+import { indicatorPickerOptions } from "~/components/data/hmis/_shared/mod.ts";
 
 export type VizConfig = {
   value: "count" | "sum";
@@ -39,6 +40,10 @@ type Props = {
 // appear; their totals are in packages. The page owns the fetch and the
 // store; this is the render over them.
 export function DatasetDisplayPresentation(p: Props) {
+  const indicatorOptions = createMemo(() =>
+    indicatorPickerOptions(p.displayItems.indicators)
+  );
+
   const filteredVizItems = createMemo(() => {
     const indicatorsToVizualize = p.vizConfig.indicators;
     if (p.displayItems.indicators.length === indicatorsToVizualize.length) {
@@ -64,7 +69,7 @@ export function DatasetDisplayPresentation(p: Props) {
       legend: {
         maxLegendEntriesInOneColumn: 1,
       },
-      seriesColorFunc: (info: any) => getAbcQualScale(info.i_series),
+      seriesColorFunc: (info) => getAbcQualScale(info.i_series),
       yValueAxis: {
         tickLabelFormatter: "auto-number",
       },
@@ -163,7 +168,7 @@ export function DatasetDisplayPresentation(p: Props) {
                 fr: "Indicateurs",
                 pt: "Indicadores",
               })}
-              options={p.displayItems.indicators}
+              options={indicatorOptions()}
               values={p.vizConfig.indicators}
               onChange={(v) => p.setVizConfig("indicators", v)}
               fullWidth

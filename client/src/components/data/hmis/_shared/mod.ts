@@ -7,6 +7,7 @@ export {
   dhis2LabelOf,
   indicatorFormatWord,
   indicatorNameText,
+  indicatorPickerOptions,
   indicatorsByDataId,
   indicatorSearchText,
   indicatorTypeLabel,

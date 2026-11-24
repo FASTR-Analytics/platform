@@ -2,6 +2,7 @@ import {
   type HfaIndicator,
   type HfaIndicatorVariantGroup,
   type HfaIndicatorVariantItem,
+  labelWithId,
   t3,
 } from "lib";
 import {
@@ -149,7 +150,7 @@ function GroupsPane(p: {
           pt:
             "Eliminar este grupo de variantes? Os seus itens e o respetivo código também serão eliminados. A eliminação é recusada enquanto algum indicador ainda estiver atribuído ao grupo.",
         }),
-        itemList: [`${group.label} (${group.id})`],
+        itemList: [labelWithId(group.label, group.id)],
       },
       () => serverActions.deleteHfaIndicatorVariantGroup({ id: group.id }),
     );
@@ -345,7 +346,7 @@ function ItemsPane(p: {
           pt:
             "Eliminar este item de variante? Qualquer código por item associado também será eliminado.",
         }),
-        itemList: [`${item.label} (${item.id})`],
+        itemList: [labelWithId(item.label, item.id)],
       },
       () => serverActions.deleteHfaIndicatorVariantItem({ id: item.id }),
     );

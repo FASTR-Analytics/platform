@@ -1,4 +1,4 @@
-import { type IcehIndicator, t3, TC } from "lib";
+import { type IcehIndicator, labelWithId, t3, TC } from "lib";
 import {
   Button,
   Checkbox,
@@ -36,7 +36,7 @@ export function DeleteData(
   const options = (): SelectOption<string>[] =>
     indicators().map((i) => ({
       value: i.indicatorCode,
-      label: `${i.indicatorName} (${i.indicatorCode})`,
+      label: labelWithId(i.indicatorName, i.indicatorCode),
     }));
 
   async function attemptDeleteAll() {

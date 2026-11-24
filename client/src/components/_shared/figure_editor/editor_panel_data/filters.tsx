@@ -1,6 +1,7 @@
 import {
   type BoundedPeriodFilter,
   type DatasetType,
+  dimensionValueSelectLabel,
   type DisaggregationPossibleValuesStatus,
   getCalendar,
   inferPeriodFormatFromValue,
@@ -565,9 +566,10 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                       values={canonicalValues()}
                       options={okValues().map((v) => ({
                         value: v.id,
-                        label: getDisplayDisaggregationValueLabel(
+                        label: dimensionValueSelectLabel(
+                          p.disOpt.value,
                           v.id,
-                          v.label,
+                          getDisplayDisaggregationValueLabel(v.id, v.label),
                         ),
                       }))}
                       onChange={setValues}

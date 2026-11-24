@@ -1,8 +1,10 @@
 import {
   definitionDataId,
+  dimensionValueSelectLabel,
   type HmisIndicator,
   type HmisIndicatorType,
   type IndicatorFormat,
+  labelWithId,
   t3,
 } from "lib";
 
@@ -92,9 +94,24 @@ export function indicatorSearchText(indicator: HmisIndicator): string {
   ].join(" ");
 }
 
-// How an import surface names an indicator it reached through a data id.
 export function indicatorNameText(indicator: HmisIndicator): string {
-  return `${indicator.indicator_common_label} (${indicator.indicator_common_id})`;
+  return labelWithId(
+    indicator.indicator_common_label,
+    indicator.indicator_common_id,
+  );
+}
+
+export function indicatorPickerOptions(
+  indicators: { value: string; label: string }[],
+): { value: string; label: string }[] {
+  return indicators.map((ind) => ({
+    value: ind.value,
+    label: dimensionValueSelectLabel(
+      "indicator_common_id",
+      ind.value,
+      ind.label,
+    ),
+  }));
 }
 
 // The dictionary keyed by data id, for the run, ledger and progress views

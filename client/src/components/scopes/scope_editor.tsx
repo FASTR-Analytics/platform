@@ -5,6 +5,7 @@ import {
   type DatasetType,
   getCalendar,
   getModuleFamilyLabel,
+  labelWithId,
   MODULE_FAMILY_ORDER,
   periodIdForDate,
   type Scope,
@@ -242,7 +243,7 @@ async function loadScopeOptions(): Promise<APIResponseWithData<ScopeOptions>> {
   }
   const withId = (o: { id: string; label: string }) => ({
     value: o.id,
-    label: `${o.label} (${o.id})`,
+    label: labelWithId(o.label, o.id),
   });
   const modulesOf = (family: DatasetType) =>
     res.data.modules.filter((m) => m.family === family).map(withId);

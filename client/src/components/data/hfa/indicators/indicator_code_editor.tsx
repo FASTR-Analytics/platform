@@ -24,6 +24,7 @@ import {
   type HfaVerificationFinding,
   type HfaVerificationRows,
   hfaVerificationRule,
+  labelWithId,
   t3,
   TC,
   type TranslatableString,
@@ -1374,7 +1375,7 @@ function EditorInner(p: {
                         return (
                           <div>
                             <TextArea
-                              label={`${item.label} (${item.id})`}
+                              label={labelWithId(item.label, item.id)}
                               value={state.variantCode[key()] ?? ""}
                               onChange={(v) => {
                                 setState("variantCode", key(), v);

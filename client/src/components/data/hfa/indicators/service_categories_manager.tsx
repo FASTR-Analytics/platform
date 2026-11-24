@@ -1,4 +1,4 @@
-import { type HfaIndicatorServiceCategory, t3 } from "lib";
+import { type HfaIndicatorServiceCategory, labelWithId, t3 } from "lib";
 import {
   Button,
   createDeleteAction,
@@ -70,7 +70,7 @@ export function HfaServiceCategoriesManager(p: Props) {
           pt:
             "Eliminar esta categoria de serviço? Os indicadores que a utilizam ficarão sem categoria de serviço.",
         }),
-        itemList: [`${serviceCategory.label} (${serviceCategory.id})`],
+        itemList: [labelWithId(serviceCategory.label, serviceCategory.id)],
       },
       () =>
         serverActions.deleteHfaIndicatorServiceCategory({

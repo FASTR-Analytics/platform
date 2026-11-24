@@ -74,6 +74,7 @@ import {
   dhis2LabelHeading,
   dhis2LabelOf,
   indicatorFormatWord,
+  indicatorNameText,
   indicatorTypeWord,
 } from "~/components/data/hmis/_shared/mod.ts";
 import { SpecialBadge } from "./special_badge";
@@ -293,7 +294,7 @@ export function EditIndicatorForm(
       .filter((c) => hasRows(c.definition.type))
       .map((c) => ({
         value: c.indicator_common_id,
-        label: `${c.indicator_common_label} (${c.indicator_common_id})`,
+        label: indicatorNameText(c),
       }))
   );
 
@@ -977,8 +978,7 @@ export function EditIndicatorForm(
                 })}
                 options={otherIndicators().map((c) => ({
                   value: c.indicator_common_id,
-                  label:
-                    `${c.indicator_common_label} (${c.indicator_common_id})`,
+                  label: indicatorNameText(c),
                 }))}
                 fullWidth
               />

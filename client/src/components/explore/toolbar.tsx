@@ -1,8 +1,10 @@
 import {
   type DatasetType,
+  dimensionValueSelectLabel,
   type DisaggregationOption,
   type ExploreGrain,
   type ExploreLevel,
+  type ExploreOption,
   type ExplorePeriod,
   type ExplorePeriodChoice,
   type FamilyQuery,
@@ -94,10 +96,7 @@ export function Toolbar(p: {
             <Show when={pin.options.length > 1}>
               <SelectSearch
                 value={pin.value}
-                options={pin.options.map((o) => ({
-                  value: o.id,
-                  label: o.label,
-                }))}
+                options={dimensionValueOptions(pin.dimension, pin.options)}
                 onChange={(value) => p.onPin(pin.dimension, value)}
                 size="sm"
               />
@@ -114,10 +113,10 @@ export function Toolbar(p: {
             <div class="w-64">
               <MultiSelectSearch
                 values={category().values}
-                options={category().options.map((o) => ({
-                  value: o.id,
-                  label: o.label,
-                }))}
+                options={dimensionValueOptions(
+                  category().dimension,
+                  category().options,
+                )}
                 onChange={p.onCategory}
                 placeholder={categoryPlaceholder(category(), p.family)}
                 fullWidth
@@ -161,6 +160,16 @@ export function Toolbar(p: {
       </Show>
     </div>
   );
+}
+
+function dimensionValueOptions(
+  dimension: DisaggregationOption,
+  options: ExploreOption[],
+): SelectOption<string>[] {
+  return options.map((o) => ({
+    value: o.id,
+    label: dimensionValueSelectLabel(dimension, o.id, o.label),
+  }));
 }
 
 // Empty means all. The family's indicators are named as such; any other

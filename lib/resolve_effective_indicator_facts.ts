@@ -2,7 +2,7 @@ import type { PresentationObjectConfig } from "./types/_presentation_object_conf
 import type { ThresholdsRule } from "./types/conditional_formatting.ts";
 import {
   type DisaggregationOption,
-  INDICATOR_DISAGGREGATION_OPTIONS,
+  isIndicatorDisaggregationOption,
 } from "./types/disaggregation_options.ts";
 import type { IndicatorFormat, IndicatorMetadata } from "./types/indicators.ts";
 import type { MetricFormatAs } from "./types/modules.ts";
@@ -337,12 +337,4 @@ function getFilterValues(
   return config.d.filterBy
     .filter((f) => f.disOpt === disOpt)
     .flatMap((f) => f.values);
-}
-
-function isIndicatorDisaggregationOption(
-  disOpt: DisaggregationOption,
-): boolean {
-  return (INDICATOR_DISAGGREGATION_OPTIONS as readonly string[]).includes(
-    disOpt,
-  );
 }

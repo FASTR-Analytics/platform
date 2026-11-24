@@ -108,7 +108,6 @@ export function DeleteData(
           countIndicatorsVersion={p.countIndicatorsVersion}
           tempWindowing={tempWindowing}
           setTempWindowing={setTempWindowing}
-          includeOrDelete="delete"
           structureSchema={p.structureSchema}
         />
       </div>
