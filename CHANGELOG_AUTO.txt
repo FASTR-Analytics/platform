@@ -1,3 +1,9 @@
+[TBD] [user] [changed] - Slide overflow warnings now explain exactly what doesn't fit
+[TBD] [user] [fixed] - Tables and images in text blocks now show a clear error message instead of a cryptic failure
+[TBD] [user] [added] - Slide editor shows a helpful message when a text block contains a table or image that can't be displayed
+[TBD] [admin] [changed] - Slide overflow messages now explain which content doesn't fit and by how much
+[TBD] [admin] [changed] - Text blocks containing markdown tables or images are rejected with clearer guidance
+[TBD] [admin] [fixed] - Slides with undrawable text blocks now show a helpful error instead of a cryptic failure
 [TBD] [admin] [added] - New FASTR_MODULES_BRANCH setting controls which branch modules load from
 [TBD] [admin] [fixed] - Branch names with special characters now work correctly for module loading
 [TBD] [user] [added] - Switch a figure between chart types while keeping your layout choices
