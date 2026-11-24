@@ -1,3 +1,5 @@
+[2.17.1] [user] [fixed] - Fixed AI assistant occasionally rejecting valid report-building inputs
+[2.17.1] [admin] [fixed] - AI tools now properly reject unexpected input fields, reducing errors
 [2.17.0] [user] [added] - Teams can now be granted access to products
 [2.17.0] [user] [added] - Manage access dialog shows team members and their scope status
 [2.17.0] [user] [added] - Your teams are now shown in your profile
