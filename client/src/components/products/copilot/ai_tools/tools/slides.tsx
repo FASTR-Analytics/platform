@@ -27,8 +27,8 @@ import {
 import {
   assertSplitImageAsset,
   validateMaxContentBlocks,
-  validateNoMarkdownTables,
   validateSlideTotalWordCount,
+  validateTextOnlyMarkdown,
 } from "../../_shared/mod.ts";
 import { assertSlidesNotBusy } from "../validators/mod.ts";
 import {
@@ -68,7 +68,7 @@ function validateAiSlideInput(slide: AiSlideInput): void {
   const texts = slide.blocks.flatMap((b) =>
     b.type === "text" ? [b.markdown] : []
   );
-  for (const text of texts) validateNoMarkdownTables(text);
+  for (const text of texts) validateTextOnlyMarkdown(text);
   validateSlideTotalWordCount(texts);
 }
 

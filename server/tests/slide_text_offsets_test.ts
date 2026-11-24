@@ -3,6 +3,7 @@ import {
   analyzeSlideMarkdown,
   assignRunsToUnit,
   escapeTypedSlideText,
+  findSlideTableOrImage,
   slideBackspace,
   slideDeleteForward,
   slideDeleteRange,
@@ -314,4 +315,52 @@ Deno.test("an empty list item is drawn (Enter on a bullet shows the bullet)", ()
   const r = slideInsertText(an, 6, "x");
   assertEquals(apply(src, r), "- a\n- x\n- **b**");
   assertEquals(r.anchor, 7);
+});
+
+// A text block draws text only, so the copilot refuses one holding a table or
+// an image: MarkdownRenderer cannot draw one at the top level, and drops or
+// runs together one anywhere else.
+Deno.test("every table and image a text block draws is found, and nothing else", () => {
+  const tables = [
+    "a | b\n--- | ---\n1 | 2",
+    "a | b | c\n-|-|-",
+    "| a | b |\n|---|---|\n| 1 | 2 |",
+    "| a\n---\n| b",
+    "intro\n\n- x\n\n  a | b\n  --- | ---",
+    "> a | b\n> --- | ---",
+  ];
+  const images = [
+    "![a](b.png)",
+    "see ![a](b.png) here",
+    "- ![a](b.png)",
+    "> ![a](b.png)",
+    "# ![a](b.png)",
+    "[![a](b.png)](http://u)",
+    "![a](b.png)\n![c](d.png)",
+  ];
+  const text = [
+    "Region A | Region B | Region C",
+    "a || b || c",
+    "x | y\n---",
+    "`![a](b)` and `a | b`",
+    "!\\[a\\](b)",
+    "```\na | b\n--- | ---\n```",
+    // Drawn with its empty item filled (slideRenderMarkdown), the table rows
+    // continue the item's text.
+    "- \na | b\n--- | ---",
+  ];
+  const found = (src: string) => findSlideTableOrImage(src)?.kind;
+  for (const src of tables) assertEquals(found(src), "table", src);
+  for (const src of images) assertEquals(found(src), "image", src);
+  for (const src of text) assertEquals(found(src), undefined, src);
+  for (const src of [...tables, ...images, ...text]) {
+    const refused = parseMarkdown(slideRenderMarkdown(src)).items.some((i) =>
+      i.type === "table" || i.type === "image"
+    );
+    if (refused) assert(found(src), src);
+  }
+  assertEquals(findSlideTableOrImage("one\n\ntwo\n\n![a](b.png)"), {
+    kind: "image",
+    line: 4,
+  });
 });

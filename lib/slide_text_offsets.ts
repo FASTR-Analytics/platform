@@ -495,6 +495,42 @@ export function slideSourceFromRender(render: string): string {
   ).join("\n");
 }
 
+export type SlideTableOrImage = { kind: "table" | "image"; line: number };
+
+function slideTokens(src: string): MdToken[] {
+  return createMarkdownIt({ html: true }).parse(
+    slideRenderMarkdown(src),
+    {},
+  ) as unknown as MdToken[];
+}
+
+// Every table and image in what panther draws for a slide text block, in
+// source order, with its 0-based source line. A table cell's inline token
+// has no line of its own, so it takes its row's.
+function slideTablesAndImages(src: string): SlideTableOrImage[] {
+  const out: SlideTableOrImage[] = [];
+  let line = 0;
+  for (const t of slideTokens(src)) {
+    line = t.map?.[0] ?? line;
+    if (t.type === "table_open") out.push({ kind: "table", line });
+    for (const c of t.children ?? []) {
+      if (c.type === "image") out.push({ kind: "image", line });
+    }
+  }
+  return out;
+}
+
+/** The first markdown table or image in what panther draws for a slide text
+ *  block (slideRenderMarkdown), with its 0-based source line. A text block
+ *  draws text only: MarkdownRenderer refuses a table or a lone image at the
+ *  top level, drops an image anywhere else, and runs a quoted table's cells
+ *  together as one line of text, so every one is found. */
+export function findSlideTableOrImage(
+  src: string,
+): SlideTableOrImage | undefined {
+  return slideTablesAndImages(src)[0];
+}
+
 /** The analysis of a slide text block's source, against what panther draws
  *  for it (slideRenderMarkdown): offsets are the source's, and each empty
  *  list item is a unit of its own (see SlideTextUnit.emptyAt). */

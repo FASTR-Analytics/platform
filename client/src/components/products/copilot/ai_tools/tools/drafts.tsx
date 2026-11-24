@@ -15,7 +15,7 @@ import {
 import {
   assertSplitImageAsset,
   validateMaxContentBlocks,
-  validateNoMarkdownTables,
+  validateTextOnlyMarkdown,
 } from "../../_shared/mod.ts";
 import {
   convertAiInputToSlide,
@@ -63,7 +63,7 @@ export function getClientToolsForDrafts(
           validateMaxContentBlocks(input.slide.blocks.length);
           for (const block of input.slide.blocks) {
             if (block.type === "text") {
-              validateNoMarkdownTables(block.markdown);
+              validateTextOnlyMarkdown(block.markdown);
             }
           }
         }
