@@ -1,8 +1,10 @@
-[TBD] [user] [changed] - Dropdown options now show IDs alongside labels for easier identification
-[TBD] [user] [changed] - Simplified the data deletion screen for HMIS datasets
-[TBD] [admin] [changed] - Simplified data deletion windowing to indicators and period only
-[TBD] [admin] [changed] - Dimension value dropdowns now show IDs alongside labels for clarity
-[TBD] [admin] [internal] - AI copilot tool definitions reorganized for consistency
+[2.18.0] [user] [changed] - Exported slide decks now have sharper, higher-resolution images
+[2.18.0] [admin] [changed] - Exported slide decks are now sharper on 4K displays
+[2.18.0] [user] [changed] - Dropdown options now show IDs alongside labels for easier identification
+[2.18.0] [user] [changed] - Simplified the data deletion screen for HMIS datasets
+[2.18.0] [admin] [changed] - Simplified data deletion windowing to indicators and period only
+[2.18.0] [admin] [changed] - Dimension value dropdowns now show IDs alongside labels for clarity
+[2.18.0] [admin] [internal] - AI copilot tool definitions reorganized for consistency
 [2.17.1] [user] [fixed] - Fixed AI assistant occasionally rejecting valid report-building inputs
 [2.17.1] [admin] [fixed] - AI tools now properly reject unexpected input fields, reducing errors
 [2.17.0] [user] [added] - Teams can now be granted access to products
