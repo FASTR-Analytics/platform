@@ -325,21 +325,46 @@ export const LayoutCellSchema = z.strictObject({
     ),
 });
 
+// Why a row's spans cannot fill its columns, or undefined when they can: a
+// row of one cell spans them all, spans given for every cell sum to them, and
+// spans given for some leave at least one column for each cell without one,
+// which share the rest (normalizeSpans).
+function layoutRowSpanError(
+  row: readonly { span?: number }[],
+): string | undefined {
+  const given = row.flatMap((c) => c.span === undefined ? [] : [c.span]);
+  const used = given.reduce((sum, s) => sum + s, 0);
+  const without = row.length - given.length;
+  if (row.length === 1) {
+    return without === 1 || used === _GLOBAL_LAYOUT_COLUMNS
+      ? undefined
+      : `A row with one cell spans all ${_GLOBAL_LAYOUT_COLUMNS} columns: omit its span.`;
+  }
+  if (without === 0) {
+    return used === _GLOBAL_LAYOUT_COLUMNS
+      ? undefined
+      : `Spans in row sum to ${used}, must sum to ${_GLOBAL_LAYOUT_COLUMNS}. Got: [${
+        given.join(", ")
+      }]`;
+  }
+  const left = _GLOBAL_LAYOUT_COLUMNS - used;
+  return left >= without
+    ? undefined
+    : `Specified spans sum to ${used} of the row's ${_GLOBAL_LAYOUT_COLUMNS} columns, leaving ${
+      Math.max(left, 0)
+    } for ${without} cell(s) without a span, which need at least 1 each.`;
+}
+
 export const LayoutSpecSchema = z
   .array(
     z
       .array(LayoutCellSchema)
       .min(1)
       .max(3)
-      .refine(
-        (row) =>
-          row.length !== 1 || row[0].span === undefined ||
-          row[0].span === _GLOBAL_LAYOUT_COLUMNS,
-        {
-          message:
-            `A row with one cell spans all ${_GLOBAL_LAYOUT_COLUMNS} columns: omit its span.`,
-        },
-      ),
+      .superRefine((row, ctx) => {
+        const message = layoutRowSpanError(row);
+        if (message !== undefined) ctx.addIssue({ code: "custom", message });
+      }),
   )
   .min(1)
   .max(3)
