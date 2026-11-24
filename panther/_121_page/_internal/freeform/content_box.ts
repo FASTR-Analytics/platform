@@ -11,13 +11,14 @@ import {
 } from "../../deps.ts";
 import { type MeasuredFooter, measureFooter } from "./footer.ts";
 import { type MeasuredHeader, measureHeader } from "./header.ts";
-import type { HeaderFooterInputs } from "../../types.ts";
+import type { HeaderFooterInputs, PageOverflowCause } from "../../types.ts";
 
 export type MeasuredContentBox = {
   header: MeasuredHeader | undefined;
   footer: MeasuredFooter | undefined;
   rcdContentOuter: RectCoordsDims;
   rcdContentInner: RectCoordsDims;
+  overflowCauses: PageOverflowCause[];
 };
 
 export function measureContentBox(
@@ -43,5 +44,9 @@ export function measureContentBox(
     footer,
     rcdContentOuter,
     rcdContentInner: rcdContentOuter.getPadded(new Padding(s.content.padding)),
+    overflowCauses: [
+      ...(header?.overflowCauses ?? []),
+      ...(footer?.overflowCauses ?? []),
+    ],
   };
 }

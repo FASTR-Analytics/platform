@@ -14,6 +14,6 @@ export {
 } from "../_001_geometry/mod.ts";
 export type { AlignV, PaddingOptions } from "../_001_geometry/mod.ts";
 export type {
-  HeightConstraints,
   RenderContext,
+  SizeConstraints,
 } from "../_001_render_system/mod.ts";

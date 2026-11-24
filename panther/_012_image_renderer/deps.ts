@@ -5,8 +5,8 @@
 
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
 export type {
-  HeightConstraints,
   Measured,
   RenderContext,
   Renderer,
+  SizeConstraints,
 } from "../_001_render_system/mod.ts";

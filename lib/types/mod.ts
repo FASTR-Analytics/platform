@@ -21,6 +21,8 @@ export * from "./population.ts";
 export * from "./instance.ts";
 export * from "./instance_sse.ts";
 export * from "./_metric_installed.ts";
+export * from "./period_options.ts";
+export * from "./value_func.ts";
 export {
   type MetricDefinitionGithub,
   type ModuleDefinitionGithub,

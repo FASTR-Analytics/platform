@@ -19,6 +19,7 @@ import {
   buildDataLabelTextStyle,
   circleTrack,
   Coordinates,
+  insideLabelBoxDims,
   placeNearestBoxes,
   placeOutsideBoxes,
 } from "../deps.ts";
@@ -303,10 +304,11 @@ export function placePieOutsideBoxesAt(
 
 // The label terms of the autofit floor, measured UNWRAPPED
 // (maxWidth Infinity) so the floor is exactly proportional to the font scale
-// (monotone) and has no slot dependence (no circularity). Budgets
-// every shown label as outside: with no slot in existence there is nothing to
-// resolve `auto` against, and the conservative side is the only safe one; the
-// draw freezes at s0, so floor ≥ draw.
+// (monotone) and has no slot dependence (no circularity). Under
+// `labelMode: "inside"`, budgets each label's inside box alone; otherwise
+// budgets every shown label as outside: with no slot in existence there is
+// nothing to resolve `auto` against, and the conservative side is the only
+// safe one; the draw freezes at s0, so floor ≥ draw.
 export type PieLabelFloorBudget = {
   // Extra width beyond the content disc that outside labels demand.
   horizontal: number;
@@ -317,6 +319,13 @@ export type PieLabelFloorBudget = {
   //   nearest  labels sit above and below the content as well as beside it, so
   //            the demand is ADDITIVE: the slot must be the content plus this.
   vertical: number;
+  // The widest and the tallest box an inside label draws. Inside labels are
+  // confined to the slot, so it must be at least this wide and this tall: a
+  // floor of its own, never added to the content's. Zero unless every label
+  // is inside: `auto` keeps a label inside only when its text fits its own
+  // slice, which lies inside the slot.
+  insideBoxWidth: number;
+  insideBoxHeight: number;
 };
 
 export function calculatePieLabelFloorBudget(
@@ -326,8 +335,13 @@ export function calculatePieLabelFloorBudget(
   indicesPerPie: PieIndices[],
 ): PieLabelFloorBudget {
   const mode = toPieLabelMode(mergedStyle.pie.labelMode);
-  if (mode === "none" || mode === "inside") {
-    return { horizontal: 0, vertical: 0 };
+  if (mode === "none") {
+    return {
+      horizontal: 0,
+      vertical: 0,
+      insideBoxWidth: 0,
+      insideBoxHeight: 0,
+    };
   }
   const gap = mergedStyle.pie.labelCollision.gap;
   const calloutMargin = mergedStyle.pie.calloutMargin;
@@ -342,6 +356,8 @@ export function calculatePieLabelFloorBudget(
   // three properties that make a floor sound.
   let maxW = 0;
   let maxH = 0;
+  let insideBoxWidth = 0;
+  let insideBoxHeight = 0;
   for (const indices of indicesPerPie) {
     // Angles are geometry-independent; a unit disc is enough to collect specs.
     const pie = layOutPie(data, mergedStyle, indices, {
@@ -365,6 +381,9 @@ export function calculatePieLabelFloorBudget(
       const h = mText.dims.h();
       maxW = Math.max(maxW, w);
       maxH = Math.max(maxH, h + pad.pt() + pad.pb());
+      const insideBox = insideLabelBoxDims(mText, spec.dl);
+      insideBoxWidth = Math.max(insideBoxWidth, insideBox.w());
+      insideBoxHeight = Math.max(insideBoxHeight, insideBox.h());
       if (Math.cos(spec.midAngle) <= 0) {
         maxLeftW = Math.max(maxLeftW, w);
         leftStack += h;
@@ -382,9 +401,16 @@ export function calculatePieLabelFloorBudget(
     );
   }
 
+  if (mode === "inside") {
+    return { horizontal: 0, vertical: 0, insideBoxWidth, insideBoxHeight };
+  }
+  const noInsideBox = { insideBoxWidth: 0, insideBoxHeight: 0 };
+
   const horizontal = (maxLeftW > 0 ? calloutMargin + maxLeftW : 0) +
     (maxRightW > 0 ? calloutMargin + maxRightW : 0);
-  if (!nearest || maxW === 0) return { horizontal, vertical: tallestStack };
+  if (!nearest || maxW === 0) {
+    return { horizontal, vertical: tallestStack, ...noInsideBox };
+  }
 
   // Under nearest the floor must cover BOTH placers, because any pie may fall
   // back to flank and the floor is what autofit shrinks the type against.
@@ -395,6 +421,7 @@ export function calculatePieLabelFloorBudget(
   return {
     horizontal: Math.max(horizontal, 2 * (calloutMargin + maxW)),
     vertical: Math.max(tallestStack, 2 * (calloutMargin + maxH)),
+    ...noInsideBox,
   };
 }
 

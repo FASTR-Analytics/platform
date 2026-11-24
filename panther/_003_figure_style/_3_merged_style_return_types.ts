@@ -208,7 +208,7 @@ export type MergedPieStyle = MergedChartStyleBase & {
       headerPosition: "top" | "bottom";
       gapX: number;
       gapY: number;
-      nCols: number | "auto";
+      nCols: NColsOrAuto;
     };
     labelCollision: LabelCollisionConfig;
     outsideLabelPlacement: OutsideLabelPlacement;
@@ -266,6 +266,7 @@ export type MergedXValueAxisStyle = {
   tickLabelGap: number;
   tickLabelFormatter: TickLabelFormatterOption;
   tickLabelAlignment: "center" | "inset";
+  maxOverhangClearanceFractionOfExtent: number;
   allowIndividualLaneLimits: boolean;
   exactAxisY: "none" | number;
 };
@@ -319,9 +320,11 @@ export type MergedGridStyle = {
   backgroundColor: string | "none";
 };
 
+export type NColsOrAuto = number | "auto";
+
 export type MergedPaneStyle = {
   hideHeaders: boolean;
-  nCols: number | "auto";
+  nCols: NColsOrAuto;
   minWidth: number;
   gapX: number;
   gapY: number;
@@ -395,6 +398,7 @@ export type MergedConnectorStyle = {
   getStyle: ChartConnectorInfoFunc<ConnectorStyle>;
   joinAcrossGaps: boolean;
   arrowheadFitFallback: ArrowheadFitFallback;
+  arrowheadFitMinLineLength: number;
 };
 
 export type MergedYValueAxisStyle = {
@@ -409,6 +413,7 @@ export type MergedYValueAxisStyle = {
   tickLabelGap: number;
   tickLabelFormatter: TickLabelFormatterOption;
   tickLabelAlignment: "center" | "inset";
+  maxOverhangClearanceFractionOfExtent: number;
   allowIndividualTierLimits: boolean;
   exactAxisX: "none" | number;
 };
@@ -430,6 +435,7 @@ export type MergedXPeriodAxisStyle = {
   };
   forceSideTicksWhenYear: boolean;
   showEveryNthTick: number;
+  tickLength: number;
   periodLabelSmallTopPadding: number;
   periodLabelLargeTopPadding: number;
   calendar: CalendarType;

@@ -6,6 +6,7 @@
 import {
   batch,
   type Component,
+  createMemo,
   createSignal,
   type JSX,
   onMount,
@@ -20,6 +21,14 @@ import {
   createAIChat,
 } from "./_create_ai_chat.ts";
 import type { AIChatDisplayRegistry } from "../_core/types.ts";
+import {
+  getRecallDirection,
+  getRecallHistory,
+  getRecallStep,
+  type RecallCaret,
+  type RecallKey,
+  type RecallWalk,
+} from "./_input_recall.ts";
 import { MessageInput } from "./message_input.tsx";
 import { MessageList } from "./message_list.tsx";
 
@@ -39,13 +48,13 @@ type Props = {
   headerContent?: JSX.Element;
   footerContent?: JSX.Element;
   markdownStyle?: CustomMarkdownStyleOptions;
-  onBeforeSubmit?: (userMessage: string) => string;
   onScrollReady?: (scrollToBottom: (force?: boolean) => void) => void;
 };
 
 export function AIChat(p: Props) {
   const config = useContext(AIChatConfigContext);
   const {
+    messages,
     displayItems,
     isLoading,
     isStreaming,
@@ -62,13 +71,9 @@ export function AIChat(p: Props) {
     clearInProgressItems,
   } = p.chat ?? createAIChat();
   const [inputValue, setInputValue] = createSignal("");
-
-  const handleStop = () => {
-    batch(() => {
-      clearQueue();
-      stopGeneration();
-    });
-  };
+  const recallHistory = createMemo(() => getRecallHistory(messages()));
+  let recallWalk: RecallWalk | undefined;
+  let input: HTMLTextAreaElement | undefined;
 
   const { ref, scrollToBottom } = createScrollManager(() => [
     displayItems(),
@@ -85,16 +90,69 @@ export function AIChat(p: Props) {
     }
   });
 
+  // Chromium and WebKit scroll the caret into view when the input gains
+  // focus, not when its selection moves, so a focused input is blurred
+  // first.
+  const showInInput = (text: string, caret: number) => {
+    setInputValue(text);
+    if (!input) {
+      return;
+    }
+    input.blur();
+    input.setSelectionRange(caret, caret);
+    input.focus();
+  };
+
+  // clearQueue resolves the queued senders' promises: their attempt is over.
+  const takeBack = () => {
+    const taken = queuedMessages().join("\n\n");
+    const draft = inputValue();
+    clearQueue();
+    recallWalk = undefined;
+    showInInput(
+      draft.trim() === "" ? taken : `${taken}\n\n${draft}`,
+      taken.length,
+    );
+  };
+
+  const handleRecallKey = (
+    key: RecallKey,
+    composing: boolean,
+    caret: RecallCaret,
+  ): boolean => {
+    const direction = getRecallDirection(
+      key,
+      composing,
+      caret,
+      recallHistory(),
+      recallWalk,
+    );
+    if (!direction) {
+      return false;
+    }
+    if (direction === "older" && queuedMessages().length > 0) {
+      takeBack();
+      return true;
+    }
+    const step = getRecallStep(
+      recallHistory(),
+      recallWalk,
+      inputValue(),
+      direction,
+    );
+    if (step) {
+      recallWalk = step.walk;
+      showInInput(step.text, step.caret);
+    }
+    return true;
+  };
+
   const handleSubmit = () => {
-    let message = inputValue().trim();
+    const message = inputValue().trim();
     if (!message) return;
 
     setInputValue("");
-
-    // Call onBeforeSubmit if provided (allows prepending context)
-    if (p.onBeforeSubmit) {
-      message = p.onBeforeSubmit(message);
-    }
+    recallWalk = undefined;
 
     if (isLoading() || isProcessingTools()) {
       batch(() => {
@@ -124,6 +182,7 @@ export function AIChat(p: Props) {
           awaitingDecision={pendingUserAction()}
           streamingItems={streamingItems()}
           queuedTexts={queuedMessages()}
+          onTakeBack={takeBack}
           customRenderers={p.customRenderers}
           fallbackContent={p.fallbackContent}
           toolRegistry={toolRegistry}
@@ -158,10 +217,12 @@ export function AIChat(p: Props) {
         </div>
       </Show>
       <MessageInput
+        ref={(el) => (input = el)}
         value={inputValue()}
         onChange={setInputValue}
         onSubmit={handleSubmit}
-        onStop={handleStop}
+        onRecallKey={handleRecallKey}
+        onStop={stopGeneration}
         isGenerating={isLoading()}
         placeholder={p.placeholder}
         submitLabel={p.submitLabel}

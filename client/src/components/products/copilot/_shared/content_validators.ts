@@ -16,27 +16,8 @@ import { instanceState } from "~/state/instance/t1_store";
 // (validateAiMetricQuery, validateMetricInputsAgainstValueInfo, which the SPA
 // reaches through validateMetricInputs); validatePresetOverrides
 // composes lib's two primitives so there is one filter validator and one
-// date-range validator for every startDate/endDate surface.
-
-const MARKDOWN_TABLE_PATTERNS = [
-  /\|.*\|.*\|/m, // Lines with multiple pipes (table rows)
-  /\|[\s]*[-:]+[\s]*\|/m, // Table separator lines (|---|---|)
-];
-
-function containsMarkdownTable(text: string): boolean {
-  // BOTH a multi-pipe row and a separator line: a lone piped line ("Region
-  // A | Region B | Region C", quoted `a || b || c`) isn't a rendered table
-  // and matching on it alone rejected legitimate prose.
-  return MARKDOWN_TABLE_PATTERNS.every((pattern) => pattern.test(text));
-}
-
-export function validateNoMarkdownTables(markdown: string): void {
-  if (containsMarkdownTable(markdown)) {
-    throw new AIToolFailure(
-      "Markdown tables are not allowed. To display tabular data, use a 'from_metric' block with a table preset.",
-    );
-  }
-}
+// date-range validator for every startDate/endDate surface. The text-block
+// check, validateTextOnlyMarkdown, is lib's, so a server test pins it.
 
 // The files the slide toolbar's image picker offers.
 export function imageAssetFileNames(): string[] {

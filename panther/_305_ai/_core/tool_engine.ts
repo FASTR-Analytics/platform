@@ -4,9 +4,11 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  appendToolResultNotice,
   type ContentBlock,
   decideViewGate,
   type GateView,
+  limitToolDisplayStructured,
   SERVER_TOOL_LABELS,
 } from "../deps.ts";
 import type { DisplayItem } from "./types.ts";
@@ -16,8 +18,9 @@ import {
   toolThrowToResultParts,
 } from "../deps.ts";
 import type {
-  AIToolOutput,
+  AIToolRun,
   AIToolWithMetadata,
+  AIViewSnapshot,
   ApprovalPolicy,
   ToolResultContent,
   ToolUIMetadata,
@@ -32,8 +35,34 @@ export type ToolResult = {
 
 type ToolUseBlock = ContentBlock & { type: "tool_use" };
 
+// The card a call that did not fail adds, and its result's content: the
+// structured output's JSON form is kept when it is within the bound, and
+// past it the card keeps none and the result ends with the line saying so.
+// The handler's path and the approval's commit both build a card here.
+export function buildToolDisplay(
+  toolName: string,
+  input: unknown,
+  view: AIViewSnapshot | undefined,
+  run: AIToolRun,
+): { item: DisplayItem; content: ToolResultContent } {
+  const item: Extract<DisplayItem, { type: "tool_display" }> = {
+    type: "tool_display",
+    toolName,
+    input,
+    view,
+  };
+  const content = buildToolResultContent(run.output);
+  if (run.structured === undefined) {
+    return { item, content };
+  }
+  const limited = limitToolDisplayStructured(run.structured);
+  return "notice" in limited
+    ? { item, content: appendToolResultNotice(content, limited.notice) }
+    : { item: { ...item, structured: limited.structured }, content };
+}
+
 type ToolCallOutcome =
-  | { block: ToolUseBlock; output: AIToolOutput }
+  | { block: ToolUseBlock; run: AIToolRun }
   | {
     block: ToolUseBlock;
     error: { content: string; fullError: string; expected: boolean };
@@ -308,10 +337,14 @@ export async function processToolUses(
   // The turn's abort signal, which Stop aborts; each handler gets it in its
   // context with the id of the call it answers.
   signal: AbortSignal,
+  // The view the calls run in, the snapshot the gate admitted, stored with
+  // each card.
+  view: AIViewSnapshot | undefined,
 ): Promise<{
   results: ToolResult[];
   errorItems: DisplayItem[];
   successItems: DisplayItem[];
+  displayItems: DisplayItem[];
 }> {
   const toolUseBlocks = content.filter(
     (block): block is ToolUseBlock => block.type === "tool_use",
@@ -331,25 +364,40 @@ export async function processToolUses(
       }
 
       try {
-        const { output } = await runAIToolWithView(
+        const run = await runAIToolWithView(
           toolWithMetadata.sdkTool,
           block.input,
           getView,
           { toolUseId: block.id, signal },
         );
-        return { block, output };
+        return { block, run };
       } catch (error) {
         return { block, error: toolThrowToResultParts(error) };
       }
     }),
   );
 
-  const results: ToolResult[] = outcomes.map((outcome) =>
-    "output" in outcome
+  // A call whose tool draws a card adds it, and its result is the card's
+  // content, which ends with the bound's notice when there is one.
+  const displays = outcomes.map((outcome) =>
+    "run" in outcome &&
+      toolRegistry.getMetadata(outcome.block.name)?.displayComponent
+      ? buildToolDisplay(
+        outcome.block.name,
+        outcome.block.input,
+        view,
+        outcome.run,
+      )
+      : null
+  );
+
+  const results: ToolResult[] = outcomes.map((outcome, i) =>
+    "run" in outcome
       ? {
         type: "tool_result",
         tool_use_id: outcome.block.id,
-        content: buildToolResultContent(outcome.output),
+        content: displays[i]?.content ??
+          buildToolResultContent(outcome.run.output),
       }
       : {
         type: "tool_result",
@@ -360,7 +408,7 @@ export async function processToolUses(
   );
 
   const errorItems: DisplayItem[] = outcomes.flatMap((outcome) => {
-    if ("output" in outcome) {
+    if ("run" in outcome) {
       return [];
     }
     const { block, error } = outcome;
@@ -386,10 +434,10 @@ export async function processToolUses(
   });
 
   const successItems: DisplayItem[] = outcomes.flatMap((outcome) => {
-    if (!("output" in outcome)) {
+    if (!("run" in outcome)) {
       return [];
     }
-    const { block, output } = outcome;
+    const { block, run } = outcome;
     const metadata = toolRegistry.getMetadata(block.name);
     if (metadata?.displayComponent) {
       return [];
@@ -407,7 +455,7 @@ export async function processToolUses(
       toolName: block.name,
       toolInput: block.input,
       message,
-      result: output.text,
+      result: run.output.text,
     }];
   });
 
@@ -415,5 +463,6 @@ export async function processToolUses(
     results,
     errorItems,
     successItems,
+    displayItems: displays.flatMap((display) => display ? [display.item] : []),
   };
 }

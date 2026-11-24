@@ -68,21 +68,26 @@ export type MarkdownRendererInput = {
 // Parser Intermediate Representation
 // =============================================================================
 
+type InlineEmphasis = "bold" | "italic" | "bold-italic";
+
 export type MarkdownInline =
   | { type: "text"; text: string }
   | { type: "bold"; text: string }
   | { type: "italic"; text: string }
   | { type: "bold-italic"; text: string }
   // A link's own emphasis, from formatting INSIDE the link text
-  // (`[**bold**](url)`). Absent when the segment carries no emphasis.
+  // (`[**bold**](url)`), and `code` for a code span as its text
+  // (`[`x`](url)`). Absent when the segment carries neither.
   | {
     type: "link";
     text: string;
     url: string;
-    style?: "bold" | "italic" | "bold-italic";
+    style?: InlineEmphasis;
+    code?: boolean;
   }
   | { type: "break" }
-  | { type: "code-inline"; text: string };
+  // A code span's emphasis, from emphasis around it (`**`x`**`).
+  | { type: "code-inline"; text: string; style?: InlineEmphasis };
 
 export type ParsedMarkdownItem =
   & (
@@ -130,6 +135,11 @@ export type ParsedMarkdownItem =
 export type ParsedMarkdown = {
   items: ParsedMarkdownItem[];
 };
+
+export type TextMarkdownItem = Exclude<
+  ParsedMarkdownItem,
+  { type: "table" | "image" }
+>;
 
 // =============================================================================
 // FormattedText System

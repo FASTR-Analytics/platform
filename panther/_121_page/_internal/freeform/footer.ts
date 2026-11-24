@@ -12,9 +12,11 @@ import {
   type RenderContext,
 } from "../../deps.ts";
 import { RectCoordsDims as RCD } from "../../deps.ts";
+import { allotLogoRow } from "./logo_row.ts";
 import type {
   FreeformPageInputs,
   HeaderFooterInputs,
+  PageOverflowCause,
   PagePrimitive,
 } from "../../types.ts";
 
@@ -22,6 +24,8 @@ export type MeasuredFooter = {
   mFooter?: MeasuredText;
   rcdFooterOuter: RectCoordsDims;
   maxWidthForFooterText: number;
+  logosMaxWidth: number;
+  overflowCauses: PageOverflowCause[];
 };
 
 export function measureFooter(
@@ -40,25 +44,20 @@ export function measureFooter(
   const padFooter = new Padding(s.footer.padding);
   let mFooter: MeasuredText | undefined;
   let totalInnerFooterHeight = 0;
-  let maxWidthForFooterText = rcdOuter.w() - padFooter.totalPx();
 
-  // Measure logos if present
-  const hasLogos = inputs.footerLogos && inputs.footerLogos.length > 0;
-  const logosDims = hasLogos
-    ? measureLogos(new RCD([0, 0, 10000, 10000]), {
-      images: inputs.footerLogos!,
-      style: s.footer.logosSizing,
-      alignH: "right",
-      alignV: "middle",
-    })
-    : undefined;
-  const logosHeight = logosDims?.totalHeight ?? 0;
-  const logosWidth = logosDims?.totalWidth ?? 0;
-
-  // Reduce maxWidth if footer logos are present (they're right-aligned)
-  if (hasLogos) {
-    maxWidthForFooterText -= logosWidth + s.footer.logosSizing.gapX;
-  }
+  const logos = inputs.footerLogos ?? [];
+  const hasLogos = logos.length > 0;
+  const row = allotLogoRow(
+    rc,
+    "footer",
+    rcdOuter.w() - padFooter.totalPx(),
+    [{ id: "footerText", text: inputs.footer, textInfo: s.text.footer }],
+    hasLogos
+      ? { id: "footerLogos", images: logos, sizing: s.footer.logosSizing }
+      : undefined,
+  );
+  const maxWidthForFooterText = row.textMaxWidth;
+  const logosHeight = row.logosHeight;
 
   if (inputs.footer?.trim()) {
     mFooter = rc.mText(
@@ -84,6 +83,8 @@ export function measureFooter(
     mFooter,
     rcdFooterOuter,
     maxWidthForFooterText,
+    logosMaxWidth: row.logosMaxWidth,
+    overflowCauses: row.overflowCauses,
   };
 }
 
@@ -133,6 +134,7 @@ export function buildFooterPrimitives(
       style: s.footer.logosSizing,
       alignH: "right",
       alignV: "middle",
+      rowMaxWidth: measured.logosMaxWidth,
     });
 
     for (let i = 0; i < mLogos.items.length; i++) {

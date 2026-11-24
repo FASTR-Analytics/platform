@@ -18,6 +18,11 @@ export const _IS_DEV = !_IS_PRODUCTION;
 export const _MODULES_LOCAL_DIR = Deno.env.get("FASTR_MODULES_LOCAL_DIR") ??
   "./modules";
 
+// An instance moved to an app whose module-definition schema the modules
+// repo's main does not yet hold reads the branch that does.
+export const _MODULES_GITHUB_BRANCH = Deno.env.get("FASTR_MODULES_BRANCH") ??
+  "main";
+
 ///////////////////////////////////////////////////////////////////////////////
 // Instance Configuration
 ///////////////////////////////////////////////////////////////////////////////

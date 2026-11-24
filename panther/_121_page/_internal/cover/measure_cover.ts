@@ -19,7 +19,14 @@ import type {
   CoverPageInputs,
   MeasuredCoverPage,
   PagePrimitive,
+  PageStackPartId,
 } from "../../types.ts";
+import {
+  pageOverflow,
+  stackOverflow,
+  type StackPart,
+} from "../page_overflow.ts";
+import { getStartY, getTextX } from "../stack_placement.ts";
 
 export function measureCover(
   rc: RenderContext,
@@ -30,7 +37,8 @@ export function measureCover(
   measuredSplitImage: MeasuredImage | undefined,
   mWatermark: MeasuredText | undefined,
 ): MeasuredCoverPage {
-  const textMaxWidth = bounds.w() - style.padding.totalPx();
+  const paddedBounds = bounds.getPadded(style.padding);
+  const textMaxWidth = paddedBounds.w();
 
   const mTitle = inputs.title?.trim()
     ? rc.mText(inputs.title.trim(), style.text.coverTitle, textMaxWidth)
@@ -48,8 +56,9 @@ export function measureCover(
     ? rc.mText(inputs.date.trim(), style.text.coverDate, textMaxWidth)
     : undefined;
 
-  const { primitives, totalH } = buildCoverPrimitives(
+  const { primitives, totalH, parts } = buildCoverPrimitives(
     bounds,
+    paddedBounds,
     inputs,
     style,
     mTitle,
@@ -63,7 +72,7 @@ export function measureCover(
     inputs,
     bounds,
     style,
-    overflow: totalH > bounds.h(),
+    ...pageOverflow(stackOverflow(parts, totalH, paddedBounds)),
     fullPageBounds,
     measuredSplitImage,
     mWatermark,
@@ -75,10 +84,15 @@ export function measureCover(
   };
 }
 
-type CoverResult = { primitives: PagePrimitive[]; totalH: number };
+type CoverResult = {
+  primitives: PagePrimitive[];
+  totalH: number;
+  parts: StackPart[];
+};
 
 function buildCoverPrimitives(
   bounds: RectCoordsDims,
+  paddedBounds: RectCoordsDims,
   inputs: CoverPageInputs,
   s: MergedCoverStyle,
   mTitle?: MeasuredText,
@@ -112,6 +126,7 @@ function buildCoverPrimitives(
   if (hasLogos && isFixed) {
     const result = buildFixedLogosCover(
       bounds,
+      paddedBounds,
       inputs.titleLogos!,
       s,
       mTitle,
@@ -120,11 +135,11 @@ function buildCoverPrimitives(
       mDate,
     );
     primitives.push(...result.primitives);
-    return { primitives, totalH: result.totalH };
+    return { ...result, primitives };
   }
 
   const result = buildFlowCover(
-    bounds,
+    paddedBounds,
     hasLogos ? inputs.titleLogos : undefined,
     s,
     mTitle,
@@ -133,7 +148,7 @@ function buildCoverPrimitives(
     mDate,
   );
   primitives.push(...result.primitives);
-  return { primitives, totalH: result.totalH };
+  return { ...result, primitives };
 }
 
 function isFixedPlacement(p: LogosPlacement): boolean {
@@ -142,6 +157,7 @@ function isFixedPlacement(p: LogosPlacement): boolean {
 
 function buildFixedLogosCover(
   bounds: RectCoordsDims,
+  paddedBounds: RectCoordsDims,
   logos: HTMLImageElement[],
   s: MergedCoverStyle,
   mTitle?: MeasuredText,
@@ -152,13 +168,6 @@ function buildFixedLogosCover(
   const primitives: PagePrimitive[] = [];
   const padding = s.padding;
   const placement = s.logosPlacement;
-
-  const paddedBounds = new RCD([
-    bounds.x() + padding.pl(),
-    bounds.y() + padding.pt(),
-    bounds.w() - padding.totalPx(),
-    bounds.h() - padding.totalPy(),
-  ]);
 
   const { alignH: logoAlignH, alignV: logoAlignV } = getFixedPlacementAlignment(
     placement,
@@ -216,11 +225,25 @@ function buildFixedLogosCover(
   );
   primitives.push(...contentResult.primitives);
 
-  return { primitives, totalH: logoSpace + contentResult.totalH };
+  const totalH = contentResult.totalH > 0
+    ? logoSpace + contentResult.totalH
+    : mLogos.totalHeight;
+  const logoRow: StackPart = {
+    id: "coverLogos",
+    height: mLogos.totalHeight,
+    width: 0,
+  };
+  return {
+    primitives,
+    totalH,
+    parts: isTop
+      ? [logoRow, ...contentResult.parts]
+      : [...contentResult.parts, logoRow],
+  };
 }
 
 function buildFlowCover(
-  bounds: RectCoordsDims,
+  paddedBounds: RectCoordsDims,
   logos: HTMLImageElement[] | undefined,
   s: MergedCoverStyle,
   mTitle?: MeasuredText,
@@ -229,9 +252,8 @@ function buildFlowCover(
   mDate?: MeasuredText,
 ): CoverResult {
   const primitives: PagePrimitive[] = [];
-  const padding = s.padding;
   const placement = s.logosPlacement;
-  const textMaxWidth = bounds.w() - padding.totalPx();
+  const textMaxWidth = paddedBounds.w();
 
   let mLogos: MeasuredLogos<HTMLImageElement> | undefined;
   if (logos && logos.length > 0) {
@@ -243,24 +265,48 @@ function buildFlowCover(
     });
   }
 
-  type StackItem = { type: string; h: number; gap: number };
+  type StackItem = {
+    id: PageStackPartId;
+    h: number;
+    gap: number;
+    mText?: MeasuredText;
+  };
   const items: StackItem[] = [];
 
-  const addItem = (type: string, h: number, gap: number) => {
-    if (h > 0) items.push({ type, h, gap });
+  const addItem = (
+    id: PageStackPartId,
+    h: number,
+    gap: number,
+    mText?: MeasuredText,
+  ) => {
+    if (h > 0) {
+      items.push({ id, h, gap, mText });
+    }
   };
 
   if (placement.position === "above-content" && mLogos) {
-    addItem("logo", mLogos.totalHeight, placement.gap);
+    addItem("coverLogos", mLogos.totalHeight, placement.gap);
   }
 
-  addItem("title", mTitle?.dims.h() ?? 0, s.titleBottomPadding);
-  addItem("subtitle", mSubtitle?.dims.h() ?? 0, s.subtitleBottomPadding);
-  addItem("author", mAuthor?.dims.h() ?? 0, s.authorBottomPadding);
-  addItem("date", mDate?.dims.h() ?? 0, 0);
+  addItem("coverTitle", mTitle?.dims.h() ?? 0, s.titleBottomPadding, mTitle);
+  addItem(
+    "coverSubtitle",
+    mSubtitle?.dims.h() ?? 0,
+    s.subtitleBottomPadding,
+    mSubtitle,
+  );
+  addItem(
+    "coverAuthor",
+    mAuthor?.dims.h() ?? 0,
+    s.authorBottomPadding,
+    mAuthor,
+  );
+  addItem("coverDate", mDate?.dims.h() ?? 0, 0, mDate);
 
   if (placement.position === "below-content" && mLogos) {
-    addItem("logo", mLogos.totalHeight, 0);
+    const last = items.at(-1);
+    if (last) last.gap = placement.gap;
+    addItem("coverLogos", mLogos.totalHeight, 0);
   }
 
   let totalH = 0;
@@ -271,15 +317,26 @@ function buildFlowCover(
     }
   }
 
-  const textX = getTextX(bounds, padding, s.alignH);
-  let currentY = getStartY(bounds, padding, s.alignV, totalH);
+  const textX = getTextX(paddedBounds, s.alignH);
+  let currentY = getStartY(paddedBounds, s.alignV, totalH);
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
 
-    if (item.type === "logo" && mLogos && logos) {
+    if (item.mText) {
+      primitives.push({
+        type: "text",
+        id: item.id,
+        mText: item.mText,
+        x: textX,
+        y: currentY,
+        alignH: s.alignH,
+        alignV: "top",
+        maxWidth: textMaxWidth,
+      });
+    } else if (logos) {
       const positioned = measureLogos(
-        new RCD([bounds.x() + padding.pl(), currentY, textMaxWidth, item.h]),
+        new RCD([paddedBounds.x(), currentY, textMaxWidth, item.h]),
         {
           images: logos,
           style: s.logosSizing,
@@ -296,50 +353,6 @@ function buildFlowCover(
           rcd: new RCD([logo.x, logo.y, logo.width, logo.height]),
         });
       }
-    } else if (item.type === "title" && mTitle) {
-      primitives.push({
-        type: "text",
-        id: "coverTitle",
-        mText: mTitle,
-        x: textX,
-        y: currentY,
-        alignH: s.alignH,
-        alignV: "top",
-        maxWidth: textMaxWidth,
-      });
-    } else if (item.type === "subtitle" && mSubtitle) {
-      primitives.push({
-        type: "text",
-        id: "coverSubtitle",
-        mText: mSubtitle,
-        x: textX,
-        y: currentY,
-        alignH: s.alignH,
-        alignV: "top",
-        maxWidth: textMaxWidth,
-      });
-    } else if (item.type === "author" && mAuthor) {
-      primitives.push({
-        type: "text",
-        id: "coverAuthor",
-        mText: mAuthor,
-        x: textX,
-        y: currentY,
-        alignH: s.alignH,
-        alignV: "top",
-        maxWidth: textMaxWidth,
-      });
-    } else if (item.type === "date" && mDate) {
-      primitives.push({
-        type: "text",
-        id: "coverDate",
-        mText: mDate,
-        x: textX,
-        y: currentY,
-        alignH: s.alignH,
-        alignV: "top",
-        maxWidth: textMaxWidth,
-      });
     }
 
     currentY += item.h;
@@ -348,7 +361,15 @@ function buildFlowCover(
     }
   }
 
-  return { primitives, totalH };
+  return {
+    primitives,
+    totalH,
+    parts: items.map(({ id, h, mText }) => ({
+      id,
+      height: h,
+      width: mText?.dims.w() ?? 0,
+    })),
+  };
 }
 
 function buildContentStack(
@@ -363,19 +384,26 @@ function buildContentStack(
   titleGap: number = 0,
   subtitleGap: number = 0,
   authorGap: number = 0,
-): { primitives: PagePrimitive[]; totalH: number } {
+): CoverResult {
   const primitives: PagePrimitive[] = [];
-  const textMaxWidth = bounds.w() - padding.totalPx();
+  const paddedBounds = bounds.getPadded(padding);
+  const textMaxWidth = paddedBounds.w();
 
-  type StackItem = { type: string; mText: MeasuredText; gap: number };
+  type StackItem = { id: PageStackPartId; mText: MeasuredText; gap: number };
   const items: StackItem[] = [];
 
-  if (mTitle) items.push({ type: "title", mText: mTitle, gap: titleGap });
-  if (mSubtitle) {
-    items.push({ type: "subtitle", mText: mSubtitle, gap: subtitleGap });
+  if (mTitle) {
+    items.push({ id: "coverTitle", mText: mTitle, gap: titleGap });
   }
-  if (mAuthor) items.push({ type: "author", mText: mAuthor, gap: authorGap });
-  if (mDate) items.push({ type: "date", mText: mDate, gap: 0 });
+  if (mSubtitle) {
+    items.push({ id: "coverSubtitle", mText: mSubtitle, gap: subtitleGap });
+  }
+  if (mAuthor) {
+    items.push({ id: "coverAuthor", mText: mAuthor, gap: authorGap });
+  }
+  if (mDate) {
+    items.push({ id: "coverDate", mText: mDate, gap: 0 });
+  }
 
   let totalH = 0;
   for (let i = 0; i < items.length; i++) {
@@ -385,14 +413,14 @@ function buildContentStack(
     }
   }
 
-  const textX = getTextX(bounds, padding, alignH);
-  let currentY = getStartY(bounds, padding, alignV, totalH);
+  const textX = getTextX(paddedBounds, alignH);
+  let currentY = getStartY(paddedBounds, alignV, totalH);
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     primitives.push({
       type: "text",
-      id: `cover${item.type.charAt(0).toUpperCase() + item.type.slice(1)}`,
+      id: item.id,
       mText: item.mText,
       x: textX,
       y: currentY,
@@ -406,7 +434,15 @@ function buildContentStack(
     }
   }
 
-  return { primitives, totalH };
+  return {
+    primitives,
+    totalH,
+    parts: items.map(({ id, mText }) => ({
+      id,
+      height: mText.dims.h(),
+      width: mText.dims.w(),
+    })),
+  };
 }
 
 function getFixedPlacementAlignment(placement: LogosPlacement): {
@@ -428,36 +464,5 @@ function getFixedPlacementAlignment(placement: LogosPlacement): {
       return { alignH: "right", alignV: "bottom" };
     default:
       return { alignH: "center", alignV: "top" };
-  }
-}
-
-function getTextX(
-  bounds: RectCoordsDims,
-  padding: Padding,
-  alignH: AlignH,
-): number {
-  switch (alignH) {
-    case "left":
-      return bounds.x() + padding.pl();
-    case "right":
-      return bounds.x() + bounds.w() - padding.pr();
-    case "center":
-      return bounds.centerX();
-  }
-}
-
-function getStartY(
-  bounds: RectCoordsDims,
-  padding: Padding,
-  alignV: AlignV,
-  totalH: number,
-): number {
-  switch (alignV) {
-    case "top":
-      return bounds.y() + padding.pt();
-    case "bottom":
-      return bounds.y() + bounds.h() - padding.pb() - totalH;
-    case "middle":
-      return bounds.y() + (bounds.h() - totalH) / 2;
   }
 }

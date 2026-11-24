@@ -53,10 +53,6 @@ export class TempManager {
       defaultTtl: config.defaultTtl ?? 3600000, // 1 hour default
       encryptionKey: config.encryptionKey ?? new Uint8Array(0),
     };
-
-    if (this.config.autoCleanup) {
-      this.setupAutoCleanup();
-    }
   }
 
   private async init(): Promise<void> {
@@ -64,9 +60,7 @@ export class TempManager {
 
     await ensureDir(this.config.baseDir);
     await setPermissions(this.config.baseDir, 0o700);
-    this.initialized = true;
-
-    this.log("TempManager initialized", { baseDir: this.config.baseDir });
+    this.markInitialized();
   }
 
   private initSync(): void {
@@ -74,8 +68,18 @@ export class TempManager {
 
     ensureDirSync(this.config.baseDir);
     setPermissionsSync(this.config.baseDir, 0o700);
-    this.initialized = true;
+    this.markInitialized();
+  }
 
+  // The exit handlers are installed with the first temp item, not at
+  // construction, because defaultTempManager is constructed whenever
+  // mod.deno.ts is imported.
+  private markInitialized(): void {
+    if (this.initialized) return;
+    this.initialized = true;
+    if (this.config.autoCleanup) {
+      this.setupAutoCleanup();
+    }
     this.log("TempManager initialized", { baseDir: this.config.baseDir });
   }
 
@@ -470,9 +474,15 @@ export class TempManager {
     // Handle various exit scenarios
     globalThis.addEventListener("unload", cleanup);
 
+    // A signal listener replaces the default termination, so it exits itself.
+    const exitOn = (signal: Deno.Signal, code: number) =>
+      Deno.addSignalListener(signal, async () => {
+        await cleanup();
+        Deno.exit(code);
+      });
     if (Deno.build.os !== "windows") {
-      Deno.addSignalListener("SIGINT", cleanup);
-      Deno.addSignalListener("SIGTERM", cleanup);
+      exitOn("SIGINT", 130);
+      exitOn("SIGTERM", 143);
     }
   }
 

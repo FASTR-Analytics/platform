@@ -5,19 +5,21 @@
 
 import { extractGaps } from "./_internal/extract_gaps.ts";
 import {
-  getHeightConstraints,
+  getSizeConstraints,
   type MeasureContext,
   measureNode,
 } from "./_internal/measure_internal.ts";
 import { normalizeLayout, validateLayout } from "./_internal/normalize.ts";
 import { _GLOBAL_LAYOUT_COLUMNS, type RectCoordsDims } from "./deps.ts";
 import type { LayoutStyleConfig } from "./optimizer.ts";
+import { isOverflow } from "./overflow.ts";
 import type {
-  HeightConstraints,
-  ItemHeightMeasurer,
   ItemLayoutNode,
+  ItemSizeMeasurer,
   LayoutNode,
+  LayoutOverflowCause,
   MeasureLayoutResult,
+  SizeConstraints,
 } from "./types.ts";
 
 export type MeasureLayoutOptions = {
@@ -25,14 +27,14 @@ export type MeasureLayoutOptions = {
 };
 
 export function createCachedMeasurer<T, U>(
-  itemMeasurer: ItemHeightMeasurer<T, U>,
-): ItemHeightMeasurer<T, U> {
-  const cache = new Map<string, HeightConstraints>();
+  itemMeasurer: ItemSizeMeasurer<T, U>,
+): ItemSizeMeasurer<T, U> {
+  const cache = new Map<string, SizeConstraints>();
   return (
     ctx: T,
     node: ItemLayoutNode<U>,
     width: number,
-  ): HeightConstraints => {
+  ): SizeConstraints => {
     const key = `${node.id}:${width.toFixed(1)}`;
     const cached = cache.get(key);
     if (cached) return cached;
@@ -47,7 +49,7 @@ export function measureLayout<T, U>(
   layout: LayoutNode<U>,
   bounds: RectCoordsDims,
   style: LayoutStyleConfig,
-  itemMeasurer: ItemHeightMeasurer<T, U>,
+  itemMeasurer: ItemSizeMeasurer<T, U>,
   options?: MeasureLayoutOptions,
 ): MeasureLayoutResult<U> {
   const nCols = _GLOBAL_LAYOUT_COLUMNS;
@@ -55,8 +57,6 @@ export function measureLayout<T, U>(
 
   validateLayout(layout, nCols);
   const normalizedLayout = normalizeLayout(layout, nCols);
-
-  const overflowTracker = { overflow: false };
 
   const singleColWidth = (bounds.w() - (nCols - 1) * gapX) / nCols;
 
@@ -80,26 +80,46 @@ export function measureLayout<T, U>(
     boundsX: bounds.x(),
     boundsW: bounds.w(),
     itemMeasurer,
-    overflowTracker,
     parentStartColumn: 0,
     parentAvailableSpan: nCols,
   };
 
-  // Rows and cols hold their children's minimum heights against their own
-  // height. The root has no parent, so its minimum is held against the bounds
-  // here: without this a layout that is one item never overflows.
-  const rootConstraints = getHeightConstraints(
+  // Every container gives each child at least the child's minimum, and a
+  // node's own minH only raises its minimum, so a layout is short of height
+  // only at its root: one comparison finds the height cause.
+  const root = getSizeConstraints(
     measureCtx,
     normalizedLayout,
     bounds.w(),
     nCols,
     0,
   );
-  if (rootConstraints.minH > bounds.h()) {
-    overflowTracker.overflow = true;
-  }
+  const heightCauses: LayoutOverflowCause[] = isOverflow(root.minH, bounds.h())
+    ? [{
+      axis: "height",
+      need: root.minH,
+      available: bounds.h(),
+      neededBy: root.neededBy,
+    }]
+    : [];
 
-  const measured = measureNode(measureCtx, normalizedLayout, bounds);
+  const { measured, widthCauses } = measureNode(
+    measureCtx,
+    normalizedLayout,
+    bounds,
+  );
+  // A box of negative width has no room for anything it holds, so its one
+  // cause names the root in place of every item it leaves short.
+  const boxWidthCauses: LayoutOverflowCause[] = isOverflow(0, bounds.w())
+    ? [{
+      axis: "width",
+      need: 0,
+      available: bounds.w(),
+      neededBy: [{ id: normalizedLayout.id, need: 0 }],
+    }]
+    : widthCauses;
+  const overflowCauses = [...heightCauses, ...boxWidthCauses];
+
   const gaps = extractGaps(
     measured,
     gapX,
@@ -109,5 +129,10 @@ export function measureLayout<T, U>(
     measureCtx.globalSnapPositions,
   );
 
-  return { measured, overflow: overflowTracker.overflow, gaps };
+  return {
+    measured,
+    overflow: overflowCauses.length > 0,
+    overflowCauses,
+    gaps,
+  };
 }

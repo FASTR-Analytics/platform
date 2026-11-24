@@ -63,13 +63,34 @@ export function resolveOutsideCollisions(
   }
 }
 
+// An inside label's x and y are its CENTRE. `centerRange` holds the centres at
+// which its drawn box stays inside its host; along an axis where the box is
+// larger than the host the range is empty (min > max), and the label takes the
+// middle of it.
+export type InsideCollisionLabel = CollisionLabel & {
+  centerRange: { minX: number; maxX: number; minY: number; maxY: number };
+};
+
+function confineToRange(min: number, max: number, value: number): number {
+  return min > max ? (min + max) / 2 : Math.min(max, Math.max(min, value));
+}
+
+function confine(label: InsideCollisionLabel): void {
+  const r = label.centerRange;
+  label.x = confineToRange(r.minX, r.maxX, label.x);
+  label.y = confineToRange(r.minY, r.maxY, label.y);
+}
+
 // Inside labels: iterative 2-D push-apart, clamped to a maximum displacement
-// from each label's natural anchor.
+// from each label's natural anchor, and confined to the host after every step.
+// The host wins over the clamp: a label whose anchor is nearer the host's edge
+// than half its box moves further than the clamp allows rather than leave it.
 export function resolveInsideCollisions(
-  labels: CollisionLabel[],
+  labels: InsideCollisionLabel[],
   maxIterations: number,
   maxDisplacement: number,
 ): void {
+  for (const label of labels) confine(label);
   if (labels.length < 2) return;
 
   for (let iter = 0; iter < maxIterations; iter++) {
@@ -122,6 +143,7 @@ export function resolveInsideCollisions(
         label.x = label.naturalX + dx * scale;
         label.y = label.naturalY + dy * scale;
       }
+      confine(label);
     }
 
     if (!moved) break;

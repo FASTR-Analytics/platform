@@ -162,6 +162,16 @@ export const IMAGE_LIMITS = {
   MAX_PER_TURN: 20,
 } as const;
 
+// Panther's own bound, not the API's: what one tool display keeps in the
+// record. A record holds every card of its conversation and is written whole
+// at every turn's end, and its messages hold the output's JSON again unless
+// describeForModel says less. 200,000 characters hold about 2,000 rows of
+// 100, more points than one figure shows legibly.
+export const TOOL_DISPLAY_LIMITS = {
+  // The JSON of one card's structured output.
+  MAX_STRUCTURED_CHARS: 200_000,
+} as const;
+
 ////////////////////////////////////////////////////////////////////////////////
 // MODEL CAPABILITY CHECKS
 ////////////////////////////////////////////////////////////////////////////////

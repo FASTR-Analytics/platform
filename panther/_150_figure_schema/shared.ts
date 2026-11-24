@@ -19,15 +19,22 @@ import type {
   MapProjection,
   MemberSortConfig,
   MemberSortFunc,
+  NColsOrAuto,
   PeriodType,
   UncertaintyConfig,
+  ValueSort,
 } from "./deps.ts";
 import type {
+  zColorKey,
+  zColorKeyOrHex,
   zColorKeyOrString,
   zContinuousPaletteName,
+  zHexColor,
   zMapDataLabelMode,
   zMapProjection,
-} from "./style_leaves.ts";
+  zNColsOrAuto,
+  zValueSort,
+} from "./leaves.ts";
 
 // Compile-time conformance check binding each schema to its hand-written type
 // (the _010_* types remain the single source of truth). A type change the
@@ -151,10 +158,9 @@ export const zVisibleByPane = z.array(z.array(z.number()));
 // indexed [pane][global tier or lane index][visible global indicator indices].
 export const zVisibleByPaneTierOrLane = z.array(zVisibleByPane);
 
-// Proportional (ragged-table) layout configs. strict: a stray key must error,
-// not be silently stripped — see validateChartProportional for the rule
-// (panes implies the tier-or-lane key; { lanes: false, panes: true } is
-// rejected there).
+// Proportional (ragged-table) layout configs. strict: a stray key, the other
+// chart's among them, must error, not be silently stripped, since the
+// transform reads only the keys of its type.
 export const zChartOVProportional = z.strictObject({
   lanes: z.boolean().optional(),
   panes: z.boolean().optional(),
@@ -169,8 +175,18 @@ export const zPeriodType = z.enum(["year-month", "year-quarter", "year"]);
 const _zPeriodTypeConforms: Conforms<z.infer<typeof zPeriodType>, PeriodType> =
   true;
 
+const _zColorKeyConforms: ConformsExactly<
+  z.infer<typeof zColorKey>,
+  Exclude<ColorKeyOrString, string>
+> = true;
+const _zHexColorConforms: ConformsExactly<z.infer<typeof zHexColor>, string> =
+  true;
 const _zColorKeyOrStringConforms: ConformsExactly<
   z.infer<typeof zColorKeyOrString>,
+  ColorKeyOrString
+> = true;
+const _zColorKeyOrHexConforms: ConformsExactly<
+  z.infer<typeof zColorKeyOrHex>,
   ColorKeyOrString
 > = true;
 const _zContinuousPaletteNameConforms: ConformsExactly<
@@ -184,6 +200,14 @@ const _zMapProjectionConforms: ConformsExactly<
 const _zMapDataLabelModeConforms: ConformsExactly<
   z.infer<typeof zMapDataLabelMode>,
   MapDataLabelMode
+> = true;
+const _zValueSortConforms: ConformsExactly<
+  z.infer<typeof zValueSort>,
+  ValueSort
+> = true;
+const _zNColsOrAutoConforms: ConformsExactly<
+  z.infer<typeof zNColsOrAuto>,
+  NColsOrAuto
 > = true;
 
 export const zChartValueAxisLimitsEntry = z.object({

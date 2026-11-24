@@ -42,11 +42,6 @@ export function getTimeseriesComponentSizes(
   );
   const ms = cs.getMergedTimeseriesStyle();
 
-  // xPeriod tick labels are short, fixed-format (years/months) and never wrap
-  // or rotate, so this unwrapped sample is a faithful estimate of the real axis
-  // height — Timeseries intentionally stays on the estimate fit path (it does
-  // not pass a ResolveFloorExtent). If long/wrapping period labels are ever
-  // introduced, route it through the probe like ChartOV (resolveValueAxisFloorSubChartHeight).
   const xAxisTickH = rc
     .mText(
       SIZING_SAMPLE.periodTick,

@@ -36,16 +36,19 @@ Object-based renderer implementing the standard Panther renderer pattern:
 ```typescript
 getChartOVDataTransformed(
   data: ChartOVData,
-  options: TransformOptions,
+  stacked: boolean,
 ): ChartOVDataTransformed
 
 getChartOVDataJsonTransformed(
-  json: JsonArray,
-  mapping: DataMapping,
+  jsonArray: JsonArray,
+  config: ChartOVJsonDataConfig,
+  stacked: boolean,
 ): ChartOVDataTransformed
+
+getChartOVDataConfigIssues(data: ChartOVDataJson): DataConfigIssue[]
 ```
 
-Transform raw data into chart-ready format.
+Transform raw data into chart-ready format. The JSON transform first checks the data config against its rows and throws a `DataConfigError` holding every issue; `getChartOVDataConfigIssues` returns them without the throw (DOC_FIGURE_ARCHITECTURE.md "Data config issues").
 
 ### Chart Types
 

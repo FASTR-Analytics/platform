@@ -8,6 +8,7 @@ export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
 export { createMarkdownIt } from "../_105_markdown/mod.ts";
 export {
   admitInteraction,
+  appendToolResultNotice,
   APPROVAL_DECLINED_MESSAGE,
   APPROVAL_STALE_MESSAGE,
   assembleTurnSections,
@@ -28,6 +29,7 @@ export {
   getUserFacingAIErrorMessage,
   hashRequestPrefix,
   legacyStripEphemeralMarkers,
+  limitToolDisplayStructured,
   limitToolResultImages,
   MAX_OUTPUT_TOKENS,
   MODEL_OPTIONS,
@@ -69,7 +71,6 @@ export type {
 } from "../_110_ai_types/mod.ts";
 export {
   AIToolFailure,
-  AIToolOutput,
   buildAITool,
   buildToolResultContent,
   createAITool,
@@ -79,7 +80,9 @@ export {
   toolThrowToResultParts,
 } from "../_112_ai_tool_core/mod.ts";
 export type {
+  AIToolDisplayProps,
   AIToolKind,
+  AIToolRun,
   AIToolWithMetadata,
   AIViewDefinition,
   AIViewIdentity,

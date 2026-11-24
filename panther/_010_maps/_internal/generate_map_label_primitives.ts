@@ -24,6 +24,7 @@ import {
   Coordinates,
   fieldTrack,
   generateResolvedFigureLabelPrimitives,
+  insideLabelBoxDims,
   placeNearestBoxes,
   placeOutsideBoxes,
   scaledTrack,
@@ -572,10 +573,11 @@ export function generateResolvedMapLabelPrimitives(
 
 // The label terms of the autofit floor, measured UNWRAPPED
 // (maxWidth Infinity) so the floor is exactly proportional to the font scale
-// (monotone) and has no sub-chart dependence (no circularity). Budgets every
-// shown label as outside: with no sub-chart in existence there is nothing to resolve
-// `auto` against, and the conservative side is the only safe one; the draw
-// freezes at s0, so floor ≥ draw. Sides split on the unit-anchor x sign,
+// (monotone) and has no sub-chart dependence (no circularity). Under
+// `centroid`, budgets each label's inside box alone; otherwise budgets every
+// shown label as outside: with no sub-chart in existence there is nothing to
+// resolve `auto` against, and the conservative side is the only safe one; the
+// draw freezes at s0, so floor ≥ draw. Sides split on the unit-anchor x sign,
 // which is s-invariant.
 export type MapLabelFloorBudget = {
   // Extra width beyond the content that outside labels demand.
@@ -585,6 +587,13 @@ export type MapLabelFloorBudget = {
   // stack, which the sub-chart must be at least as tall as; under nearest labels sit
   // above and below the content too, so the demand is ADDITIVE.
   vertical: number;
+  // The widest and the tallest box an inside label draws. Inside labels are
+  // confined to the sub-chart, so it must be at least this wide and this
+  // tall: a floor of its own, never added to the content's. Zero unless every
+  // label is inside: `auto` keeps a label inside only when its text fits its
+  // own map area, which lies inside the sub-chart.
+  insideBoxWidth: number;
+  insideBoxHeight: number;
 };
 
 export function calculateMapLabelFloorBudget(
@@ -601,8 +610,13 @@ export function calculateMapLabelFloorBudget(
   mergedStyle: MergedMapStyle,
 ): MapLabelFloorBudget {
   const mode = toLabelMode(mergedStyle.map.dataLabelMode);
-  if (mode === "none" || mode === "inside") {
-    return { horizontal: 0, vertical: 0 };
+  if (mode === "none") {
+    return {
+      horizontal: 0,
+      vertical: 0,
+      insideBoxWidth: 0,
+      insideBoxHeight: 0,
+    };
   }
   const gap = mergedStyle.map.labelCollision.gap;
   const calloutMargin = mergedStyle.map.calloutMargin;
@@ -616,6 +630,8 @@ export function calculateMapLabelFloorBudget(
   // still monotone in the font scale, still free of any sub-chart dependence.
   let maxW = 0;
   let maxH = 0;
+  let insideBoxWidth = 0;
+  let insideBoxHeight = 0;
   for (const { shown, indices, members, unitFitted } of shownPerSubChart) {
     let leftStack = 0;
     let rightStack = 0;
@@ -637,6 +653,9 @@ export function calculateMapLabelFloorBudget(
       const h = mText.dims.h();
       maxW = Math.max(maxW, w);
       maxH = Math.max(maxH, h + pad.pt() + pad.pb());
+      const insideBox = insideLabelBoxDims(mText, spec.dl);
+      insideBoxWidth = Math.max(insideBoxWidth, insideBox.w());
+      insideBoxHeight = Math.max(insideBoxHeight, insideBox.h());
       if (unitAnchor.x <= 0) {
         maxLeftW = Math.max(maxLeftW, w);
         leftStack += h;
@@ -654,9 +673,16 @@ export function calculateMapLabelFloorBudget(
     );
   }
 
+  if (mode === "inside") {
+    return { horizontal: 0, vertical: 0, insideBoxWidth, insideBoxHeight };
+  }
+  const insideBox = { insideBoxWidth: 0, insideBoxHeight: 0 };
+
   const horizontal = (maxLeftW > 0 ? calloutMargin + maxLeftW : 0) +
     (maxRightW > 0 ? calloutMargin + maxRightW : 0);
-  if (!nearest || maxW === 0) return { horizontal, vertical: tallestStack };
+  if (!nearest || maxW === 0) {
+    return { horizontal, vertical: tallestStack, ...insideBox };
+  }
 
   // Under nearest the floor must cover BOTH placers, because any map may
   // fall back to flank and the floor is what autofit shrinks the type against.
@@ -667,5 +693,6 @@ export function calculateMapLabelFloorBudget(
   return {
     horizontal: Math.max(horizontal, 2 * (calloutMargin + maxW)),
     vertical: Math.max(tallestStack, 2 * (calloutMargin + maxH)),
+    ...insideBox,
   };
 }

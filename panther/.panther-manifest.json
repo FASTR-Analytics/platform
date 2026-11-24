@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-11-22T22:05:04.742Z",
-  "pantherGitCommit": "222df7d2",
+  "timestamp": "2026-11-24T00:14:57.674Z",
+  "pantherGitCommit": "04d8fe53",
   "pantherGitDirty": false,
   "mode": "both",
   "configName": "wb-fastr",
@@ -20,6 +20,7 @@
     "PROTOCOL_UI_AI_CHAT.md"
   ],
   "exclude": [
-    "_237_deck"
+    "_237_deck",
+    "_238_duckdb"
   ]
 }

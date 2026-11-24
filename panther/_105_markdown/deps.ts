@@ -18,19 +18,19 @@ export {
   MARKDOWN_TABLE_ROW_DIMENSION,
 } from "../_001_render_system/mod.ts";
 export type {
-  HeightConstraints,
   LineStyle,
   Measured,
   MeasuredText,
   RenderContext,
   Renderer,
+  SizeConstraints,
 } from "../_001_render_system/mod.ts";
 export { CustomMarkdownStyle } from "../_004_markdown_style/mod.ts";
 export type {
   CustomMarkdownStyleOptions,
   MergedMarkdownStyle,
 } from "../_004_markdown_style/mod.ts";
-export { createItemNode } from "../_008_layouter/mod.ts";
+export { createItemNode, isOverflow } from "../_008_layouter/mod.ts";
 export type { ItemLayoutNode, LayoutNode } from "../_008_layouter/mod.ts";
 export { TableRenderer } from "../_010_table/mod.ts";
 export type { TableDataTransformed, TableInputs } from "../_010_table/mod.ts";

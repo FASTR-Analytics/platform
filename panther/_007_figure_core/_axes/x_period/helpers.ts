@@ -258,8 +258,6 @@ type PeriodAxisInfo = {
   maxTickH: number;
 };
 
-const _VERY_SMALL_TICK_H = 10;
-
 // Air kept between neighbouring year labels, between a small label and its
 // bounding ticks, and between a boundary tick and the year label that starts
 // at it. In ems of the tick-label font so it scales with the figure like
@@ -372,7 +370,7 @@ export function getPeriodAxisInfo(
         maxTickH,
       };
     }
-    const periodAxisSmallTickH = _VERY_SMALL_TICK_H;
+    const periodAxisSmallTickH = axisStyle.tickLength;
     // Always need space for labels, even if only showing every Nth
     const maxTickH = periodAxisSmallTickH +
       axisStyle.periodLabelSmallTopPadding +

@@ -60,8 +60,19 @@ export const CATALOG_ORDERED_DISAGGREGATION_OPTIONS: ReadonlySet<string> =
       "strat",
     ] satisfies DisaggregationOption[],
   );
+// Disaggregation options that are FILTER-ONLY: valid in `filters`, never in
+// `groupBys` (nor client `disaggregateBy` slots). Grouping by a many-to-many
+// dimension would double-count or expose raw composite groups.
+// Enforced: validateFetchConfig (server boundary), validateFigureConfigEdit
+// (the copilot's figure edits) and validateFigureConfig (`filterOnlyLaidOut`);
+// excluded by groupedDims, startingFigureConfig, changeFigureType and the
+// client disaggregation pickers.
+export const FILTER_ONLY_DISAGGREGATION_OPTIONS: ReadonlySet<string> = new Set(
+  ["hfa_service_category"] satisfies DisaggregationOption[],
+);
+
 // The period-VALUED display columns. Distinct from `periodOption`
-// (_metric_installed.ts), the queryable period formats: `month` is not a
+// (period_options.ts), the queryable period formats: `month` is not a
 // format: it is a derived, zero-padded text column (see
 // PERIOD_COLUMN_EXPRESSIONS). Typed ReadonlySet<string> because consumers test
 // arbitrary display props ("--v", facility columns), but the literals are

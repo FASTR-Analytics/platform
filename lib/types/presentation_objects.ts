@@ -5,10 +5,10 @@ import {
   type BoundedPeriodFilter,
   type DisaggregationDisplayOption,
   type PeriodFilter,
-  type PeriodOption,
   type PresentationOption,
   type RelativePeriodFilter,
 } from "./_metric_installed.ts";
+import type { PeriodOption } from "./period_options.ts";
 import type { PresentationObjectConfig } from "./_presentation_object_config.ts";
 import {
   ALL_DISAGGREGATION_OPTIONS,

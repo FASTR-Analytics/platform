@@ -848,6 +848,7 @@ export type GenericCascadeArrowStyleOptions = {
   strokeColor?: ColorKeyOrString;
   strokeWidth?: number;
   arrowHeadLength?: number;
+  arrowTrunkLength?: number;
   showArrowhead?: boolean;
   arrowLengthFractionOfSpace?: number;
   arrowLabelGap?: number;
@@ -859,6 +860,7 @@ export type GenericCascadeArrowStyle = {
   strokeColor: ColorKeyOrString;
   strokeWidth: number;
   arrowHeadLength: number;
+  arrowTrunkLength: number;
   showArrowhead: boolean;
   arrowLengthFractionOfSpace: number;
   arrowLabelGap: number;
@@ -870,6 +872,7 @@ export type CascadeArrowStyle = {
   strokeColor: ColorKeyOrString;
   strokeWidth: number;
   arrowHeadLength: number;
+  arrowTrunkLength: number;
   showArrowhead: boolean;
   arrowLengthFractionOfSpace: number;
   arrowLabelGap: number;
@@ -895,6 +898,12 @@ export function getCascadeArrowStyleFunc(
     c?.arrowHeadLength,
     g?.arrowHeadLength,
     d.arrowHeadLength,
+  );
+  const dArrowTrunkLength = ms(
+    _sf,
+    c?.arrowTrunkLength,
+    g?.arrowTrunkLength,
+    d.arrowTrunkLength,
   );
   const dShowArrowhead = m(c?.showArrowhead, g?.showArrowhead, d.showArrowhead);
   const dArrowLengthFractionOfSpace = m(
@@ -922,6 +931,7 @@ export function getCascadeArrowStyleFunc(
     const og = gf?.(info);
     const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
     const oArrowHeadLength = oc?.arrowHeadLength ?? og?.arrowHeadLength;
+    const oArrowTrunkLength = oc?.arrowTrunkLength ?? og?.arrowTrunkLength;
     const oArrowLabelGap = oc?.arrowLabelGap ?? og?.arrowLabelGap;
     const resolvedStrokeColor = oc?.strokeColor ?? og?.strokeColor ??
       dStrokeColor;
@@ -941,6 +951,9 @@ export function getCascadeArrowStyleFunc(
       arrowHeadLength: oArrowHeadLength !== undefined
         ? oArrowHeadLength * _sf
         : dArrowHeadLength,
+      arrowTrunkLength: oArrowTrunkLength !== undefined
+        ? oArrowTrunkLength * _sf
+        : dArrowTrunkLength,
       showArrowhead: oc?.showArrowhead ?? og?.showArrowhead ?? dShowArrowhead,
       arrowLengthFractionOfSpace: oc?.arrowLengthFractionOfSpace ??
         og?.arrowLengthFractionOfSpace ??

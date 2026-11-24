@@ -29,7 +29,7 @@ Tokens, interactive state, spacing, and theming for app code. For the reasoning,
 21. **`h-full` on a slot's direct child only when it is the only child**: a nested Frame, an `EmptyState` centred in the slot, a flex column. Beside a sibling under `spy` it overflows the slot by the sibling's height plus the gap, and the slot scrolls that much. Content that flows (a form, a stack of cards) takes its natural height and the slot scrolls it.
 22. **Four scrollers inside a slot are content, not a slot written by hand**: a kit table (`Table`, `DataGrid`, `PresenceGrid`, `TableFromCsv`), which owns its scroll box and sticky header and scrolls inside itself as a slot's direct child; a scroll element app code reads (scroll-sync, a cursor overlay measured against it, a `data-*` hook on it); `overflow-y-scroll` for a permanent scrollbar gutter, which the slot's `overflow-auto` does not reproduce; and a sticky child's own scroller. A sticky child in a padded slot sticks one inset below the slot's top edge, with content scrolling through the gap above it, and cannot span the slot; it lives in a slot with no `pad` or in an x-only padded scroller around it (`ui-pad-x h-full w-full overflow-auto`). A bounded region inside content (a `max-h-64 overflow-auto` list) and `overflow-hidden` on an aspect box describe the content and are not slots.
 
-23. **Three z-index levels, so a modal never depends on mount order**: page content uses `z-0` to `z-30`; `z-40` is the resizable frames' drag handles'; `z-50` is the alert layer's (`AlertProvider`'s scrim and dialog). An app never writes `z-40` or above on page content, so `AlertProvider` may be mounted anywhere in the app root. Something that must sit over a modal is a `popover`, which the browser puts in its top layer above every z-index, as the kit's menus, tooltips and combo-box panels are.
+23. **Three z-index levels, so a modal never depends on mount order**: page content uses `z-0` to `z-30`; `z-40` is the resizable frames' own controls' (their drag handles, and the three-column frame's side tabs and close buttons); `z-50` is the alert layer's (`AlertProvider`'s scrim and dialog). An app never writes `z-40` or above on page content, so `AlertProvider` may be mounted anywhere in the app root. Something that must sit over a modal is a `popover`, which the browser puts in its top layer above every z-index, as the kit's menus, tooltips and combo-box panels are.
 
 ## Do / Don't
 
@@ -277,7 +277,7 @@ There is no title role. The body size is `--ui-text-body` (`text-sm`), set once 
 | Clickable card (whole card is the target)    | `Card onClick`: `cursor-pointer` + `hover:border-primary` at the frame                                                   |
 | Focus                                        | `ui-focusable`                                                                                                           |
 | Main action / secondary action / destructive | `intent="primary"` / `outline` + `onBackground` / `intent="danger"`                                                      |
-| Quiet action in a row that hovers itself     | `ghost` (body-coloured by default): no rest surface, currentColor tint on hover; needs no `onBackground`                 |
+| Quiet action in a row that hovers itself     | `ghost` (in its surface's colour by default): no rest surface, currentColor tint on hover; needs no `onBackground`       |
 
 Status intents: `success` complete/positive · `warning` caution · `danger` error/destructive · `neutral` running/queued/pending · `primary` selected/active.
 
@@ -353,7 +353,7 @@ Usable from app code:
 - **Form density:** `ui-form-pad`, `ui-form-pad-sm`, `ui-form-text-size`, `ui-form-text-size-sm`, `ui-icon-only-correction`, `ui-icon-only-correction-sm`
 - **State:** the `ui-hoverable-{token}` family (`base-100`, `base-200`, `base-300`, `base-content`, `primary`, `neutral`, `success`, `warning`, `danger`), its outline sibling `ui-hoverable-outline-on-{token}` (same nine members), `ui-hoverable-ghost` (one member), and `ui-focusable`
 - **Type:** three roles: body (14px, inherited from `body`, no size class), `ui-text-caption` (12px, muted: metadata, help text, column headers, data grid cells) and `ui-text-heading` (16px bold: section, card, modal and alert headings, and a full-screen view's label). There is no title role. Also `ui-text-overline`, `ui-text-small`, `ui-form-text`, `ui-label`
-- **Skins (only when building a control panther doesn't provide):** `ui-fill-{intent}`, `ui-outline-{intent}`, `ui-ghost-{intent}`
+- **Skins (only when building a control panther doesn't provide):** `ui-fill-{intent}`, `ui-outline-{intent}`, `ui-ghost` (inherits its surface's colour), `ui-ghost-{intent}`
 
 Every other `ui-*` class is internal and may change without notice.
 
@@ -396,4 +396,4 @@ The ratio is deliberately shared across sizes: `em` rescales it, so there is no 
 - [ ] No `overflow-auto` wrapper as a Frame slot's direct child; `h-full` on a direct child only when it is the slot's only child
 - [ ] App CSS uses plain `@theme`, no `--color-*: initial`, palettes on `:root`
 - [ ] UI text in sentence case
-- [ ] No `z-40` or above on page content: `z-0` to `z-30` is content's, `z-40` the frame handles', `z-50` the alert layer's, and anything that must sit over a modal is a `popover`
+- [ ] No `z-40` or above on page content: `z-0` to `z-30` is content's, `z-40` the frames' own controls', `z-50` the alert layer's, and anything that must sit over a modal is a `popover`

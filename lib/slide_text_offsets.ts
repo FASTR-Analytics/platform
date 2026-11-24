@@ -30,7 +30,12 @@
 // =============================================================================
 
 import { createMarkdownIt, parseMarkdown } from "@timroberton/panther";
-import type { MarkdownInline, ParsedMarkdownItem } from "@timroberton/panther";
+import type {
+  LayoutNode,
+  MarkdownInline,
+  ParsedMarkdownItem,
+} from "@timroberton/panther";
+import type { ContentBlock } from "./types/slides.ts";
 
 export const SRC_BLOCK = 0;
 export const SRC_VISIBLE = 1;
@@ -495,6 +500,79 @@ export function slideSourceFromRender(render: string): string {
   ).join("\n");
 }
 
+export type SlideTableOrImage = { kind: "table" | "image"; line: number };
+
+function slideTokens(src: string): MdToken[] {
+  return createMarkdownIt({ html: true }).parse(
+    slideRenderMarkdown(src),
+    {},
+  ) as unknown as MdToken[];
+}
+
+// Every table and image in what panther draws for a slide text block, in
+// source order, with its 0-based source line. A table cell's inline token
+// has no line of its own, so it takes its row's.
+function slideTablesAndImages(src: string): SlideTableOrImage[] {
+  const out: SlideTableOrImage[] = [];
+  let line = 0;
+  for (const t of slideTokens(src)) {
+    line = t.map?.[0] ?? line;
+    if (t.type === "table_open") out.push({ kind: "table", line });
+    for (const c of t.children ?? []) {
+      if (c.type === "image") out.push({ kind: "image", line });
+    }
+  }
+  return out;
+}
+
+/** The first markdown table or image in what panther draws for a slide text
+ *  block (slideRenderMarkdown), with its 0-based source line. A text block
+ *  draws text only: MarkdownRenderer refuses a table outside a quote and an
+ *  image alone in a top-level paragraph, drops any other image, and runs a
+ *  quoted table's cells together as one line of text, so every one is
+ *  found. */
+export function findSlideTableOrImage(
+  src: string,
+): SlideTableOrImage | undefined {
+  return slideTablesAndImages(src)[0];
+}
+
+/** The first table or image of a slide text block that MarkdownRenderer is
+ *  given as an item of its own, with its 0-based source line: it cannot lay
+ *  one out, so the page cannot be measured or drawn: a table outside a quote,
+ *  or an image alone in a top-level paragraph. A quoted table and any other
+ *  image are drawn (run together, dropped), so the page measures as the
+ *  canvas shows it and only findSlideTableOrImage finds them. */
+export function findUndrawableSlideItem(
+  src: string,
+): SlideTableOrImage | undefined {
+  for (const item of parseMarkdown(slideRenderMarkdown(src)).items) {
+    if (item.type === "table" || item.type === "image") {
+      // markdown-it maps every block token to its source lines.
+      return { kind: item.type, line: item.line! };
+    }
+  }
+  return undefined;
+}
+
+/** The first text block of a content slide's layout holding what
+ *  findUndrawableSlideItem finds, by block id. */
+export function findUndrawableSlideTextBlock(
+  layout: LayoutNode<ContentBlock>,
+): (SlideTableOrImage & { blockId: string }) | undefined {
+  if (layout.type === "item") {
+    const found = layout.data.type === "text"
+      ? findUndrawableSlideItem(layout.data.markdown)
+      : undefined;
+    return found && { blockId: layout.id, ...found };
+  }
+  for (const child of layout.children) {
+    const found = findUndrawableSlideTextBlock(child);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
+
 /** The analysis of a slide text block's source, against what panther draws
  *  for it (slideRenderMarkdown): offsets are the source's, and each empty
  *  list item is a unit of its own (see SlideTextUnit.emptyAt). */
@@ -867,7 +945,14 @@ type Atom =
   | { kind: "text"; ch: string; style: SlideCharStyle }
   | { kind: "br" };
 
+// A pipe is written as its entity, never as `\|`: markdown-it takes any line
+// holding a `|` as a possible table header, escaped or not, so `x \| y` over
+// `---` is a one-column table where `x | y` over `---` is a heading. No pipe
+// the canvas writes can then start or split a table.
+const PIPE_ENTITY = "&#124;";
+
 function escapeChar(ch: string): string {
+  if (ch === "|") return PIPE_ENTITY;
   return /[\\*_`[\]~<&]/.test(ch) ? "\\" + ch : ch;
 }
 
@@ -1231,7 +1316,74 @@ export function slideDeleteForward(
 export function escapeTypedSlideText(text: string): string {
   return text.replace(/[\\*_`[\]~]/g, (c) => "\\" + c)
     .replace(/<(?=[A-Za-z/!])/g, "\\<")
-    .replace(/&(?=#?[A-Za-z0-9]+;)/g, "\\&");
+    .replace(/&(?=#?[A-Za-z0-9]+;)/g, "\\&")
+    .replace(/\|/g, PIPE_ENTITY);
+}
+
+// What a table's delimiter row may start with before its first char: the
+// quote markers and indentation of the blocks holding the table.
+const DELIMITER_ROW_PREFIX = /^[ \t>]*/;
+
+// A private-use char no slide text holds, put before each `\` an escape
+// added: markdown-it parses the text as it does with the `\` alone, and a
+// code span holding the char holds a `\` it would draw.
+const CODE_PROBE = String.fromCharCode(0xe000);
+
+// What an insert no candidate verified stores: the text as typed, so typing
+// is never lost. That can still make a table the canvas never wrote (a pipe
+// typed above a row of dashes, dashes typed under literal pipes), so each new
+// table gets a `\` before its delimiter row's first char, which ends the
+// table and draws nothing; a quoted table the text already held stays as it
+// was. Undefined, so the insert is refused, when a new table's delimiter row
+// starts with no char such a `\` ends it at, when such a `\` would draw
+// (inside a code span), or when the insert would add an image, which slide
+// text cannot draw.
+function rawInsert(
+  src: string,
+  pos: number,
+  ins: string,
+): { next: string; caret: number } | undefined {
+  let next = src.slice(0, pos) + ins + src.slice(pos);
+  let caret = pos + ins.length;
+  let escapes: number[] = [];
+  const first = src.slice(0, pos).split("\n").length - 1;
+  const added = ins.split("\n").length - 1;
+  const held = new Set(
+    slideTablesAndImages(src).flatMap((f) =>
+      f.kind === "table" ? [f.line] : []
+    ),
+  );
+  // A line of `next` is the source's line it was, or -1 for one the insert
+  // started.
+  const srcLine = (line: number) =>
+    line <= first ? line : line > first + added ? line - added : -1;
+  while (true) {
+    const table = slideTablesAndImages(next).find((f) =>
+      f.kind === "table" && !held.has(srcLine(f.line))
+    );
+    if (table === undefined) break;
+    const row = lineStartsOf(next)[table.line + 1];
+    const at = row + DELIMITER_ROW_PREFIX.exec(next.slice(row))![0].length;
+    if (!/[-|:]/.test(next[at] ?? "")) return undefined;
+    next = next.slice(0, at) + "\\" + next.slice(at);
+    escapes = [...escapes.map((e) => e >= at ? e + 1 : e), at];
+    if (at < caret) caret++;
+  }
+  const probed = [...escapes].sort((a, b) => b - a).reduce(
+    (doc, e) => doc.slice(0, e) + CODE_PROBE + doc.slice(e),
+    next,
+  );
+  const drawsEscape = escapes.length > 0 &&
+    slideTokens(probed).some((t) =>
+      t.children?.some((c) =>
+        c.type === "code_inline" && c.content.includes(CODE_PROBE)
+      )
+    );
+  const images = (doc: string) =>
+    slideTablesAndImages(doc).filter((f) => f.kind === "image").length;
+  return drawsEscape || images(next) > images(src)
+    ? undefined
+    : { next, caret };
 }
 
 /** Type `typed` at `pos` (after any selection was deleted). The new text
@@ -1318,10 +1470,11 @@ export function slideInsertText(
   );
   const hit = firstVerified([...simple, ...rebuilt], expected);
   if (!hit) {
-    return {
-      changes: [{ from: pos, to: pos, insert: ins }],
-      anchor: pos + ins.length,
-      head: pos + ins.length,
+    const raw = rawInsert(src, pos, ins);
+    return raw === undefined ? { changes: [], anchor: pos, head: pos } : {
+      changes: wholeDocChange(src, raw.next),
+      anchor: raw.caret,
+      head: raw.caret,
     };
   }
   const si = simple.indexOf(hit.next);

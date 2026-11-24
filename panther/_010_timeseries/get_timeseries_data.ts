@@ -3,27 +3,28 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { getTimeFromPeriodId } from "./deps.ts";
 import {
   assert,
+  assertNoDataConfigIssues,
   buildDataDimension,
   calculateChartValueAxisLimits,
-  checkValuePropsAssignment,
   createArray,
   type DataDimensions,
   getDimensionMembers,
   getMemberIndex,
+  getTimeFromPeriodId,
+  getUncertaintyMemberId,
   getValidNumberOrUndefined,
-  isBlankValue,
   isRowBasedUncertainty,
   type JsonArray,
   type JsonArrayItem,
   type MemberSortConfig,
   type PeriodType,
-  validateDataInput,
-  validateDimensionProps,
-  validateUncertaintyConfig,
 } from "./deps.ts";
+import {
+  getTimeseriesDataConfigIssues,
+  hasBlankPeriod,
+} from "./timeseries_data_config_issues.ts";
 import {
   isTimeseriesDataJson,
   isTimeseriesDataTransformed,
@@ -73,18 +74,21 @@ function createEmptyTimeseries(
   );
 }
 
+// columns[i] is read into the place of valueProps[i], so a bound column fills
+// its value column's member and, under periodProp "--v", its period.
 function fillTimeseriesValues(
   target: (number | undefined)[][][][][],
   rows: JsonArray,
   valueProps: string[],
+  columns: string[],
   periodProp: string | "--v",
   periodType: PeriodType,
   timeMin: number,
   dimensions: DataDimensions,
 ): void {
   for (const obj of rows) {
-    for (const valueProp of valueProps) {
-      const value = getValidNumberOrUndefined(obj[valueProp]);
+    for (const [i, valueProp] of valueProps.entries()) {
+      const value = getValidNumberOrUndefined(obj[columns[i]]);
 
       const period = periodProp === "--v"
         ? Number(valueProp)
@@ -103,10 +107,6 @@ function fillTimeseriesValues(
       assert(i_lane >= 0);
       assert(i_tier >= 0);
       assert(i_pane >= 0);
-
-      if (target[i_pane][i_tier][i_lane][i_series][i_time] !== undefined) {
-        throw new Error("Duplicate values");
-      }
 
       target[i_pane][i_tier][i_lane][i_series][i_time] = value;
     }
@@ -131,43 +131,24 @@ export function getTimeseriesDataJsonTransformed(
     sort,
   } = jsonDataConfig;
 
-  if (uncertainty) {
-    validateUncertaintyConfig(uncertainty, valueProps, [
-      periodProp,
-      seriesProp,
-      laneProp,
-      tierProp,
-      paneProp,
-    ]);
-  }
+  assertNoDataConfigIssues(
+    getTimeseriesDataConfigIssues({ jsonArray, jsonDataConfig }),
+  );
 
-  const dimensionProps = {
-    period: periodProp,
-    series: seriesProp,
-    lane: laneProp,
-    tier: tierProp,
-    pane: paneProp,
-  };
-  validateDimensionProps(jsonArray, dimensionProps);
-
-  // A row with a blank period has no position on the time axis.
-  const hasBlankPeriod = (obj: JsonArrayItem) =>
-    periodProp !== "--v" && isBlankValue(obj[periodProp]);
-  const placedRows = jsonArray.filter((obj) => !hasBlankPeriod(obj));
-  if (placedRows.length === 0 && jsonArray.length > 0) {
-    throw new Error(`No row has a period for "${periodProp}"`);
-  }
+  const placedRows = jsonArray.filter((obj) =>
+    !hasBlankPeriod(obj, periodProp)
+  );
 
   const isPointEstimate = (obj: JsonArrayItem) =>
     !uncertainty || !isRowBasedUncertainty(uncertainty) ||
-    String(obj[uncertainty.uncertaintyProp]) === uncertainty.peMemberId;
+    getUncertaintyMemberId(obj, uncertainty.uncertaintyProp) ===
+      uncertainty.peMemberId;
   const nBlankRows =
-    jsonArray.filter((obj) => hasBlankPeriod(obj) && isPointEstimate(obj))
-      .length;
+    jsonArray.filter((obj) =>
+      hasBlankPeriod(obj, periodProp) && isPointEstimate(obj)
+    ).length;
 
   const sourceRows = placedRows.filter(isPointEstimate);
-
-  validateDataInput(sourceRows, valueProps);
 
   const membersSource = uncertainty && isRowBasedUncertainty(uncertainty)
     ? placedRows
@@ -199,26 +180,19 @@ export function getTimeseriesDataJsonTransformed(
       periodIdMax = Math.max(periodIdMax, period);
     }
   } else {
-    for (const obj of sourceRows) {
+    // Every row with a period, bounds included, so a bound row at a period
+    // no point estimate holds still has a time point.
+    for (const obj of placedRows) {
       const period = Number(obj[periodProp]);
       periodIdMin = Math.min(periodIdMin, period);
       periodIdMax = Math.max(periodIdMax, period);
     }
   }
 
-  checkValuePropsAssignment(valueProps, {
-    periodProp,
-    seriesProp,
-    laneProp,
-    tierProp,
-    paneProp,
-  });
-
   const timeMin: number = getTimeFromPeriodId(periodIdMin, periodType);
   const nTimePoints = getTimeFromPeriodId(periodIdMax, periodType) - timeMin +
     1;
   assert(nTimePoints >= 1);
-  assert(nTimePoints <= 50 * 12);
 
   const nPanes = getDimensionMembers(pane).length;
   const nTiers = getDimensionMembers(tier).length;
@@ -237,6 +211,7 @@ export function getTimeseriesDataJsonTransformed(
   fillTimeseriesValues(
     values,
     sourceRows,
+    valueProps,
     valueProps,
     periodProp,
     periodType,
@@ -267,14 +242,17 @@ export function getTimeseriesDataJsonTransformed(
 
     if (isRowBasedUncertainty(uncertainty)) {
       const ubRows = placedRows.filter((obj) =>
-        String(obj[uncertainty.uncertaintyProp]) === uncertainty.ubMemberId
+        getUncertaintyMemberId(obj, uncertainty.uncertaintyProp) ===
+          uncertainty.ubMemberId
       );
       const lbRows = placedRows.filter((obj) =>
-        String(obj[uncertainty.uncertaintyProp]) === uncertainty.lbMemberId
+        getUncertaintyMemberId(obj, uncertainty.uncertaintyProp) ===
+          uncertainty.lbMemberId
       );
       fillTimeseriesValues(
         ubValues,
         ubRows,
+        valueProps,
         valueProps,
         periodProp,
         periodType,
@@ -285,6 +263,7 @@ export function getTimeseriesDataJsonTransformed(
         lbValues,
         lbRows,
         valueProps,
+        valueProps,
         periodProp,
         periodType,
         timeMin,
@@ -294,6 +273,7 @@ export function getTimeseriesDataJsonTransformed(
       fillTimeseriesValues(
         ubValues,
         placedRows,
+        valueProps,
         uncertainty.ubValueProps,
         periodProp,
         periodType,
@@ -303,6 +283,7 @@ export function getTimeseriesDataJsonTransformed(
       fillTimeseriesValues(
         lbValues,
         placedRows,
+        valueProps,
         uncertainty.lbValueProps,
         periodProp,
         periodType,

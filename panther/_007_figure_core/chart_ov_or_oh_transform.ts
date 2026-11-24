@@ -5,8 +5,7 @@
 
 // Shared JSON transform for ChartOV and ChartOH. The two
 // figures are mirror images: the tier-or-lane dimension (the ragged categorical-direction
-// dimension) is "lane" on ChartOV and "tier" on ChartOH, and the forbidden
-// membership dimension is whichever one carries the value axis limits. Everything else
+// dimension) is "lane" on ChartOV and "tier" on ChartOH. Everything else
 // is identical, so the whole transform lives here, parameterized by a spec.
 // The result uses the neutral key `visibleTiersOrLanesByPane`; each module's thin
 // wrapper destructures it out into its own key name (visibleLanesByPane /
@@ -22,40 +21,40 @@ import {
   buildDataDimension,
   calculateChartValueAxisLimits,
   type ChartOVOrOHProportional,
-  checkValuePropsAssignment,
   type DataDimensions,
   deriveVisibleIndicatorsByPane,
   deriveVisibleIndicatorsByPaneTierOrLane,
   deriveVisibleLanesByPane,
   deriveVisibleTiersByPane,
-  fillValuesWithDuplicateCheck,
+  fillValues,
   getMemberIndex,
+  getTierOrLaneKey,
   orderVisibleByPane,
   orderVisibleByPaneTierOrLane,
   resolveChartProportional,
-  validateChartMembership,
-  validateChartProportional,
-  validateDataInput,
-  validateDimensionProps,
+  type ValueSort,
 } from "./common_data_transform.ts";
+import { getChartOVOrOHDataConfigIssues } from "./chart_ov_or_oh_data_config_issues.ts";
+import {
+  assertNoDataConfigIssues,
+  getUncertaintyMemberId,
+} from "./data_config_issues.ts";
 import {
   type ChartValueAxisLimits,
   isRowBasedUncertainty,
   type JsonArray,
   type UncertaintyConfig,
-  validateUncertaintyConfig,
 } from "./types.ts";
 
 export type TierOrLaneDimension = "lane" | "tier";
 
 export type ChartOVOrOHTransformSpec = {
-  figureName: string; // "ChartOV" | "ChartOH" — validation messages only
   tierOrLaneDimension: TierOrLaneDimension; // the ragged categorical-direction dimension
 };
 
 // The config core shared by ChartOVJsonDataConfig and ChartOHJsonDataConfig.
-// membership is the union of both shapes; validateChartMembership rejects the
-// value-direction key at runtime with the figure-specific message.
+// membership is the union of both shapes; each figure's own type leaves out
+// the key of the dimension that carries its value axis limits.
 export type ChartOVOrOHJsonConfigCore = {
   valueProps: string[];
   indicatorProp: string | "--v";
@@ -78,7 +77,7 @@ export type ChartOVOrOHJsonConfigCore = {
     tier?: MemberSortConfig;
     pane?: MemberSortConfig;
   };
-  sortIndicatorValues?: "ascending" | "descending" | "none";
+  sortIndicatorValues?: ValueSort;
 };
 
 export type ChartOVOrOHTransformResult = {
@@ -141,52 +140,27 @@ export function transformChartOVOrOHJson(
     sortIndicatorValues,
   } = cfg;
 
-  const forbiddenDimension = spec.tierOrLaneDimension === "lane"
-    ? "tier"
-    : "lane";
-  validateChartMembership(
-    membership,
-    ["indicator", spec.tierOrLaneDimension],
-    forbiddenDimension,
-    spec.figureName,
+  assertNoDataConfigIssues(
+    getChartOVOrOHDataConfigIssues(jsonArray, cfg, spec),
   );
-  const tierOrLaneKey = spec.tierOrLaneDimension === "lane" ? "lanes" : "tiers";
-  validateChartProportional(proportional, tierOrLaneKey, spec.figureName);
+
+  const tierOrLaneKey = getTierOrLaneKey(spec.tierOrLaneDimension);
   const proportionalFlags = resolveChartProportional(
     proportional,
     tierOrLaneKey,
   );
 
-  if (uncertainty) {
-    validateUncertaintyConfig(uncertainty, valueProps, [
-      indicatorProp,
-      seriesProp,
-      laneProp,
-      tierProp,
-      paneProp,
-    ]);
-  }
-
   const sourceRows = uncertainty && isRowBasedUncertainty(uncertainty)
     ? jsonArray.filter((obj) =>
-      String(obj[uncertainty.uncertaintyProp]) === uncertainty.peMemberId
+      getUncertaintyMemberId(obj, uncertainty.uncertaintyProp) ===
+        uncertainty.peMemberId
     )
     : jsonArray;
-
-  validateDataInput(sourceRows, valueProps);
 
   const membersSource = uncertainty && isRowBasedUncertainty(uncertainty)
     ? jsonArray
     : sourceRows;
 
-  const dimensionProps = {
-    indicator: indicatorProp,
-    series: seriesProp,
-    lane: laneProp,
-    tier: tierProp,
-    pane: paneProp,
-  };
-  validateDimensionProps(jsonArray, dimensionProps);
   const buildDimension = (
     prop: string | undefined,
     sortConfig?: MemberSortConfig,
@@ -210,14 +184,6 @@ export function transformChartOVOrOHJson(
   const tier = buildDimension(tierProp, sort?.tier);
   const pane = buildDimension(paneProp, sort?.pane);
 
-  checkValuePropsAssignment(valueProps, {
-    indicatorProp,
-    seriesProp,
-    laneProp,
-    tierProp,
-    paneProp,
-  });
-
   const nPanes = getDimensionMembers(pane).length;
   const nTiers = getDimensionMembers(tier).length;
   const nLanes = getDimensionMembers(lane).length;
@@ -239,9 +205,10 @@ export function transformChartOVOrOHJson(
     valueProp: string,
   ) => getMemberIndex(indicator, valueProp, obj);
 
-  fillValuesWithDuplicateCheck(
+  fillValues(
     values,
     sourceRows,
+    valueProps,
     valueProps,
     dimensions,
     getIndicatorIndex,
@@ -270,37 +237,43 @@ export function transformChartOVOrOHJson(
 
     if (isRowBasedUncertainty(uncertainty)) {
       const ubRows = jsonArray.filter((obj) =>
-        String(obj[uncertainty.uncertaintyProp]) === uncertainty.ubMemberId
+        getUncertaintyMemberId(obj, uncertainty.uncertaintyProp) ===
+          uncertainty.ubMemberId
       );
       const lbRows = jsonArray.filter((obj) =>
-        String(obj[uncertainty.uncertaintyProp]) === uncertainty.lbMemberId
+        getUncertaintyMemberId(obj, uncertainty.uncertaintyProp) ===
+          uncertainty.lbMemberId
       );
 
-      fillValuesWithDuplicateCheck(
+      fillValues(
         ubValues,
         ubRows,
+        valueProps,
         valueProps,
         dimensions,
         getIndicatorIndex,
       );
-      fillValuesWithDuplicateCheck(
+      fillValues(
         lbValues,
         lbRows,
+        valueProps,
         valueProps,
         dimensions,
         getIndicatorIndex,
       );
     } else {
-      fillValuesWithDuplicateCheck(
+      fillValues(
         ubValues,
         jsonArray,
+        valueProps,
         uncertainty.ubValueProps,
         dimensions,
         getIndicatorIndex,
       );
-      fillValuesWithDuplicateCheck(
+      fillValues(
         lbValues,
         jsonArray,
+        valueProps,
         uncertainty.lbValueProps,
         dimensions,
         getIndicatorIndex,

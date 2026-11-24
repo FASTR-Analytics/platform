@@ -13,7 +13,7 @@ import type { PeriodBounds } from "../types/presentation_objects.ts";
 import type { RunHmisIndicator } from "../types/run_manifest.ts";
 import type { GeoJsonMapSummary } from "../types/geojson_maps.ts";
 import type { FacilityFamily } from "../types/structure.ts";
-import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
+import { inferPeriodFormatFromValue } from "../types/period_options.ts";
 import {
   describeHmisIndicatorLine,
   HMIS_INDICATOR_LINE_SHAPE,

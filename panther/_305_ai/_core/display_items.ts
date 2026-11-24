@@ -3,7 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { ContentBlock, MessageParam } from "../deps.ts";
+import type {
+  AIToolDisplayProps,
+  ContentBlock,
+  MessageParam,
+  ToolUIMetadata,
+} from "../deps.ts";
 import type { DisplayItem } from "./types.ts";
 
 export type ProvisionalCardLookup = (
@@ -141,4 +146,51 @@ function serverToolResultIds(content: ContentBlock[]): Set<string> {
     }
   }
   return ids;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// WHAT A TOOL'S CARD IS DRAWN FROM
+////////////////////////////////////////////////////////////////////////////////
+
+// A call's input as the model sent it, parsed through the tool's input
+// schema, or null when the schema refuses it. A tool built by hand declares
+// no schema, and its input passes as stored.
+export function parseStoredToolInput<TInput>(
+  metadata: ToolUIMetadata<TInput>,
+  input: unknown,
+): { input: unknown } | null {
+  if (!metadata.inputSchema) return { input };
+  const parsed = metadata.inputSchema.safeParse(input);
+  return parsed.success ? { input: parsed.data } : null;
+}
+
+// The props a tool's card is drawn with, or null when it is not drawn. A
+// record outlives the deploy that saved it, so the stored input and
+// structured output are parsed through the tool's current schemas: a
+// structured output the outputSchema refuses is left out, and a stored input
+// the input schema refuses draws no card, since a card has no form without
+// its input.
+export function getToolDisplayProps<TInput>(
+  item: Extract<DisplayItem, { type: "tool_display" }>,
+  metadata: ToolUIMetadata<TInput>,
+): AIToolDisplayProps<unknown, unknown> | null {
+  const stored = parseStoredToolInput(metadata, item.input);
+  if (!stored) {
+    console.error(
+      `The card of a "${item.toolName}" call is not drawn: its stored input no longer parses through the tool's input schema.`,
+    );
+    return null;
+  }
+  const props = { input: stored.input, view: item.view };
+  if (item.structured === undefined || !metadata.outputSchema) {
+    return props;
+  }
+  const parsed = metadata.outputSchema.safeParse(item.structured);
+  if (parsed.success) {
+    return { ...props, structured: parsed.data };
+  }
+  console.error(
+    `The card of a "${item.toolName}" call is drawn without its structured output: it no longer parses through the tool's outputSchema.`,
+  );
+  return props;
 }

@@ -14,9 +14,11 @@ import { measureContent } from "./content.ts";
 import { measureContentBox } from "./content_box.ts";
 import { buildFooterPrimitives, type MeasuredFooter } from "./footer.ts";
 import { buildHeaderPrimitives, type MeasuredHeader } from "./header.ts";
+import { pageOverflow } from "../page_overflow.ts";
 import type {
   FreeformPageInputs,
   MeasuredFreeformPage,
+  PageOverflowCause,
   PagePrimitive,
 } from "../../types.ts";
 
@@ -43,7 +45,13 @@ export function measureFreeform(
     inputs,
     bounds: rcdOuter,
     style,
-    overflow: content.overflow,
+    ...pageOverflow([
+      ...box.overflowCauses,
+      ...content.overflowCauses.map((cause): PageOverflowCause => ({
+        where: "layout",
+        ...cause,
+      })),
+    ]),
     fullPageBounds,
     measuredSplitImage,
     mWatermark,

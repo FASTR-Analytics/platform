@@ -3,7 +3,10 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { BLANK_SENTINEL } from "../_000_utils/mod.ts";
+export {
+  BLANK_SENTINEL,
+  getValidNumberOrUndefined,
+} from "../_000_utils/mod.ts";
 export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export {
@@ -15,7 +18,6 @@ export {
 } from "../_001_render_system/mod.ts";
 export type {
   DataDimension,
-  HeightConstraints,
   MapAreaInfo,
   MapAreaInfoFunc,
   MapAreaPrimitive,
@@ -25,6 +27,7 @@ export type {
   PrimitiveItem,
   RenderContext,
   Renderer,
+  SizeConstraints,
 } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type {
@@ -35,44 +38,58 @@ export type {
   OutsideLabelPlacement,
 } from "../_003_figure_style/mod.ts";
 export {
+  assertNoDataConfigIssues,
   buildDataDimension,
   buildDataLabelTextStyle,
   buildDistanceField,
-  calculateChartIdealHeight,
-  calculateChartMinWidth,
   calculateMinLabelSubChartExtent,
-  computeFloorScale,
   estimateMinSurroundsWidth,
   estimateTierHeaderAndLabelGapWidth,
   fieldTrack,
   generateResolvedFigureLabelPrimitives,
+  getChartSizeConstraintsByMeasure,
+  getColumnDimensionFields,
+  getColumnNotInRowsIssues,
+  getDimensionFields,
   getDimensionId,
+  getDimensionNamedTwiceIssues,
+  getEveryRowBlankIssues,
   getMemberIndex,
+  getNoRowsIssues,
+  getNotANumberIssues,
+  getRowColumns,
   getSubChartMembers,
+  getTwoRowsOneValueIssues,
+  indexRows,
+  insideLabelBoxDims,
+  insideLabelFitsHost,
   isAutoScaleLegendConfig,
   measureChart,
   measureChartWithAutofit,
+  PANE_HEADER_SAMPLE_MAX_W,
   placeNearestBoxes,
   placeOutsideBoxes,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveAutoScaleLegend,
-  resolveFigureAutofitOptions,
   resolveFlooredContentScale,
   resolveLabelPlacement,
-  resolvePaneGrid,
   scaledTrack,
+  SIZING_SAMPLE,
   solveContentScale,
   subChartItemCoordinates,
-  validateDimensionProps,
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartComponentSizes,
+  ChartProbeSizing,
   ContentScaleResult,
+  DataConfigField,
+  DataConfigIssue,
   DirectionalExtents,
   DistanceField,
   FigureInputsBase,
   JsonArray,
+  JsonArrayItem,
   LabelCandidate,
   LabelGeometry,
   LabelMode,

@@ -71,6 +71,84 @@ Deno.test("the slide look draws the page the editor canvas and the PDF draw", ()
   assertCalls(canvasPath, source(canvasPath), "convertSlideToPageInputs");
 });
 
+// Panther's own error for text it cannot draw names functions the model
+// cannot call, so every measure and look refuses that text first, in the
+// model's terms, naming the block, and the editor canvas in the user's.
+Deno.test("a slide whose text panther cannot draw is refused before its page is built", () => {
+  // The text of a function before it builds the page.
+  const beforePage = (where: string, body: string) => {
+    const at = body.indexOf("convertSlideToPageInputs(");
+    assert(at >= 0, `${where} no longer builds the page`);
+    return body.slice(0, at);
+  };
+  const pagePath = SLIDE_AI + "measure_slide_overflow.ts";
+  const pageWhere = `buildSlidePage in ${pagePath}`;
+  const page = beforePage(
+    pageWhere,
+    functionBody(source(pagePath), "buildSlidePage"),
+  );
+  assertCalls(pageWhere, page, "describeUndrawableTextBlock");
+  assert(
+    page.includes("if (undrawable !== undefined) throw new Error(undrawable);"),
+    `${pageWhere} no longer refuses the text it finds before building the page`,
+  );
+  const canvasPath =
+    "client/src/components/products/slide_deck/slide_editor/slide_editor.tsx";
+  const canvasWhere = `attemptGetPageInputs in ${canvasPath}`;
+  const canvas = beforePage(
+    canvasWhere,
+    segment(
+      source(canvasPath),
+      "async function attemptGetPageInputs(",
+      "\n  }\n",
+    ),
+  );
+  assertCalls(canvasWhere, canvas, "findUndrawableSlideTextBlock");
+  const refusal = segment(canvas, "if (undrawable !== undefined) {", "\n    }");
+  for (const part of ["setPageInputs(", 'status: "error"', "return;"]) {
+    assert(
+      refusal.includes(part),
+      `${canvasWhere} no longer shows its own error and stops before building the page`,
+    );
+  }
+});
+
+// A text block the model writes is refused when slide text cannot draw it,
+// wherever a tool takes one.
+Deno.test("every slide write that takes a text block refuses a table or an image in it", () => {
+  for (
+    const [where, body] of [
+      [
+        `validateAiSlideInput in ${TOOLS}slides.tsx`,
+        segment(
+          source(TOOLS + "slides.tsx"),
+          "function validateAiSlideInput(",
+          "\n}\n",
+        ),
+      ],
+      [
+        `applySlideUpdate in ${TOOLS}update_slide.ts`,
+        segment(
+          source(TOOLS + "update_slide.ts"),
+          "async function applySlideUpdate(",
+          "\n}\n",
+        ),
+      ],
+      [
+        `resolveLayoutSpec in ${TOOLS}update_slide.ts`,
+        segment(
+          source(TOOLS + "update_slide.ts"),
+          "async function resolveLayoutSpec(",
+          "\n}\n",
+        ),
+      ],
+      [`${TOOLS}drafts.tsx`, source(TOOLS + "drafts.tsx")],
+    ]
+  ) {
+    assertCalls(where, body, "validateTextOnlyMarkdown");
+  }
+});
+
 // The model is told a slide overflows the page in one sentence whichever tool
 // reports the slide, so no tool may word it itself.
 Deno.test("every slide tool states page overflow through describeSlideOverflow", () => {
@@ -84,6 +162,13 @@ Deno.test("every slide tool states page overflow through describeSlideOverflow",
     ]
   ) {
     assertCalls(path, source(path), "describeSlideOverflow");
+  }
+  // It says what does not fit, by the causes the page's measurement gives,
+  // in the slide fields the model writes with.
+  const pagePath = SLIDE_AI + "measure_slide_overflow.ts";
+  const describe = functionBody(source(pagePath), "describeSlideOverflow");
+  for (const fn of ["describeSlideOverflowForAI", "slideTextField"]) {
+    assertCalls(`describeSlideOverflow in ${pagePath}`, describe, fn);
   }
 });
 
@@ -107,6 +192,14 @@ Deno.test("every overflow the model is told comes from the page measurement", ()
   }
   const renderPath = SLIDE_AI + "render_slide_image.ts";
   assertCalls(renderPath, source(renderPath), "PageRenderer.measure");
+  // Where the page overflows comes with whether it does, for every measure.
+  const pagePath = SLIDE_AI + "measure_slide_overflow.ts";
+  assertCalls(
+    `measureSlideOverflow in ${pagePath}`,
+    functionBody(source(pagePath), "measureSlideOverflow"),
+    "slidePageOverflow",
+  );
+  assertCalls(renderPath, source(renderPath), "slidePageOverflow");
 });
 
 Deno.test("get_report_figure and get_report_figure_images find a figure through the same function", () => {

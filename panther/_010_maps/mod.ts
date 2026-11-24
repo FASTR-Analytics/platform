@@ -5,6 +5,7 @@
 
 export { getMapComponentSizes, MapRenderer } from "./map_renderer.ts";
 export { getMapDataTransformed } from "./get_map_data.ts";
+export { getMapDataConfigIssues } from "./map_data_config_issues.ts";
 export type {
   MapData,
   MapDataJson,

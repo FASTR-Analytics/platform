@@ -18,7 +18,10 @@ import {
 import { z } from "zod";
 import { githubFetch, stripFrontmatter } from "../github/fetch_module.ts";
 
-import { _MODULES_LOCAL_DIR } from "../exposed_env_vars.ts";
+import {
+  _MODULES_GITHUB_BRANCH,
+  _MODULES_LOCAL_DIR,
+} from "../exposed_env_vars.ts";
 import { MODULE_SOURCE } from "./module_source.ts";
 import { ensureRepoAssetCached } from "./repo_assets.ts";
 
@@ -57,12 +60,14 @@ export async function fetchModuleFiles(
 
   const { owner, repo, path } = registryEntry.github;
 
-  // Pinned or HEAD commit SHA for this path
+  // Pinned commit SHA, else this path's last commit on the modules branch
   let gitRef: string | undefined = pinnedGitRef;
   if (gitRef === undefined) {
     try {
       const commitsRes = await githubFetch(
-        `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&per_page=1`,
+        `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&sha=${
+          encodeURIComponent(_MODULES_GITHUB_BRANCH)
+        }&per_page=1`,
       );
       if (commitsRes.ok) {
         const commits = await commitsRes.json();
@@ -76,7 +81,7 @@ export async function fetchModuleFiles(
   }
 
   // Use commit SHA if available to avoid GitHub's raw content cache (~5min)
-  const ref = gitRef ?? "main";
+  const ref = gitRef ?? _MODULES_GITHUB_BRANCH;
   const baseUrl =
     `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${path}`;
 

@@ -31,6 +31,8 @@ export type {
   LongTableValue,
   PeriodFilter,
   RowsResult,
+  SqlColumn,
+  SqlRowsResult,
 } from "../_014_long_table/mod.ts";
 export { zJsonArrayItem, zPeriodType } from "../_150_figure_schema/mod.ts";
 export type { ConformsExactly } from "../_150_figure_schema/mod.ts";

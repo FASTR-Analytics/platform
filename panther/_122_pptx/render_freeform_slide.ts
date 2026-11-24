@@ -226,6 +226,7 @@ function renderHeader(
       style: s.header.logosSizing,
       alignH: "right",
       alignV: "top",
+      rowMaxWidth: header.logosMaxWidth,
     });
     for (const logo of mLogos.items) {
       const logoDataUrl = imageToDataUrl(logo.image, createCanvasRenderContext);
@@ -298,6 +299,7 @@ function renderFooter(
       style: s.footer.logosSizing,
       alignH: "right",
       alignV: "middle",
+      rowMaxWidth: footer.logosMaxWidth,
     });
     for (const logo of mLogos.items) {
       const logoDataUrl = imageToDataUrl(logo.image, createCanvasRenderContext);

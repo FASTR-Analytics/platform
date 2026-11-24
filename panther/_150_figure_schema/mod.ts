@@ -18,11 +18,16 @@ export {
 } from "./shared.ts";
 export type { Conforms, ConformsExactly } from "./shared.ts";
 export {
+  zColorKey,
+  zColorKeyOrHex,
   zColorKeyOrString,
   zContinuousPaletteName,
+  zHexColor,
   zMapDataLabelMode,
   zMapProjection,
-} from "./style_leaves.ts";
+  zNColsOrAuto,
+  zValueSort,
+} from "./leaves.ts";
 export {
   zTimeseriesData,
   zTimeseriesDataJson,

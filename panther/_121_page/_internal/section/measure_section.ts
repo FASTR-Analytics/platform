@@ -4,20 +4,23 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  AlignH,
-  AlignV,
   MeasuredImage,
   MeasuredText,
   MergedSectionStyle,
   RectCoordsDims,
   RenderContext,
 } from "../../deps.ts";
-import type { Padding } from "../../deps.ts";
 import type {
   MeasuredSectionPage,
   PagePrimitive,
   SectionPageInputs,
 } from "../../types.ts";
+import {
+  pageOverflow,
+  stackOverflow,
+  type StackPart,
+} from "../page_overflow.ts";
+import { getStartY, getTextX } from "../stack_placement.ts";
 
 export function measureSection(
   rc: RenderContext,
@@ -28,13 +31,13 @@ export function measureSection(
   measuredSplitImage: MeasuredImage | undefined,
   mWatermark: MeasuredText | undefined,
 ): MeasuredSectionPage {
-  const textMaxWidth = bounds.w() - style.padding.totalPx();
+  const paddedBounds = bounds.getPadded(style.padding);
 
   const mSectionTitle = inputs.sectionTitle?.trim()
     ? rc.mText(
       inputs.sectionTitle.trim(),
       style.text.sectionTitle,
-      textMaxWidth,
+      paddedBounds.w(),
     )
     : undefined;
 
@@ -42,12 +45,13 @@ export function measureSection(
     ? rc.mText(
       inputs.sectionSubtitle.trim(),
       style.text.sectionSubtitle,
-      textMaxWidth,
+      paddedBounds.w(),
     )
     : undefined;
 
-  const { primitives, totalH } = buildSectionPrimitives(
+  const { primitives, totalH, parts } = buildSectionPrimitives(
     bounds,
+    paddedBounds,
     inputs,
     style,
     mSectionTitle,
@@ -59,7 +63,7 @@ export function measureSection(
     inputs,
     bounds,
     style,
-    overflow: totalH > bounds.h(),
+    ...pageOverflow(stackOverflow(parts, totalH, paddedBounds)),
     fullPageBounds,
     measuredSplitImage,
     mWatermark,
@@ -69,45 +73,20 @@ export function measureSection(
   };
 }
 
-function getTextX(
-  bounds: RectCoordsDims,
-  padding: Padding,
-  alignH: AlignH,
-): number {
-  switch (alignH) {
-    case "left":
-      return bounds.x() + padding.pl();
-    case "right":
-      return bounds.x() + bounds.w() - padding.pr();
-    case "center":
-      return bounds.centerX();
-  }
-}
-
-function getStartY(
-  bounds: RectCoordsDims,
-  padding: Padding,
-  alignV: AlignV,
-  totalH: number,
-): number {
-  switch (alignV) {
-    case "top":
-      return bounds.y() + padding.pt();
-    case "bottom":
-      return bounds.y() + bounds.h() - padding.pb() - totalH;
-    case "middle":
-      return bounds.y() + (bounds.h() - totalH) / 2;
-  }
-}
-
 function buildSectionPrimitives(
   bounds: RectCoordsDims,
+  paddedBounds: RectCoordsDims,
   inputs: SectionPageInputs,
   s: MergedSectionStyle,
   mSectionTitle?: import("../../deps.ts").MeasuredText,
   mSectionSubtitle?: import("../../deps.ts").MeasuredText,
-): { primitives: PagePrimitive[]; totalH: number } {
+): {
+  primitives: PagePrimitive[];
+  totalH: number;
+  parts: StackPart[];
+} {
   const primitives: PagePrimitive[] = [];
+  const parts: StackPart[] = [];
   const alignH = s.alignH;
   const alignV = s.alignV;
 
@@ -135,13 +114,15 @@ function buildSectionPrimitives(
   const sectionTitleH = mSectionTitle ? mSectionTitle.dims.h() : 0;
   const sectionSubtitleH = mSectionSubtitle ? mSectionSubtitle.dims.h() : 0;
 
-  const totalH = sectionTitleH +
-    (sectionSubtitleH > 0 ? s.sectionTitleBottomPadding + sectionSubtitleH : 0);
+  const titleGap = sectionTitleH > 0 && sectionSubtitleH > 0
+    ? s.sectionTitleBottomPadding
+    : 0;
+  const totalH = sectionTitleH + titleGap + sectionSubtitleH;
 
-  const textX = getTextX(bounds, s.padding, alignH);
-  let currentY = getStartY(bounds, s.padding, alignV, totalH);
+  const textX = getTextX(paddedBounds, alignH);
+  let currentY = getStartY(paddedBounds, alignV, totalH);
 
-  const textMaxWidth = bounds.w() - s.padding.totalPx();
+  const textMaxWidth = paddedBounds.w();
 
   // Section Title
   if (mSectionTitle && sectionTitleH > 0) {
@@ -155,7 +136,12 @@ function buildSectionPrimitives(
       alignV: "top",
       maxWidth: textMaxWidth,
     });
-    currentY += sectionTitleH + s.sectionTitleBottomPadding;
+    parts.push({
+      id: "sectionTitle",
+      height: sectionTitleH,
+      width: mSectionTitle.dims.w(),
+    });
+    currentY += sectionTitleH + titleGap;
   }
 
   // Section Subtitle
@@ -170,7 +156,12 @@ function buildSectionPrimitives(
       alignV: "top",
       maxWidth: textMaxWidth,
     });
+    parts.push({
+      id: "sectionSubtitle",
+      height: sectionSubtitleH,
+      width: mSectionSubtitle.dims.w(),
+    });
   }
 
-  return { primitives, totalH };
+  return { primitives, totalH, parts };
 }

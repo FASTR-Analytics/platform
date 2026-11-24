@@ -41,7 +41,10 @@ import type {
   GenericTableCellStyleOptions,
   GenericTableHeaderStyleOptions,
 } from "./style_func_types.ts";
-import type { MapProjection } from "./_3_merged_style_return_types.ts";
+import type {
+  MapProjection,
+  NColsOrAuto,
+} from "./_3_merged_style_return_types.ts";
 import type { FigureTextStyleOptions } from "./text_style_keys.ts";
 import type { LegendPosition } from "./types.ts";
 
@@ -136,12 +139,14 @@ export type CustomFigureStyleOptions = {
     tickLabelGap?: number;
     tickLabelFormatter?: TickLabelFormatterOption;
     tickLabelAlignment?: "center" | "inset";
+    maxOverhangClearanceFractionOfExtent?: number;
     allowIndividualLaneLimits?: boolean;
     exactAxisY?: "none" | number;
   };
   xPeriodAxis?: {
     forceSideTicksWhenYear?: boolean;
     showEveryNthTick?: number;
+    tickLength?: number;
     periodLabelSmallTopPadding?: number;
     periodLabelLargeTopPadding?: number;
     calendar?: CalendarType;
@@ -162,6 +167,7 @@ export type CustomFigureStyleOptions = {
     tickLabelGap?: number;
     tickLabelFormatter?: TickLabelFormatterOption;
     tickLabelAlignment?: "center" | "inset";
+    maxOverhangClearanceFractionOfExtent?: number;
     exactAxisX?: "none" | number;
     allowIndividualTierLimits?: boolean;
   };
@@ -234,6 +240,7 @@ export type CustomFigureStyleOptions = {
         | "none";
       joinAcrossGaps?: boolean;
       arrowheadFitFallback?: ArrowheadFitFallback;
+      arrowheadFitMinLineLength?: number;
     };
     mapAreas?: {
       func?:
@@ -294,7 +301,7 @@ export type CustomFigureStyleOptions = {
     headerAlignH?: "left" | "center" | "right";
     gapX?: number;
     gapY?: number;
-    nCols?: number | "auto";
+    nCols?: NColsOrAuto;
     // The pane width the automatic column count packs to, in design units.
     minWidth?: number;
   };
@@ -423,7 +430,7 @@ export type CustomFigureStyleOptions = {
       headerPosition?: "top" | "bottom";
       gapX?: number;
       gapY?: number;
-      nCols?: number | "auto";
+      nCols?: NColsOrAuto;
     };
     labelCollision?: {
       gap?: number;

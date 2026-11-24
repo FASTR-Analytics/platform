@@ -15,7 +15,8 @@ import {
   Show,
   untrack,
 } from "solid-js";
-import { clamp } from "../deps.ts";
+import { clamp, getLanguage, t3 } from "../deps.ts";
+import { Icon, type IconName } from "../icons/mod.ts";
 import type { PadSize } from "../types.ts";
 import { padClass, spyClass } from "../_internal/pad_classes.ts";
 
@@ -48,22 +49,37 @@ type ResizableFrameProps = SideFrameProps & {
   isShown?: boolean;
 };
 
-type ThreeColumnResizableProps = {
-  leftChild?: JSX.Element;
-  leftLabel?: string;
-  onLeftExpand?: () => void;
-  centerChild: JSX.Element;
-  rightChild?: JSX.Element;
-  rightLabel?: string;
-  onRightExpand?: () => void;
-  startingWidths: [number, number];
-  minWidths?: [number, number];
-  maxWidths?: [number, number];
-  resetKey?: string | number;
-  noBorder?: boolean;
-  pad?: PadSize;
-  spy?: PadSize;
+export type SidePaneTab = {
+  label: string;
+  iconName: IconName;
+  onOpen: () => void;
 };
+
+// A side that closes from the centre's edge must also reopen from it, so its
+// tabs and its close come together or not at all.
+type LeftSideControls =
+  | { leftTabs: SidePaneTab[]; onLeftClose: () => void }
+  | { leftTabs?: undefined; onLeftClose?: undefined };
+
+type RightSideControls =
+  | { rightTabs: SidePaneTab[]; onRightClose: () => void }
+  | { rightTabs?: undefined; onRightClose?: undefined };
+
+type ThreeColumnResizableProps =
+  & {
+    leftChild?: JSX.Element;
+    centerChild: JSX.Element;
+    rightChild?: JSX.Element;
+    startingWidths: [number, number];
+    minWidths?: [number, number];
+    maxWidths?: [number, number];
+    resetKey?: string | number;
+    noBorder?: boolean;
+    pad?: PadSize;
+    spy?: PadSize;
+  }
+  & LeftSideControls
+  & RightSideControls;
 
 function slotClass(base: string, pad?: PadSize, spy?: PadSize): string {
   return [base, padClass(pad), spyClass(spy)].filter(Boolean).join(" ");
@@ -74,8 +90,9 @@ function slotClass(base: string, pad?: PadSize, spy?: PadSize): string {
 // boundary, so their strips overlap whenever less than this separates the two
 // boundaries, and the later one in the DOM then takes the earlier one's mouse
 // events. The three-column frame keeps at least this much centre pane for that
-// reason: without it a drag could leave the centre at 0, stack both handles on
-// one pixel and strand the frame in a state no drag could leave.
+// reason, beside its side gutters: without it a drag could leave the centre at
+// 0, stack both handles on one pixel and strand the frame in a state no drag
+// could leave.
 const HANDLE_STRIP_PX = 9;
 const HANDLE_STRIP_NO_BORDER_PX = 8;
 
@@ -489,6 +506,12 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   const hasRight = () => !!rightChild();
   const stripWidth = () =>
     p.noBorder ? HANDLE_STRIP_NO_BORDER_PX : HANDLE_STRIP_PX;
+  const [leftGutterWidth, setLeftGutterWidth] = createSignal(0);
+  const [rightGutterWidth, setRightGutterWidth] = createSignal(0);
+  // The gutters are in the centre's row and never shrink, so a panel that
+  // took their room would push the row past the frame's edge.
+  const centreFloor = () =>
+    stripWidth() + leftGutterWidth() + rightGutterWidth();
 
   const left = createResizablePanel({
     side: "left",
@@ -496,10 +519,10 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     minWidth: () => minWidths()[0],
     maxWidth: () => maxWidths()[0],
     followContainer: true,
-    // A collapsed pane is not rendered and holds no room, so it must report a
+    // A closed side is not rendered and holds no room, so it must report a
     // width of 0 to the panel that is bounded by what it leaves.
     isShown: hasLeft,
-    reservedWidth: stripWidth,
+    reservedWidth: centreFloor,
   });
   const right = createResizablePanel({
     side: "right",
@@ -507,7 +530,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     minWidth: () => minWidths()[1],
     maxWidth: () => maxWidths()[1],
     followContainer: true,
-    reservedWidth: () => left.displayWidth() + stripWidth(),
+    reservedWidth: () => left.displayWidth() + centreFloor(),
   });
 
   let containerRef!: HTMLDivElement;
@@ -525,104 +548,188 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     }
   });
 
-  const collapsedPanes = () => {
-    const panes: Array<{ label: string; onClick: () => void }> = [];
-    if (!hasLeft() && p.leftLabel && p.onLeftExpand) {
-      panes.push({ label: p.leftLabel, onClick: p.onLeftExpand });
-    }
-    if (!hasRight() && p.rightLabel && p.onRightExpand) {
-      panes.push({ label: p.rightLabel, onClick: p.onRightExpand });
-    }
-    return panes;
-  };
-
   return (
-    <div ref={containerRef} class="flex h-full w-full flex-col">
-      <div class="flex h-0 w-full flex-1">
-        <Show when={leftChild()}>
-          {(child) => (
-            <div
-              class="relative h-full flex-none"
-              style={{ width: `${left.displayWidth()}px` }}
-            >
-              <div
-                class="h-full overflow-auto"
-                classList={{ "mr-px": !p.noBorder }}
-              >
-                {child()}
-              </div>
-              <div
-                class="group absolute -right-[4px] top-0 z-40 h-full cursor-col-resize"
-                classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
-                data-dragging={left.isDragging()}
-                onMouseDown={left.handleMouseDown}
-              >
-                <ResizeHandleLine side="left" noBorder={p.noBorder} />
-              </div>
-            </div>
-          )}
-        </Show>
-
-        <div class="relative h-full w-0 flex-1">
+    <div ref={containerRef} class="flex h-full w-full">
+      <Show when={leftChild()}>
+        {(child) => (
           <div
-            class={slotClass("h-full overflow-auto", p.pad, p.spy)}
-            classList={{ "mr-px": hasRight() && !p.noBorder }}
+            class="relative h-full flex-none"
+            style={{ width: `${left.displayWidth()}px` }}
           >
-            {p.centerChild}
-          </div>
-          <Show when={hasRight()}>
-            {
-              /* Rendered on the CENTRE pane, so its line occupies the centre
-                pane's last pixel rather than the right pane's first: the same
-                boundary, and the one handle whose pane is not the pane the
-                divider "belongs" to. */
-            }
+            <div
+              class="h-full overflow-auto"
+              classList={{ "mr-px": !p.noBorder }}
+            >
+              {child()}
+            </div>
             <div
               class="group absolute -right-[4px] top-0 z-40 h-full cursor-col-resize"
               classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
-              data-dragging={right.isDragging()}
-              onMouseDown={right.handleMouseDown}
+              data-dragging={left.isDragging()}
+              onMouseDown={left.handleMouseDown}
             >
               <ResizeHandleLine side="left" noBorder={p.noBorder} />
             </div>
+          </div>
+        )}
+      </Show>
+
+      <div class="relative h-full w-0 flex-1">
+        <Show when={hasRight()}>
+          {
+            /* Rendered on the CENTRE pane, so its line occupies the centre
+              pane's last pixel rather than the right pane's first: the same
+              boundary, and the one handle whose pane is not the pane the
+              divider "belongs" to. Before the row, so the right side's
+              controls, on the same layer, stack over its strip. */
+          }
+          <div
+            class="group absolute -right-[4px] top-0 z-40 h-full cursor-col-resize"
+            classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
+            data-dragging={right.isDragging()}
+            onMouseDown={right.handleMouseDown}
+          >
+            <ResizeHandleLine side="left" noBorder={p.noBorder} />
+          </div>
+        </Show>
+        <div
+          class="flex h-full"
+          classList={{ "mr-px": hasRight() && !p.noBorder }}
+        >
+          <Show when={p.leftTabs}>
+            {(tabs) => (
+              <SideControls
+                side="left"
+                open={hasLeft()}
+                tabs={tabs()}
+                onClose={() => p.onLeftClose?.()}
+                onWidth={setLeftGutterWidth}
+              />
+            )}
+          </Show>
+          <div class="h-full w-0 flex-1 overflow-hidden">
+            <div
+              class={slotClass("h-full w-full overflow-auto", p.pad, p.spy)}
+            >
+              {p.centerChild}
+            </div>
+          </div>
+          <Show when={p.rightTabs}>
+            {(tabs) => (
+              <SideControls
+                side="right"
+                open={hasRight()}
+                tabs={tabs()}
+                onClose={() => p.onRightClose?.()}
+                onWidth={setRightGutterWidth}
+              />
+            )}
           </Show>
         </div>
-
-        <Show when={rightChild()}>
-          {(child) => (
-            <div
-              class="relative h-full flex-none"
-              style={{ width: `${right.displayWidth()}px` }}
-            >
-              <div class="h-full overflow-auto">{child()}</div>
-            </div>
-          )}
-        </Show>
       </div>
 
-      <Show when={collapsedPanes().length > 0}>
-        <div class="border-primary flex w-full border-t">
-          <For each={collapsedPanes()}>
-            {(pane) => (
-              <div
-                class="ui-hoverable-base-200 ui-focusable border-primary flex h-10 flex-1 items-center justify-center border-r px-3 last:border-r-0"
-                role="button"
-                tabindex="0"
-                onClick={pane.onClick}
-                onKeyDown={(evt) => {
-                  if (evt.key === "Enter" || evt.key === " ") {
-                    evt.preventDefault();
-                    pane.onClick();
-                  }
-                }}
+      <Show when={rightChild()}>
+        {(child) => (
+          <div
+            class="relative h-full flex-none"
+            style={{ width: `${right.displayWidth()}px` }}
+          >
+            <div class="h-full overflow-auto">{child()}</div>
+          </div>
+        )}
+      </Show>
+    </div>
+  );
+}
+
+const CLOSE_LABEL = { en: "Close", fr: "Fermer", pt: "Fechar", th: "ปิด" };
+const OPEN_LABEL = { en: "Open", fr: "Ouvrir", pt: "Abrir", th: "เปิด" };
+
+// One side's controls, in a gutter of the centre's row beside its slot, so no
+// content of the centre is ever under them: a close button while the side is
+// open, one tab per tab of the side while it is closed. They start one heading
+// bar below the centre's top, so they sit beside its content, not its header,
+// and on the drag handles' layer, after their strips, so a strip that reaches
+// into the gutter never takes their clicks.
+function SideControls(p: {
+  side: "left" | "right";
+  open: boolean;
+  tabs: SidePaneTab[];
+  onClose: () => void;
+  onWidth: (width: number) => void;
+}) {
+  let gutter!: HTMLDivElement;
+  let observer: ResizeObserver | undefined;
+  onMount(() => {
+    observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        p.onWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(gutter);
+  });
+  onCleanup(() => {
+    observer?.disconnect();
+    p.onWidth(0);
+  });
+
+  // The clicked control is replaced by the other kind, which would drop focus
+  // to the document, so focus moves to the replacement.
+  const run = (action: () => void) => {
+    const hadFocus = gutter.contains(document.activeElement);
+    action();
+    if (hadFocus && !gutter.contains(document.activeElement)) {
+      gutter.querySelector("button")?.focus();
+    }
+  };
+
+  const skinClass = () =>
+    `ui-hoverable-base-200 ui-focusable relative z-40 border text-sm ${
+      p.side === "left" ? "rounded-r border-l-0" : "rounded-l border-r-0"
+    }`;
+  const sideLabel = () =>
+    new Intl.ListFormat(getLanguage(), { type: "conjunction" }).format(
+      p.tabs.map((tab) => tab.label),
+    );
+
+  return (
+    <div
+      ref={gutter}
+      class="ui-gap-sm flex h-full flex-none flex-col pt-[calc(var(--ui-heading-bar-height)+var(--ui-pad-y))]"
+    >
+      <Show
+        when={p.open}
+        fallback={
+          <For each={p.tabs}>
+            {(tab) => (
+              <button
+                type="button"
+                class={`${skinClass()} ui-pad-x-sm ui-pad-y-sm ui-gap-sm flex flex-col items-center`}
+                aria-label={`${t3(OPEN_LABEL)} ${tab.label}`}
+                aria-expanded="false"
+                onClick={() => run(tab.onOpen)}
               >
-                <div class="font-700 whitespace-nowrap text-sm">
-                  {pane.label}
-                </div>
-              </div>
+                <Icon iconName={tab.iconName} />
+                <span
+                  class="font-700 whitespace-nowrap [writing-mode:vertical-rl]"
+                  classList={{ "rotate-180": p.side === "left" }}
+                >
+                  {tab.label}
+                </span>
+              </button>
             )}
           </For>
-        </div>
+        }
+      >
+        <button
+          type="button"
+          class={`${skinClass()} flex h-11 w-[1lh] items-center justify-center`}
+          aria-label={`${t3(CLOSE_LABEL)} ${sideLabel()}`}
+          aria-expanded="true"
+          onClick={() => run(p.onClose)}
+        >
+          <Icon iconName={p.side === "left" ? "chevronLeft" : "chevronRight"} />
+        </button>
       </Show>
     </div>
   );

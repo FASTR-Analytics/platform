@@ -1,31 +1,4 @@
-import type { PresentationObjectConfig } from "lib";
-
-// Metrics that support each special chart mode
-export const SPECIAL_COVERAGE_CHART_METRICS = [
-  "m4-01-01",
-  "m6-01-01",
-  "m6-02-01",
-  "m6-03-01",
-];
-
-export const SPECIAL_PERCENT_CHANGE_CHART_METRICS = ["m12-01-01", "m3-01-01"];
-
-export const SPECIAL_DISRUPTIONS_CHART_METRICS = [
-  "m3-02-01",
-  "m3-03-01",
-  "m3-04-01",
-  "m3-05-01",
-];
-
-// Deliberately NOT in ALLOW_NEGATIVE_SCALE_VALUES_METRICS: unlike M3's
-// expected-volume model, the M11 NegBin model and its credible bounds are
-// non-negative by construction.
-export const SPECIAL_DISRUPTIONS_CHART_V2_METRICS = [
-  "m11-01-01",
-  "m11-01-02",
-  "m11-01-03",
-  "m11-01-04",
-];
+import { type PresentationObjectConfig, SPECIAL_CHART_METRICS } from "lib";
 
 // Metrics whose displayed values can be NEGATIVE. Their value axis resolves its
 // minimum with "auto-zero" (fit below 0 when the data goes there, otherwise
@@ -75,19 +48,19 @@ export function metricAllowsNegativeScale(metricId: string): boolean {
 
 // "Can this metric use X mode?": controls whether toggle is shown in editor
 export function canUseSpecialCoverageChart(metricId: string): boolean {
-  return SPECIAL_COVERAGE_CHART_METRICS.includes(metricId);
+  return SPECIAL_CHART_METRICS.coverage.includes(metricId);
 }
 
 export function canUseSpecialPercentChangeChart(metricId: string): boolean {
-  return SPECIAL_PERCENT_CHANGE_CHART_METRICS.includes(metricId);
+  return SPECIAL_CHART_METRICS.percentChange.includes(metricId);
 }
 
 export function canUseSpecialDisruptionsChart(metricId: string): boolean {
-  return SPECIAL_DISRUPTIONS_CHART_METRICS.includes(metricId);
+  return SPECIAL_CHART_METRICS.disruptions.includes(metricId);
 }
 
 export function canUseSpecialDisruptionsChartV2(metricId: string): boolean {
-  return SPECIAL_DISRUPTIONS_CHART_V2_METRICS.includes(metricId);
+  return SPECIAL_CHART_METRICS.disruptionsBand.includes(metricId);
 }
 
 // "Is X mode currently active?": controls rendering behavior

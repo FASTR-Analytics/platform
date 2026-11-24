@@ -9,6 +9,7 @@ import {
   type PackageScope,
   type Slide,
   t3,
+  validateTextOnlyMarkdown,
 } from "lib";
 import { AIToolFailure, createAITool, type LayoutNode } from "panther";
 import { z } from "zod";
@@ -21,7 +22,6 @@ import {
   assertImageAsset,
   assertSplitImageAsset,
   validateMaxContentBlocks,
-  validateNoMarkdownTables,
   validateSlideTotalWordCount,
 } from "../../_shared/mod.ts";
 import {
@@ -158,7 +158,7 @@ async function applySlideUpdate(
     if (blockUpdates && blockUpdates.length > 0) {
       for (const bu of blockUpdates) {
         if (bu.newContent.type === "text") {
-          validateNoMarkdownTables(bu.newContent.markdown);
+          validateTextOnlyMarkdown(bu.newContent.markdown);
         }
       }
       updated = await getSlideWithUpdatedBlocks(
@@ -250,7 +250,7 @@ async function resolveLayoutSpec(
           span,
         });
       } else if (cell.block.type === "text") {
-        validateNoMarkdownTables(cell.block.markdown);
+        validateTextOnlyMarkdown(cell.block.markdown);
         resolvedRow.push({ id: generateId(), block: cell.block, span });
       } else if (cell.block.type === "image") {
         assertImageAsset(cell.block.imgFile);

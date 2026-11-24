@@ -5,10 +5,10 @@
 
 import { renderFigureBackground, renderFigurePrimitives } from "./deps.ts";
 import type {
-  HeightConstraints,
   RectCoordsDims,
   RenderContext,
   Renderer,
+  SizeConstraints,
 } from "./deps.ts";
 import type { DiagramInputs, MeasuredDiagram } from "./types.ts";
 import { diagramSource } from "./_internal/diagram.ts";
@@ -53,7 +53,7 @@ export const DiagramRenderer: Renderer<DiagramInputs, MeasuredDiagram> = {
     rc: RenderContext,
     width: number,
     inputs: DiagramInputs,
-  ): HeightConstraints {
+  ): SizeConstraints {
     return getSceneFigureIdealHeight(
       rc,
       width,

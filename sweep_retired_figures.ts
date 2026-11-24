@@ -57,7 +57,7 @@ const SSH_OPTS = [
   "-o",
   "ControlPersist=15m",
 ];
-const PG_USER = "postgres";
+export const PG_USER = "postgres";
 const TUNNEL_READY_TIMEOUT_MS = 30_000;
 const ROWS_PER_FETCH = 25;
 const BAND_CHART_PROPS = ["observed", "expected", "ppi_lwr", "ppi_upr"];
@@ -446,7 +446,7 @@ export function formatFleetSummary(
 
 // ── Fleet access (PROTOCOL_ACCESS_DBS recipe B) ──────────────────────────────
 
-type Instance = {
+export type Instance = {
   name: string;
   host: string;
   port: number;
@@ -469,7 +469,7 @@ async function ssh(command: string): Promise<string> {
   return new TextDecoder().decode(result.stdout).trim();
 }
 
-async function listRunningInstances(): Promise<string[]> {
+export async function listRunningInstances(): Promise<string[]> {
   const out = await ssh(`docker ps --format '{{.Names}}'`);
   return out
     .split("\n")
@@ -518,7 +518,7 @@ async function waitForPort(port: number): Promise<void> {
 
 // Runs `body` with a private ssh tunnel to the instance's Postgres, and tears
 // the tunnel down whatever happens.
-async function withTunnel<T>(
+export async function withTunnel<T>(
   instance: string,
   body: (conn: Instance) => Promise<T>,
 ): Promise<T> {

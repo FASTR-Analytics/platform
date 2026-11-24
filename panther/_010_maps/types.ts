@@ -39,9 +39,9 @@ export type MapJsonDataConfig = {
   valueProp: string;
   mapAreaProp: string;
   mapAreaMatchProp: string;
-  paneProp?: string;
-  tierProp?: string;
-  laneProp?: string;
+  paneProp?: string | "--v";
+  tierProp?: string | "--v";
+  laneProp?: string | "--v";
   labelReplacements?: Record<string, string>;
   sort?: {
     pane?: MemberSortConfig;

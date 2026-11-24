@@ -64,6 +64,7 @@ export {
   supportsDisabledThinking,
   supportsDynamicWebTools,
   supportsManualThinking,
+  TOOL_DISPLAY_LIMITS,
 } from "./_110_ai_types/mod.ts";
 export type {
   AnthropicModel,
@@ -117,7 +118,7 @@ export * from "./_233_pdf/mod.ts";
 export * from "./_234_word/mod.ts";
 export * from "./_235_pptx/mod.ts";
 export * from "./_236_video/mod.ts";
-export * from "./_238_duckdb/mod.ts";
+export * from "./_239_script_run/mod.ts";
 
 /////////////////////
 //                 //

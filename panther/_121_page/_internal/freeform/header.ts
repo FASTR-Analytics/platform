@@ -12,9 +12,11 @@ import {
   type RenderContext,
 } from "../../deps.ts";
 import { RectCoordsDims as RCD } from "../../deps.ts";
+import { allotLogoRow } from "./logo_row.ts";
 import type {
   FreeformPageInputs,
   HeaderFooterInputs,
+  PageOverflowCause,
   PagePrimitive,
 } from "../../types.ts";
 
@@ -26,6 +28,8 @@ export type MeasuredHeader = {
   yOffsetHeader: number;
   yOffsetRightPlacementLogos: number;
   maxWidthForHeaderText: number;
+  logosMaxWidth: number;
+  overflowCauses: PageOverflowCause[];
 };
 
 export function measureHeader(
@@ -52,24 +56,27 @@ export function measureHeader(
   let yOffsetHeader = 0;
   const yOffsetRightPlacementLogos = 0;
 
-  // Measure logos if present
-  const hasLogos = inputs.headerLogos && inputs.headerLogos.length > 0;
-  const logosDims = hasLogos
-    ? measureLogos(new RCD([0, 0, 10000, 10000]), {
-      images: inputs.headerLogos!,
-      style: s.header.logosSizing,
-      alignH: "left",
-      alignV: "top",
-    })
-    : undefined;
-  const logosHeight = logosDims?.totalHeight ?? 0;
-  const logosWidth = logosDims?.totalWidth ?? 0;
-
-  let maxWidthForHeaderText = rcdOuter.w() - padHeader.totalPx();
-
-  if (hasLogos) {
-    maxWidthForHeaderText -= logosWidth + s.header.logosSizing.gapX;
-  }
+  const logos = inputs.headerLogos ?? [];
+  const hasLogos = logos.length > 0;
+  const row = allotLogoRow(
+    rc,
+    "header",
+    rcdOuter.w() - padHeader.totalPx(),
+    [
+      { id: "headerText", text: inputs.header, textInfo: s.text.header },
+      {
+        id: "subHeaderText",
+        text: inputs.subHeader,
+        textInfo: s.text.subHeader,
+      },
+      { id: "dateText", text: inputs.date, textInfo: s.text.date },
+    ],
+    hasLogos
+      ? { id: "headerLogos", images: logos, sizing: s.header.logosSizing }
+      : undefined,
+  );
+  const maxWidthForHeaderText = row.textMaxWidth;
+  const logosHeight = row.logosHeight;
 
   if (inputs.header?.trim()) {
     mHeader = rc.mText(
@@ -124,6 +131,8 @@ export function measureHeader(
     yOffsetHeader,
     yOffsetRightPlacementLogos,
     maxWidthForHeaderText,
+    logosMaxWidth: row.logosMaxWidth,
+    overflowCauses: row.overflowCauses,
   };
 }
 
@@ -250,6 +259,7 @@ export function buildHeaderPrimitives(
       style: s.header.logosSizing,
       alignH: "right",
       alignV: "top",
+      rowMaxWidth: measured.logosMaxWidth,
     });
 
     for (let i = 0; i < mLogos.items.length; i++) {

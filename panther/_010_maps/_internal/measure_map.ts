@@ -8,6 +8,7 @@ import {
   type ContentScaleResult,
   CustomFigureStyle,
   getSubChartMembers,
+  insideLabelFitsHost,
   isAutoScaleLegendConfig,
   measureChart,
   type MergedMapStyle,
@@ -23,7 +24,6 @@ import {
   solveContentScale,
   type SubChartMembers,
 } from "../deps.ts";
-import { getMapDataTransformed } from "../get_map_data.ts";
 import type { MapDataTransformed, MapInputs, MeasuredMap } from "../types.ts";
 import {
   generateMapAreaPrimitives,
@@ -52,15 +52,17 @@ export function measureMap(
   rc: RenderContext,
   bounds: RectCoordsDims,
   inputs: MapInputs,
+  transformedData: MapDataTransformed,
   paneGrid: PaneGrid,
   fitScale?: number,
+  // Lay out the panes and stop: the probes read the geometry alone.
+  layoutOnly?: boolean,
 ): MeasuredMap {
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
     fitScale,
   );
   const mergedStyle = customFigureStyle.getMergedMapStyle();
-  const transformedData = getMapDataTransformed(inputs.data);
 
   const config: SimplifiedChartConfig<
     MapDataTransformed,
@@ -90,7 +92,9 @@ export function measureMap(
     inputs,
     config,
     fitScale,
+    layoutOnly,
   );
+  if (layoutOnly) return chartMeasured;
 
   const projectionFn = getProjectionFn(mergedStyle.map.projection);
 
@@ -158,7 +162,8 @@ type SolvedMapSubChart = {
   trackCtx: MapTrackContext;
   // This sub-chart's own solved content scale; emission uses the figure minimum.
   s: number;
-  // The budget was infeasible even at the legibility floor.
+  // The budget was infeasible even at the legibility floor, or an inside
+  // label is larger than the sub-chart it is confined to.
   starved: boolean;
   // Empty/point geometry: nothing to scale, constant-centre projector.
   degenerate: boolean;
@@ -350,7 +355,10 @@ function solveMapSubChart(
   // silently.
   const resolved = resolveFlooredContentScale({ s0, sFloor, solved: result });
   const s = resolved.s;
-  const starved = resolved.starved || s > s0;
+  const starved = resolved.starved || s > s0 ||
+    entries.some((e) =>
+      !outsideIds.has(e.id) && !insideLabelFitsHost(e.mText, e.dl, subChartRcd)
+    );
 
   return {
     indices,

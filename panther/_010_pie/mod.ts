@@ -5,6 +5,7 @@
 
 export { getPieComponentSizes, PieRenderer } from "./pie_renderer.ts";
 export { getPieDataTransformed } from "./get_pie_data.ts";
+export { getPieDataConfigIssues } from "./pie_data_config_issues.ts";
 export type {
   MeasuredPie,
   PieData,

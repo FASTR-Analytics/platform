@@ -98,18 +98,12 @@ export type OverhangClearance = {
   end: number;
 };
 
-// Never let clearance consume more than this fraction of the value axis extent
-// per side (pathologically small plots / huge labels).
-const MAX_OVERHANG_CLEARANCE_FRACTION = 0.4;
-
 export function clampOverhangClearance(
   clearance: OverhangClearance,
   valueAxisExtent: number,
+  maxFractionOfExtent: number,
 ): OverhangClearance {
-  const maxPerSide = Math.max(
-    0,
-    valueAxisExtent * MAX_OVERHANG_CLEARANCE_FRACTION,
-  );
+  const maxPerSide = Math.max(0, valueAxisExtent * maxFractionOfExtent);
   return {
     start: Math.max(0, Math.min(clearance.start, maxPerSide)),
     end: Math.max(0, Math.min(clearance.end, maxPerSide)),
@@ -137,33 +131,6 @@ export function isRowBasedUncertainty(
   lbMemberId: string;
 } {
   return "uncertaintyProp" in u;
-}
-
-export function validateUncertaintyConfig(
-  uncertainty: UncertaintyConfig,
-  valueProps: string[],
-  dimensionProps: (string | undefined)[],
-): void {
-  if (isRowBasedUncertainty(uncertainty)) {
-    for (const prop of dimensionProps) {
-      if (prop && prop !== "--v" && prop === uncertainty.uncertaintyProp) {
-        throw new Error(
-          `uncertaintyProp "${uncertainty.uncertaintyProp}" overlaps with dimension prop "${prop}"`,
-        );
-      }
-    }
-  } else {
-    if (uncertainty.ubValueProps.length !== valueProps.length) {
-      throw new Error(
-        `ubValueProps length (${uncertainty.ubValueProps.length}) must equal valueProps length (${valueProps.length})`,
-      );
-    }
-    if (uncertainty.lbValueProps.length !== valueProps.length) {
-      throw new Error(
-        `lbValueProps length (${uncertainty.lbValueProps.length}) must equal valueProps length (${valueProps.length})`,
-      );
-    }
-  }
 }
 
 export type { LegendEntry };

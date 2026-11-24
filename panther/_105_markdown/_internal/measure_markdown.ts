@@ -8,7 +8,11 @@ import {
   type RectCoordsDims,
   type RenderContext,
 } from "../deps.ts";
-import type { MarkdownRendererInput, MeasuredMarkdown } from "../types.ts";
+import type {
+  MarkdownRendererInput,
+  MeasuredMarkdown,
+  TextMarkdownItem,
+} from "../types.ts";
 import { parseMarkdown } from "../parser.ts";
 import { measureMarkdownItems } from "./measure_items.ts";
 
@@ -19,13 +23,13 @@ export function measureMarkdown(
   fitScale?: number,
   _debug = false,
 ): MeasuredMarkdown {
-  const parsed = parseMarkdown(input.markdown);
+  const items = parseTextMarkdown(input.markdown);
   const styleInstance = new CustomMarkdownStyle(input.style, fitScale);
   const style = styleInstance.getMergedMarkdownStyle();
   const result = measureMarkdownItems(
     rc,
     bounds,
-    parsed,
+    items,
     style,
     style.alignH,
     _debug,
@@ -35,4 +39,17 @@ export function measureMarkdown(
     bounds: result.bounds,
     markdownItems: result.items,
   };
+}
+
+function parseTextMarkdown(markdown: string): TextMarkdownItem[] {
+  return parseMarkdown(markdown).items.map((item) => {
+    if (item.type === "table" || item.type === "image") {
+      const what = item.type === "table" ? "a table" : "an image";
+      const where = item.line === undefined ? "" : ` at line ${item.line + 1}`;
+      throw new Error(
+        `MarkdownRenderer draws text only, got ${what}${where}: give each table and image its own page item, as groupDocElementsByContentType splits markdown`,
+      );
+    }
+    return item;
+  });
 }

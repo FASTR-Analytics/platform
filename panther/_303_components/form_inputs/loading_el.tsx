@@ -38,7 +38,7 @@ export function Spinner(p: SpinnerProps = {}) {
       <Icon
         iconName="loader"
         class={`h-6 max-h-full w-6 animate-spin ${
-          INTENT_TEXT[p.intent ?? "base-100"]
+          p.intent ? INTENT_TEXT[p.intent] : ""
         }`}
       />
     </div>

@@ -14,7 +14,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import { Button } from "../form_inputs/button.tsx";
+import { Button, type ButtonPropsSurface } from "../form_inputs/button.tsx";
 import type { IconName } from "../icons/mod.ts";
 import { IconRenderer } from "../form_inputs/icon_renderer.tsx";
 import type { Intent } from "../types.ts";
@@ -381,21 +381,22 @@ function MenuHeading(p: { item: MenuItemHeading }): JSX.Element {
   );
 }
 
-export type MenuButtonProps = {
-  items: MenuItem[] | (() => MenuItem[]);
-  position?: PopoverPosition;
-  children?: JSX.Element;
-  iconName?: IconName;
-  iconPosition?: "left" | "right";
-  intent?: Intent;
-  outline?: boolean;
-  onBackground?: Intent;
-  size?: "sm";
-  fullWidth?: boolean;
-  disabled?: boolean;
-  ariaLabel?: string;
-  id?: string;
-} & DataAttrs;
+export type MenuButtonProps =
+  & {
+    items: MenuItem[] | (() => MenuItem[]);
+    position?: PopoverPosition;
+    children?: JSX.Element;
+    iconName?: IconName;
+    iconPosition?: "left" | "right";
+    intent?: Intent;
+    size?: "sm";
+    fullWidth?: boolean;
+    disabled?: boolean;
+    ariaLabel?: string;
+    id?: string;
+  }
+  & ButtonPropsSurface
+  & DataAttrs;
 
 // A Button that opens a menu anchored to itself. Styled like any Button; the
 // menu items may be a function, read at open time. A right-click context menu
@@ -405,12 +406,11 @@ export function MenuButton(p: MenuButtonProps): JSX.Element {
   return (
     <Button
       {...dataAttrs}
+      {...surfaceProps(p)}
       id={p.id}
       iconName={p.iconName}
       iconPosition={p.iconPosition}
       intent={p.intent}
-      outline={p.outline}
-      onBackground={p.onBackground}
       size={p.size}
       fullWidth={p.fullWidth}
       disabled={p.disabled}
@@ -427,6 +427,12 @@ export function MenuButton(p: MenuButtonProps): JSX.Element {
       {p.children}
     </Button>
   );
+}
+
+function surfaceProps(p: ButtonPropsSurface): ButtonPropsSurface {
+  return p.ghost
+    ? { ghost: true }
+    : { outline: p.outline, onBackground: p.onBackground };
 }
 
 export type ActionMenuButtonProps = {

@@ -23,6 +23,7 @@ import {
   CustomFigureStyle,
   generateResolvedFigureLabelPrimitives,
   getDimensionMembers,
+  insideLabelFitsHost,
   measureChart,
   RectCoordsDims,
   resolveFlooredContentScale,
@@ -32,7 +33,6 @@ import {
   withFigureLabelBounds,
   Z_INDEX,
 } from "../deps.ts";
-import { getPieDataTransformed } from "../get_pie_data.ts";
 import type { MeasuredPie, PieDataTransformed, PieInputs } from "../types.ts";
 import {
   buildPieLabelCandidates,
@@ -68,12 +68,14 @@ export function measurePie(
   rc: RenderContext,
   bounds: RectCoordsDims,
   inputs: PieInputs,
+  transformedData: PieDataTransformed,
   paneGrid: PaneGrid,
   fitScale?: number,
+  // Lay out the panes and stop: the probes read the geometry alone.
+  layoutOnly?: boolean,
 ): MeasuredPie {
   const customFigureStyle = new CustomFigureStyle(inputs.style, fitScale);
   const mergedStyle = customFigureStyle.getMergedPieStyle();
-  const transformedData = getPieDataTransformed(inputs.data);
 
   const config: SimplifiedChartConfig<
     PieDataTransformed,
@@ -97,7 +99,15 @@ export function measurePie(
     paneGrid,
   };
 
-  const chartMeasured = measureChart(rc, bounds, inputs, config, fitScale);
+  const chartMeasured = measureChart(
+    rc,
+    bounds,
+    inputs,
+    config,
+    fitScale,
+    layoutOnly,
+  );
+  if (layoutOnly) return chartMeasured;
 
   const grids = chartMeasured.primitives.filter(
     (p): p is Extract<Primitive, { type: "chart-grid" }> =>
@@ -234,8 +244,9 @@ export function measurePie(
     }
   }
 
-  // Any starved pie (label budget infeasible even at the legibility floor, or
-  // a floor lifted past its slot) makes the whole figure cramped;
+  // Any starved pie (label budget infeasible even at the legibility floor, a
+  // floor lifted past its slot, or an inside label larger than its slot)
+  // makes the whole figure cramped;
   // measureChartWithAutofit ORs this into its own decision rather than
   // overwriting it.
   const starved = floorLifted || drawable.some((c) => c.starved);
@@ -271,8 +282,9 @@ type SolvedPie = {
   // of these.
   sFloor: number;
   // The label budget was infeasible even at the legibility floor, OR the
-  // floor lifted the pie past what its slot can hold. Either way the overlap
-  // is signalled, never silent.
+  // floor lifted the pie past what its slot can hold, OR an inside label is
+  // larger than the slot it is confined to. Each way the overlap is
+  // signalled, never silent.
   starved: boolean;
   empty: boolean;
 };
@@ -348,6 +360,7 @@ function solveOnePie(
   }
 
   let outside: PieLabelEntry[] = [];
+  let insideLabelOverflows = false;
   const labelText = new Map<string, MeasuredText>();
   if (mode !== "none") {
     const entries = buildPieLabelCandidates(
@@ -374,6 +387,8 @@ function solveOnePie(
       );
       if (placement === "outside") {
         outsideIds.add(e.candidate.id);
+      } else if (!insideLabelFitsHost(mText, e.candidate.dataLabel, slotRcd)) {
+        insideLabelOverflows = true;
       }
       labelText.set(e.candidate.id, mText);
     }
@@ -447,7 +462,7 @@ function solveOnePie(
     solved: result,
   });
   const s = resolved.s;
-  const starved = resolved.starved || s > s0;
+  const starved = resolved.starved || s > s0 || insideLabelOverflows;
 
   return {
     indices,

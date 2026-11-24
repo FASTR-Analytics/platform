@@ -12,6 +12,7 @@ import { encodeToolImage, type ToolImage } from "../_shared/mod.ts";
 import {
   buildSlidePage,
   type SlideOverflow,
+  slidePageOverflow,
   toSlideOverflowError,
 } from "./measure_slide_overflow.ts";
 
@@ -20,10 +21,10 @@ import {
 const SLIDE_GROUND = "#ffffff";
 
 // A slide as the PDF export draws its page, for the model to look at, and
-// whether it overflows the page, which the image alone cannot show. A slide
-// that cannot be measured has no image, and gives its error. The page
-// is measured once in page units, so every width the image is drawn at draws
-// that one measurement.
+// whether it overflows the page and where, which the image alone cannot
+// show. A slide that cannot be measured has no image, and gives its error.
+// The page is measured once in page units, so every width the image is drawn
+// at draws that one measurement.
 export async function renderSlideImage(
   slide: Slide,
   deckConfig: SlideDeckConfig,
@@ -53,5 +54,5 @@ export async function renderSlideImage(
     );
     return canvas;
   }, SLIDE_GROUND);
-  return { toolImage, overflow: mPage.overflow };
+  return { toolImage, overflow: slidePageOverflow(mPage) };
 }

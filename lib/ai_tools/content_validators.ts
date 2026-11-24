@@ -4,7 +4,7 @@ import type {
   MetricWithStatus,
   ResultsValueInfoForPresentationObject,
 } from "../types/mod.ts";
-import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
+import { inferPeriodFormatFromValue } from "../types/period_options.ts";
 import { convertPeriodValue } from "../convert_period_value.ts";
 import { AIToolFailure } from "@timroberton/panther";
 import type { AIToolEnv } from "./env.ts";

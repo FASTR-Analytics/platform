@@ -17,10 +17,10 @@ import {
 } from "../deps.ts";
 import type {
   FigureInputsBase,
-  HeightConstraints,
   MeasuredSurrounds,
   MergedSceneStyle,
   RenderContext,
+  SizeConstraints,
 } from "../deps.ts";
 import type { MeasuredSceneFigure, Scene } from "../types.ts";
 import { lowerScene } from "../lower.ts";
@@ -179,7 +179,7 @@ export function getSceneFigureIdealHeight(
   width: number,
   inputs: FigureInputsBase,
   makeSource: SceneSourceFactory,
-): HeightConstraints {
+): SizeConstraints {
   const probe = new RectCoordsDims({ x: 0, y: 0, w: width, h: PROBE_HEIGHT });
   const { cs: cs1, ms: ms1 } = surroundsAt(rc, probe, inputs, 1);
   const source = makeSource(
@@ -199,6 +199,8 @@ export function getSceneFigureIdealHeight(
       minH: idealH,
       idealH,
       maxH: idealH,
+      // Without autofit the floor scale is 1.
+      minW: minComfortableWidth,
       neededScalingToFitWidth,
       minComfortableWidth,
     };
@@ -228,11 +230,13 @@ export function getSceneFigureIdealHeight(
     (k) => probeAt(k).minWidth,
   );
   const idealH = probeAt(widthScale).idealHeight;
+  const floor = probeAt(floorScale);
   return {
-    minH: probeAt(floorScale).idealHeight,
+    minH: floor.idealHeight,
     idealH,
     // Extra height buys a scene nothing: it centres in it.
     maxH: idealH,
+    minW: floor.minWidth,
     neededScalingToFitWidth,
     minComfortableWidth,
   };

@@ -4,11 +4,11 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  type HeightConstraints,
   type Measured,
   RectCoordsDims,
   type RenderContext,
   type Renderer,
+  type SizeConstraints,
 } from "./deps.ts";
 
 // =============================================================================
@@ -93,7 +93,7 @@ export const ImageRenderer: Renderer<ImageInputs, MeasuredImage> = {
     _rc: RenderContext,
     width: number,
     inputs: ImageInputs,
-  ): HeightConstraints {
+  ): SizeConstraints {
     const imgW = typeof inputs.image === "string"
       ? inputs.width!
       : inputs.image.width;
@@ -102,7 +102,7 @@ export const ImageRenderer: Renderer<ImageInputs, MeasuredImage> = {
       : inputs.image.height;
     const aspectRatio = imgH / imgW;
     const idealH = width * aspectRatio;
-    return { minH: 0, idealH, maxH: Infinity };
+    return { minH: 0, idealH, maxH: Infinity, minW: 0 };
   },
 };
 

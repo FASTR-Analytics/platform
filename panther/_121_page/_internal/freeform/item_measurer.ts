@@ -5,11 +5,11 @@
 
 import {
   FigureRenderer,
-  type HeightConstraints,
   ImageRenderer,
-  type ItemHeightMeasurer,
   type ItemLayoutNode,
+  type ItemSizeMeasurer,
   MarkdownRenderer,
+  type SizeConstraints,
 } from "../../deps.ts";
 import {
   isSpacerItem,
@@ -17,14 +17,14 @@ import {
   type PageRenderContext,
 } from "../../types.ts";
 
-export const itemMeasurer: ItemHeightMeasurer<
+export const itemMeasurer: ItemSizeMeasurer<
   PageRenderContext,
   PageContentItem
 > = (
   src,
   node: ItemLayoutNode<PageContentItem>,
   width,
-): HeightConstraints => {
+): SizeConstraints => {
   const item = node.data;
 
   if (MarkdownRenderer.isType(item)) {
@@ -51,7 +51,7 @@ export const itemMeasurer: ItemHeightMeasurer<
     const minH = item.minH ?? 0;
     const maxH = item.maxH ?? Infinity;
     const idealH = minH;
-    return { minH, idealH, maxH, neededScalingToFitWidth: "none" };
+    return { minH, idealH, maxH, minW: 0, neededScalingToFitWidth: "none" };
   }
 
   throw new Error("No measurer for item type");

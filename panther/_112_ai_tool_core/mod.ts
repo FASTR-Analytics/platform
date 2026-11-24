@@ -53,6 +53,7 @@ export type {
 export type {
   AIToolApprovalConfig,
   AIToolCallContext,
+  AIToolDisplayProps,
   AIToolKind,
   AIToolWithMetadata,
   AnyAITool,

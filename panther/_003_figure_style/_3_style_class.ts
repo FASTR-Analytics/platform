@@ -897,6 +897,11 @@ export class CustomFigureStyle {
         g.yValueAxis?.tickLabelAlignment,
         d.yValueAxis.tickLabelAlignment,
       ),
+      maxOverhangClearanceFractionOfExtent: m(
+        c.yValueAxis?.maxOverhangClearanceFractionOfExtent,
+        g.yValueAxis?.maxOverhangClearanceFractionOfExtent,
+        d.yValueAxis.maxOverhangClearanceFractionOfExtent,
+      ),
       allowIndividualTierLimits: m(
         c.yValueAxis?.allowIndividualTierLimits,
         g.yValueAxis?.allowIndividualTierLimits,
@@ -979,6 +984,12 @@ export class CustomFigureStyle {
         g.xPeriodAxis?.showEveryNthTick,
         d.xPeriodAxis.showEveryNthTick,
       ),
+      tickLength: ms(
+        sf,
+        c.xPeriodAxis?.tickLength,
+        g.xPeriodAxis?.tickLength,
+        d.xPeriodAxis.tickLength,
+      ),
       periodLabelSmallTopPadding: ms(
         sf,
         c.xPeriodAxis?.periodLabelSmallTopPadding,
@@ -1047,6 +1058,11 @@ export class CustomFigureStyle {
         c.xValueAxis?.tickLabelAlignment,
         g.xValueAxis?.tickLabelAlignment,
         d.xValueAxis.tickLabelAlignment,
+      ),
+      maxOverhangClearanceFractionOfExtent: m(
+        c.xValueAxis?.maxOverhangClearanceFractionOfExtent,
+        g.xValueAxis?.maxOverhangClearanceFractionOfExtent,
+        d.xValueAxis.maxOverhangClearanceFractionOfExtent,
       ),
       allowIndividualLaneLimits: m(
         c.xValueAxis?.allowIndividualLaneLimits,
@@ -1307,6 +1323,12 @@ export class CustomFigureStyle {
           c.content?.connectors?.arrowheadFitFallback,
           g.content?.connectors?.arrowheadFitFallback,
           d.content.connectors.arrowheadFitFallback,
+        ),
+        arrowheadFitMinLineLength: ms(
+          sf,
+          c.content?.connectors?.arrowheadFitMinLineLength,
+          g.content?.connectors?.arrowheadFitMinLineLength,
+          d.content.connectors.arrowheadFitMinLineLength,
         ),
       },
       mapAreas: {

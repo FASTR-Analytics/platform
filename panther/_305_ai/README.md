@@ -176,6 +176,20 @@ const tool = createAITool({
 });
 ```
 
+**A structured output, and what the model reads of it:** a tool that declares an `outputSchema` returns the value the schema describes, typed by it, and every surface carries its JSON form (over MCP as `structuredContent`). The model reads that JSON unless the tool says less in `describeForModel`, which returns a string or an `AIToolOutput` and is read on every surface, so its text says what the output holds. Full contract: DOC_AI_CHAT.md "Output and images".
+
+```typescript
+const tool = createAITool({
+  name: "get_rows",
+  description: "Reads the rows of a table",
+  inputSchema: z.strictObject({ table: z.string() }),
+  outputSchema: z.array(z.record(z.string(), z.number())),
+  describeForModel: (rows) =>
+    `${rows.length} rows; the first: ${JSON.stringify(rows[0])}`,
+  handler: (input) => readRows(input.table),
+});
+```
+
 ## Views, Interactions, Approval, Navigation
 
 The engine's organizing concept for "where the user is" and everything built on it. Full contracts in DOC_AI_CHAT.md; the shapes:
@@ -312,7 +326,20 @@ Every tool call ends as a collapsible card. Expanded, both cards open with the i
 - Shows the error message
 - Click to expand and see the input, the error details and the stack trace (unexpected throws only — `AIToolFailure` renders without a stack section)
 
-**Custom cards:** a tool's `displayComponent` receives `{ input, view }`, where `view` is the id and identity of the view the call ran in (`AIViewSnapshot`), stored with the card; absent on cards stored before the view declared one.
+**Custom cards:** a tool's `displayComponent` receives `AIToolDisplayProps`, `{ input, structured?, view? }`: the call's input, parsed through the tool's input schema; its structured output, the value a tool with an `outputSchema` returned, typed by it and kept with the conversation, so the card draws the call's result from it after a reload as when the call returned, without computing or fetching it again; and the id and identity of the view the call ran in (`AIViewSnapshot`), stored with the card. A card keeps a structured output of at most `TOOL_DISPLAY_LIMITS.MAX_STRUCTURED_CHARS` characters of JSON; past it the card gets none and the model is told. Full contract: DOC_AI_CHAT.md "Tools" and "Output and images".
+
+```typescript
+const showRows = createAITool({
+  name: "show_rows",
+  description: "Shows the rows of a table to the user",
+  inputSchema: z.strictObject({ table: z.string() }),
+  outputSchema: z.array(z.record(z.string(), z.number())),
+  describeForModel: (rows) =>
+    `${rows.length} rows; the first: ${JSON.stringify(rows[0])}`,
+  displayComponent: (p) => <RowsTable rows={p.structured ?? []} />,
+  handler: (input) => readRows(input.table),
+});
+```
 
 ## Custom Renderers
 
@@ -397,7 +424,7 @@ builtInTools: {
 - `createSDKClient()` - Configure SDK
 - `createAIChat()` - One engine instance; pass it to `AIChat` as `chat` when the pane needs it too
 - `createAITool()` - Define custom tools; add `viewRegistry` for view-typed tools (compile-checked `availableIn`, narrowed handler view state)
-- `AIToolOutput` - What a handler or a `commit` returns to send images with its text
+- `AIToolOutput` - What a handler or a `commit` returns to send images with its text, or a tool's `describeForModel` returns for a structured output
 - `aiToolFactory(registry)` - Binds one registry once; the recommended form for an app with a single view registry
 - `bindAIToolToView(registry, template, resolve, options?)` - Resolves a tool's inner implementation per call from the view the call runs in
 - `callAI()` - One-shot request, with tools (from `_116_ai_one_shot`, loads in Deno)

@@ -335,6 +335,29 @@ type InlineContentRendererProps = {
   content: MarkdownInline[];
 };
 
+function EmphasizedText(p: {
+  text: string;
+  style: (MarkdownInline & { type: "code-inline" })["style"];
+  code?: boolean;
+}) {
+  const body = () => p.code ? <code>{p.text}</code> : p.text;
+  return (
+    <Switch fallback={body()}>
+      <Match when={p.style === "bold"}>
+        <strong>{body()}</strong>
+      </Match>
+      <Match when={p.style === "italic"}>
+        <em>{body()}</em>
+      </Match>
+      <Match when={p.style === "bold-italic"}>
+        <strong>
+          <em>{body()}</em>
+        </strong>
+      </Match>
+    </Switch>
+  );
+}
+
 function InlineContentRenderer(p: InlineContentRendererProps) {
   return (
     <For each={p.content}>
@@ -362,41 +385,22 @@ function InlineContentRenderer(p: InlineContentRendererProps) {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Switch
-                fallback={(item as MarkdownInline & { type: "link" }).text}
-              >
-                <Match
-                  when={(item as MarkdownInline & { type: "link" }).style ===
-                    "bold"}
-                >
-                  <strong>
-                    {(item as MarkdownInline & { type: "link" }).text}
-                  </strong>
-                </Match>
-                <Match
-                  when={(item as MarkdownInline & { type: "link" }).style ===
-                    "italic"}
-                >
-                  <em>{(item as MarkdownInline & { type: "link" }).text}</em>
-                </Match>
-                <Match
-                  when={(item as MarkdownInline & { type: "link" }).style ===
-                    "bold-italic"}
-                >
-                  <strong>
-                    <em>{(item as MarkdownInline & { type: "link" }).text}</em>
-                  </strong>
-                </Match>
-              </Switch>
+              <EmphasizedText
+                text={(item as MarkdownInline & { type: "link" }).text}
+                style={(item as MarkdownInline & { type: "link" }).style}
+                code={(item as MarkdownInline & { type: "link" }).code}
+              />
             </a>
           </Match>
           <Match when={item.type === "break"}>
             <br />
           </Match>
           <Match when={item.type === "code-inline"}>
-            <code>
-              {(item as MarkdownInline & { type: "code-inline" }).text}
-            </code>
+            <EmphasizedText
+              text={(item as MarkdownInline & { type: "code-inline" }).text}
+              style={(item as MarkdownInline & { type: "code-inline" }).style}
+              code
+            />
           </Match>
         </Switch>
       )}

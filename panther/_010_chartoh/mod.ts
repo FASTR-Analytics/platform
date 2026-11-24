@@ -5,6 +5,7 @@
 
 export { ChartOHRenderer } from "./chartoh_renderer.ts";
 export {
+  getChartOHDataConfigIssues,
   getChartOHDataJsonTransformed,
   getChartOHDataTransformed,
 } from "./get_chartoh_data.ts";

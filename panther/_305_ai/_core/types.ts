@@ -59,12 +59,16 @@ export type DisplayItem =
     toolInput: unknown;
   }
   // view: the id and identity of the view the call ran in (persisted; absent
-  // on cards stored before the engine recorded it).
+  // on cards stored before the engine recorded it). structured: the call's
+  // structured output as JSON, kept within TOOL_DISPLAY_LIMITS (persisted;
+  // absent when the call returned none or it was over the bound, and on
+  // cards stored before the engine kept it).
   | {
     type: "tool_display";
     toolName: string;
     input: unknown;
     view?: AIViewSnapshot;
+    structured?: unknown;
   }
   // Turn outcomes (refusal, truncation, context exceeded, continuation
   // caps) and a turn that threw — distinct from tool_error, which is one

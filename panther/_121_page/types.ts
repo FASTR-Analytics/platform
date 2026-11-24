@@ -10,6 +10,7 @@ import type {
   ImageInputs,
   LayoutGap,
   LayoutNode,
+  LayoutOverflowCause,
   LineStyle,
   MarkdownRendererInput,
   Measured,
@@ -172,12 +173,63 @@ export type PageRenderContext = { rc: RenderContext; s: MergedFreeformStyle };
 // Measured Page Types
 // =============================================================================
 
+// A text or the logo row of a cover's or a section's stack. A text's id is the
+// id its page primitive and hit target carry; the logo row's primitives are
+// coverLogo0 to coverLogo<n-1>.
+export type PageStackPartId =
+  | "coverLogos"
+  | "coverTitle"
+  | "coverSubtitle"
+  | "coverAuthor"
+  | "coverDate"
+  | "sectionTitle"
+  | "sectionSubtitle";
+
+export type PageStackPartNeed = { id: PageStackPartId; need: number };
+
+// A text or the logo row of a freeform page's header or footer. A text's id
+// is the id its page primitive and hit target carry; the header's logo row's
+// primitives are headerLogo0 to headerLogo<n-1>, the footer's footerLogo0 to
+// footerLogo<n-1>.
+export type PageHeaderFooterPartId =
+  | "headerText"
+  | "subHeaderText"
+  | "dateText"
+  | "headerLogos"
+  | "footerText"
+  | "footerLogos";
+
+export type PageHeaderFooterPartNeed = {
+  id: PageHeaderFooterPartId;
+  need: number;
+};
+
+export type PageOverflowCause =
+  | ({ where: "layout" } & LayoutOverflowCause)
+  | {
+    where: "stack";
+    axis: "height" | "width";
+    need: number;
+    available: number;
+    // Height: every part of the stack, top to bottom, each adding its height.
+    // Width: the part wider than the page less its padding.
+    neededBy: PageStackPartNeed[];
+  }
+  | {
+    where: "header" | "footer";
+    axis: "width";
+    need: number;
+    available: number;
+    // The texts whose widest word is the widest (every one of them where they
+    // tie), and the logo row with the gap it keeps from them.
+    neededBy: PageHeaderFooterPartNeed[];
+  };
+
 // Base type for all measured pages (shared fields, no style - each page type has its own)
 type MeasuredPageBase = Measured<PageInputs> & {
+  // overflowCauses.length > 0, set by pageOverflow.
   overflow: boolean;
-  // Reserved: per-block shrink-to-fit cramped signal aggregated to the page.
-  // Populated by the shared-shrink follow-up; page-level "didn't fit" is `overflow`.
-  cramped?: boolean;
+  overflowCauses: PageOverflowCause[];
   fullPageBounds: RectCoordsDims;
   mWatermark?: MeasuredText;
   measuredSplitImage?: MeasuredImage;
@@ -220,10 +272,14 @@ export type MeasuredFreeformPage = MeasuredPageBase & {
     rcdHeaderOuter: RectCoordsDims;
     yOffsetHeader: number;
     yOffsetRightPlacementLogos: number;
+    // The width the logo row is drawn in: its own where it fits beside the
+    // texts' widest word, the room they leave where it does not.
+    logosMaxWidth: number;
   };
   footer?: {
     mFooter?: MeasuredText;
     rcdFooterOuter: RectCoordsDims;
+    logosMaxWidth: number;
   };
   mLayout: MeasuredLayoutNode<PageContentItem>;
   rcdContentOuter: RectCoordsDims;

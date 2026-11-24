@@ -62,7 +62,7 @@ export type {
   OpClientMethod,
   OpRunner,
 } from "./client.ts";
-export type { RunOpFn } from "./projections.ts";
+export type { OpDisplayComponents, RunOpFn } from "./projections.ts";
 export type {
   NavOpNameOf,
   OpApprovalCallData,
@@ -72,6 +72,7 @@ export type {
   OpContract,
   OpCtx,
   OpCtxFor,
+  OpDescribeForModel,
   OpExposure,
   OpImplFor,
   OpImpls,

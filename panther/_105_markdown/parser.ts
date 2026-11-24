@@ -214,6 +214,7 @@ function parseInlineTokens(tokens: MarkdownItToken[]): MarkdownInline[] {
           text: seg.text,
           url: href || "",
           style: segmentStyle(seg),
+          ...(seg.code ? { code: true } : {}),
         });
       }
       i = result.endIndex + 1;
@@ -240,8 +241,7 @@ type NestedInlineSegment = {
   // (`**see [here](url) now**`). Emphasis wins the inline's shape only when the
   // segment carries no URL — a link must stay a link, or its href is lost.
   url?: string;
-  // Set when the segment is a code span. A code-inline carries no emphasis
-  // and no URL, so the span keeps its code style only outside a link.
+  // Set when the segment is a code span.
   code?: boolean;
 };
 
@@ -270,10 +270,16 @@ function emphasizedInline(
   style: "bold" | "italic" | "bold-italic",
 ): MarkdownInline {
   if (seg.url !== undefined) {
-    return { type: "link", text: seg.text, url: seg.url, style };
+    return {
+      type: "link",
+      text: seg.text,
+      url: seg.url,
+      style,
+      ...(seg.code ? { code: true } : {}),
+    };
   }
   if (seg.code) {
-    return { type: "code-inline", text: seg.text };
+    return { type: "code-inline", text: seg.text, style };
   }
   return { type: style, text: seg.text };
 }

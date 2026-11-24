@@ -3,7 +3,6 @@ export {
   assertSplitImageAsset,
   imageAssetFileNames,
   validateMaxContentBlocks,
-  validateNoMarkdownTables,
   validatePresetOverrides,
   validateSlideTotalWordCount,
 } from "./content_validators.ts";

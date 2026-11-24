@@ -53,6 +53,7 @@ import {
 import type {
   LabelCollisionConfig,
   MapProjection,
+  NColsOrAuto,
 } from "./_3_merged_style_return_types.ts";
 import type { LegendPosition } from "./types.ts";
 
@@ -211,12 +212,14 @@ const _DS = {
     tickLabelGap: 5,
     tickLabelFormatter: typed<"auto-number" | "auto-percent">("auto-percent"),
     tickLabelAlignment: typed<"center" | "inset">("center"),
+    maxOverhangClearanceFractionOfExtent: 0.4,
     allowIndividualLaneLimits: false,
     exactAxisY: typed<"none" | number>("none"),
   },
   xPeriodAxis: {
     forceSideTicksWhenYear: false,
     showEveryNthTick: 1,
+    tickLength: 10,
     periodLabelSmallTopPadding: 5,
     periodLabelLargeTopPadding: 5,
     calendar: typed<CalendarType>("gregorian"),
@@ -240,6 +243,7 @@ const _DS = {
     tickLabelGap: 3,
     tickLabelFormatter: typed<"auto-number" | "auto-percent">("auto-percent"),
     tickLabelAlignment: typed<"center" | "inset">("center"),
+    maxOverhangClearanceFractionOfExtent: 0.4,
     exactAxisX: typed<"none" | number>("none"),
     allowIndividualTierLimits: false,
   },
@@ -375,6 +379,7 @@ const _DS = {
         strokeColor: { key: "baseContent" },
         strokeWidth: 1.5,
         arrowHeadLength: 6,
+        arrowTrunkLength: 3,
         showArrowhead: true,
         arrowLengthFractionOfSpace: 0.7,
         arrowLabelGap: 4,
@@ -402,6 +407,7 @@ const _DS = {
       }),
       joinAcrossGaps: true,
       arrowheadFitFallback: typed<ArrowheadFitFallback>("line-only"),
+      arrowheadFitMinLineLength: 2,
     },
     mapAreas: {
       func: typed<GenericMapAreaStyle>({
@@ -497,7 +503,7 @@ const _DS = {
     headerGap: 5,
     gapX: 15,
     gapY: 15,
-    nCols: typed<number | "auto">("auto"),
+    nCols: typed<NColsOrAuto>("auto"),
     minWidth: 230,
   },
   // Scene: the element model under hand-built figures and diagrams. A box's
@@ -618,7 +624,8 @@ const _DS = {
     projection: typed<MapProjection>("equirectangular"),
     fit: typed<"all-map-areas" | "only-map-areas-in-data">("all-map-areas"),
     // Where a map area's label goes. "centroid" pins every label to its map area's
-    // centroid whatever happens; "callout" sends every label outside; "auto"
+    // centroid whatever happens, moved only to clear its neighbours and to stay
+    // inside the sub-chart; "callout" sends every label outside; "auto"
     // keeps a label inside when it genuinely fits and exiles the rest.
     //
     // "auto" is the default because "centroid" piles up on any dense map:
@@ -685,7 +692,7 @@ const _DS = {
       headerPosition: typed<"top" | "bottom">("top"),
       gapX: 15,
       gapY: 15,
-      nCols: typed<number | "auto">("auto"),
+      nCols: typed<NColsOrAuto>("auto"),
     },
     labelCollision: defaultLabelCollision(),
     ...defaultLabelPlacement(),

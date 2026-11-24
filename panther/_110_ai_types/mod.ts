@@ -47,6 +47,7 @@ export {
   supportsDisabledThinking,
   supportsDynamicWebTools,
   supportsManualThinking,
+  TOOL_DISPLAY_LIMITS,
 } from "./anthropic_consts.ts";
 
 export {
@@ -60,6 +61,7 @@ export {
 export type { PersistedModelSettings, SystemParam } from "./request_shaping.ts";
 
 export {
+  appendToolResultNotice,
   buildCancelledToolResults,
   buildToolResultUserMessage,
   classifyTurnContinuation,
@@ -70,6 +72,7 @@ export {
   getUserFacingAIErrorMessage,
   hashRequestPrefix,
   legacyStripEphemeralMarkers,
+  limitToolDisplayStructured,
   limitToolResultImages,
   reconcileRequestPrefix,
   RELEASED_IMAGE_TEXT,

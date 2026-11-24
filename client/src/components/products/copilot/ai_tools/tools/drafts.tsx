@@ -11,11 +11,11 @@ import {
   type MetricWithStatus,
   type PackageScope,
   t3,
+  validateTextOnlyMarkdown,
 } from "lib";
 import {
   assertSplitImageAsset,
   validateMaxContentBlocks,
-  validateNoMarkdownTables,
   validateSlideTotalWordCount,
 } from "../../_shared/mod.ts";
 import {
@@ -71,7 +71,7 @@ export function getClientToolsForDrafts(
           );
           for (const block of input.slide.blocks) {
             if (block.type === "text") {
-              validateNoMarkdownTables(block.markdown);
+              validateTextOnlyMarkdown(block.markdown);
             }
           }
         }

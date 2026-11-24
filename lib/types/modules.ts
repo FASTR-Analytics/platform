@@ -8,11 +8,11 @@ import {
   type CatalogExpressionEvaluation,
   type Metric,
   type MetricAIDescription,
-  type PeriodOption,
   type PostAggregationExpression,
-  type ValueFunc,
   type VizPreset,
 } from "./_metric_installed.ts";
+import type { PeriodOption } from "./period_options.ts";
+import type { ValueFunc } from "./value_func.ts";
 import { t3 } from "../translate/mod.ts";
 
 export type ModuleDefinitionDetail = ModuleDefinitionInstalled & {
@@ -25,11 +25,7 @@ import type {
 } from "./presentation_objects.ts";
 
 // Re-export types from _metric_installed.ts for convenience
-export type {
-  CatalogExpressionEvaluation,
-  PostAggregationExpression,
-  ValueFunc,
-};
+export type { CatalogExpressionEvaluation, PostAggregationExpression };
 
 export type ResultsValue = {
   id: string;

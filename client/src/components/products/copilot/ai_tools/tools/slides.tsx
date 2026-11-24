@@ -14,6 +14,7 @@ import {
   type Slide,
   t3,
   TC,
+  validateTextOnlyMarkdown,
   withKeptSlideSettings,
 } from "lib";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
@@ -29,7 +30,6 @@ import {
 import {
   assertSplitImageAsset,
   validateMaxContentBlocks,
-  validateNoMarkdownTables,
   validateSlideTotalWordCount,
 } from "../../_shared/mod.ts";
 import { assertSlidesNotBusy } from "../validators/mod.ts";
@@ -80,7 +80,7 @@ function validateAiSlideInput(slide: AiSlideInput): void {
   const texts = slide.blocks.flatMap((b) =>
     b.type === "text" ? [b.markdown] : []
   );
-  for (const text of texts) validateNoMarkdownTables(text);
+  for (const text of texts) validateTextOnlyMarkdown(text);
   validateSlideTotalWordCount(
     texts,
     slide.layoutRows ? DECK_BLUEPRINT_SLIDE_WORDS_MAX : undefined,

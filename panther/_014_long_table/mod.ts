@@ -35,6 +35,8 @@ export type {
   PeriodFilter,
   ResolvedDimension,
   RowsResult,
+  SqlColumn,
+  SqlRowsResult,
 } from "./types.ts";
 export {
   caseHint,

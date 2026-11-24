@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { For, type JSX, Show } from "solid-js";
+import { t3 } from "../deps.ts";
 import { Input } from "../form_inputs/input.tsx";
 import { Button } from "../form_inputs/button.tsx";
 import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
@@ -101,7 +102,16 @@ export function HeadingBar<T extends string = string>(p: Props<T>) {
       <Show when={hasLeft()}>
         <div class="ui-gap flex min-w-0 flex-1 basis-1 items-center">
           <Show when={p.onBack !== undefined}>
-            <Button iconName="chevronLeft" onClick={handleBack} />
+            <Button
+              iconName="chevronLeft"
+              onClick={handleBack}
+              ariaLabel={t3({
+                en: "Back",
+                fr: "Retour",
+                pt: "Voltar",
+                th: "กลับ",
+              })}
+            />
           </Show>
           <Show when={p.leftChildren} keyed>
             {(keyedLeftChildren) => {

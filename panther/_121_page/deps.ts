@@ -6,7 +6,7 @@
 export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export { deduplicateFonts } from "../_001_font/mod.ts";
-export type { FontInfo } from "../_001_font/mod.ts";
+export type { FontInfo, TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Padding, RectCoordsDims } from "../_001_geometry/mod.ts";
 export type { AlignH, AlignV } from "../_001_geometry/mod.ts";
 export type {
@@ -23,6 +23,7 @@ export { CustomPageStyle } from "../_005_page_style/mod.ts";
 export type {
   CustomPageStyleOptions,
   LogosPlacement,
+  LogosSizing,
   MergedCoverStyle,
   MergedFreeformStyle,
   MergedPageNumberStyle,
@@ -36,6 +37,7 @@ export {
   createItemNode,
   createRowsNode,
   generateCandidates,
+  isOverflow,
   measureLayout,
   pickBestLayout,
   renderContainerStyle,
@@ -43,15 +45,16 @@ export {
   walkLayout,
 } from "../_008_layouter/mod.ts";
 export type {
-  HeightConstraints,
-  ItemHeightMeasurer,
   ItemLayoutNode,
+  ItemSizeMeasurer,
   LayoutGap,
   LayoutNode,
+  LayoutOverflowCause,
   LayoutStyleConfig,
   MeasuredLayoutNode,
   OptimizerConfig,
   ScoredLayout,
+  SizeConstraints,
 } from "../_008_layouter/mod.ts";
 export { measureLogos } from "../_009_logos/mod.ts";
 export type { MeasuredLogos } from "../_009_logos/mod.ts";

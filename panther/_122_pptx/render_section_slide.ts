@@ -105,9 +105,11 @@ export function renderSectionSlide(
     ? measured.mSectionSubtitle.dims.h()
     : 0;
 
-  const totalH = sectionTitleH +
-    (sectionSubtitleH > 0 ? s.sectionTitleBottomPadding + sectionSubtitleH : 0);
-  let currentY = getStartY(bounds, padding, s.alignV, totalH);
+  const titleGap = sectionTitleH > 0 && sectionSubtitleH > 0
+    ? s.sectionTitleBottomPadding
+    : 0;
+  const totalH = sectionTitleH + titleGap + sectionSubtitleH;
+  let currentY = getStartY(bounds.getPadded(padding), s.alignV, totalH);
 
   // Render each text element at its measured position
   if (measured.mSectionTitle && sectionTitleH > 0) {
@@ -119,7 +121,7 @@ export function renderSectionSlide(
       s.alignH,
       currentY,
     );
-    currentY += sectionTitleH + s.sectionTitleBottomPadding;
+    currentY += sectionTitleH + titleGap;
   }
 
   if (measured.mSectionSubtitle && sectionSubtitleH > 0) {
@@ -202,17 +204,16 @@ function addMeasuredTextToSlide(
 }
 
 function getStartY(
-  bounds: import("./deps.ts").RectCoordsDims,
-  padding: Padding,
+  paddedBounds: import("./deps.ts").RectCoordsDims,
   alignV: AlignV,
   totalH: number,
 ): number {
   switch (alignV) {
     case "top":
-      return bounds.y() + padding.pt();
+      return paddedBounds.y();
     case "bottom":
-      return bounds.y() + bounds.h() - padding.pb() - totalH;
+      return paddedBounds.bottomY() - totalH;
     case "middle":
-      return bounds.y() + (bounds.h() - totalH) / 2;
+      return paddedBounds.centerY() - totalH / 2;
   }
 }

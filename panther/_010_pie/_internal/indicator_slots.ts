@@ -100,15 +100,19 @@ type SlotObjectiveContext = {
   labelBudget: PieLabelFloorBudget;
 };
 
-// The slot objective: the content scale the best-fitting pie achieves in a slot
-// grid of c columns — content, not slot, so the pie has to fit its label
-// gutter beside it and its header above or below it.
-function slotScaleAt(
+// The slot objective for a slot grid of c columns: the content scale the
+// best-fitting pie achieves in it — content, not slot, so the pie has to fit
+// its label gutter beside it and its header above or below it — and whether
+// its slots hold the largest inside label box, which is confined to the slot
+// less its header.
+type SlotGridFit = { c: number; scale: number; holdsInsideLabels: boolean };
+
+function slotGridFitAt(
   ctx: SlotObjectiveContext,
   c: number,
   subChartWidth: number,
   subChartHeight: number,
-): number {
+): SlotGridFit {
   const { rc, data, mergedStyle, labelBudget } = ctx;
   const n = getDimensionMembers(data.indicator).length;
   const ind = mergedStyle.pie.indicators;
@@ -126,15 +130,24 @@ function slotScaleAt(
   const silhouette = resolvePieSilhouette(mergedStyle);
   const silW = silhouette.left + silhouette.right;
   const silH = silhouette.top + silhouette.bottom;
-  return Math.min(
-    silW > 0 ? availW / silW : availW,
-    silH > 0 ? availH / silH : availH,
-  );
+  return {
+    c,
+    scale: Math.min(
+      silW > 0 ? availW / silW : availW,
+      silH > 0 ? availH / silH : availH,
+    ),
+    // A slot shorter than its header has no room rather than negative room,
+    // so with no inside label to hold every grid holds it.
+    holdsInsideLabels: labelBudget.insideBoxWidth <= Math.max(0, slotW) &&
+      labelBudget.insideBoxHeight <= Math.max(0, slotH - headerAllowance),
+  };
 }
 
 // The measure pass's "auto" column count: the wrap that maximises the
-// achievable content scale in the sub-chart it was actually given. Not a
-// fewer-columns rule — a slot grid trades columns for rows, so in a
+// achievable content scale in the sub-chart it was actually given, among the
+// wraps whose slots hold the inside labels whenever one does, since an inside
+// label larger than its slot makes the pie cramped and a smaller disc does
+// not. Not a fewer-columns rule — a slot grid trades columns for rows, so in a
 // wide, short sub-chart fewer columns is strictly worse.
 export function bestSlotColsAt(
   ctx: SlotObjectiveContext,
@@ -144,14 +157,18 @@ export function bestSlotColsAt(
 ): number {
   const n = getDimensionMembers(ctx.data.indicator).length;
   if (n <= 1) return 1;
+  const fits = Array.from(
+    { length: n },
+    (_, i) => slotGridFitAt(ctx, i + 1, subChartWidth, subChartHeight),
+  );
+  const holding = fits.filter((f) => f.holdsInsideLabels);
   let bestC = 1;
   let bestS = -Infinity;
-  for (let c = 1; c <= n; c++) {
-    const s = slotScaleAt(ctx, c, subChartWidth, subChartHeight);
-    if (s > bestS + SLOT_SCALE_TIE_EPSILON) {
+  for (const { c, scale } of holding.length > 0 ? holding : fits) {
+    if (scale > bestS + SLOT_SCALE_TIE_EPSILON) {
       bestC = c;
-      bestS = s;
-    } else if (s > bestS - SLOT_SCALE_TIE_EPSILON && c === preferred) {
+      bestS = scale;
+    } else if (scale > bestS - SLOT_SCALE_TIE_EPSILON && c === preferred) {
       bestC = c;
     }
   }
@@ -166,7 +183,8 @@ export function bestSlotColsAt(
 // measure pass's draw-time cap — for a full disc and any width-symmetric
 // gauge this is identical to capping the drawn width, and for a
 // width-asymmetric gauge it is the reading that keeps the natural size and
-// the drawn size in agreement.
+// the drawn size in agreement. The slot's height then combines by placer and
+// holds the largest inside label box, exactly as the floor does.
 export function idealSubChartHeightAt(
   ctx: SlotObjectiveContext,
   c: number,
@@ -193,9 +211,12 @@ export function idealSubChartHeightAt(
     contentFloor / 2,
   );
   const contentH = silH > 0 ? s * silH : s * 2;
-  const slotContentH = mergedStyle.pie.outsideLabelPlacement === "nearest"
-    ? contentH + labelBudget.vertical
-    : Math.max(contentH, labelBudget.vertical);
+  const slotContentH = Math.max(
+    mergedStyle.pie.outsideLabelPlacement === "nearest"
+      ? contentH + labelBudget.vertical
+      : Math.max(contentH, labelBudget.vertical),
+    labelBudget.insideBoxHeight,
+  );
   return nSlotRows * (slotContentH + headerAllowance) +
     (nSlotRows - 1) * ind.gapY;
 }

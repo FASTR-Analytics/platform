@@ -57,7 +57,9 @@ export async function fetchCommits(
 ): Promise<APIResponseWithData<GitHubCommit[]>> {
   try {
     const url =
-      `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&sha=${branch}&per_page=10`;
+      `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&sha=${
+        encodeURIComponent(branch)
+      }&per_page=10`;
 
     const response = await githubFetch(url, GITHUB_API_HEADERS);
 

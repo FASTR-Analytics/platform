@@ -6,13 +6,13 @@
 import type {
   AlignV,
   ColorKeyOrString,
-  HeightConstraints,
   Padding,
   PaddingOptions,
   RectCoordsDims,
+  SizeConstraints,
 } from "./deps.ts";
 
-export type { HeightConstraints };
+export type { SizeConstraints };
 
 export type LayoutNodeId = string;
 
@@ -56,8 +56,11 @@ export type ResolvedContainerStyle = {
 
 export type LayoutNodeBase = {
   id: LayoutNodeId;
-  minH?: number; // Override minimum height
-  maxH?: number; // Override maximum height
+  // Total heights, padding and border included. minH raises the minimum the
+  // content needs and never lowers it, since content given less than that
+  // does not fit. maxH replaces the content's maximum, never below the minimum.
+  minH?: number;
+  maxH?: number;
   span?: number;
 };
 
@@ -120,15 +123,32 @@ export type MeasuredLayoutNode<U> =
   | MeasuredColsLayoutNode<U>
   | MeasuredItemLayoutNode<U>;
 
-export type ItemHeightMeasurer<T, U> = (
+export type ItemSizeMeasurer<T, U> = (
   ctx: T,
   item: ItemLayoutNode<U>,
   width: number,
-) => HeightConstraints;
+) => SizeConstraints;
+
+export type LayoutNodeNeed = { id: LayoutNodeId; need: number };
+
+export type LayoutOverflowCause = {
+  axis: "height" | "width";
+  need: number;
+  available: number;
+  // Height: every item that adds to it, as a rows passes on what each of its
+  // children names and a cols what its tallest children name (every one of
+  // them where they tie), and a node whose own minH raises its minimum, named
+  // in place of its content, so shrinking a node it does not name never
+  // lowers the need. Width: the item wider than its rect, or the root of a
+  // box of negative width.
+  neededBy: LayoutNodeNeed[];
+};
 
 export type MeasureLayoutResult<U> = {
   measured: MeasuredLayoutNode<U>;
+  // overflowCauses.length > 0, set where the list is built.
   overflow: boolean;
+  overflowCauses: LayoutOverflowCause[];
   gaps: LayoutGap[];
 };
 

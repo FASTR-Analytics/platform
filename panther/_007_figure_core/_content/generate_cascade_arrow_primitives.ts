@@ -58,7 +58,7 @@ function computeCascadeArrow(
 
   const midX = (fromX + toX) / 2;
   const diffY = toY - fromY;
-  const lengthOfArrowWithGracefulTrunk = s.arrowHeadLength * 1.5;
+  const lengthOfArrowWithGracefulTrunk = s.arrowHeadLength + s.arrowTrunkLength;
 
   const arrowGap = ((toX - fromX) * (1 - s.arrowLengthFractionOfSpace)) / 2;
 

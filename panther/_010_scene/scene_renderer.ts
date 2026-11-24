@@ -5,10 +5,10 @@
 
 import { renderFigureBackground, renderFigurePrimitives } from "./deps.ts";
 import type {
-  HeightConstraints,
   RectCoordsDims,
   RenderContext,
   Renderer,
+  SizeConstraints,
 } from "./deps.ts";
 import type { MeasuredScene, Scene, SceneInputs } from "./types.ts";
 import { SceneBuilder } from "./builder.ts";
@@ -66,7 +66,7 @@ export const SceneRenderer: Renderer<SceneInputs, MeasuredScene> = {
     rc: RenderContext,
     width: number,
     inputs: SceneInputs,
-  ): HeightConstraints {
+  ): SizeConstraints {
     return getSceneFigureIdealHeight(rc, width, inputs, sceneSource(inputs));
   },
 };

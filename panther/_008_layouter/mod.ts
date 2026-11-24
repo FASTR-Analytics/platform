@@ -8,10 +8,9 @@ export type {
   ContainerDecorationOptions,
   ContainerLayoutNode,
   ContainerStyleOptions,
-  HeightConstraints,
   IdGenerator,
-  ItemHeightMeasurer,
   ItemLayoutNode,
+  ItemSizeMeasurer,
   LayoutGap,
   LayoutGapColDivider,
   LayoutGapColGap,
@@ -19,6 +18,8 @@ export type {
   LayoutNode,
   LayoutNodeBase,
   LayoutNodeId,
+  LayoutNodeNeed,
+  LayoutOverflowCause,
   MeasuredColsLayoutNode,
   MeasuredItemLayoutNode,
   MeasuredLayoutNode,
@@ -27,6 +28,7 @@ export type {
   ResolvedContainerDecoration,
   ResolvedContainerStyle,
   RowsLayoutNode,
+  SizeConstraints,
 } from "./types.ts";
 
 export {
@@ -40,6 +42,7 @@ export {
 
 export { createCachedMeasurer, measureLayout } from "./measure.ts";
 export type { MeasureLayoutOptions } from "./measure.ts";
+export { isOverflow } from "./overflow.ts";
 
 export { findFirstItem, walkLayout } from "./walk.ts";
 export type { LayoutVisitor } from "./walk.ts";

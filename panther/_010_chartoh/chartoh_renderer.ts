@@ -11,21 +11,21 @@ import {
 } from "./_internal/get_size_info.ts";
 import {
   type ChartComponentSizes,
+  type ChartProbeSizing,
   computeTotalGridLineStrokeWidth,
   countProportionalSlots,
-  getChartHeightConstraintsByMeasure,
+  getChartSizeConstraintsByMeasure,
   getDimensionMembers,
-  type HeightConstraints,
   maxNVisible,
   maxProportionalPaneCategoryAxisExtent,
   measureChartWithAutofit,
-  type PaneGrid,
   type PaneLayout,
   RectCoordsDims,
   type RenderContext,
   type Renderer,
   type ResolveFloorExtent,
   type ResolveTargetExtent,
+  type SizeConstraints,
 } from "./deps.ts";
 import type { MergedChartOHStyle } from "./deps.ts";
 import type {
@@ -270,22 +270,28 @@ function buildOHResolveFloorSlotExtent(
 
 // Probes run layout-only: they consume the returned geometry, never the
 // primitives, so content-primitive generation is skipped.
-function buildOHProbe(
+function buildOHProbeSizing(
   rc: RenderContext,
   width: number,
   inputs: ChartOHInputs,
   data: ChartOHDataTransformed,
-): (probeH: number, paneGrid: PaneGrid, scale?: number) => PaneLayout[] {
-  return (probeH, paneGrid, scale) =>
-    measureChartOH(
-      rc,
-      new RectCoordsDims([0, 0, width, probeH]),
-      inputs,
-      paneGrid,
-      scale,
-      data,
-      true,
-    ).paneLayouts;
+): ChartProbeSizing {
+  return {
+    probeMeasure: (probeH, paneGrid, scale) =>
+      measureChartOH(
+        rc,
+        new RectCoordsDims([0, 0, width, probeH]),
+        inputs,
+        paneGrid,
+        scale,
+        data,
+        true,
+      ).paneLayouts,
+    resolveTarget: buildOHResolveTarget(rc, data),
+    resolveFloor: buildOHResolveFloor(rc, data),
+    resolveTargetSlotExtent: buildOHResolveTargetSlotExtent(rc, data),
+    resolveFloorSlotExtent: buildOHResolveFloorSlotExtent(rc, data),
+  };
 }
 
 function measureOH(
@@ -302,11 +308,7 @@ function measureOH(
     (scale) => getChartOHComponentSizes(rc, inputs, data, scale),
     (rc2, b, inp, paneGrid, fitScale) =>
       measureChartOH(rc2, b, inp, paneGrid, fitScale, data),
-    buildOHProbe(rc, w, inputs, data),
-    buildOHResolveTarget(rc, data),
-    buildOHResolveFloor(rc, data),
-    buildOHResolveTargetSlotExtent(rc, data),
-    buildOHResolveFloorSlotExtent(rc, data),
+    buildOHProbeSizing(rc, w, inputs, data),
   );
 }
 
@@ -340,18 +342,14 @@ export const ChartOHRenderer: Renderer<ChartOHInputs, MeasuredChartOH> = {
     rc: RenderContext,
     width: number,
     inputs: ChartOHInputs,
-  ): HeightConstraints {
+  ): SizeConstraints {
     const data = getChartOHSizingData(inputs);
-    return getChartHeightConstraintsByMeasure(
+    return getChartSizeConstraintsByMeasure(
       rc,
       width,
       inputs,
       (scale) => getChartOHComponentSizes(rc, inputs, data, scale),
-      buildOHProbe(rc, width, inputs, data),
-      buildOHResolveTarget(rc, data),
-      buildOHResolveFloor(rc, data),
-      buildOHResolveTargetSlotExtent(rc, data),
-      buildOHResolveFloorSlotExtent(rc, data),
+      buildOHProbeSizing(rc, width, inputs, data),
     );
   },
 };

@@ -19,17 +19,54 @@ import type {
 } from "./types.ts";
 import { updateLayout } from "./update.ts";
 
-function distributeSpansBalanced(
-  totalSpan: number,
-  count: number,
-): number[] {
-  const base = Math.floor(totalSpan / count);
-  const remainder = totalSpan % count;
-  const spans: number[] = [];
-  for (let i = 0; i < count; i++) {
-    spans.push(i < remainder ? base + 1 : base);
+// The span a node without one of its own is drawn at, which normalizing the
+// whole layout gives it.
+function drawnSpan<U>(layout: LayoutNode<U>, id: LayoutNodeId): number {
+  const normalized = normalizeLayout(
+    layout,
+    layout.span ?? _GLOBAL_LAYOUT_COLUMNS,
+  );
+  return findById(normalized, id)?.node.span ?? _GLOBAL_LAYOUT_COLUMNS;
+}
+
+function minimumsFit<U>(nodes: LayoutNode<U>[], span: number): boolean {
+  return nodes.reduce((sum, node) => sum + getMinimumSpan(node), 0) <= span;
+}
+
+// The children share the span equally, each at least its minimum, which must
+// fit; a container child's own children follow its new span.
+function shareSpanEqually<U>(children: LayoutNode<U>[], span: number): void {
+  const spans = rescaleSpans(
+    children.map(() => 1),
+    span,
+    children.map(getMinimumSpan),
+  );
+  children.forEach((child, i) => {
+    const oldChildSpan = child.span ?? calculateNodeSpan(child);
+    child.span = spans[i];
+    if (child.type !== "item" && oldChildSpan !== spans[i]) {
+      rescaleDescendantSpans(child, oldChildSpan, spans[i]);
+    }
+  });
+}
+
+// The target keeps half the span, or its minimum where that is more, and the
+// added node takes the rest; undefined when the two minimums do not fit.
+function splitSpan<U>(
+  span: number,
+  target: LayoutNode<U>,
+  added: LayoutNode<U>,
+): { target: number; added: number } | undefined {
+  const targetMin = getMinimumSpan(target);
+  const addedMin = getMinimumSpan(added);
+  if (targetMin + addedMin > span) {
+    return undefined;
   }
-  return spans;
+  const targetSpan = Math.min(
+    Math.max(Math.floor(span / 2), targetMin),
+    span - addedMin,
+  );
+  return { target: targetSpan, added: span - targetSpan };
 }
 
 export function deleteNode<U>(
@@ -50,7 +87,11 @@ export function deleteNode<U>(
     if (parent.type === "cols" && parent.children.length > 0) {
       const parentSpan = parent.span ?? _GLOBAL_LAYOUT_COLUMNS;
       const oldSpans = parent.children.map((c) => c.span ?? 1);
-      const newSpans = rescaleSpans(oldSpans, parentSpan);
+      const newSpans = rescaleSpans(
+        oldSpans,
+        parentSpan,
+        parent.children.map(getMinimumSpan),
+      );
       for (let i = 0; i < parent.children.length; i++) {
         const child = parent.children[i];
         const oldChildSpan = oldSpans[i];
@@ -154,7 +195,11 @@ function rescaleDescendantSpans<U>(
     }
   } else {
     const oldSpans = node.children.map((c) => c.span ?? 1);
-    const newSpans = rescaleSpans(oldSpans, newParentSpan);
+    const newSpans = rescaleSpans(
+      oldSpans,
+      newParentSpan,
+      node.children.map(getMinimumSpan),
+    );
     for (let i = 0; i < node.children.length; i++) {
       const child = node.children[i];
       const oldChildSpan = oldSpans[i];
@@ -173,13 +218,12 @@ export function canSplitIntoColumns<U>(
   const found = findById(layout, nodeId);
   if (!found) return false;
   const node = found.node;
-  const minSpan = getMinimumSpan(node);
   const currentSpan = found.parent
     ? (found.parent.type === "rows"
       ? (found.parent.span ?? _GLOBAL_LAYOUT_COLUMNS)
       : (node.span ?? 1))
     : (node.span ?? _GLOBAL_LAYOUT_COLUMNS);
-  return currentSpan >= Math.max(2, minSpan);
+  return currentSpan > getMinimumSpan(node);
 }
 
 export function updateNodeData<U>(
@@ -207,7 +251,13 @@ export function insertSibling<U>(
 
     const parent = parentInfo.parent;
 
-    const parentSpan = parent.span ?? calculateNodeSpan(parent);
+    const parentSpan = parent.span ?? drawnSpan(layout, parent.id);
+    if (
+      parent.type === "cols" &&
+      !minimumsFit([...parent.children, newNode], parentSpan)
+    ) {
+      return;
+    }
 
     const insertIndex = position === "before"
       ? parentInfo.index
@@ -224,22 +274,7 @@ export function insertSibling<U>(
         }
       }
     } else {
-      const balancedSpans = distributeSpansBalanced(
-        parentSpan,
-        parent.children.length,
-      );
-
-      for (let i = 0; i < parent.children.length; i++) {
-        const child = parent.children[i];
-        const oldChildSpan = child.span ?? calculateNodeSpan(child);
-        const newChildSpan = balancedSpans[i];
-
-        child.span = newChildSpan;
-
-        if (child.type !== "item" && oldChildSpan !== newChildSpan) {
-          rescaleDescendantSpans(child, oldChildSpan, newChildSpan);
-        }
-      }
+      shareSpanEqually(parent.children, parentSpan);
     }
   });
 }
@@ -253,10 +288,13 @@ export function splitIntoColumns<U>(
 ): LayoutNode<U> {
   if (layout.id === targetId) {
     const targetSpan = layout.span ?? _GLOBAL_LAYOUT_COLUMNS;
-    if (targetSpan < 2) return layout;
-    const halfSpan = Math.floor(targetSpan / 2);
-    const child1 = normalizeLayout({ ...layout, span: halfSpan }, halfSpan);
-    const child2 = { ...newNode, span: targetSpan - halfSpan };
+    const split = splitSpan(targetSpan, layout, newNode);
+    if (!split) return layout;
+    const child1 = normalizeLayout(
+      { ...layout, span: split.target },
+      split.target,
+    );
+    const child2 = { ...newNode, span: split.added };
     const children = position === "before"
       ? [child2, child1]
       : [child1, child2];
@@ -273,25 +311,24 @@ export function splitIntoColumns<U>(
       ? (parent.span ?? _GLOBAL_LAYOUT_COLUMNS)
       : (targetNode.span ?? 1);
 
-    if (targetSpan < 2) return;
+    const split = splitSpan(targetSpan, targetNode, newNode);
+    if (!split) return;
 
     if (parent.type === "cols") {
-      const halfSpan = Math.floor(targetSpan / 2);
       const oldTargetSpan = targetNode.span ?? calculateNodeSpan(targetNode);
-      targetNode.span = halfSpan;
-      newNode.span = targetSpan - halfSpan;
-      if (targetNode.type !== "item" && oldTargetSpan !== halfSpan) {
-        rescaleDescendantSpans(targetNode, oldTargetSpan, halfSpan);
+      targetNode.span = split.target;
+      newNode.span = split.added;
+      if (targetNode.type !== "item" && oldTargetSpan !== split.target) {
+        rescaleDescendantSpans(targetNode, oldTargetSpan, split.target);
       }
       const insertIndex = position === "before" ? index : index + 1;
       parent.children.splice(insertIndex, 0, newNode);
     } else {
-      const halfSpan = Math.floor(targetSpan / 2);
       const child1 = normalizeLayout(
-        { ...targetNode, span: halfSpan },
-        halfSpan,
+        { ...targetNode, span: split.target },
+        split.target,
       );
-      const child2 = { ...newNode, span: targetSpan - halfSpan };
+      const child2 = { ...newNode, span: split.added };
       const children = position === "before"
         ? [child2, child1]
         : [child1, child2];
@@ -503,89 +540,26 @@ export function addCol<U>(
   position: "left" | "right",
   idGenerator?: IdGenerator,
 ): LayoutNode<U> {
-  if (layout.id === targetId || layout.type === "item") {
-    const layoutSpan = layout.span ?? _GLOBAL_LAYOUT_COLUMNS;
-    const halfSpan = Math.floor(layoutSpan / 2);
-
-    const child1 = normalizeLayout(layout, halfSpan);
-    const child2 = { ...newNode, span: layoutSpan - halfSpan };
-    const children = position === "left" ? [child2, child1] : [child1, child2];
-    return createColsNode(children, { span: layoutSpan }, idGenerator);
-  }
-
-  const parentInfo = findParentInDraft(layout, targetId);
-  if (parentInfo && parentInfo.parent.type === "cols") {
-    return updateLayout(layout, (draft) => {
-      const info = findParentInDraft(draft, targetId);
-      if (info && info.parent.type === "cols") {
-        const parent = info.parent;
-
-        const clonedNew = { ...newNode };
-        const insertIndex = position === "left" ? info.index : info.index + 1;
-
-        parent.children.splice(insertIndex, 0, clonedNew);
-
-        const parentSpan = parent.span ?? calculateNodeSpan(parent);
-        const balancedSpans = distributeSpansBalanced(
-          parentSpan,
-          parent.children.length,
-        );
-
-        for (let i = 0; i < parent.children.length; i++) {
-          const child = parent.children[i];
-          const oldChildSpan = child.span ?? calculateNodeSpan(child);
-          const newChildSpan = balancedSpans[i];
-
-          child.span = newChildSpan;
-
-          if (child.type !== "item" && oldChildSpan !== newChildSpan) {
-            rescaleDescendantSpans(child, oldChildSpan, newChildSpan);
-          }
-        }
-      }
-    });
-  }
-
-  const colsAncestor = findColsAncestor(layout, targetId);
-
-  if (colsAncestor) {
+  if (findColsAncestor(layout, targetId)) {
     return updateLayout(layout, (draft) => {
       const ancestor = findColsAncestor(draft, targetId);
-      if (ancestor) {
-        const parent = ancestor.colsParent;
-
-        const clonedNew = { ...newNode };
-        const insertIndex = position === "left"
-          ? ancestor.childIndex
-          : ancestor.childIndex + 1;
-
-        parent.children.splice(insertIndex, 0, clonedNew);
-
-        const parentSpan = parent.span ?? calculateNodeSpan(parent);
-        const balancedSpans = distributeSpansBalanced(
-          parentSpan,
-          parent.children.length,
-        );
-
-        for (let i = 0; i < parent.children.length; i++) {
-          const child = parent.children[i];
-          const oldChildSpan = child.span ?? calculateNodeSpan(child);
-          const newChildSpan = balancedSpans[i];
-
-          child.span = newChildSpan;
-
-          if (child.type !== "item" && oldChildSpan !== newChildSpan) {
-            rescaleDescendantSpans(child, oldChildSpan, newChildSpan);
-          }
-        }
-      }
+      if (!ancestor) return;
+      const parent = ancestor.colsParent;
+      const parentSpan = parent.span ?? drawnSpan(layout, parent.id);
+      if (!minimumsFit([...parent.children, newNode], parentSpan)) return;
+      const insertIndex = position === "left"
+        ? ancestor.childIndex
+        : ancestor.childIndex + 1;
+      parent.children.splice(insertIndex, 0, { ...newNode });
+      shareSpanEqually(parent.children, parentSpan);
     });
   }
 
   const layoutSpan = layout.span ?? _GLOBAL_LAYOUT_COLUMNS;
-  const halfSpan = Math.floor(layoutSpan / 2);
-  const child1 = normalizeLayout(layout, halfSpan);
-  const child2 = { ...newNode, span: layoutSpan - halfSpan };
+  const split = splitSpan(layoutSpan, layout, newNode);
+  if (!split) return layout;
+  const child1 = normalizeLayout(layout, split.target);
+  const child2 = { ...newNode, span: split.added };
   const children = position === "left" ? [child2, child1] : [child1, child2];
   return createColsNode(children, { span: layoutSpan }, idGenerator);
 }

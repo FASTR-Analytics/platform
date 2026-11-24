@@ -63,7 +63,8 @@ export const EVERY_FACILITY_COLUMN: StructureColumns = {
 
 // Every metric of the definitions as the authoring context carries it, each
 // ready, labelled in English, with the options its results object's columns
-// give and no presets.
+// give, whether its rows are facilities (a facility_id column, as a package
+// stamps it), and no presets.
 export function metricsWithStatusOf(
   definitions: ModuleDefinitions,
   facilityColumns?: StructureColumns,
@@ -71,7 +72,11 @@ export function metricsWithStatusOf(
   return [...definitions.entries()].flatMap(([moduleId, def]) =>
     def.metrics.map((m): MetricWithStatus => {
       const available = availableOptionsOf(def, m, facilityColumns);
+      const columns = def.resultsObjects.find((r) => r.id === m.resultsObjectId)
+        ?.createTableStatementPossibleColumns;
       return {
+        hasFacilityLevelRows: columns !== undefined && columns !== false &&
+          "facility_id" in columns,
         id: m.id,
         moduleId,
         status: "ready",

@@ -1,8 +1,9 @@
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertThrows } from "@std/assert";
 import {
   analyzeSlideMarkdown,
   assignRunsToUnit,
   escapeTypedSlideText,
+  findSlideTableOrImage,
   slideBackspace,
   slideDeleteForward,
   slideDeleteRange,
@@ -16,7 +17,15 @@ import {
   SRC_INLINE_SYNTAX,
   SRC_VISIBLE,
 } from "../../lib/slide_text_offsets.ts";
-import { parseMarkdown } from "@timroberton/panther";
+import {
+  describeSlideTableOrImageForAI,
+  validateTextOnlyMarkdown,
+} from "../../lib/ai_tools/slide_text_for_ai.ts";
+import {
+  AIToolFailure,
+  createMarkdownIt,
+  parseMarkdown,
+} from "@timroberton/panther";
 
 // The canvas slide editor draws the caret from these maps, so a wrong offset
 // is a caret painted on the wrong glyph, and a wrong edit is markdown syntax
@@ -314,4 +323,202 @@ Deno.test("an empty list item is drawn (Enter on a bullet shows the bullet)", ()
   const r = slideInsertText(an, 6, "x");
   assertEquals(apply(src, r), "- a\n- x\n- **b**");
   assertEquals(r.anchor, 7);
+});
+
+// A text block draws text only, so the copilot refuses one holding a table or
+// an image: MarkdownRenderer cannot draw a table outside a quote or an image
+// alone in a top-level paragraph, and drops or runs together any other.
+Deno.test("every table and image a text block draws is found and refused, and nothing else", () => {
+  const tables = [
+    "a | b\n--- | ---\n1 | 2",
+    "a | b | c\n-|-|-",
+    "| a | b |\n|---|---|\n| 1 | 2 |",
+    "| a\n---\n| b",
+    "intro\n\n- x\n\n  a | b\n  --- | ---",
+    "> a | b\n> --- | ---",
+  ];
+  const images = [
+    "![a](b.png)",
+    "see ![a](b.png) here",
+    "- ![a](b.png)",
+    "> ![a](b.png)",
+    "# ![a](b.png)",
+    "[![a](b.png)](http://u)",
+    "![a](b.png)\n![c](d.png)",
+  ];
+  const text = [
+    "Region A | Region B | Region C",
+    "a || b || c",
+    "x | y\n---",
+    "`![a](b)` and `a | b`",
+    "!\\[a\\](b)",
+    "```\na | b\n--- | ---\n```",
+    // Drawn with its empty item filled (slideRenderMarkdown), the table rows
+    // continue the item's text.
+    "- \na | b\n--- | ---",
+  ];
+  const found = (src: string) => findSlideTableOrImage(src)?.kind;
+  for (const src of tables) assertEquals(found(src), "table", src);
+  for (const src of images) assertEquals(found(src), "image", src);
+  for (const src of text) assertEquals(found(src), undefined, src);
+  for (const src of [...tables, ...images, ...text]) {
+    const refused = parseMarkdown(slideRenderMarkdown(src)).items.some((i) =>
+      i.type === "table" || i.type === "image"
+    );
+    if (refused) assert(found(src), src);
+  }
+  assertEquals(findSlideTableOrImage("one\n\ntwo\n\n![a](b.png)"), {
+    kind: "image",
+    line: 4,
+  });
+  for (const src of [...tables, ...images]) {
+    assertThrows(
+      () => validateTextOnlyMarkdown(src),
+      AIToolFailure,
+      `${
+        describeSlideTableOrImageForAI(
+          "This text block",
+          findSlideTableOrImage(src)!,
+        )
+      }.`,
+    );
+  }
+  for (const src of text) validateTextOnlyMarkdown(src);
+});
+
+// A table in a text block cannot be drawn, so a table pasted or typed on the
+// canvas must stay the text it was.
+Deno.test("table syntax pasted or typed on the canvas stays text", () => {
+  const paste = (src: string, text: string) =>
+    apply(src, slideInsertText(analyzeSlideMarkdown(src), src.length, text))!;
+  const type = (text: string) => {
+    let doc = "";
+    let caret = 0;
+    for (const ch of text) {
+      const r = slideInsertText(analyzeSlideMarkdown(doc), caret, ch);
+      doc = apply(doc, r)!;
+      caret = r.anchor;
+    }
+    return doc;
+  };
+  const drawn = (src: string) =>
+    analyzeSlideMarkdown(src).units.map((u) => u.text).join("\n");
+  const asText = (doc: string, text: string) => {
+    assertEquals(findSlideTableOrImage(doc), undefined, doc);
+    assert(analyzeSlideMarkdown(doc).editable, doc);
+    assertEquals(drawn(doc), text, doc);
+  };
+  assertEquals(escapeTypedSlideText("a | b"), "a &#124; b");
+  for (
+    const table of [
+      "a | b\n--- | ---\n1 | 2",
+      "a | b | c\n-|-|-",
+      "| a | b |\n|---|---|\n| 1 | 2 |",
+      "| Region |\n|---|\n| A |",
+    ]
+  ) {
+    asText(paste("", table), table);
+    asText(type(table), table);
+  }
+  asText(paste("Intro", "\na | b\n--- | ---"), "Intro\na | b\n--- | ---");
+  asText(paste("a | b", "\n--- | ---"), "a | b\n--- | ---");
+  // A one-column table whose delimiter row holds no pipe, and the heading an
+  // escaped `\|` would turn into one.
+  for (const text of ["| a\n---\n| b", "x | y\n---"]) {
+    assertEquals(findSlideTableOrImage(paste("", text)), undefined, text);
+  }
+  assertEquals(findSlideTableOrImage(type("x | y\n--")), undefined);
+  // Inside inline code an entity draws as written, so a pipe is stored as
+  // typed.
+  assertEquals(
+    apply("`ab`", slideInsertText(analyzeSlideMarkdown("`ab`"), 2, "|")),
+    "`a|b`",
+  );
+  // A restyle rewrites the line without turning a pipe back into one.
+  const bold = apply(
+    "x &#124; y",
+    slideToggleStyle(analyzeSlideMarkdown("x &#124; y"), 0, 1, "bold"),
+  )!;
+  assertEquals(bold, "**x** &#124; y");
+});
+
+// An insert no candidate renders as typed is stored as typed, so typing is
+// never lost, and it must still store nothing slide text cannot draw. A table
+// it would make (a pipe typed above a row of dashes, dashes typed under pipes
+// the canvas did not write) loses its delimiter row to an escape that draws
+// nothing; an insert whose escape would draw, inside a code span, or that
+// makes an image is refused; a quoted table the text held stays as it was.
+Deno.test("an insert the canvas cannot render as typed stores no table or image", () => {
+  const insert = (src: string, pos: number, text: string) => {
+    const r = slideInsertText(analyzeSlideMarkdown(src), pos, text);
+    return { doc: apply(src, r)!, caret: r.anchor };
+  };
+  const drawn = (src: string) =>
+    analyzeSlideMarkdown(src).units.map((u) => u.text).join("\n");
+  let typed = { doc: "| a |", caret: 5 };
+  for (const ch of ["\n", "-", "-", "-"]) {
+    typed = insert(typed.doc, typed.caret, ch);
+  }
+  assertEquals(typed, { doc: "| a |\n\\---", caret: 10 });
+  assertEquals(drawn(typed.doc), "| a |\n---");
+  assertEquals(insert("> | a |\n> -", 11, "-"), {
+    doc: "> | a |\n> \\--",
+    caret: 13,
+  });
+  assertEquals(insert("- | a |\n  -", 11, "-"), {
+    doc: "- | a |\n  \\--",
+    caret: 13,
+  });
+  assertEquals(insert("x `code`\n--|--", 5, "|"), {
+    doc: "x `co|de`\n\\--|--",
+    caret: 6,
+  });
+  assertEquals(drawn("x `co|de`\n\\--|--"), "x co|de\n--|--");
+  assertEquals(insert("x\n--|--", 5, "\n"), {
+    doc: "x\n--|\n\\--",
+    caret: 6,
+  });
+  for (
+    const [src, pos, text] of [
+      ["x `code` y", 5, "a | b\n--- | ---\n"],
+      ["a `b\nc` d\n--|--", 4, "a | b\n--- | ---"],
+      ["![a](b", 6, ")"],
+      ["x [a](b)", 2, "!"],
+    ] as const
+  ) {
+    assertEquals(insert(src, pos, text), { doc: src, caret: pos }, src);
+  }
+  assertEquals(insert("> a | b\n> --- | ---", 3, "x"), {
+    doc: "> ax | b\n> --- | ---",
+    caret: 4,
+  });
+});
+
+// Nothing typed or pasted on the canvas stores a table or an image the text
+// did not hold, at any offset of any corpus source.
+Deno.test("no insert at any offset of the corpus makes a table or an image", () => {
+  const count = (src: string) => {
+    const tokens = createMarkdownIt({ html: true }).parse(
+      slideRenderMarkdown(src),
+      {},
+    );
+    return [
+      tokens.filter((t) => t.type === "table_open").length,
+      tokens.flatMap((t) => t.children ?? []).filter((c) => c.type === "image")
+        .length,
+    ];
+  };
+  for (const src of CORPUS) {
+    const [tables, images] = count(src);
+    for (let pos = 0; pos <= src.length; pos++) {
+      for (const text of ["|", "-", "\n", "!", ")", "a | b\n--- | ---"]) {
+        const r = slideInsertText(analyzeSlideMarkdown(src), pos, text);
+        const [t, i] = count(apply(src, r)!);
+        assert(
+          t <= tables && i <= images,
+          `${JSON.stringify(text)} at ${pos} of ${JSON.stringify(src)}`,
+        );
+      }
+    }
+  }
 });

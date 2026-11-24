@@ -1,11 +1,26 @@
-[TBD] [user] [fixed] - AI assistant now correctly handles flexible slide column layouts
-[TBD] [admin] [changed] - Slide layout grid columns now use a global setting instead of being hardcoded to 12
-[TBD] [admin] [fixed] - AI copilot now rejects invalid column spans for single-cell layout rows
-[TBD] [user] [changed] - Overflow warnings now appear for all slide types, not just content slides
-[TBD] [user] [fixed] - Slides that fail to render now show a clear error instead of silently failing
-[TBD] [admin] [changed] - Overflow detection now applies to all slide types, not just content slides
-[TBD] [admin] [fixed] - Slides that cannot be measured no longer block reading other slides
-[TBD] [admin] [fixed] - Slides that cannot be drawn are now clearly refused with an explanation
+[2.16.0] [user] [changed] - Slide overflow warnings now explain exactly what doesn't fit
+[2.16.0] [user] [fixed] - Tables and images in text blocks now show a clear error message instead of a cryptic failure
+[2.16.0] [user] [added] - Slide editor shows a helpful message when a text block contains a table or image that can't be displayed
+[2.16.0] [admin] [changed] - Slide overflow messages now explain which content doesn't fit and by how much
+[2.16.0] [admin] [changed] - Text blocks containing markdown tables or images are rejected with clearer guidance
+[2.16.0] [admin] [fixed] - Slides with undrawable text blocks now show a helpful error instead of a cryptic failure
+[2.16.0] [admin] [added] - New FASTR_MODULES_BRANCH setting controls which branch modules load from
+[2.16.0] [admin] [fixed] - Branch names with special characters now work correctly for module loading
+[2.16.0] [user] [added] - Switch a figure between chart types while keeping your layout choices
+[2.16.0] [admin] [added] - New structured figure configuration system for visualizations
+[2.16.0] [admin] [added] - Figures can now be changed between chart types while preserving dimension layout
+[2.16.0] [admin] [added] - Validation with clear multilingual error messages for figure configuration problems
+[2.16.0] [admin] [changed] - Stored figures are automatically migrated to the new configuration format
+[2.16.0] [admin] [changed] - Figures that cannot be migrated (e.g. maps without regions) are safely emptied and logged
+[2.16.0] [admin] [internal] - Reorganized internal code for period options, value functions, and special chart metrics
+[2.16.0] [user] [fixed] - AI assistant now correctly handles flexible slide column layouts
+[2.16.0] [admin] [changed] - Slide layout grid columns now use a global setting instead of being hardcoded to 12
+[2.16.0] [admin] [fixed] - AI copilot now rejects invalid column spans for single-cell layout rows
+[2.16.0] [user] [changed] - Overflow warnings now appear for all slide types, not just content slides
+[2.16.0] [user] [fixed] - Slides that fail to render now show a clear error instead of silently failing
+[2.16.0] [admin] [changed] - Overflow detection now applies to all slide types, not just content slides
+[2.16.0] [admin] [fixed] - Slides that cannot be measured no longer block reading other slides
+[2.16.0] [admin] [fixed] - Slides that cannot be drawn are now clearly refused with an explanation
 [2.15.0] [user] [fixed] - AI assistant now correctly rejects unexpected fields in requests
 [2.15.0] [admin] [fixed] - AI assistant now rejects unexpected fields in tool inputs
 [2.15.0] [user] [fixed] - Improved grammar in status messages when processing single items

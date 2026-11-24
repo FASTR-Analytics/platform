@@ -52,6 +52,18 @@ export function computeFloorScale(opts: {
   return Math.min(floor, opts.maxScale, 1);
 }
 
+// The scale a figure's minimum height is measured at. A figure that opted out
+// of shrink-to-fit draws at scale 1, so its minimum is its legibility floor at
+// scale 1, never its natural height: the comfort between the two is space it
+// can give up without overlapping.
+export function resolveFigureFloorScale(
+  autofit: boolean | FigureAutofitOptions | undefined,
+  baseFontSizeDu: number,
+): number {
+  const resolved = resolveFigureAutofitOptions(autofit);
+  return resolved ? computeFloorScale({ ...resolved, baseFontSizeDu }) : 1;
+}
+
 export function getDiscreteScales(
   minScale: number,
   maxScale: number,

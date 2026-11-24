@@ -81,11 +81,18 @@ Complete form control library. Size via `size="sm"`, never ad-hoc classes. Every
   {content}
 </FrameTop>
 <FrameLeft panelPad="sm" panelChildren={<Sidebar />}>{content}</FrameLeft>
+<FrameThreeColumnResizable
+  leftChild={filesOpen() ? <Files /> : undefined}
+  leftTabs={[{ label: "Files", iconName: "folder", onOpen: () => setFilesOpen(true) }]}
+  onLeftClose={() => setFilesOpen(false)}
+  centerChild={<Editor />}
+  startingWidths={[260, 300]}
+/>
 <TabsNavigation items={items} value={active()} onChange={setActive} vertical />
 <CollapsibleSection title="Advanced" pad="md" spy="sm">{content}</CollapsibleSection>
 ```
 
-Frames: `FrameTop`, `FrameLeft`, `FrameRight`, plus `FrameLeftResizable`, `FrameRightResizable`, `FrameThreeColumnResizable`. Every slot scrolls. A slot owns its inset and its stack spacing: `pad` / `spy` (a `PadSize`: `"none" | "sm" | "md" | "lg"`, default none) on the content slot, `panelPad` / `panelSpy` on the panel slot, so no padding `<div>` sits between a Frame and its content. Side frames own their panel/content divider (never add that edge's border yourself). A resizable panel's width is bounded by its container: it may fill the container, leaving the content beside it none, but never runs past it, and a container narrower than `minWidth` holds a panel as wide as the container. `FrameThreeColumnResizable` is the exception: its two panels each leave the centre pane at least one grab strip, because two handles on the same pixel would stack and strand the frame where no drag could move it. The panel keeps the width it was given until it is first dragged, rather than growing and shrinking with its container before then; a drag in the default mode sets a share of the container that the panel keeps through later resizes, and a drag under `preventPanelResizeOnParentResize` sets a width in pixels. `resetKey`, on `FrameThreeColumnResizable`, returns its panels to their starting widths in pixels. Horizontal `TabsNavigation` is a `FrameTop` panel in its own right (it carries its own `ui-pad-x` and bottom border; no wrapper); inside padded content pass `noPad`; `size="sm"` is independent of placement. `CollapsibleSection`'s body takes `pad` and `spy` (default none) and its header row `headerPad` (default `md`). Steppers: `getStepper` with `StepperChipsWithTitles` or `StepperNavigationVisual`.
+Frames: `FrameTop`, `FrameLeft`, `FrameRight`, plus `FrameLeftResizable`, `FrameRightResizable`, `FrameThreeColumnResizable`. Every slot scrolls. A slot owns its inset and its stack spacing: `pad` / `spy` (a `PadSize`: `"none" | "sm" | "md" | "lg"`, default none) on the content slot, `panelPad` / `panelSpy` on the panel slot, so no padding `<div>` sits between a Frame and its content. Side frames own their panel/content divider (never add that edge's border yourself). A resizable panel's width is bounded by its container: it may fill the container, leaving the content beside it none, but never runs past it, and a container narrower than `minWidth` holds a panel as wide as the container. `FrameThreeColumnResizable` is the exception: its two panels each leave the centre pane at least one grab strip beside its side gutters, because two handles on the same pixel would stack and strand the frame where no drag could move it. The panel keeps the width it was given until it is first dragged, rather than growing and shrinking with its container before then; a drag in the default mode sets a share of the container that the panel keeps through later resizes, and a drag under `preventPanelResizeOnParentResize` sets a width in pixels. `resetKey`, on `FrameThreeColumnResizable`, returns its panels to their starting widths in pixels. `FrameThreeColumnResizable` closes each side at its own edge. A side given `leftTabs` with `onLeftClose` (or `rightTabs` with `onRightClose`), each tab a `SidePaneTab` of `label`, `iconName` and `onOpen`, takes a gutter on the centre's edge, beside the centre slot, so no content of the centre is ever under its controls. While the side's child is passed the side is open and the gutter holds a close button, a thin caret tab pointing at the screen's edge; while the child is absent the side is closed and the gutter holds one side tab per tab, stacked, each the tab's icon above its label written vertically, bottom to top on the left and top to bottom on the right. Both are on `base-200` with the border, square on the screen-edge side. They start one heading bar's height plus `ui-pad-y` below the centre's top, level with the content under a centre's `HeadingBar` rather than beside the bar. Each is a button named "Close" or "Open" followed by its label (the close button's is the side's tab labels joined), with `aria-expanded`, and when one replaces another focus moves to the replacement. The consumer decides which sides are open: it passes or withholds the child, and changes that in `onOpen` and `onLeftClose` / `onRightClose`. Horizontal `TabsNavigation` is a `FrameTop` panel in its own right (it carries its own `ui-pad-x` and bottom border; no wrapper); inside padded content pass `noPad`; `size="sm"` is independent of placement. `CollapsibleSection`'s body takes `pad` and `spy` (default none) and its header row `headerPad` (default `md`). Steppers: `getStepper` with `StepperChipsWithTitles` or `StepperNavigationVisual`.
 
 `SelectList` / `TabsNavigation` / `ButtonGroup` share one `items`/`value`/ `onChange` contract (swap = rename); `EditableList` adds add/delete/reorder; the optional `createSelectionController` helper backs multi-select card grids via `Card`'s selectable mode. See **[DOC_LIST_SELECTION.md](../../DOC_LIST_SELECTION.md)**.
 
@@ -121,6 +128,13 @@ await openComponent({ element: EditForm, props: { data } });
 const { openEditor, EditorWrapper } = getEditorWrapper();
 
 <MenuButton items={items} iconName="plus">Add</MenuButton>;
+<MenuButton
+  ghost
+  iconName="userCircle"
+  ariaLabel="Account"
+  position="bottom-end"
+  items={items}
+/>;
 <ActionMenuButton items={items} />; // the three-dots button
 
 <StateHolderWrapper state={query.state()}>
@@ -128,7 +142,7 @@ const { openEditor, EditorWrapper } = getEditorWrapper();
 </StateHolderWrapper>;
 ```
 
-Dialogs stack: one opened over another layers on top, and each promise settles when its own layer closes. `ModalContainer` owns the footer: `onCancel` renders Cancel, `actions` render right-aligned after it with the last one primary, `form` makes Enter click the primary action, and each action's error state renders under the body. The body takes `pad` and `spy`, both default `md` (`pad="none"` for a flush table or editor). A modal whose only button dismisses it passes `onClose={{ kind, onClick }}` instead: `"close"` for read-only content, `"done"` when the modal applied edits live with no Save step. It renders as the primary action; a lone button is never the outline Cancel. `footer` is the left slot for non-action content. Menus: `MenuButton` for a button that opens a menu, `ActionMenuButton` for the three-dots preset, `showMenu` for context menus. Never hand-roll an overlay.
+Dialogs stack: one opened over another layers on top, and each promise settles when its own layer closes. `ModalContainer` owns the footer: `onCancel` renders Cancel, `actions` render right-aligned after it with the last one primary, `form` makes Enter click the primary action, and each action's error state renders under the body. The body takes `pad` and `spy`, both default `md` (`pad="none"` for a flush table or editor). A modal whose only button dismisses it passes `onClose={{ kind, onClick }}` instead: `"close"` for read-only content, `"done"` when the modal applied edits live with no Save step. It renders as the primary action; a lone button is never the outline Cancel. `footer` is the left slot for non-action content. Menus: `MenuButton` for a button that opens a menu, styled as any `Button` is, `ghost` included, so a menu button rests on any surface; `ActionMenuButton` for the three-dots preset; `showMenu` for context menus. Never hand-roll an overlay.
 
 `StateHolderWrapper` renders no element of its own: its loading, error and ready branches land directly in the slot it sits in and take the slot's inset. Where the ready branch is flush in a `none` slot, `loadingAndErrorPad` insets the two message blocks to match the content (`"md"` over a default `Table`), or `spinner` centres an indicator instead. `LoadingIndicator` on its own takes the same knob as `pad`.
 
@@ -223,7 +237,7 @@ Two matrix grids draw rows × columns with a sticky row-header column and share 
 - **Form density** — `ui-form-pad`, `ui-form-pad-sm`, `ui-form-text-size`, `ui-form-text-size-sm`, `ui-icon-only-correction`, `ui-icon-only-correction-sm`
 - **State** — the `ui-hoverable-{token}` family (`base-100`, `base-200`, `base-300`, `base-content`, and the five intents), its outline sibling `ui-hoverable-outline-on-{token}`, `ui-hoverable-ghost`, and `ui-focusable`
 - **Type** — three roles: body (14px, inherited from `body`, no class), `ui-text-caption` (12px, muted) and `ui-text-heading` (16px, bold); plus `ui-text-overline`, `ui-text-small`, `ui-form-text`, `ui-label`
-- **Skins** — `ui-fill-{intent}`, `ui-outline-{intent}`, `ui-ghost-{intent}`, for building a control the kit doesn't provide
+- **Skins** — `ui-fill-{intent}`, `ui-outline-{intent}`, `ui-ghost` (the colour of the surface it sits on, inherited) and `ui-ghost-{intent}`, for building a control the kit doesn't provide
 
 Every other `ui-*` class is internal and may change without notice.
 

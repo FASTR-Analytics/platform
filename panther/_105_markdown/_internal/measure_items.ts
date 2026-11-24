@@ -25,8 +25,7 @@ import type {
   MeasuredMarkdownItem,
   MeasuredMarkdownListItem,
   MeasuredMarkdownParagraph,
-  ParsedMarkdown,
-  ParsedMarkdownItem,
+  TextMarkdownItem,
 } from "../types.ts";
 import { measureFormattedText } from "./formatted_text.ts";
 
@@ -35,28 +34,10 @@ export type MeasuredMarkdownItemsResult = {
   items: MeasuredMarkdownItem[];
 };
 
-// Inline code keeps the code text style but sizes relative to the surrounding
-// text (a code span in an h1 is h1-sized), the way the HTML renderer's
-// `--md-code-size` em ratio does.
-export function getInlineCodeStyle(
-  baseTextInfo: TextInfoUnkeyed,
-  style: MergedMarkdownStyle,
-): InlineCodeStyle {
-  const codeText = style.text.code;
-  return {
-    textInfo: {
-      ...codeText,
-      fontSize: baseTextInfo.fontSize * codeText.fontSize /
-        style.text.paragraph.fontSize,
-    },
-    backgroundColor: style.code.backgroundColor,
-  };
-}
-
 export function measureMarkdownItems(
   rc: RenderContext,
   bounds: RectCoordsDims,
-  parsed: ParsedMarkdown,
+  textItems: TextMarkdownItem[],
   style: MergedMarkdownStyle,
   alignH: AlignH,
   _debug = false,
@@ -68,12 +49,12 @@ export function measureMarkdownItems(
 
   if (_debug) {
     console.log(
-      `    MD: bounds.w=${bounds.w().toFixed(1)}, items=${parsed.items.length}`,
+      `    MD: bounds.w=${bounds.w().toFixed(1)}, items=${textItems.length}`,
     );
   }
 
-  for (let i = 0; i < parsed.items.length; i++) {
-    const parsedItem = parsed.items[i];
+  for (let i = 0; i < textItems.length; i++) {
+    const parsedItem = textItems[i];
     const margins = getItemMargins(parsedItem, style);
     const isFirst = i === 0;
 
@@ -129,7 +110,7 @@ export function measureMarkdownItems(
 type ItemMargins = { marginTop: number; marginBottom: number };
 
 function getItemMargins(
-  item: ParsedMarkdownItem,
+  item: TextMarkdownItem,
   style: MergedMarkdownStyle,
 ): ItemMargins {
   switch (item.type) {
@@ -162,18 +143,12 @@ function getItemMargins(
       const m = style.margins.code;
       return { marginTop: m.top, marginBottom: m.bottom };
     }
-    case "image":
-    case "table":
-      // These are handled separately and should not reach this function
-      throw new Error(
-        `${item.type} items should not be measured directly`,
-      );
   }
 }
 
 function measureItem(
   rc: RenderContext,
-  item: ParsedMarkdownItem,
+  item: TextMarkdownItem,
   x: number,
   y: number,
   maxWidth: number,
@@ -193,11 +168,6 @@ function measureItem(
       return measureHorizontalRule(x, y, maxWidth, style);
     case "code-block":
       return measureCodeBlock(rc, item, x, y, maxWidth, style);
-    case "image":
-    case "table":
-      throw new Error(
-        `${item.type} items should not be measured directly - use groupDocElementsByContentType first`,
-      );
   }
 }
 
@@ -519,42 +489,44 @@ function measureCodeBlock(
 // CommonMark's tab stop.
 const CODE_TAB_STOP = 4;
 
-function countIndentColumns(codeLine: string): number {
-  let nColumns = 0;
+// A render context draws a tab as one space, so tabs become the spaces that
+// reach the next tab stop.
+function expandTabs(codeLine: string): string {
+  let expanded = "";
   for (const char of codeLine) {
-    if (char === " ") {
-      nColumns++;
-    } else if (char === "\t") {
-      nColumns += CODE_TAB_STOP - (nColumns % CODE_TAB_STOP);
-    } else {
-      break;
-    }
+    expanded += char === "\t"
+      ? " ".repeat(CODE_TAB_STOP - (expanded.length % CODE_TAB_STOP))
+      : char;
   }
-  return nColumns;
+  return expanded;
 }
 
-// The text measurer trims a line, so a code line is measured without its
-// indentation, in the width the indentation leaves, and each of its lines is
-// given the indentation back as spaces, which a render context draws at
-// their advance.
-export function measureCodeLine(
+// A code line keeps its spaces as written. Its indentation is taken off and
+// given back to every line it wraps to, so a wrapped line hangs at the
+// indentation: the rest is measured in the width the indentation leaves, and
+// each line gets the indentation back as spaces, which a render context draws
+// at their advance.
+function measureCodeLine(
   rc: RenderContext,
   codeLine: string,
   textInfo: TextInfoUnkeyed,
   maxWidth: number,
 ): MeasuredText {
-  const text = codeLine.trim();
+  const expanded = expandTabs(codeLine);
+  const nIndentColumns = expanded.length - expanded.trimStart().length;
+  const text = expanded.trim();
   if (text === "") {
     return rc.mText(" ", textInfo, maxWidth);
   }
-  const nIndentColumns = countIndentColumns(codeLine);
   if (nIndentColumns === 0) {
-    return rc.mText(text, textInfo, maxWidth);
+    return rc.mText(text, textInfo, maxWidth, { preserveWhitespace: true });
   }
   const indentWidth = nIndentColumns *
     rc.mText(" ", textInfo, Number.POSITIVE_INFINITY).dims.w();
   const indent = " ".repeat(nIndentColumns);
-  const mText = rc.mText(text, textInfo, maxWidth - indentWidth);
+  const mText = rc.mText(text, textInfo, maxWidth - indentWidth, {
+    preserveWhitespace: true,
+  });
   return {
     ...mText,
     lines: mText.lines.map((line) => ({
@@ -595,13 +567,18 @@ function inlinesToFormattedText(
           text: inline.text,
           style: inline.style ?? "normal",
           link: { url: inline.url },
+          isCode: inline.code,
         });
         break;
       case "break":
         runs.push({ text: "\n", style: "normal" });
         break;
       case "code-inline":
-        runs.push({ text: inline.text, style: "normal", isCode: true });
+        runs.push({
+          text: inline.text,
+          style: inline.style ?? "normal",
+          isCode: true,
+        });
         break;
     }
   }
@@ -610,5 +587,23 @@ function inlinesToFormattedText(
     runs,
     baseStyle: baseTextInfo,
     codeStyle: getInlineCodeStyle(baseTextInfo, style),
+  };
+}
+
+// Inline code keeps the code text style but sizes relative to the surrounding
+// text (a code span in an h1 is h1-sized), the way the HTML renderer's
+// `--md-code-size` em ratio does.
+function getInlineCodeStyle(
+  baseTextInfo: TextInfoUnkeyed,
+  style: MergedMarkdownStyle,
+): InlineCodeStyle {
+  const codeText = style.text.code;
+  return {
+    textInfo: {
+      ...codeText,
+      fontSize: baseTextInfo.fontSize * codeText.fontSize /
+        style.text.paragraph.fontSize,
+    },
+    backgroundColor: style.code.backgroundColor,
   };
 }

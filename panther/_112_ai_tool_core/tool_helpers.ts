@@ -7,6 +7,7 @@ import { buildAvailabilityHint, z } from "./deps.ts";
 import type { Component, ToolResultContent, zType } from "./deps.ts";
 import { AIToolFailure } from "./tool_failure.ts";
 import {
+  type AIToolOutput,
   type AIToolRun,
   buildToolResultContent,
   parseToolResultContent,
@@ -147,11 +148,13 @@ export type ApprovalPolicy = {
 };
 
 export type ToolUIMetadata<TInput = unknown> = {
-  // `view` is the id and identity of the view the call ran in, stored with
-  // the card, so a card rendered again later shows the call's context, not
-  // whatever the component closes over now. Absent on cards stored before
-  // the engine recorded it.
-  displayComponent?: Component<{ input: TInput; view?: AIViewSnapshot }>;
+  // See AIToolDisplayProps. Erased in `structured`: the config types it by
+  // the tool's outputSchema, and the transcript hands it over parsed.
+  displayComponent?: Component<AIToolDisplayProps<TInput, unknown>>;
+
+  // The tool's input schema, stored verbatim: a card's and an in-progress
+  // card's stored input is parsed through it before either is drawn.
+  inputSchema?: zType.ZodType;
 
   // toolUseId names the call the card is for: one tool instance can have
   // calls pending in several chats at once.
@@ -181,9 +184,11 @@ export type ToolUIMetadata<TInput = unknown> = {
   // createMCPServer's every-tool-validates boot check.
   validation?: "internal";
 
-  // See CreateAIToolConfigCommon.outputSchema. Stored verbatim; read by the
-  // MCP surfaces (tools/list outputSchema + structuredContent wrapping).
+  // See AIToolStructuredOutputConfig. Stored verbatim: resolveAIToolReturn
+  // reads both on every surface, and the MCP surfaces list the schema
+  // (tools/list outputSchema + structuredContent wrapping).
   outputSchema?: zType.ZodType;
+  describeForModel?: (structured: unknown) => string | AIToolOutput;
 
   // Approval lifecycle (Feature 4), erased. Set by createAITool when the
   // tool config declares approval; the chat loop branches on it BEFORE
@@ -386,9 +391,6 @@ export type CreateAIToolConfigCommon<TInput> = {
 
   inputSchema: zType.ZodType<TInput>;
 
-  // See ToolUIMetadata.displayComponent.
-  displayComponent?: Component<{ input: TInput; view?: AIViewSnapshot }>;
-
   // See ToolUIMetadata.inProgressComponent.
   inProgressComponent?: Component<{ input: TInput; toolUseId: string }>;
 
@@ -423,14 +425,41 @@ export type CreateAIToolConfigCommon<TInput> = {
   // runner validates); createMCPServer's every-tool-validates boot check
   // accepts it explicitly, never silently.
   validation?: "internal";
-
-  // The tool's declared output shape, as a zod schema. Optional and purely
-  // additive: when present, the MCP surfaces advertise it (wrapped — see
-  // mcp_server's wrapper rule) and attach the handler's raw return as
-  // structuredContent. The Anthropic tool definition has no output-schema
-  // field, so the chat leg ignores it.
-  outputSchema?: zType.ZodType;
 };
+
+// What a tool's card is drawn from, each parsed when it is drawn: the call's
+// input, through the tool's input schema; its structured output, through the
+// tool's outputSchema; and the id and identity of the view the call ran in,
+// stored with the card, so a card drawn again later shows the call's
+// context, not whatever the component closes over now. `structured` is
+// absent when the call returned none (no outputSchema, nothing returned, an
+// approval's skip), when it was over TOOL_DISPLAY_LIMITS.MAX_STRUCTURED_CHARS,
+// and when a stored one no longer parses; `view` on cards stored before the
+// engine recorded it.
+export type AIToolDisplayProps<TInput, TStructured> = {
+  input: TInput;
+  structured?: TStructured;
+  view?: AIViewSnapshot;
+};
+
+// The output half of every createAITool shape. An outputSchema types what
+// the handler and the commit return, the tool's structured output, which
+// every surface carries as JSON: the MCP surfaces list the schema (wrapped,
+// see mcp_server's wrapper rule) and send the value as structuredContent,
+// and the card is drawn from it. describeForModel, which exists only beside
+// it, makes what the model reads of that output in place of its JSON, on
+// every surface alike.
+type AIToolStructuredOutputConfig<TInput, TOutput> =
+  | {
+    outputSchema: zType.ZodType<TOutput>;
+    describeForModel?: (structured: TOutput) => string | AIToolOutput;
+    displayComponent?: Component<AIToolDisplayProps<TInput, TOutput>>;
+  }
+  | {
+    outputSchema?: never;
+    describeForModel?: never;
+    displayComponent?: Component<AIToolDisplayProps<TInput, never>>;
+  };
 
 // Exactly one of handler / approval — enforced at the type level (the XOR
 // union) and again at construction for erased callers. A tool either
@@ -443,6 +472,7 @@ export type CreateAIToolConfigCommon<TInput> = {
 // takes (input, ctx).
 export type CreateAIToolConfig<TInput, TOutput = string> =
   & CreateAIToolConfigCommon<TInput>
+  & AIToolStructuredOutputConfig<TInput, TOutput>
   & {
     // See ToolUIMetadata.availableIn. Declare `viewRegistry` to have these
     // ids checked against the real registry at COMPILE time and to receive
@@ -500,6 +530,7 @@ export type CreateViewAIToolConfig<
   TOutput,
 > =
   & CreateAIToolConfigCommon<TInput>
+  & AIToolStructuredOutputConfig<TInput, TOutput>
   & {
     viewRegistry: AIViewRegistry<TDefs>;
     // REQUIRED on the gated shape (was optional). A narrowed handler view only
@@ -537,6 +568,7 @@ export type CreateUngatedViewAIToolConfig<
   TOutput,
 > =
   & CreateAIToolConfigCommon<TInput>
+  & AIToolStructuredOutputConfig<TInput, TOutput>
   & {
     viewRegistry: AIViewRegistry<TDefs>;
     availableIn?: never;
@@ -678,6 +710,9 @@ type ErasedCreateAIToolConfig =
   & {
     viewRegistry?: AIViewRegistry<Record<string, AnyAIView>>;
     availableIn?: readonly PropertyKey[];
+    outputSchema?: zType.ZodType;
+    describeForModel?: (structured: Any) => Any;
+    displayComponent?: Component<Any>;
     handler?: (input: Any, viewOrCtx: Any, ctx?: Any) => Any;
     // createNavigationTool only: pass the live view ACCESSOR to the handler
     // instead of an entry-time snapshot. The navigation tool must read the
@@ -772,6 +807,24 @@ export function buildAITool<TInput>(
     throw new Error(
       `createAITool("${config.name}"): exactly one of handler or approval must be set — a tool either executes directly or goes through the confirm-before-apply lifecycle.`,
     );
+  }
+  if (
+    config.describeForModel !== undefined && config.outputSchema === undefined
+  ) {
+    throw new Error(
+      `createAITool("${config.name}"): describeForModel needs an outputSchema: it makes what the model reads of the structured output the schema describes.`,
+    );
+  }
+  if (config.outputSchema !== undefined) {
+    try {
+      z.toJSONSchema(config.outputSchema, { io: "output" });
+    } catch (e) {
+      throw new Error(
+        `createAITool("${config.name}"): outputSchema cannot be stated as JSON Schema (${
+          e instanceof Error ? e.message : String(e)
+        }). The structured output reaches every surface as JSON, so its schema holds no transform, date or bigint.`,
+      );
+    }
   }
   // `viewRegistry` decides the shape of handler and propose: view-typed tools
   // receive (input, view, ctx), plain ones (input, ctx). The engine always
@@ -870,7 +923,7 @@ export function buildAITool<TInput>(
         )
         : config.handler!(validated, ctx),
     );
-    return resolveAIToolReturn(result, config.outputSchema !== undefined);
+    return resolveAIToolReturn(result, config);
   };
 
   const sdkTool: SDKTool<TInput> = {
@@ -903,6 +956,7 @@ export function buildAITool<TInput>(
 
   const metadata: ToolUIMetadata<TInput> = {
     displayComponent: config.displayComponent,
+    inputSchema: config.inputSchema,
     inProgressComponent: config.inProgressComponent,
     inProgressLabel: config.inProgressLabel,
     completionMessage: config.completionMessage,
@@ -913,6 +967,7 @@ export function buildAITool<TInput>(
     headless: config.headless,
     validation: config.validation,
     outputSchema: config.outputSchema,
+    describeForModel: config.describeForModel,
     approval: approvalMeta,
     awaitsUserAction: approvalMeta ? true : undefined,
     _viewRegistry: config.viewRegistry,
@@ -946,20 +1001,24 @@ export function buildAITool<TInput>(
 // property now fails overload resolution and reports on the call rather than
 // the property.
 //
-// The cast is a contained wart, not a hole: Omit<> over the handler/approval
-// XOR flattens the union into one object with both members optional, so the
-// forwarded value no longer matches either arm. The CALL SITE is still
-// checked against the un-flattened config type — only this internal forward
-// needs the assertion.
+// The config drops `viewRegistry` from each arm of the shape's unions
+// (handler or approval, an outputSchema or none) on its own: a plain Omit<>
+// over the union keeps only one object with every member optional, which
+// would let a call give both a handler and an approval, or describeForModel
+// with no outputSchema. The internal forward to buildAITool, whose erased
+// config holds every arm at once, needs the assertion.
+type OmitFromEach<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
+  : never;
+
 type ViewAIToolFactory<TDefs extends Record<string, AnyAIView>> = {
   <TInput, TOutput = string, K extends keyof TDefs = keyof TDefs>(
-    config: Omit<
+    config: OmitFromEach<
       CreateViewAIToolConfig<TDefs, K, TInput, TOutput>,
       "viewRegistry"
     >,
   ): AIToolWithMetadata<TInput>;
   <TInput, TOutput = string>(
-    config: Omit<
+    config: OmitFromEach<
       CreateUngatedViewAIToolConfig<TDefs, TInput, TOutput>,
       "viewRegistry"
     >,

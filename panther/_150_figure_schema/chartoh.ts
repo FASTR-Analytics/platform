@@ -26,6 +26,7 @@ import {
   zVisibleByPane,
   zVisibleByPaneTierOrLane,
 } from "./shared.ts";
+import { zValueSort } from "./leaves.ts";
 
 export const zChartOHJsonDataConfig = z.object({
   valueProps: z.array(z.string()),
@@ -35,8 +36,9 @@ export const zChartOHJsonDataConfig = z.object({
   tierProp: z.string().optional(),
   paneProp: z.string().optional(),
   uncertainty: zUncertaintyConfig.optional(),
-  // strict: a stray value-direction key (lane on OH) must error, not be
-  // silently stripped — see validateChartMembership for the rule.
+  // strict: a lane key must error, not be silently stripped, because the lane
+  // carries the x value axis limits and stays balanced, and the transform
+  // reads only the keys of its type.
   membership: z
     .strictObject({
       indicator: zDimensionMembership.optional(),
@@ -54,7 +56,7 @@ export const zChartOHJsonDataConfig = z.object({
       pane: zMemberSortConfig.optional(),
     })
     .optional(),
-  sortIndicatorValues: z.enum(["ascending", "descending", "none"]).optional(),
+  sortIndicatorValues: zValueSort.optional(),
   xValueAxisLabel: z.string().optional(),
 });
 const _zChartOHJsonDataConfigConforms: Conforms<

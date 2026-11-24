@@ -1,6 +1,7 @@
 // Pins the copilot's slide schemas to the stored ones: every stored field of a
 // slide type is one the copilot can create and update, unless it is named
-// below with the reason it is left out. Pins what replace_slide keeps.
+// below with the reason it is left out. Pins what replace_slide keeps, and
+// the layout rows update_slide's layoutChange accepts.
 //
 //   deno test -A --no-check server/tests/ai_slide_schema_test.ts
 
@@ -154,16 +155,64 @@ Deno.test("a replaced slide that changes its type keeps nothing", () => {
   assertEquals(withKeptSlideSettings(COVER, input), input);
 });
 
-Deno.test("a layout row of one cell takes no span but the full width", () => {
-  const row = (cells: { block: string; span?: number }[]) =>
-    LayoutSpecSchema.safeParse([cells]).success;
+// A layoutChange row whose spans cannot fill its columns is refused by the
+// schema, so the model is told before anything runs and normalizeSpans only
+// ever shares out columns that exist. The oracle is a search: a row is
+// accepted exactly when its cells without a span can be given 1 column or
+// more each so that the row fills its columns.
+Deno.test("a layout row is accepted exactly when its spans can fill its columns", () => {
+  const SPANS = [
+    undefined,
+    ...Array.from({ length: _GLOBAL_LAYOUT_COLUMNS }, (_, i) => i + 1),
+  ];
+  const fill = (cells: number, left: number): boolean =>
+    cells === 0
+      ? left === 0
+      : SPANS.slice(1).some((s) => fill(cells - 1, left - s!));
+  const fillable = (spans: (number | undefined)[]): boolean =>
+    fill(
+      spans.filter((s) => s === undefined).length,
+      _GLOBAL_LAYOUT_COLUMNS - spans.reduce<number>((t, s) => t + (s ?? 0), 0),
+    );
+  const rows: (number | undefined)[][] = [
+    ...SPANS.map((a) => [a]),
+    ...SPANS.flatMap((a) => SPANS.map((b) => [a, b])),
+    ...SPANS.flatMap((a) => SPANS.flatMap((b) => SPANS.map((c) => [a, b, c]))),
+  ];
+  for (const spans of rows) {
+    const row = spans.map((span) =>
+      span === undefined ? { block: "a1b" } : { block: "a1b", span }
+    );
+    assertEquals(
+      LayoutSpecSchema.safeParse([row]).success,
+      fillable(spans),
+      JSON.stringify(spans),
+    );
+  }
+
+  const refusal = (row: { block: string; span?: number }[]) =>
+    LayoutSpecSchema.safeParse([row]).error?.issues.map((i) => i.message);
+  const n = _GLOBAL_LAYOUT_COLUMNS;
+  assertEquals(refusal([{ block: "a1b", span: 6 }]), [
+    `A row with one cell spans all ${n} columns: omit its span.`,
+  ]);
   assertEquals(
-    [
-      row([{ block: "b1", span: 6 }]),
-      row([{ block: "b1", span: _GLOBAL_LAYOUT_COLUMNS }]),
-      row([{ block: "b1" }]),
-      row([{ block: "b1", span: 4 }, { block: "b2", span: 8 }]),
-    ],
-    [false, true, true, true],
+    refusal([{ block: "a1b", span: 4 }, { block: "c3d", span: 4 }]),
+    [`Spans in row sum to 8, must sum to ${n}. Got: [4, 4]`],
   );
+  const refused = AiSlideUpdateSchema.safeParse({
+    type: "content",
+    layoutChange: {
+      layout: [
+        [{ block: "a1b" }],
+        [{ block: "c3d", span: n - 1 }, { block: "e5f" }, { block: "g7h" }],
+      ],
+    },
+  });
+  assertEquals(refused.error?.issues.map((i) => [i.path, i.message]), [[
+    ["layoutChange", "layout", 1],
+    `Specified spans sum to ${
+      n - 1
+    } of the row's ${n} columns, leaving 1 for 2 cell(s) without a span, which need at least 1 each.`,
+  ]]);
 });

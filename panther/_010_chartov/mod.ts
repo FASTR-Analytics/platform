@@ -5,6 +5,7 @@
 
 export { ChartOVRenderer } from "./chartov_renderer.ts";
 export {
+  getChartOVDataConfigIssues,
   getChartOVDataJsonTransformed,
   getChartOVDataTransformed,
 } from "./get_chartov_data.ts";

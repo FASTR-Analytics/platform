@@ -4,20 +4,24 @@
 // This file is the foundation for visualization-related schemas:
 //   - configDStrict, configSStrict (used by PO configs and viz presets)
 //   - Metric column schemas (ai_description, viz_presets)
-//   - Shared atoms (translatableString, disaggregationOption, periodOption)
+//   - Shared atoms (translatableString, disaggregationOption)
 //   - Legacy adapters for these schemas
 //
 // Import hierarchy:
-//   - This file imports from: conditional_formatting.ts, legacy_cf_presets.ts,
-//     presentation_objects.ts
+//   - This file imports from: conditional_formatting.ts,
+//     disaggregation_options.ts, period_options.ts, value_func.ts
 //   - _presentation_object_config.ts imports FROM this file
 //   - _module_definition_installed.ts imports FROM this file (if needed)
 // ============================================================================
 
 import { z } from "zod";
-import { getPeriodTypeFromValue, type PeriodType } from "@timroberton/panther";
 import { cfStorageSchema } from "./conditional_formatting.ts";
 import { ALL_DISAGGREGATION_OPTIONS } from "./disaggregation_options.ts";
+import {
+  inferPeriodFormatFromValuesIfTheSame,
+  periodOption,
+} from "./period_options.ts";
+import { valueFuncStrict } from "./value_func.ts";
 
 // ============================================================================
 // Atoms
@@ -29,7 +33,6 @@ export const translatableString = z.object({
   pt: z.string().optional(),
 });
 
-export const periodOption = z.enum(["period_id", "quarter_id", "year"]);
 export const disaggregationOption = z.enum(ALL_DISAGGREGATION_OPTIONS);
 
 // ============================================================================
@@ -54,53 +57,6 @@ export const disaggregationDisplayOptionSchema = z.enum([
   "replicant",
   "mapArea",
 ]);
-
-// wb-fastr names periods by their DB column (period_id / quarter_id / year);
-// panther names them by PeriodType (year-month / year-quarter / year). These two
-// functions are the single boundary between the two vocabularies.
-export function periodOptionToPeriodType(opt: PeriodOption): PeriodType {
-  switch (opt) {
-    case "period_id":
-      return "year-month";
-    case "quarter_id":
-      return "year-quarter";
-    case "year":
-      return "year";
-  }
-}
-
-export function periodTypeToPeriodOption(pt: PeriodType): PeriodOption {
-  switch (pt) {
-    case "year-month":
-      return "period_id";
-    case "year-quarter":
-      return "quarter_id";
-    case "year":
-      return "year";
-  }
-}
-
-// Self-identifying period format: a stored value carries its own unit (the three
-// ranges are disjoint). Panther classifies the magnitude; we name the column.
-// Returns undefined for out-of-range/invalid values; never throws.
-export function inferPeriodFormatFromValue(
-  v: number,
-): PeriodOption | undefined {
-  const pt = getPeriodTypeFromValue(v);
-  return pt === undefined ? undefined : periodTypeToPeriodOption(pt);
-}
-
-// Returns the shared period format of a min/max pair: but only when both values
-// self-identify AND agree; otherwise undefined. The save-time refine rejects on
-// undefined; read-time consumers skip the period filter.
-export function inferPeriodFormatFromValuesIfTheSame(
-  min: number,
-  max: number,
-): PeriodOption | undefined {
-  const fMin = inferPeriodFormatFromValue(min);
-  const fMax = inferPeriodFormatFromValue(max);
-  return fMin !== undefined && fMin === fMax ? fMin : undefined;
-}
 
 // Strict period filter schema: each filterType has exactly the fields it requires
 const boundedFilterBase = z.object({
@@ -332,15 +288,6 @@ export const vizPresetInstalled = vizPresetInstalledStrict;
 // Full Metric Schema (metrics table row)
 // ============================================================================
 
-export const valueFuncStrict = z.enum([
-  "SUM",
-  "AVG",
-  "COUNT",
-  "MIN",
-  "MAX",
-  "identity",
-]);
-
 export const postAggregationExpressionStrict = z.object({
   ingredientValues: z.array(
     z.object({ prop: z.string(), func: z.enum(["SUM", "AVG"]) }),
@@ -379,7 +326,6 @@ export const metricStrict = z.object({
 // Types
 // ============================================================================
 
-export type PeriodOption = z.infer<typeof periodOption>;
 export type PresentationOption = z.infer<typeof presentationOptionSchema>;
 export type DisaggregationDisplayOption = z.infer<
   typeof disaggregationDisplayOptionSchema
@@ -393,7 +339,6 @@ export type RelativePeriodFilter = Exclude<
   NonNullable<PeriodFilter>,
   BoundedPeriodFilter
 >;
-export type ValueFunc = z.infer<typeof valueFuncStrict>;
 export type PostAggregationExpression = z.infer<
   typeof postAggregationExpressionStrict
 >;

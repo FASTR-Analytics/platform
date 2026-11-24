@@ -437,7 +437,7 @@ function buildParagraph(
         codeChildren.push(
           new TextRun({
             text: codeLines[i],
-            font: "Consolas",
+            font: CODE_FONT,
           }),
         );
       }
@@ -620,10 +620,13 @@ function buildInlineContent(
                 text: item.text,
                 color: linkColor,
                 underline: {},
-                bold: item.style === "bold" || item.style === "bold-italic",
+                ...(item.style === "bold" || item.style === "bold-italic"
+                  ? { bold: true }
+                  : {}),
                 italics: item.style === "italic" ||
                   item.style === "bold-italic" ||
                   baseStyle?.italics,
+                ...(item.code ? { font: CODE_FONT } : {}),
               }),
             ],
             link: item.url,
@@ -644,8 +647,13 @@ function buildInlineContent(
         result.push(
           new TextRun({
             text: item.text,
-            font: "Consolas",
-            italics: baseStyle?.italics,
+            font: CODE_FONT,
+            ...(item.style === "bold" || item.style === "bold-italic"
+              ? { bold: true }
+              : {}),
+            italics: item.style === "italic" ||
+              item.style === "bold-italic" ||
+              baseStyle?.italics,
           }),
         );
         break;
@@ -654,6 +662,8 @@ function buildInlineContent(
 
   return result;
 }
+
+const CODE_FONT = "Consolas";
 
 // docx sectionPageSizeDefaults (A4, twips); landscape swaps width/height
 const DEFAULT_PAGE_WIDTH_TWIPS = 11906;

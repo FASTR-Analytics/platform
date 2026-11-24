@@ -32,7 +32,11 @@ getChartOHDataJsonTransformed(
   config: ChartOHJsonDataConfig,
   stacked: boolean,
 ): ChartOHDataTransformed;
+
+getChartOHDataConfigIssues(data: ChartOHDataJson): DataConfigIssue[];
 ```
+
+The JSON transform first checks the data config against its rows and throws a `DataConfigError` holding every issue; `getChartOHDataConfigIssues` returns them without the throw (DOC_FIGURE_ARCHITECTURE.md "Data config issues").
 
 ## Usage
 
