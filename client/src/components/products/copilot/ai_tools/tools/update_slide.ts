@@ -9,6 +9,7 @@ import {
   type PackageScope,
   type Slide,
   t3,
+  validateTextOnlyMarkdown,
 } from "lib";
 import { AIToolFailure, createAITool, type LayoutNode } from "panther";
 import { z } from "zod";
@@ -22,7 +23,6 @@ import {
   assertSplitImageAsset,
   validateMaxContentBlocks,
   validateSlideTotalWordCount,
-  validateTextOnlyMarkdown,
 } from "../../_shared/mod.ts";
 import {
   buildLayoutFromSpec,

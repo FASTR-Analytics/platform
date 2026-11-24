@@ -1,4 +1,8 @@
-import type { SlideTableOrImage } from "../slide_text_offsets.ts";
+import { AIToolFailure } from "@timroberton/panther";
+import {
+  findSlideTableOrImage,
+  type SlideTableOrImage,
+} from "../slide_text_offsets.ts";
 
 // What the model is told of slide text holding a table or an image: by the
 // write that refuses its own text, and by every measure of a slide whose text
@@ -14,4 +18,13 @@ export function describeSlideTableOrImageForAI(
   return found.kind === "table"
     ? `${held} To show tabular data, use a from_metric block with a table preset`
     : `${held} To show an image, use an image block naming one of the instance's image assets (get_image_assets lists them)`;
+}
+
+// Every text block the model writes: slide text draws text only.
+export function validateTextOnlyMarkdown(markdown: string): void {
+  const found = findSlideTableOrImage(markdown);
+  if (found === undefined) return;
+  throw new AIToolFailure(
+    `${describeSlideTableOrImageForAI("This text block", found)}.`,
+  );
 }

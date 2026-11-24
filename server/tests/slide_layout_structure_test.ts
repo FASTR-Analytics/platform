@@ -73,11 +73,12 @@ Deno.test("a layout that is not rows of cells still lists its blocks and says ho
   ]);
 });
 
-// A text block holding a table or a lone image cannot be laid out by
-// MarkdownRenderer, so its slide's page cannot be measured: the model is told
-// which block holds what, at which line, and how to show it instead. A quoted
-// table or an image inside text is drawn (run together, dropped), so that
-// page measures as the canvas shows it.
+// A text block holding a table outside a quote or an image alone in a
+// top-level paragraph cannot be laid out by MarkdownRenderer, so its slide's
+// page cannot be measured: the model is told which block holds what, at which
+// line, and how to show it instead. A quoted table or any other image is
+// drawn (run together, dropped), so that page measures as the canvas shows
+// it.
 Deno.test("a text block panther cannot draw is named by id, with its table or image and line", () => {
   const text = (markdown: string): ContentBlock => ({ type: "text", markdown });
   const twoBlocks = (markdown: string) =>

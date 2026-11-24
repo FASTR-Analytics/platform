@@ -11,11 +11,11 @@ import {
   type MetricWithStatus,
   type PackageScope,
   t3,
+  validateTextOnlyMarkdown,
 } from "lib";
 import {
   assertSplitImageAsset,
   validateMaxContentBlocks,
-  validateTextOnlyMarkdown,
 } from "../../_shared/mod.ts";
 import {
   convertAiInputToSlide,

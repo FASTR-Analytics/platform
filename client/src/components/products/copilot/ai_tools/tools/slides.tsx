@@ -12,6 +12,7 @@ import {
   type Slide,
   t3,
   TC,
+  validateTextOnlyMarkdown,
   withKeptSlideSettings,
 } from "lib";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
@@ -28,7 +29,6 @@ import {
   assertSplitImageAsset,
   validateMaxContentBlocks,
   validateSlideTotalWordCount,
-  validateTextOnlyMarkdown,
 } from "../../_shared/mod.ts";
 import { assertSlidesNotBusy } from "../validators/mod.ts";
 import {

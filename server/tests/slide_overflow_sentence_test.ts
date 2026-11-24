@@ -2,8 +2,9 @@
 // per overflow cause, naming in the model's words what does not fit, along
 // which axis and by how much, then how an overflow shows. The client's
 // describeSlideOverflow hands it the slide editor's map from a text's
-// primitive id to its slide field (slideTextField), which loads only in the
-// client; FIELDS below is that map.
+// primitive id to its slide field (SLIDE_TEXT_FIELDS, through
+// slideTextField), which FIELDS reads from its source: the module imports the
+// client's panther, which the server's typecheck cannot resolve.
 //
 //   deno test -A --no-check server/tests/slide_overflow_sentence_test.ts
 
@@ -11,24 +12,37 @@ import { assertEquals } from "@std/assert";
 import type { PageOverflowCause } from "@timroberton/panther";
 import { describeSlideOverflowForAI } from "lib";
 
-const FIELDS: Record<string, string> = {
-  headerText: "header",
-  subHeaderText: "subHeader",
-  dateText: "date",
-  footerText: "footer",
-  coverTitle: "title",
-  coverSubtitle: "subtitle",
-  coverAuthor: "presenter",
-  coverDate: "date",
-  sectionTitle: "sectionTitle",
-  sectionSubtitle: "sectionSubtitle",
-};
+const FIELDS: Record<string, string> = Object.fromEntries(
+  [
+    ...Deno.readTextFileSync(
+      new URL(
+        "../../client/src/components/products/slide_deck/slide_editor/slide_fields.ts",
+        import.meta.url,
+      ),
+    ).matchAll(/primitiveId: "(\w+)",\s*field: "(\w+)"/g),
+  ].map((m) => [m[1], m[2]]),
+);
 
 const TAIL =
   ". Part of it is squeezed below the size it needs, or runs into the slide's margins, past the edge of the page or over other content. The slide is broken until it fits.";
 
 const said = (...causes: PageOverflowCause[]) =>
   describeSlideOverflowForAI(causes, (id) => FIELDS[id]);
+
+Deno.test("every text a page names in an overflow maps to the slide field it shows", () => {
+  assertEquals(FIELDS, {
+    headerText: "header",
+    subHeaderText: "subHeader",
+    dateText: "date",
+    footerText: "footer",
+    coverTitle: "title",
+    coverSubtitle: "subtitle",
+    coverAuthor: "presenter",
+    coverDate: "date",
+    sectionTitle: "sectionTitle",
+    sectionSubtitle: "sectionSubtitle",
+  });
+});
 
 Deno.test("an overflow names what does not fit, along which axis and by how much", () => {
   const cases: [PageOverflowCause, string][] = [

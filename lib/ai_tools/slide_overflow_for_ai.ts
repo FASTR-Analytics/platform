@@ -1,7 +1,13 @@
-import type { PageOverflowCause } from "@timroberton/panther";
+import type {
+  PageHeaderFooterPartId,
+  PageOverflowCause,
+  PageStackPartId,
+} from "@timroberton/panther";
+
+type PagePartId = PageStackPartId | PageHeaderFooterPartId;
 
 // Each logo row a page can name, by the deck setting that picks its logos.
-const LOGO_ROWS: Record<string, string> = {
+const LOGO_ROWS: Partial<Record<PagePartId, string>> = {
   coverLogos: "the cover's logos (logos.cover)",
   headerLogos: "the header's logos (logos.header)",
   footerLogos: "the footer's logos (logos.footer)",
@@ -15,7 +21,7 @@ function listed(names: readonly string[]): string {
 
 // A text wraps, so only its longest word can be too wide.
 function partName(
-  id: string,
+  id: PagePartId,
   axis: PageOverflowCause["axis"],
   slideFieldOf: (primitiveId: string) => string | undefined,
 ): string {
@@ -36,16 +42,19 @@ function clause(
   ) {
     return "the slide's margins leave its content area no width";
   }
-  const ids = cause.neededBy.map((n) => n.id);
   const names = cause.where === "layout"
-    ? `${ids.length === 1 ? "block" : "blocks"} ${listed(ids)}`
-    : listed(ids.map((id) => partName(id, cause.axis, slideFieldOf)));
+    ? `${cause.neededBy.length === 1 ? "block" : "blocks"} ${
+      listed(cause.neededBy.map((n) => n.id))
+    }`
+    : listed(
+      cause.neededBy.map((n) => partName(n.id, cause.axis, slideFieldOf)),
+    );
   const [holder, within] = cause.where === "layout"
     ? [cause.axis === "height" ? "the slide's content area" : "its column", ""]
     : cause.where === "stack"
     ? ["the slide", " inside its margins"]
     : [`the ${cause.where}`, ""];
-  const subject = `${names} ${ids.length === 1 ? "needs" : "need"}`;
+  const subject = `${names} ${cause.neededBy.length === 1 ? "needs" : "need"}`;
   if (cause.available <= 0) {
     return `${subject} ${cause.axis}, and ${holder} has none${within}`;
   }

@@ -5,7 +5,6 @@ export {
   validateMaxContentBlocks,
   validatePresetOverrides,
   validateSlideTotalWordCount,
-  validateTextOnlyMarkdown,
 } from "./content_validators.ts";
 export { formatFigureConfigForAI } from "./format_figure_config_for_ai.ts";
 export {

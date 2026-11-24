@@ -527,9 +527,10 @@ function slideTablesAndImages(src: string): SlideTableOrImage[] {
 
 /** The first markdown table or image in what panther draws for a slide text
  *  block (slideRenderMarkdown), with its 0-based source line. A text block
- *  draws text only: MarkdownRenderer refuses a table or a lone image at the
- *  top level, drops an image anywhere else, and runs a quoted table's cells
- *  together as one line of text, so every one is found. */
+ *  draws text only: MarkdownRenderer refuses a table outside a quote and an
+ *  image alone in a top-level paragraph, drops any other image, and runs a
+ *  quoted table's cells together as one line of text, so every one is
+ *  found. */
 export function findSlideTableOrImage(
   src: string,
 ): SlideTableOrImage | undefined {
@@ -538,9 +539,10 @@ export function findSlideTableOrImage(
 
 /** The first table or image of a slide text block that MarkdownRenderer is
  *  given as an item of its own, with its 0-based source line: it cannot lay
- *  one out, so the page cannot be measured or drawn. A quoted table and an
- *  image inside text are drawn (run together, dropped), so the page measures
- *  as the canvas shows it and only findSlideTableOrImage finds them. */
+ *  one out, so the page cannot be measured or drawn: a table outside a quote,
+ *  or an image alone in a top-level paragraph. A quoted table and any other
+ *  image are drawn (run together, dropped), so the page measures as the
+ *  canvas shows it and only findSlideTableOrImage finds them. */
 export function findUndrawableSlideItem(
   src: string,
 ): SlideTableOrImage | undefined {
@@ -1332,9 +1334,10 @@ const CODE_PROBE = String.fromCharCode(0xe000);
 // typed above a row of dashes, dashes typed under literal pipes), so each new
 // table gets a `\` before its delimiter row's first char, which ends the
 // table and draws nothing; a quoted table the text already held stays as it
-// was. Undefined, so the insert is refused, when such a `\` would draw
-// (inside a code span) or the insert would still add a table or an image,
-// which slide text cannot draw.
+// was. Undefined, so the insert is refused, when a new table's delimiter row
+// starts with no char such a `\` ends it at, when such a `\` would draw
+// (inside a code span), or when the insert would add an image, which slide
+// text cannot draw.
 function rawInsert(
   src: string,
   pos: number,
@@ -1376,14 +1379,11 @@ function rawInsert(
         c.type === "code_inline" && c.content.includes(CODE_PROBE)
       )
     );
-  const count = (doc: string, k: SlideTableOrImage["kind"]) =>
-    slideTablesAndImages(doc).filter((f) => f.kind === k).length;
-  if (
-    drawsEscape ||
-    count(next, "table") > count(src, "table") ||
-    count(next, "image") > count(src, "image")
-  ) return undefined;
-  return { next, caret };
+  const images = (doc: string) =>
+    slideTablesAndImages(doc).filter((f) => f.kind === "image").length;
+  return drawsEscape || images(next) > images(src)
+    ? undefined
+    : { next, caret };
 }
 
 /** Type `typed` at `pos` (after any selection was deleted). The new text

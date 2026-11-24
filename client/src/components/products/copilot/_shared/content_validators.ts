@@ -1,9 +1,7 @@
 import { AIToolFailure } from "panther";
 import {
   type ContentSlideSplit,
-  describeSlideTableOrImageForAI,
   type DisaggregationOption,
-  findSlideTableOrImage,
   MAX_CONTENT_BLOCKS,
   type MetricWithStatus,
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
@@ -18,15 +16,8 @@ import { instanceState } from "~/state/instance/t1_store";
 // (validateAiMetricQuery, validateMetricInputsAgainstValueInfo, which the SPA
 // reaches through validateMetricInputs); validatePresetOverrides
 // composes lib's two primitives so there is one filter validator and one
-// date-range validator for every startDate/endDate surface.
-
-export function validateTextOnlyMarkdown(markdown: string): void {
-  const found = findSlideTableOrImage(markdown);
-  if (found === undefined) return;
-  throw new AIToolFailure(
-    `${describeSlideTableOrImageForAI("This text block", found)}.`,
-  );
-}
+// date-range validator for every startDate/endDate surface. The text-block
+// check, validateTextOnlyMarkdown, is lib's, so a server test pins it.
 
 // The files the slide toolbar's image picker offers.
 export function imageAssetFileNames(): string[] {

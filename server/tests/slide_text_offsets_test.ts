@@ -1,4 +1,4 @@
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertThrows } from "@std/assert";
 import {
   analyzeSlideMarkdown,
   assignRunsToUnit,
@@ -17,7 +17,15 @@ import {
   SRC_INLINE_SYNTAX,
   SRC_VISIBLE,
 } from "../../lib/slide_text_offsets.ts";
-import { createMarkdownIt, parseMarkdown } from "@timroberton/panther";
+import {
+  describeSlideTableOrImageForAI,
+  validateTextOnlyMarkdown,
+} from "../../lib/ai_tools/slide_text_for_ai.ts";
+import {
+  AIToolFailure,
+  createMarkdownIt,
+  parseMarkdown,
+} from "@timroberton/panther";
 
 // The canvas slide editor draws the caret from these maps, so a wrong offset
 // is a caret painted on the wrong glyph, and a wrong edit is markdown syntax
@@ -318,9 +326,9 @@ Deno.test("an empty list item is drawn (Enter on a bullet shows the bullet)", ()
 });
 
 // A text block draws text only, so the copilot refuses one holding a table or
-// an image: MarkdownRenderer cannot draw one at the top level, and drops or
-// runs together one anywhere else.
-Deno.test("every table and image a text block draws is found, and nothing else", () => {
+// an image: MarkdownRenderer cannot draw a table outside a quote or an image
+// alone in a top-level paragraph, and drops or runs together any other.
+Deno.test("every table and image a text block draws is found and refused, and nothing else", () => {
   const tables = [
     "a | b\n--- | ---\n1 | 2",
     "a | b | c\n-|-|-",
@@ -363,6 +371,19 @@ Deno.test("every table and image a text block draws is found, and nothing else",
     kind: "image",
     line: 4,
   });
+  for (const src of [...tables, ...images]) {
+    assertThrows(
+      () => validateTextOnlyMarkdown(src),
+      AIToolFailure,
+      `${
+        describeSlideTableOrImageForAI(
+          "This text block",
+          findSlideTableOrImage(src)!,
+        )
+      }.`,
+    );
+  }
+  for (const src of text) validateTextOnlyMarkdown(src);
 });
 
 // A table in a text block cannot be drawn, so a table pasted or typed on the
