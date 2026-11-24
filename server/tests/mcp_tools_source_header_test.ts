@@ -32,7 +32,11 @@ const RUN: RunListingItem = {
   progress: null,
 };
 
-const CTX = { toolUseId: "tool-use-1", signal: new AbortController().signal };
+const CTX = {
+  toolUseId: "tool-use-1",
+  signal: new AbortController().signal,
+  earlierCalls: [],
+};
 
 const HEADER =
   'Source: results package "National package 2026-Q2" (generated 2026-08-19T10:00:00.000Z), scope "All data"';

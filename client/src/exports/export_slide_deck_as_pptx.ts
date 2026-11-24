@@ -61,7 +61,12 @@ export async function exportSlideDeckAsPptx(
     await new Promise((res) => setTimeout(res, 0));
     progress(0.95);
 
-    const pptx = pagesToPptxBrowser(pages, PAGE_WIDTH_DU, PAGE_HEIGHT_DU);
+    const pptx = pagesToPptxBrowser(pages, {
+      pageWidthDu: PAGE_WIDTH_DU,
+      pageHeightDu: PAGE_HEIGHT_DU,
+      // Sharp when a slide is shown full screen on a 4K display.
+      outputWidthPx: 3840,
+    });
     const blob = (await pptx.write({ outputType: "blob" })) as Blob;
     saveAs(blob, `${resDeckDetail.data.label}.pptx`);
 
