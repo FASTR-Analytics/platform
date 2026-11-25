@@ -1,3 +1,7 @@
+[TBD] [user] [added] - Feedback submitted in other languages is automatically translated to English for the support team
+[TBD] [admin] [added] - Feedback submitted in other languages is automatically translated to English for support
+[TBD] [admin] [added] - Translated feedback appears alongside the original in support emails, plan emails, and tickets
+[TBD] [admin] [added] - Daily per-user limit on translation requests to manage costs
 [2.18.0] [user] [changed] - Exported slide decks now have sharper, higher-resolution images
 [2.18.0] [admin] [changed] - Exported slide decks are now sharper on 4K displays
 [2.18.0] [user] [changed] - Dropdown options now show IDs alongside labels for easier identification
