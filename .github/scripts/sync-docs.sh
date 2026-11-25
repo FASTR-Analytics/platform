@@ -8,7 +8,6 @@ cd "$REPO_DIR"
 ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY is required}"
 SENDGRID_API_KEY="${SENDGRID_API_KEY:-}"
 SENDGRID_FROM_EMAIL="${SENDGRID_FROM_EMAIL:-}"
-BEFORE="${BEFORE_SHA:-}"
 
 # ---------------------------------------------------------------------------
 # 1. Detect what changed
@@ -30,30 +29,47 @@ if [ -n "${DIFF_HEAD_OVERRIDE:-}" ]; then
     exit 1
 fi
 
-# Only run for deploy commits (same convention as generate-changelog.sh)
-COMMIT_MSG="$(git log -1 --format=%s)"
-if [[ "$COMMIT_MSG" != "Deploy version"* ]]; then
-    echo "Not a deploy commit. Skipping."
+# Catch-up run (the schedule, or "Run workflow" without inputs): cover every
+# release deployed since the last successful sync. The docs describe released
+# versions, so the range ends at the newest deploy commit, not at HEAD.
+LATEST_DEPLOY="$(git log --grep '^Deploy version' --format=%H -n 1)"
+if [ -z "$LATEST_DEPLOY" ]; then
+    echo "No deploy commit found. Skipping."
     exit 0
 fi
 
-# Diff against the previous deploy commit so the whole release is covered,
-# not just the final push. Falls back to BEFORE_SHA for the first deploy.
-PREV_DEPLOY="$(git log --grep '^Deploy version' --format=%H --skip 1 -n 1)"
-if [ -n "$PREV_DEPLOY" ]; then
-    DIFF_BASE="$PREV_DEPLOY"
-    echo "Diffing against previous deploy: $PREV_DEPLOY"
-elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BEFORE" 2>/dev/null; then
-    DIFF_BASE="$BEFORE"
-    echo "No previous deploy found, diffing against push base: $BEFORE"
-else
-    echo "No previous deploy and no usable before SHA. Skipping."
-    exit 0
+# LAST_SYNC_SHA is where the last successful run stopped (the workflow looks
+# it up). Rounding it down to a deploy commit gives the base: exact after a
+# catch-up, a small overlap after a range run that ended between deploys.
+LAST_SYNC_SHA="${LAST_SYNC_SHA:-}"
+SYNCED_DEPLOY=""
+if [ -n "$LAST_SYNC_SHA" ] && git cat-file -e "$LAST_SYNC_SHA" 2>/dev/null; then
+    SYNCED_DEPLOY="$(git log --grep '^Deploy version' --format=%H -n 1 "$LAST_SYNC_SHA")"
 fi
+
+if [ -n "$SYNCED_DEPLOY" ]; then
+    if [ "$SYNCED_DEPLOY" = "$LATEST_DEPLOY" ]; then
+        echo "Nothing deployed since the last sync ($SYNCED_DEPLOY). Skipping."
+        exit 0
+    fi
+    DIFF_BASE="$SYNCED_DEPLOY"
+    echo "Catching up from the last synced deploy: $SYNCED_DEPLOY"
+else
+    # No usable record of a past sync: cover the latest release only.
+    DIFF_BASE="$(git log --grep '^Deploy version' --format=%H --skip 1 -n 1)"
+    if [ -z "$DIFF_BASE" ]; then
+        echo "No previous deploy to diff against. Skipping."
+        exit 0
+    fi
+    echo "::warning::No previous successful sync found; covering only the latest release (from $DIFF_BASE)."
+fi
+DIFF_HEAD_DEFAULT="$LATEST_DEPLOY"
+echo "Releases covered:"
+git log --grep '^Deploy version' --format='  %s' "$DIFF_BASE".."$LATEST_DEPLOY"
 
 fi  # end DIFF_BASE_OVERRIDE
 
-DIFF_HEAD="${DIFF_HEAD_OVERRIDE:-HEAD}"
+DIFF_HEAD="${DIFF_HEAD_OVERRIDE:-${DIFF_HEAD_DEFAULT:-HEAD}}"
 if ! git cat-file -e "$DIFF_HEAD" 2>/dev/null; then
     echo "DIFF_HEAD_OVERRIDE '$DIFF_HEAD' not found in history."
     exit 1
@@ -74,13 +90,10 @@ git diff "$DIFF_BASE".."$DIFF_HEAD" -- \
 # it: a truncated diff silently drops most of the release. Split a large range
 # into manual runs with diff_base and diff_head instead.
 if [ "$(wc -c < /tmp/sync_docs_diff.txt)" -gt 1800000 ]; then
-    MSG="Diff is $(wc -c < /tmp/sync_docs_diff.txt) bytes, over the 1.8MB limit. Run manually with diff_base/diff_head ranges."
-    if [ -n "$DIFF_BASE_OVERRIDE" ]; then
-        echo "ERROR: $MSG"
-        exit 1
-    fi
-    echo "::warning::$MSG Skipping."
-    exit 0
+    # Fails rather than skips: a successful run moves the next catch-up past
+    # this range, so a skip would drop these releases from the docs for good.
+    echo "::error::Diff $DIFF_BASE..$DIFF_HEAD is $(wc -c < /tmp/sync_docs_diff.txt) bytes, over the 1.8MB limit. Run the workflow manually with diff_base/diff_head ranges that split it, in order; the next catch-up continues from the last range's diff_head."
+    exit 1
 fi
 
 if [ "$(wc -c < /tmp/sync_docs_diff.txt)" -eq 0 ]; then

@@ -1049,3 +1049,109 @@ Deno.test("feedback planner: ticket lines on the plan and support emails", () =>
   });
   assert(!/ticket/i.test(noTicket.plainText), noTicket.plainText);
 });
+
+Deno.test("feedback planner: plainly English reports skip translation", () => {
+  assert(P.looksEnglish("I cannot export the chart to PDF, it shows an error"));
+  assert(P.looksEnglish("When I open the deck it doesn’t load the figures"));
+  assert(
+    !P.looksEnglish(
+      "Je ne peux pas exporter le graphique en PDF, il affiche une erreur",
+    ),
+  );
+  assert(
+    !P.looksEnglish("Não consigo abrir o relatório depois da atualização"),
+  );
+  assert(!P.looksEnglish("Botón de exportar no funciona en la página"));
+  // Too short to judge: the model decides.
+  assert(!P.looksEnglish("Export broken"));
+});
+
+Deno.test("feedback planner: translation answer parsing", () => {
+  assertEquals(
+    P.parseTranslation(
+      JSON.stringify({
+        is_english: false,
+        language: "French",
+        english: " I can't export. ",
+      }),
+    ),
+    { language: "French", english: "I can't export." },
+  );
+  assertEquals(
+    P.parseTranslation(
+      JSON.stringify({ is_english: true, language: "", english: "" }),
+    ),
+    undefined,
+  );
+  assertEquals(
+    P.parseTranslation(
+      JSON.stringify({ is_english: false, language: "", english: "Hi" }),
+    ),
+    { language: "another language", english: "Hi" },
+  );
+  assertEquals(
+    P.parseTranslation(
+      JSON.stringify({ is_english: false, language: "French", english: "" }),
+    ),
+    undefined,
+  );
+  assertEquals(P.parseTranslation("not json"), undefined);
+  assertEquals(P.parseTranslation(undefined), undefined);
+});
+
+Deno.test("feedback planner: translation shows under the report everywhere", () => {
+  const translation = {
+    language: "French",
+    english: "The <b>export</b> button does nothing.",
+  };
+  const job = {
+    ...BUG_JOB,
+    description: "Le bouton <b>exporter</b> ne fait rien.",
+    translation,
+  };
+
+  const section = P.translationSection(translation);
+  assert(
+    section.plainText.startsWith(
+      "English translation (automatic, from French):",
+    ),
+  );
+  assert(!section.html.includes("<b>"), section.html);
+  assert(section.html.includes("&lt;b&gt;export&lt;/b&gt;"), section.html);
+
+  // Support email: the translation comes before Claude's note.
+  const support = P.withTranslation(translation, {
+    html: "<h3>Claude's first look</h3>",
+    plainText: "Claude's first look",
+  });
+  assert(
+    support.html.indexOf("English translation") <
+      support.html.indexOf("first look"),
+  );
+  assert(
+    support.plainText.indexOf("English translation") <
+      support.plainText.indexOf("first look"),
+  );
+  const untouched = { html: "h", plainText: "p" };
+  assertEquals(P.withTranslation(undefined, untouched), untouched);
+
+  // Plan email.
+  const email = P.buildEmail(
+    job,
+    result("TITLE: x\n\n## Triage\nok"),
+    undefined,
+    1,
+  );
+  assert(email.html.includes("English translation (automatic, from French):"));
+  assert(email.plainText.includes("The <b>export</b> button does nothing."));
+  assert(!email.html.includes("<b>export"), email.html);
+
+  // Ticket: English first, original kept.
+  const payload = P.buildTicketPayload(job, undefined);
+  assert(payload.description.startsWith("The <b>export</b> button"));
+  assert(payload.description.includes("--- Original (French) ---\nLe bouton"));
+  assertEquals(payload.title, "The <b>export</b> button does nothing.");
+
+  // No translation: the ticket description is the report as written.
+  assertEquals(P.buildTicketPayload(BUG_JOB, undefined).description, "x");
+});

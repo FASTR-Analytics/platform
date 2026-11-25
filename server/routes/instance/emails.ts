@@ -11,6 +11,9 @@ import {
   REPORTER_LOG_HOURS,
   REPORTER_LOG_LIMIT,
   type SupportAddition,
+  TRANSLATE_ROUTE_TIMEOUT_MS,
+  translateFeedback,
+  translationSection,
 } from "../../utils/feedback_planner.ts";
 import { getRecentUserRequests } from "../../db/instance/user_logs.ts";
 import { USER_PERMISSIONS } from "lib";
@@ -341,7 +344,19 @@ defineRoute(
       );
     }
 
-    if (!heldForPlan && !(await sendToSupport())) {
+    // A report the planner did not take is translated here, so support still
+    // reads it in English; an accepted one is translated by its job.
+    const translation = heldForPlan ? undefined : await translateFeedback(
+      description,
+      userEmail,
+      TRANSLATE_ROUTE_TIMEOUT_MS,
+    );
+    if (
+      !heldForPlan &&
+      !(await sendToSupport(
+        translation ? translationSection(translation) : undefined,
+      ))
+    ) {
       return c.json({
         success: false,
         err: "Your feedback could not be delivered. Please try again later.",

@@ -1,19 +1,20 @@
 name: Sync Docs
 
+# Every two days, brings the documentation site up to date with everything
+# deployed since the last successful sync (one Claude review per run instead of
+# one per deploy). "Run workflow" without inputs does the same catch-up now;
+# diff_base (and diff_head) recover one specific range.
+run-name: ${{ inputs.diff_base && format('Sync Docs range {0}..{1}', inputs.diff_base, inputs.diff_head || 'HEAD') || 'Sync Docs' }}
+
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "server/**/*.ts"
-      - "client/src/**/*.tsx"
-      - "client/src/**/*.ts"
-      - "lib/**/*.ts"
-      - "VERSION"
+  schedule:
+    # 22:00 UTC on odd days of the month (9am Sydney). The 31st is followed by
+    # the 1st, which only means a short catch-up.
+    - cron: "0 22 */2 * *"
   workflow_dispatch:
     inputs:
       diff_base:
-        description: "Commit SHA to diff against (defaults to previous deploy commit)"
+        description: "Commit SHA to diff against (empty: catch up since the last successful sync)"
         required: false
       diff_head:
         description: "Commit SHA to diff up to (defaults to HEAD); splits a large range across runs"
@@ -21,10 +22,10 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   sync-docs:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'Deploy version')
     runs-on: ubuntu-latest
 
     steps:
@@ -40,12 +41,31 @@ jobs:
           token: ${{ secrets.SITE_REPO_PAT }}
           path: _site_repo
 
+      # Where the last successful sync stopped: the head of the newest
+      # successful run, or for a manual range run its diff_head (read back from
+      # the run name above). Runs from before the schedule count too.
+      - name: Find the last synced commit
+        id: last
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          row=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow sync-docs.yml \
+            --status success --limit 1 --json headSha,displayTitle \
+            -q '.[0] | "\(.headSha) \(.displayTitle)"') || row=""
+          sha=${row%% *}
+          title=${row#* }
+          if [[ "$title" =~ ^Sync\ Docs\ range\ [^.]+\.\.([^ ]+)$ ]] && [ "${BASH_REMATCH[1]}" != "HEAD" ]; then
+            sha=${BASH_REMATCH[1]}
+          fi
+          echo "Last sync stopped at: ${sha:-none found}"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
       - name: Sync docs
         env:
+          LAST_SYNC_SHA: ${{ steps.last.outputs.sha }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
           SENDGRID_FROM_EMAIL: ${{ secrets.SENDGRID_FROM_EMAIL }}
-          BEFORE_SHA: ${{ github.event.before }}
           DIFF_BASE_OVERRIDE: ${{ inputs.diff_base }}
           DIFF_HEAD_OVERRIDE: ${{ inputs.diff_head }}
         run: bash .github/scripts/sync-docs.sh
